@@ -676,26 +676,625 @@
             contentDiv.innerHTML = html;
         }
 
-        async function loadStats() {
+                async function loadStats() {
             const contentDiv = document.getElementById('statsContent');
             contentDiv.innerHTML = '<div class="loading">Loading stats...</div>';
             
             const playersData = await apiCall('getPlayers', {});
-            if (playersData.error) {
+            const sessionsData = await apiCall('getSessions', {});
+            
+            if (playersData.error || sessionsData.error) {
                 contentDiv.innerHTML = '<div class="error">Error loading stats</div>';
                 return;
             }
             
-            let html = '<h3>Stats Coming Soon</h3>';
-            html += '<p>Win rates, average scores, lockout percentages, and more will be calculated here.</p>';
-            html += '<h4 style="margin-top: 20px;">Players</h4><ul>';
-            for (let i = 0; i < playersData.length; i++) {
-                html += '<li>' + playersData[i].username + '</li>';
-            }
-            html += '</ul>';
+            allPlayers = playersData;
+            
+            let html = '<div class="toggle-section">';
+            html += '<h4>View</h4>';
+            html += '<div class="toggle-buttons">';
+            html += '<button class="active" onclick="setStatsMode(\'alltime\')">All Time</button>';
+            html += '<button onclick="setStatsMode(\'game\')">Individual Game</button>';
+            html += '</div></div>';
+            
+            html += '<div class="filter-section">';
+            html += '<h4>Filter Players</h4>';
+            html += '<div id="playerFilters" class="filter-checkboxes"></div>';
+            html += '</div>';
+            
+            html += '<div id="gameSelectSection" class="hidden">';
+            html += '<label for="statsGameSelect">Select Game</label>';
+            html += '<select id="statsGameSelect" onchange="loadStats()">';
+            html += '<option value="">Loading...</option>';
+            html += '</select></div>';
+            
+            html += '<div id="statsCardsContainer"></div>';
+            html += '<div id="statsGraphsContainer"></div>';
             
             contentDiv.innerHTML = html;
+            
+            setupPlayerFilters(playersData);
+            loadStatsData(sessionsData, playersData);
         }
+
+        let statsMode = 'alltime';
+        let selectedGameForStats = null;
+
+        function setStatsMode(mode) {
+            statsMode = mode;
+            const buttons = document.querySelectorAll('.toggle-buttons button');
+            for (let i = 0; i < buttons.length; i++) {
+                buttons[i].classList.remove('active');
+            }
+            event.target.classList.add('active');
+            
+            if (mode === 'game') {
+                document.getElementById('gameSelectSection').classList.remove('hidden');
+                loadGameSelectDropdown();
+            } else {
+                document.getElementById('gameSelectSection').classList.add('hidden');
+            }
+            
+            loadStats();
+        }
+
+        async function loadGameSelectDropdown() {
+            const select = document.getElementById('statsGameSelect');
+            const sessionsData = await apiCall('getSessions', {});
+            
+            let html = '<option value="">Select a game...</option>';
+            let gameIndex = 0;
+            
+            for (let s = 0; s < sessionsData.length; s++) {
+                const session = sessionsData[s];
+                const gamesData = await apiCall('getGames', { session_id: session.session_id });
+                if (gamesData.error) continue;
+                for (let g = 0; g < gamesData.length; g++) {
+                    const game = gamesData[g];
+                    html += '<option value="' + gameIndex + '">' + session.title + ' - Game ' + game.game_number + '</option>';
+                    gameIndex++;
+                }
+            }
+            
+            select.innerHTML = html;
+        }
+
+        function setupPlayerFilters(playersData) {
+            const filterDiv = document.getElementById('playerFilters');
+            let html = '';
+            for (let i = 0; i < playersData.length; i++) {
+                const player = playersData[i];
+                html += '<div class="filter-checkbox">' +
+                    '<input type="checkbox" id="filter_' + player.player_id + '" checked onchange="loadStats()">' +
+                    '<label for="filter_' + player.player_id + '">' + player.username + '</label>' +
+                    '</div>';
+            }
+            filterDiv.innerHTML = html;
+        }
+
+        function getSelectedPlayers() {
+            const checkboxes = document.querySelectorAll('[id^="filter_"]:checked');
+            const selected = [];
+            for (let i = 0; i < checkboxes.length; i++) {
+                selected.push(checkboxes[i].id.replace('filter_', ''));
+            }
+            return selected;
+        }
+
+        async function loadStatsData(sessionsData, playersData) {
+            const selectedPlayers = getSelectedPlayers();
+            
+            if (statsMode === 'alltime') {
+                await loadAllTimeStats(sessionsData, playersData, selectedPlayers);
+            } else {
+                await loadGameStats(sessionsData, playersData, selectedPlayers);
+            }
+        }
+
+        async function loadAllTimeStats(sessionsData, playersData, selectedPlayers) {
+            const allGamesData = [];
+            
+            for (let s = 0; s < sessionsData.length; s++) {
+                const session = sessionsData[s];
+                const gamesData = await apiCall('getGames', { session_id: session.session_id });
+                if (gamesData.error) continue;
+                for (let g = 0; g < gamesData.length; g++) {
+                    const game = gamesData[g];
+                    const handsData = await apiCall('getHands', { game_id: game.game_id });
+                    if (!handsData.error) {
+                        allGamesData.push({
+                            game_id: game.game_id,
+                            session_title: session.title,
+                            hands: handsData
+                        });
+                    }
+                }
+            }
+            
+            const stats = calculateAllTimeStats(allGamesData, selectedPlayers, playersData);
+            displayAllTimeStats(stats, selectedPlayers, playersData, allGamesData);
+        }
+
+        function calculateAllTimeStats(allGamesData, selectedPlayers, playersData) {
+            const playerStats = {};
+            
+            for (let i = 0; i < selectedPlayers.length; i++) {
+                const playerId = selectedPlayers[i];
+                playerStats[playerId] = {
+                    username: getPlayerNameById(playerId, playersData),
+                    wins: 0,
+                    losses: 0,
+                    totalScore: 0,
+                    handCount: 0,
+                    lockoutScores: [],
+                    falseLockouts: 0,
+                    totalLockouts: 0,
+                    gamesPlayed: 0,
+                    gameScores: [],
+                    winStreak: 0,
+                    lossStreak: 0,
+                    maxWinStreak: 0,
+                    maxLossStreak: 0,
+                    bestMargin: 0,
+                    worstMargin: 0
+                };
+            }
+            
+            for (let g = 0; g < allGamesData.length; g++) {
+                const game = allGamesData[g];
+                const playerTotals = {};
+                
+                for (let i = 0; i < selectedPlayers.length; i++) {
+                    playerTotals[selectedPlayers[i]] = 0;
+                }
+                
+                for (let h = 0; h < game.hands.length; h++) {
+                    const hand = game.hands[h];
+                    if (selectedPlayers.indexOf(String(hand.player_id)) !== -1) {
+                        playerTotals[hand.player_id] += Number(hand.score);
+                        playerStats[hand.player_id].totalScore += Number(hand.score);
+                        playerStats[hand.player_id].handCount++;
+                        
+                        if (hand.lockout_player_id) {
+                            playerStats[hand.player_id].totalLockouts++;
+                            if (String(hand.lockout_player_id) === String(hand.player_id)) {
+                                playerStats[hand.player_id].lockoutScores.push(playerTotals[hand.player_id]);
+                                if (hand.false_lockout) {
+                                    playerStats[hand.player_id].falseLockouts++;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                let winnerPlayerId = null;
+                let lowestScore = Infinity;
+                let secondLowestScore = Infinity;
+                
+                for (let playerId in playerTotals) {
+                    if (selectedPlayers.indexOf(String(playerId)) !== -1) {
+                        const score = playerTotals[playerId];
+                        if (score < lowestScore) {
+                            secondLowestScore = lowestScore;
+                            lowestScore = score;
+                            winnerPlayerId = playerId;
+                        } else if (score < secondLowestScore) {
+                            secondLowestScore = score;
+                        }
+                    }
+                }
+                
+                for (let i = 0; i < selectedPlayers.length; i++) {
+                    const playerId = selectedPlayers[i];
+                    if (playerTotals[playerId] !== undefined) {
+                        playerStats[playerId].gamesPlayed++;
+                        playerStats[playerId].gameScores.push(playerTotals[playerId]);
+                        
+                        if (String(playerId) === String(winnerPlayerId)) {
+                            playerStats[playerId].wins++;
+                            playerStats[playerId].winStreak++;
+                            playerStats[playerId].lossStreak = 0;
+                            if (playerStats[playerId].winStreak > playerStats[playerId].maxWinStreak) {
+                                playerStats[playerId].maxWinStreak = playerStats[playerId].winStreak;
+                            }
+                            const margin = secondLowestScore - lowestScore;
+                            if (margin > playerStats[playerId].bestMargin) {
+                                playerStats[playerId].bestMargin = margin;
+                            }
+                        } else {
+                            playerStats[playerId].losses++;
+                            playerStats[playerId].lossStreak++;
+                            playerStats[playerId].winStreak = 0;
+                            if (playerStats[playerId].lossStreak > playerStats[playerId].maxLossStreak) {
+                                playerStats[playerId].maxLossStreak = playerStats[playerId].lossStreak;
+                            }
+                            const margin = playerTotals[playerId] - lowestScore;
+                            if (margin > playerStats[playerId].worstMargin) {
+                                playerStats[playerId].worstMargin = margin;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return playerStats;
+        }
+
+        function displayAllTimeStats(stats, selectedPlayers, playersData, allGamesData) {
+            let html = '<h3>Overall Stats</h3><div class="stats-grid">';
+            
+            for (let i = 0; i < selectedPlayers.length; i++) {
+                const playerId = selectedPlayers[i];
+                const ps = stats[playerId];
+                
+                const winRate = ps.gamesPlayed > 0 ? ((ps.wins / ps.gamesPlayed) * 100).toFixed(1) : '0';
+                const avgScorePerHand = ps.handCount > 0 ? (ps.totalScore / ps.handCount).toFixed(2) : '0';
+                const avgLockoutScore = ps.lockoutScores.length > 0 ? (ps.lockoutScores.reduce((a, b) => a + b, 0) / ps.lockoutScores.length).toFixed(2) : '0';
+                const falseLockoutRate = ps.totalLockouts > 0 ? ((ps.falseLockouts / ps.totalLockouts) * 100).toFixed(1) : '0';
+                
+                html += '<div class="stat-card"><h4>' + ps.username + '</h4>';
+                html += '<p><strong>Win Rate:</strong> ' + winRate + '%</p>';
+                html += '<p><strong>Avg Score/Hand:</strong> ' + avgScorePerHand + '</p>';
+                html += '<p><strong>Avg Lockout Score:</strong> ' + avgLockoutScore + '</p>';
+                html += '<p><strong>False Lockout %:</strong> ' + falseLockoutRate + '%</p>';
+                html += '<p><strong>Win Streak:</strong> ' + ps.maxWinStreak + '</p>';
+                html += '<p><strong>Loss Streak:</strong> ' + ps.maxLossStreak + '</p>';
+                html += '<p><strong>Best Margin:</strong> ' + ps.bestMargin + '</p>';
+                html += '<p><strong>Worst Margin:</strong> ' + ps.worstMargin + '</p>';
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            document.getElementById('statsCardsContainer').innerHTML = html;
+            
+            let graphsHtml = '<h3>Graphs</h3>';
+            graphsHtml += '<div class="chart-container"><canvas id="allTimeWormChart"></canvas></div>';
+            graphsHtml += '<div class="chart-container"><canvas id="allTimeManhattanChart"></canvas></div>';
+            document.getElementById('statsGraphsContainer').innerHTML = graphsHtml;
+            
+            setTimeout(function() {
+                drawAllTimeWormChart(allGamesData, selectedPlayers, playersData);
+                drawAllTimeManhattanChart(allGamesData, selectedPlayers, playersData);
+            }, 100);
+        }
+
+        async function loadGameStats(sessionsData, playersData, selectedPlayers) {
+            const gameSelectValue = document.getElementById('statsGameSelect').value;
+            if (!gameSelectValue) {
+                document.getElementById('statsCardsContainer').innerHTML = '<div class="error">Please select a game</div>';
+                return;
+            }
+            
+            let gameIndex = 0;
+            let targetGame = null;
+            
+            for (let s = 0; s < sessionsData.length; s++) {
+                const session = sessionsData[s];
+                const gamesData = await apiCall('getGames', { session_id: session.session_id });
+                if (gamesData.error) continue;
+                for (let g = 0; g < gamesData.length; g++) {
+                    if (gameIndex === parseInt(gameSelectValue)) {
+                        targetGame = { game_id: gamesData[g].game_id, session_title: session.title, game_number: gamesData[g].game_number };
+                        break;
+                    }
+                    gameIndex++;
+                }
+                if (targetGame) break;
+            }
+            
+            if (!targetGame) {
+                document.getElementById('statsCardsContainer').innerHTML = '<div class="error">Game not found</div>';
+                return;
+            }
+            
+            const handsData = await apiCall('getHands', { game_id: targetGame.game_id });
+            if (handsData.error) {
+                document.getElementById('statsCardsContainer').innerHTML = '<div class="error">Error loading game data</div>';
+                return;
+            }
+            
+            displayGameStats(targetGame, handsData, selectedPlayers, playersData);
+        }
+
+        function displayGameStats(game, handsData, selectedPlayers, playersData) {
+            const playerStats = {};
+            const playerHands = {};
+            
+            for (let i = 0; i < selectedPlayers.length; i++) {
+                const playerId = selectedPlayers[i];
+                playerStats[playerId] = {
+                    username: getPlayerNameById(playerId, playersData),
+                    total: 0,
+                    lockouts: 0,
+                    falseLockouts: 0,
+                    lockoutScores: []
+                };
+                playerHands[playerId] = [];
+            }
+            
+            for (let h = 0; h < handsData.length; h++) {
+                const hand = handsData[h];
+                if (selectedPlayers.indexOf(String(hand.player_id)) !== -1) {
+                    const score = Number(hand.score);
+                    playerStats[hand.player_id].total += score;
+                    playerHands[hand.player_id].push(score);
+                    
+                    if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+                        playerStats[hand.player_id].lockouts++;
+                        playerStats[hand.player_id].lockoutScores.push(playerStats[hand.player_id].total);
+                        if (hand.false_lockout) {
+                            playerStats[hand.player_id].falseLockouts++;
+                        }
+                    }
+                }
+            }
+            
+            let html = '<h3>' + game.session_title + ' - Game ' + game.game_number + '</h3>';
+            html += '<h4>Final Scores</h4><table class="scores-table"><tr><th>Player</th><th>Total</th><th>Avg/Hand</th><th>Lockouts</th><th>False</th></tr>';
+            
+            const sortedPlayers = selectedPlayers.sort(function(a, b) {
+                return playerStats[a].total - playerStats[b].total;
+            });
+            
+            for (let i = 0; i < sortedPlayers.length; i++) {
+                const playerId = sortedPlayers[i];
+                const ps = playerStats[playerId];
+                const avgPerHand = playerHands[playerId].length > 0 ? (ps.total / playerHands[playerId].length).toFixed(2) : '0';
+                html += '<tr><td>' + ps.username + '</td><td>' + ps.total + '</td><td>' + avgPerHand + '</td><td>' + ps.lockouts + '</td><td>' + ps.falseLockouts + '</td></tr>';
+            }
+            
+            html += '</table>';
+            document.getElementById('statsCardsContainer').innerHTML = html;
+            
+            let graphsHtml = '<h3>Graphs</h3>';
+            graphsHtml += '<div class="chart-container"><canvas id="gameWormChart"></canvas></div>';
+            graphsHtml += '<div class="chart-container"><canvas id="gameManhattanChart"></canvas></div>';
+            document.getElementById('statsGraphsContainer').innerHTML = graphsHtml;
+            
+            setTimeout(function() {
+                drawGameWormChart(playerHands, sortedPlayers, playersData);
+                drawGameManhattanChart(playerHands, sortedPlayers, playersData);
+            }, 100);
+        }
+
+        function getPlayerNameById(playerId, playersData) {
+            for (let i = 0; i < playersData.length; i++) {
+                if (playersData[i].player_id == playerId) {
+                    return playersData[i].username;
+                }
+            }
+            return 'Unknown';
+        }
+
+        function drawAllTimeWormChart(allGamesData, selectedPlayers, playersData) {
+            const ctx = document.getElementById('allTimeWormChart');
+            if (!ctx) return;
+            
+            const playerCumulative = {};
+            for (let i = 0; i < selectedPlayers.length; i++) {
+                playerCumulative[selectedPlayers[i]] = [];
+            }
+            
+            let cumulative = {};
+            for (let i = 0; i < selectedPlayers.length; i++) {
+                cumulative[selectedPlayers[i]] = 0;
+            }
+            
+            for (let g = 0; g < allGamesData.length; g++) {
+                const game = allGamesData[g];
+                const playerTotals = {};
+                for (let i = 0; i < selectedPlayers.length; i++) {
+                    playerTotals[selectedPlayers[i]] = 0;
+                }
+                
+                for (let h = 0; h < game.hands.length; h++) {
+                    const hand = game.hands[h];
+                    if (selectedPlayers.indexOf(String(hand.player_id)) !== -1) {
+                        playerTotals[hand.player_id] += Number(hand.score);
+                    }
+                }
+                
+                for (let i = 0; i < selectedPlayers.length; i++) {
+                    const playerId = selectedPlayers[i];
+                    if (playerTotals[playerId] > 0) {
+                        cumulative[playerId] += playerTotals[playerId];
+                        playerCumulative[playerId].push(cumulative[playerId]);
+                    } else {
+                        playerCumulative[playerId].push(null);
+                    }
+                }
+            }
+            
+            const datasets = [];
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            
+            for (let i = 0; i < selectedPlayers.length; i++) {
+                const playerId = selectedPlayers[i];
+                datasets.push({
+                    label: getPlayerNameById(playerId, playersData),
+                    data: playerCumulative[playerId],
+                    borderColor: colors[i % colors.length],
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    spanGaps: false
+                });
+            }
+            
+            const labels = [];
+            for (let i = 1; i <= allGamesData.length; i++) {
+                labels.push('Game ' + i);
+            }
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Cricket Worm - All Time Cumulative Scores' },
+                        legend: { display: true }
+                    },
+                    scales: { y: { title: { display: true, text: 'Cumulative Score' } } }
+                }
+            });
+        }
+
+        function drawAllTimeManhattanChart(allGamesData, selectedPlayers, playersData) {
+            const ctx = document.getElementById('allTimeManhattanChart');
+            if (!ctx) return;
+            
+            const playerScores = {};
+            for (let i = 0; i < selectedPlayers.length; i++) {
+                playerScores[selectedPlayers[i]] = [];
+            }
+            
+            for (let g = 0; g < allGamesData.length; g++) {
+                const game = allGamesData[g];
+                const playerTotals = {};
+                for (let i = 0; i < selectedPlayers.length; i++) {
+                    playerTotals[selectedPlayers[i]] = 0;
+                }
+                
+                for (let h = 0; h < game.hands.length; h++) {
+                    const hand = game.hands[h];
+                    if (selectedPlayers.indexOf(String(hand.player_id)) !== -1) {
+                        playerTotals[hand.player_id] += Number(hand.score);
+                    }
+                }
+                
+                for (let i = 0; i < selectedPlayers.length; i++) {
+                    const playerId = selectedPlayers[i];
+                    playerScores[playerId].push(playerTotals[playerId] > 0 ? playerTotals[playerId] : null);
+                }
+            }
+            
+            const datasets = [];
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            
+            for (let i = 0; i < selectedPlayers.length; i++) {
+                const playerId = selectedPlayers[i];
+                datasets.push({
+                    label: getPlayerNameById(playerId, playersData),
+                    data: playerScores[playerId],
+                    backgroundColor: colors[i % colors.length],
+                    borderColor: colors[i % colors.length],
+                    borderWidth: 1
+                });
+            }
+            
+            const labels = [];
+            for (let i = 1; i <= allGamesData.length; i++) {
+                labels.push('Game ' + i);
+            }
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Manhattan - All Time Per Game Scores' },
+                        legend: { display: true }
+                    },
+                    scales: { y: { stacked: false } }
+                }
+            });
+        }
+
+        function drawGameWormChart(playerHands, playerIds, playersData) {
+            const ctx = document.getElementById('gameWormChart');
+            if (!ctx) return;
+            
+            const datasets = [];
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            
+            for (let i = 0; i < playerIds.length; i++) {
+                const playerId = playerIds[i];
+                const hands = playerHands[playerId];
+                let cumulative = 0;
+                const cumulativeScores = [];
+                
+                for (let j = 0; j < hands.length; j++) {
+                    cumulative += hands[j];
+                    cumulativeScores.push(cumulative);
+                }
+                
+                datasets.push({
+                    label: getPlayerNameById(playerId, playersData),
+                    data: cumulativeScores,
+                    borderColor: colors[i % colors.length],
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.1
+                });
+            }
+            
+            const maxHands = Math.max.apply(null, playerIds.map(id => playerHands[id].length));
+            const labels = [];
+            for (let i = 1; i <= maxHands; i++) {
+                labels.push('Hand ' + i);
+            }
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Cricket Worm - Game Cumulative Scores' }
+                    },
+                    scales: { y: { title: { display: true, text: 'Cumulative Score' } } }
+                }
+            });
+        }
+
+        function drawGameManhattanChart(playerHands, playerIds, playersData) {
+            const ctx = document.getElementById('gameManhattanChart');
+            if (!ctx) return;
+            
+            const datasets = [];
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            const maxHands = Math.max.apply(null, playerIds.map(id => playerHands[id].length));
+            
+            for (let i = 0; i < playerIds.length; i++) {
+                const playerId = playerIds[i];
+                const hands = playerHands[playerId];
+                const paddedHands = [];
+                for (let j = 0; j < maxHands; j++) {
+                    paddedHands.push(hands[j] || 0);
+                }
+                datasets.push({
+                    label: getPlayerNameById(playerId, playersData),
+                    data: paddedHands,
+                    backgroundColor: colors[i % colors.length],
+                    borderColor: colors[i % colors.length],
+                    borderWidth: 1
+                });
+            }
+            
+            const labels = [];
+            for (let i = 1; i <= maxHands; i++) {
+                labels.push('Hand ' + i);
+            }
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Manhattan - Game Per Hand Scores' }
+                    },
+                    scales: { y: { stacked: false } }
+                }
+            });
+        }
+
 
         window.addEventListener('DOMContentLoaded', function() {
             console.log('Lockout Tracker loaded');
