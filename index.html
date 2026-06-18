@@ -17,91 +17,45 @@
         .container { max-width: 800px; margin: 0 auto; }
         .header { text-align: center; color: white; margin-bottom: 30px; }
         .header h1 { font-size: 2.5em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
-        .card {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
+        .card { background: white; border-radius: 15px; padding: 25px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 10px;
-            font-size: 1em;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 10px;
-            font-weight: 600;
-            transition: transform 0.2s;
+            color: white; border: none; padding: 15px 30px; border-radius: 10px;
+            font-size: 1em; cursor: pointer; width: 100%; margin-top: 10px;
+            font-weight: 600; transition: transform 0.2s;
         }
         .btn:hover { transform: translateY(-2px); }
         .btn-secondary { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
         .btn-success { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
         .btn-danger { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
-        input, select {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1em;
-        }
+        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em; }
         input:focus, select:focus { outline: none; border-color: #667eea; }
         label { display: block; margin-top: 15px; font-weight: 600; color: #555; }
         .hidden { display: none; }
         .screen { display: none; }
         .screen.active { display: block; }
         .player-list { list-style: none; padding: 0; }
-        .player-item {
-            padding: 15px;
-            margin: 10px 0;
-            background: #f8f9fa;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        .player-item { padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
         .player-item input[type="checkbox"] { width: auto; margin: 0; }
         .hand-input-section { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
-        .player-hand-row {
-            display: grid;
-            grid-template-columns: 1fr 80px 100px 100px;
-            gap: 10px;
-            align-items: center;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            margin: 10px 0;
-        }
+        .player-hand-row { display: grid; grid-template-columns: 1fr 80px 100px 100px; gap: 10px; align-items: center; padding: 15px; background: white; border-radius: 8px; margin: 10px 0; }
         .player-hand-row label { margin: 0; font-weight: 600; }
         .player-hand-row input[type="number"] { margin: 0; padding: 8px; }
         .checkbox-group { display: flex; gap: 10px; align-items: center; }
-        .checkbox-group label {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            margin: 0;
-            font-weight: normal;
-            font-size: 0.9em;
-        }
+        .checkbox-group label { display: flex; align-items: center; gap: 5px; margin: 0; font-weight: normal; font-size: 0.9em; }
         .checkbox-group input[type="checkbox"] { width: auto; margin: 0; }
         .game-summary { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; }
         .game-summary h3 { margin-bottom: 10px; color: #667eea; }
-        .scores-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-        .scores-table th, .scores-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e0e0e0;
-        }
+        .scores-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .scores-table th, .scores-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e0e0e0; }
         .scores-table th { background: #667eea; color: white; font-weight: 600; }
         .scores-table tr:hover { background: #f8f9fa; }
+        .games-list { list-style: none; padding: 0; }
+        .game-item { padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+        .game-item:hover { background: #e8e9ff; }
+        .game-item-header { font-weight: 600; color: #667eea; margin-bottom: 5px; }
+        .game-item-info { font-size: 0.9em; color: #666; }
+        .chart-container { position: relative; height: 300px; margin: 20px 0; background: white; padding: 15px; border-radius: 8px; }
         .loading { text-align: center; padding: 20px; color: #667eea; }
         .error { background: #fee; color: #c33; padding: 15px; border-radius: 8px; margin: 15px 0; }
         .success { background: #efe; color: #3c3; padding: 15px; border-radius: 8px; margin: 15px 0; }
@@ -124,6 +78,9 @@
             <div class="card">
                 <h2>Welcome!</h2>
                 <button class="btn" onclick="showScreen('startSessionScreen')">Start New Session</button>
+                <button class="btn btn-secondary" onclick="showScreen('previousGamesScreen'); loadPreviousGames();">View Previous Games</button>
+                <button class="btn btn-secondary" onclick="showScreen('leaderboardScreen'); loadLeaderboard();">View Leaderboard</button>
+                <button class="btn btn-secondary" onclick="showScreen('statsScreen'); loadStats();">View Stats</button>
                 <button class="btn btn-secondary" onclick="showScreen('addPlayerScreen')">Add New Player</button>
             </div>
         </div>
@@ -185,6 +142,39 @@
                 </div>
             </div>
         </div>
+
+        <div id="previousGamesScreen" class="screen">
+            <div class="card">
+                <h2>Previous Games</h2>
+                <div id="previousGamesContent" class="loading">Loading...</div>
+                <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
+            </div>
+        </div>
+
+        <div id="gameDetailScreen" class="screen">
+            <div class="card">
+                <h2 id="gameDetailTitle">Game Details</h2>
+                <div id="gameDetailContent"></div>
+                <div id="gameDetailGraphs"></div>
+                <button class="btn btn-secondary" onclick="showScreen('previousGamesScreen'); loadPreviousGames();">Back to Games</button>
+            </div>
+        </div>
+
+        <div id="leaderboardScreen" class="screen">
+            <div class="card">
+                <h2>Leaderboard</h2>
+                <div id="leaderboardContent" class="loading">Loading...</div>
+                <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
+            </div>
+        </div>
+
+        <div id="statsScreen" class="screen">
+            <div class="card">
+                <h2>Stats</h2>
+                <div id="statsContent" class="loading">Loading...</div>
+                <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
+            </div>
+        </div>
     </div>
     <script>
         const API_URL = 'https://script.google.com/macros/s/AKfycbwQ46Q24kOVOlKC2QGwoxBB5WJr4Dpw26TumoAeJi--i2DbemibS07oawvMek9mzmE/exec';
@@ -194,6 +184,7 @@
         let currentHandNumber = 1;
         let allPlayers = [];
         let sessionPlayers = [];
+        let allGames = [];
 
         async function apiCall(action, params) {
             const url = new URL(API_URL);
@@ -465,6 +456,245 @@
                 document.getElementById('newGameBtn').style.display = 'block';
                 currentGame = null;
             }
+        }
+
+        async function loadPreviousGames() {
+            const contentDiv = document.getElementById('previousGamesContent');
+            contentDiv.innerHTML = '<div class="loading">Loading games...</div>';
+            
+            const sessionsData = await apiCall('getSessions', {});
+            if (sessionsData.error) {
+                contentDiv.innerHTML = '<div class="error">Error loading games</div>';
+                return;
+            }
+            
+            allGames = [];
+            let html = '<ul class="games-list">';
+            
+            for (let s = 0; s < sessionsData.length; s++) {
+                const session = sessionsData[s];
+                const gamesData = await apiCall('getGames', { session_id: session.session_id });
+                if (gamesData.error) continue;
+                for (let g = 0; g < gamesData.length; g++) {
+                    const game = gamesData[g];
+                    allGames.push({
+                        game_id: game.game_id,
+                        session_id: session.session_id,
+                        session_title: session.title,
+                        game_number: game.game_number,
+                        date: session.date_started
+                    });
+                }
+            }
+            
+            for (let i = 0; i < allGames.length; i++) {
+                const game = allGames[i];
+                html += '<li class="game-item" onclick="viewGameDetail(' + i + ')">' +
+                    '<div class="game-item-header">' + game.session_title + ' - Game ' + game.game_number + '</div>' +
+                    '<div class="game-item-info">Date: ' + game.date + '</div>' +
+                    '</li>';
+            }
+            
+            html += '</ul>';
+            contentDiv.innerHTML = html;
+        }
+
+        function getPlayerName(playerId) {
+            for (let i = 0; i < allPlayers.length; i++) {
+                if (allPlayers[i].player_id == playerId) {
+                    return allPlayers[i].username;
+                }
+            }
+            return 'Unknown';
+        }
+        async function viewGameDetail(gameIndex) {
+            const game = allGames[gameIndex];
+            const handsData = await apiCall('getHands', { game_id: game.game_id });
+            
+            if (handsData.error) {
+                alert('Error loading game details');
+                return;
+            }
+            
+            document.getElementById('gameDetailTitle').textContent = game.session_title + ' - Game ' + game.game_number;
+            
+            const playerTotals = {};
+            const playerHands = {};
+            
+            for (let i = 0; i < handsData.length; i++) {
+                const hand = handsData[i];
+                if (!playerTotals[hand.player_id]) {
+                    playerTotals[hand.player_id] = 0;
+                    playerHands[hand.player_id] = [];
+                }
+                playerTotals[hand.player_id] += Number(hand.score);
+                playerHands[hand.player_id].push(Number(hand.score));
+            }
+            
+            let html = '<h3>Final Scores</h3><table class="scores-table"><tr><th>Player</th><th>Total</th></tr>';
+            const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
+                return playerTotals[a] - playerTotals[b];
+            });
+            
+            for (let i = 0; i < sortedPlayers.length; i++) {
+                const playerId = sortedPlayers[i];
+                const playerName = getPlayerName(playerId);
+                html += '<tr><td>' + playerName + '</td><td>' + playerTotals[playerId] + '</td></tr>';
+            }
+            html += '</table>';
+            
+            document.getElementById('gameDetailContent').innerHTML = html;
+            
+            let graphsHtml = '<h3>Graphs</h3>';
+            graphsHtml += '<div class="chart-container"><canvas id="wormChart"></canvas></div>';
+            graphsHtml += '<div class="chart-container"><canvas id="manhattanChart"></canvas></div>';
+            
+            document.getElementById('gameDetailGraphs').innerHTML = graphsHtml;
+            
+            showScreen('gameDetailScreen');
+            
+            setTimeout(function() {
+                drawGameWormChart(playerHands, sortedPlayers);
+                drawGameManhattanChart(playerHands, sortedPlayers);
+            }, 100);
+        }
+
+        function drawGameWormChart(playerHands, playerIds) {
+            const ctx = document.getElementById('wormChart');
+            if (!ctx) return;
+            const datasets = [];
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            
+            for (let i = 0; i < playerIds.length; i++) {
+                const playerId = playerIds[i];
+                const hands = playerHands[playerId];
+                let cumulative = 0;
+                const cumulativeScores = [];
+                
+                for (let j = 0; j < hands.length; j++) {
+                    cumulative += hands[j];
+                    cumulativeScores.push(cumulative);
+                }
+                
+                datasets.push({
+                    label: getPlayerName(playerId),
+                    data: cumulativeScores,
+                    borderColor: colors[i % colors.length],
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.1
+                });
+            }
+            
+            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+            const labels = [];
+            for (let i = 1; i <= maxHands; i++) {
+                labels.push('Hand ' + i);
+            }
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Cricket Worm - Cumulative Scores' }
+                    },
+                    scales: {
+                        y: { title: { display: true, text: 'Cumulative Score' } }
+                    }
+                }
+            });
+        }
+
+        function drawGameManhattanChart(playerHands, playerIds) {
+            const ctx = document.getElementById('manhattanChart');
+            if (!ctx) return;
+            const datasets = [];
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+            
+            for (let i = 0; i < playerIds.length; i++) {
+                const playerId = playerIds[i];
+                const hands = playerHands[playerId];
+                const paddedHands = [];
+                for (let j = 0; j < maxHands; j++) {
+                    paddedHands.push(hands[j] || 0);
+                }
+                datasets.push({
+                    label: getPlayerName(playerId),
+                    data: paddedHands,
+                    backgroundColor: colors[i % colors.length],
+                    borderColor: colors[i % colors.length],
+                    borderWidth: 1
+                });
+            }
+            
+            const labels = [];
+            for (let i = 1; i <= maxHands; i++) {
+                labels.push('Hand ' + i);
+            }
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Manhattan - Per Hand Scores' }
+                    },
+                    scales: { y: { stacked: false } }
+                }
+            });
+        }
+        async function loadLeaderboard() {
+            const contentDiv = document.getElementById('leaderboardContent');
+            contentDiv.innerHTML = '<div class="loading">Loading leaderboard...</div>';
+            
+            const playersData = await apiCall('getPlayers', {});
+            const sessionsData = await apiCall('getSessions', {});
+            
+            if (playersData.error || sessionsData.error) {
+                contentDiv.innerHTML = '<div class="error">Error loading leaderboard data</div>';
+                return;
+            }
+            
+            let html = '<h3>Players</h3><table class="scores-table"><tr><th>Player</th><th>Joined</th></tr>';
+            for (let i = 0; i < playersData.length; i++) {
+                const p = playersData[i];
+                html += '<tr><td>' + p.username + '</td><td>' + p.date_added + '</td></tr>';
+            }
+            html += '</table><h3 style="margin-top: 20px;">Recent Sessions</h3><table class="scores-table"><tr><th>Session</th><th>Date</th></tr>';
+            for (let i = 0; i < sessionsData.length; i++) {
+                const s = sessionsData[i];
+                html += '<tr><td>' + s.title + '</td><td>' + s.date_started + '</td></tr>';
+            }
+            html += '</table>';
+            
+            contentDiv.innerHTML = html;
+        }
+
+        async function loadStats() {
+            const contentDiv = document.getElementById('statsContent');
+            contentDiv.innerHTML = '<div class="loading">Loading stats...</div>';
+            
+            const playersData = await apiCall('getPlayers', {});
+            if (playersData.error) {
+                contentDiv.innerHTML = '<div class="error">Error loading stats</div>';
+                return;
+            }
+            
+            let html = '<h3>Stats Coming Soon</h3>';
+            html += '<p>Win rates, average scores, lockout percentages, and more will be calculated here.</p>';
+            html += '<h4 style="margin-top: 20px;">Players</h4><ul>';
+            for (let i = 0; i < playersData.length; i++) {
+                html += '<li>' + playersData[i].username + '</li>';
+            }
+            html += '</ul>';
+            
+            contentDiv.innerHTML = html;
         }
 
         window.addEventListener('DOMContentLoaded', function() {
