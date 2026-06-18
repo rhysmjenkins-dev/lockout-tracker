@@ -380,4 +380,296 @@
         }
 
         // ============================================
-        // SCREEN
+        // SCREEN MANAGEMENT
+        // ============================================
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+            
+            if (screenId === 'startSessionScreen') {
+                loadPlayersForSession();
+            }
+        }
+
+        // ============================================
+        // PLAYER MANAGEMENT
+        // ============================================
+        async function loadPlayersForSession() {
+            const data = await apiCall('getPlayers');
+            if (data.error) {
+                document.getElementById('playerSelectionList').innerHTML = 
+                    '<div class="error">Error loading players: ' + data.error + '</div>';
+                return;
+            }
+            
+            allPlayers = data;
+            
+            const hostSelect = document.getElementById('sessionHost');
+            hostSelect.innerHTML = '<option value="">Select host...</option>';
+            data.forEach(player => {
+                hostSelect.innerHTML += '<option value="' + player.player_id + '">' + player.username + '</option>';
+            });
+            
+            const playerList = document.getElementById('playerSelectionList');
+            playerList.innerHTML = '<ul class="player-list">' + 
+                data.map(player => 
+                    '<li class="player-item"><label><input type="checkbox" value="' + player.player_id + '" class="player-checkbox"> ' + player.username + '</label></li>'
+                ).join('') + '</ul>';
+        }
+
+        async function addPlayer() {
+            const username = document.getElementById('newPlayerName').value.trim();
+            const messageDiv = document.getElementById('addPlayerMessage');
+            
+            if (!username) {
+                messageDiv.innerHTML = '<div class="error">Please enter a player name</div>';
+                return;
+            }
+            
+            const data = await apiCall('addPlayer', { 
+                username: username,
+                editor_name: username
+            });
+            
+            if (data.error) {
+                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+            } else {
+                messageDiv.innerHTML = '<div class="success">Player "' + username + '" added successfully!</div>';
+                document.getElementById('newPlayerName').value = '';
+                setTimeout(function() {
+                    showScreen('homeScreen');
+                }, 1500);
+            }
+        }
+
+        // ============================================
+        // SESSION MANAGEMENT
+        // ============================================
+        async function createSession() {
+            const title = document.getElementById('sessionTitle').value.trim();
+            const hostId = document.getElementById('sessionHost').value;
+            const selectedPlayers = Array.from(document.querySelectorAll('.player-checkbox:checked'))
+                .map(cb => cb.value);
+            const messageDiv = document.getElementById('sessionMessage');
+            
+            if (!title || !hostId || selectedPlayers.length === 0) {
+                messageDiv.innerHTML = '<div class="error">Please fill in all fields and select at least one player</div>';
+                return;
+            }
+            
+            const data = await apiCall('createSession', {
+                title: title,
+                host_player_id: hostId,
+                players_involved: selectedPlayers.join(',')
+            });
+            
+            if (data.error) {
+                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+            } else {
+                currentSession = {
+                    session_id: data.session_id,
+                    title: title,
+                    host_player_id: hostId
+                };
+                sessionPlayers = allPlayers.filter(p => selectedPlayers.includes(String(p.player_id)));
+                showActiveSession();
+            }
+        }
+
+        function showActiveSession() {
+            document.getElementById('activeSessionTitle').textContent = currentSession.title;
+            document.getElementById('activeSessionInfo').innerHTML = 
+                '<p><strong>Session ID:</strong> ' + currentSession.session_id + '</p>' +
+                '<p><strong>Players:</strong> ' + sessionPlayers.map(p => p.username).join(', ') + '</p>';
+            document.getElementById('gameArea').classList.add('hidden');
+            document.getElementById('newGameBtn').style.display = 'block';
+            showScreen('activeSessionScreen');
+        }
+
+        async function closeSession() {
+            if (!confirm('Are you sure you want to end this session?')) return;
+            
+            const hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+            const data = await apiCall('closeSession', {
+                session_id: currentSession.session_id,
+                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+            });
+            
+            if (data.error) {
+                alert('Error closing session: ' + data.error);
+            } else {
+                alert('Session closed successfully!');
+                currentSession = null;
+                currentGame = null;
+                showScreen('homeScreen');
+            }
+        }
+
+        // ============================================
+        // GAME MANAGEMENT
+        // ============================================
+        async function startNewGame() {
+            const hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+            
+            const gamesData = await apiCall('getGames', { session_id: currentSession.session_id });
+            const gameNumber = gamesData.length + 1;
+            
+            const data = await apiCall('createGame', {
+                session_id: currentSession.session_id,
+                game_number: gameNumber,
+                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+            });
+            
+            if (data.error) {
+                alert('Error creating game: ' + data.error);
+            } else {
+                currentGame = {
+                    game_id: data.game_id,
+                    game_number: gameNumber
+                };
+                currentHandNumber = 1;
+                document.getElementById('currentGameNumber').textContent = gameNumber;
+                document.getElementById('gameArea').classList.remove('hidden');
+                document.getElementById('newGameBtn').style.display = 'none';
+                setupHandInputs();
+            }
+        }
+
+        function setupHandInputs() {
+            document.getElementById('currentHandNumber').textContent = currentHandNumber;
+            const scoreInputs = document.getElementById('scoreInputs');
+            scoreInputs.innerHTML = sessionPlayers.map(player => 
+                '<div class="score-input-row"><label>' + player.username + '</label><input type="number" id="score_' + player.player_id + '" placeholder="Score"></div>'
+            ).join('');
+        }
+
+        async function submitHand() {
+            const scores = sessionPlayers.map(player => ({
+                player_id: player.player_id,
+                score: parseInt(document.getElementById('score_' + player.player_id).value) || 0
+            }));
+            
+            const hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+            
+            const data = await apiCall('addHand', {
+                game_id: currentGame.game_id,
+                hand_number: currentHandNumber,
+                scores: JSON.stringify(scores),
+                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+            });
+            
+            if (data.error) {
+                alert('Error submitting hand: ' + data.error);
+            } else {
+                currentHandNumber++;
+                setupHandInputs();
+                updateGameScores();
+            }
+        }
+
+        async function updateGameScores() {
+            const handsData = await apiCall('getHands', { game_id: currentGame.game_id });
+            
+            if (handsData.error) return;
+            
+            const playerScores = {};
+            sessionPlayers.forEach(player => {
+                playerScores[player.player_id] = {
+                    username: player.username,
+                    total: 0
+                };
+            });
+            
+            handsData.forEach(hand => {
+                if (playerScores[hand.player_id]) {
+                    playerScores[hand.player_id].total += Number(hand.score);
+                }
+            });
+            
+            const scoresHtml = '<h3>Current Scores</h3><table class="leaderboard-table">' +
+                '<tr><th>Player</th><th>Total Score</th></tr>' +
+                Object.values(playerScores)
+                    .sort((a, b) => a.total - b.total)
+                    .map(p => '<tr><td>' + p.username + '</td><td>' + p.total + '</td></tr>')
+                    .join('') +
+                '</table>';
+            
+            document.getElementById('gameScores').innerHTML = scoresHtml;
+        }
+
+        function showCloseGameDialog() {
+            const lockoutSelect = document.getElementById('lockoutPlayer');
+            lockoutSelect.innerHTML = sessionPlayers.map(player => 
+                '<option value="' + player.player_id + '">' + player.username + '</option>'
+            ).join('');
+            
+            document.getElementById('closeGameDialog').classList.remove('hidden');
+        }
+
+        function hideCloseGameDialog() {
+            document.getElementById('closeGameDialog').classList.add('hidden');
+        }
+
+        async function closeGame() {
+            const lockoutPlayerId = document.getElementById('lockoutPlayer').value;
+            const lockoutScore = document.getElementById('lockoutScore').value;
+            const falseLockout = document.getElementById('falseLockout').checked;
+            
+            if (!lockoutPlayerId || !lockoutScore) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            const hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+            
+            const data = await apiCall('closeGame', {
+                game_id: currentGame.game_id,
+                lockout_player_id: lockoutPlayerId,
+                lockout_score: lockoutScore,
+                false_lockout: falseLockout,
+                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+            });
+            
+            if (data.error) {
+                alert('Error closing game: ' + data.error);
+            } else {
+                alert('Game closed successfully!');
+                hideCloseGameDialog();
+                document.getElementById('gameArea').classList.add('hidden');
+                document.getElementById('newGameBtn').style.display = 'block';
+                currentGame = null;
+            }
+        }
+
+        // ============================================
+        // LEADERBOARD
+        // ============================================
+        async function loadLeaderboard() {
+            const contentDiv = document.getElementById('leaderboardContent');
+            contentDiv.innerHTML = '<div class="loading">Loading leaderboard...</div>';
+            
+            const playersData = await apiCall('getPlayers');
+            const sessionsData = await apiCall('getSessions');
+            
+            if (playersData.error || sessionsData.error) {
+                contentDiv.innerHTML = '<div class="error">Error loading leaderboard data</div>';
+                return;
+            }
+            
+            contentDiv.innerHTML = 
+                '<h3>Players</h3><table class="leaderboard-table"><tr><th>Player</th><th>Joined</th></tr>' +
+                playersData.map(p => '<tr><td>' + p.username + '</td><td>' + p.date_added + '</td></tr>').join('') +
+                '</table><h3 style="margin-top: 20px;">Sessions</h3><p>Total sessions played: ' + sessionsData.length + '</p>';
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('Lockout Tracker loaded');
+        });
+    </script>
+</body>
+</html>
