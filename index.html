@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lockout Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        .player-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .player-item {
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .player-item input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
+        .score-input-grid {
+            display: grid;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .score-input-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .score-input-row label {
+            flex: 1;
+            margin: 0;
+        }
+
+        .score-input-row input {
+            flex: 0 0 80px;
+            margin: 0;
+        }
+
+        .game-summary {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .game-summary h3 {
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .leaderboard-table th,
+        .leaderboard-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .leaderboard-table th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+
+        .leaderboard-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .success {
+            background: #efe;
+            color: #3c3;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .nav-buttons .btn {
+            flex: 1;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .card {
+                padding: 15px;
+            }
+            
+            .btn {
+                padding: 12px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎴 Lockout Tracker</h1>
+            <p>Track your games, dominate the leaderboard</p>
+        </div>
+
+        <!-- HOME SCREEN -->
+        <div id="homeScreen" class="screen active">
+            <div class="card">
+                <h2>Welcome!</h2>
+                <button class="btn" onclick="showScreen('startSessionScreen')">Start New Session</button>
+                <button class="btn btn-secondary" onclick="showScreen('leaderboardScreen'); loadLeaderboard();">View Leaderboard</button>
+                <button class="btn btn-secondary" onclick="showScreen('addPlayerScreen')">Add New Player</button>
+            </div>
+        </div>
+
+        <!-- ADD PLAYER SCREEN -->
+        <div id="addPlayerScreen" class="screen">
+            <div class="card">
+                <h2>Add New Player</h2>
+                <label for="newPlayerName">Player Name</label>
+                <input type="text" id="newPlayerName" placeholder="Enter player name">
+                <button class="btn btn-success" onclick="addPlayer()">Add Player</button>
+                <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back</button>
+                <div id="addPlayerMessage"></div>
+            </div>
+        </div>
+
+        <!-- START SESSION SCREEN -->
+        <div id="startSessionScreen" class="screen">
+            <div class="card">
+                <h2>Start New Session</h2>
+                <label for="sessionTitle">Session Title</label>
+                <input type="text" id="sessionTitle" placeholder="e.g. Magaluf 2024">
+                
+                <label for="sessionHost">Who's hosting?</label>
+                <select id="sessionHost">
+                    <option value="">Select host...</option>
+                </select>
+                
+                <label>Select Players</label>
+                <div id="playerSelectionList" class="loading">Loading players...</div>
+                
+                <button class="btn btn-success" onclick="createSession()">Start Session</button>
+                <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Cancel</button>
+                <div id="sessionMessage"></div>
+            </div>
+        </div>
+
+        <!-- ACTIVE SESSION SCREEN -->
+        <div id="activeSessionScreen" class="screen">
+            <div class="card">
+                <h2 id="activeSessionTitle">Session Name</h2>
+                <div id="activeSessionInfo"></div>
+                
+                <div id="gameArea" class="hidden">
+                    <h3>Game <span id="currentGameNumber"></span></h3>
+                    <div id="handArea">
+                        <h4>Hand <span id="currentHandNumber"></span></h4>
+                        <div id="scoreInputs" class="score-input-grid"></div>
+                        <button class="btn btn-success" onclick="submitHand()">Submit Hand</button>
+                    </div>
+                    
+                    <div id="gameScores" class="game-summary"></div>
+                    
+                    <button class="btn btn-danger" onclick="showCloseGameDialog()">Close Game (Lockout)</button>
+                </div>
+                
+                <div id="closeGameDialog" class="hidden">
+                    <h3>Close Game</h3>
+                    <label for="lockoutPlayer">Who locked out?</label>
+                    <select id="lockoutPlayer"></select>
+                    
+                    <label for="lockoutScore">Lockout Score</label>
+                    <input type="number" id="lockoutScore" placeholder="Enter lockout score">
+                    
+                    <label>
+                        <input type="checkbox" id="falseLockout"> False Lockout?
+                    </label>
+                    
+                    <div class="nav-buttons">
+                        <button class="btn btn-success" onclick="closeGame()">Confirm Close</button>
+                        <button class="btn btn-secondary" onclick="hideCloseGameDialog()">Cancel</button>
+                    </div>
+                </div>
+                
+                <div class="nav-buttons">
+                    <button class="btn" onclick="startNewGame()" id="newGameBtn">Start New Game</button>
+                    <button class="btn btn-danger" onclick="closeSession()">End Session</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- LEADERBOARD SCREEN -->
+        <div id="leaderboardScreen" class="screen">
+            <div class="card">
+                <h2>Leaderboard</h2>
+                <div id="leaderboardContent" class="loading">Loading...</div>
+                <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // CONFIGURATION
+        // ============================================
+        const API_URL = 'https://script.google.com/macros/s/AKfycbwv-cqwE5fgZj5gjR7oW6YDgF6uTvOqfnGaU1alCfFhG6xzwqRu2j6HDfgJ5VD_AuRI/exec';
+
+        // ============================================
+        // STATE MANAGEMENT
+        // ============================================
+        let currentSession = null;
+        let currentGame = null;
+        let currentHandNumber = 1;
+        let allPlayers = [];
+        let sessionPlayers = [];
+
+        // ============================================
+        // API CALLS
+        // ============================================
+        async function apiCall(action, params = {}) {
+            const url = new URL(API_URL);
+            url.searchParams.append('action', action);
+            Object.keys(params).forEach(key => {
+                url.searchParams.append(key, params[key]);
+            });
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                return { error: error.message };
+            }
+        }
+
+        // ============================================
+        // SCREEN
