@@ -6,37 +6,17 @@
     <title>Lockout Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
             color: #333;
         }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 30px;
-        }
-
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
-
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { text-align: center; color: white; margin-bottom: 30px; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
         .card {
             background: white;
             border-radius: 15px;
@@ -44,7 +24,6 @@
             margin-bottom: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-
         .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -56,37 +35,12 @@
             width: 100%;
             margin-top: 10px;
             font-weight: 600;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s;
         }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .btn-secondary {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-        }
-
-        .btn-small {
-            padding: 8px 15px;
-            font-size: 0.9em;
-            margin: 5px 0;
-            width: auto;
-        }
-
+        .btn:hover { transform: translateY(-2px); }
+        .btn-secondary { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .btn-success { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .btn-danger { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
         input, select {
             width: 100%;
             padding: 12px;
@@ -94,38 +48,13 @@
             border: 2px solid #e0e0e0;
             border-radius: 8px;
             font-size: 1em;
-            transition: border-color 0.3s;
         }
-
-        input:focus, select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        label {
-            display: block;
-            margin-top: 15px;
-            font-weight: 600;
-            color: #555;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .screen {
-            display: none;
-        }
-
-        .screen.active {
-            display: block;
-        }
-
-        .player-list {
-            list-style: none;
-            padding: 0;
-        }
-
+        input:focus, select:focus { outline: none; border-color: #667eea; }
+        label { display: block; margin-top: 15px; font-weight: 600; color: #555; }
+        .hidden { display: none; }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        .player-list { list-style: none; padding: 0; }
         .player-item {
             padding: 15px;
             margin: 10px 0;
@@ -135,19 +64,8 @@
             justify-content: space-between;
             align-items: center;
         }
-
-        .player-item input[type="checkbox"] {
-            width: auto;
-            margin: 0;
-        }
-
-        .hand-input-section {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-        }
-
+        .player-item input[type="checkbox"] { width: auto; margin: 0; }
+        .hand-input-section { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
         .player-hand-row {
             display: grid;
             grid-template-columns: 1fr 80px 100px 100px;
@@ -157,25 +75,10 @@
             background: white;
             border-radius: 8px;
             margin: 10px 0;
-            border: 1px solid #e0e0e0;
         }
-
-        .player-hand-row label {
-            margin: 0;
-            font-weight: 600;
-        }
-
-        .player-hand-row input[type="number"] {
-            margin: 0;
-            padding: 8px;
-        }
-
-        .checkbox-group {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
+        .player-hand-row label { margin: 0; font-weight: 600; }
+        .player-hand-row input[type="number"] { margin: 0; padding: 8px; }
+        .checkbox-group { display: flex; gap: 10px; align-items: center; }
         .checkbox-group label {
             display: flex;
             align-items: center;
@@ -184,257 +87,30 @@
             font-weight: normal;
             font-size: 0.9em;
         }
-
-        .checkbox-group input[type="checkbox"] {
-            width: auto;
-            margin: 0;
-            padding: 0;
-        }
-
-        .game-summary {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-        }
-
-        .game-summary h3 {
-            margin-bottom: 10px;
-            color: #667eea;
-        }
-
+        .checkbox-group input[type="checkbox"] { width: auto; margin: 0; }
+        .game-summary { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .game-summary h3 { margin-bottom: 10px; color: #667eea; }
         .scores-table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 15px;
         }
-
-        .scores-table th,
-        .scores-table td {
+        .scores-table th, .scores-table td {
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid #e0e0e0;
         }
-
-        .scores-table th {
-            background: #667eea;
-            color: white;
-            font-weight: 600;
-        }
-
-        .scores-table tr:hover {
-            background: #f8f9fa;
-        }
-
-        .games-list {
-            list-style: none;
-            padding: 0;
-        }
-
-        .game-item {
-            padding: 15px;
-            margin: 10px 0;
-            background: #f8f9fa;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .game-item:hover {
-            background: #e8e9ff;
-        }
-
-        .game-item-header {
-            font-weight: 600;
-            color: #667eea;
-            margin-bottom: 5px;
-        }
-
-        .game-item-info {
-            font-size: 0.9em;
-            color: #666;
-        }
-
-        .leaderboard-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-
-        .leaderboard-table th,
-        .leaderboard-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        .leaderboard-table th {
-            background: #667eea;
-            color: white;
-            font-weight: 600;
-        }
-
-        .leaderboard-table tr:hover {
-            background: #f8f9fa;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #667eea;
-        }
-
-        .error {
-            background: #fee;
-            color: #c33;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-        }
-
-        .success {
-            background: #efe;
-            color: #3c3;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-        }
-
-        .nav-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .nav-buttons .btn {
-            flex: 1;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .stat-card {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-            border-left: 4px solid #667eea;
-        }
-
-        .stat-card h4 {
-            color: #667eea;
-            margin-bottom: 10px;
-            font-size: 0.9em;
-        }
-
-        .stat-value {
-            font-size: 2em;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .chart-container {
-            position: relative;
-            height: 300px;
-            margin: 20px 0;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-        }
-
-        .filter-section {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-        }
-
-        .filter-section h4 {
-            margin-bottom: 10px;
-            color: #667eea;
-        }
-
-        .filter-checkboxes {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .filter-checkbox {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .filter-checkbox input[type="checkbox"] {
-            width: auto;
-            margin: 0;
-            padding: 0;
-        }
-
-        .filter-checkbox label {
-            margin: 0;
-            font-weight: normal;
-        }
-
-        .toggle-section {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-        }
-
-        .toggle-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .toggle-buttons button {
-            flex: 1;
-            padding: 10px;
-            border: 2px solid #667eea;
-            background: white;
-            color: #667eea;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.2s;
-        }
-
-        .toggle-buttons button.active {
-            background: #667eea;
-            color: white;
-        }
-
+        .scores-table th { background: #667eea; color: white; font-weight: 600; }
+        .scores-table tr:hover { background: #f8f9fa; }
+        .loading { text-align: center; padding: 20px; color: #667eea; }
+        .error { background: #fee; color: #c33; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .success { background: #efe; color: #3c3; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .nav-buttons { display: flex; gap: 10px; margin-top: 20px; }
+        .nav-buttons .btn { flex: 1; }
         @media (max-width: 600px) {
-            .header h1 {
-                font-size: 2em;
-            }
-            
-            .card {
-                padding: 15px;
-            }
-            
-            .btn {
-                padding: 12px 20px;
-            }
-
-            .player-hand-row {
-                grid-template-columns: 1fr;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .filter-checkboxes {
-                grid-template-columns: 1fr;
-            }
+            .header h1 { font-size: 2em; }
+            .card { padding: 15px; }
+            .player-hand-row { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -444,14 +120,10 @@
             <h1>🎴 Lockout Tracker</h1>
             <p>Track your games, dominate the leaderboard</p>
         </div>
-
         <div id="homeScreen" class="screen active">
             <div class="card">
                 <h2>Welcome!</h2>
                 <button class="btn" onclick="showScreen('startSessionScreen')">Start New Session</button>
-                <button class="btn btn-secondary" onclick="showScreen('previousGamesScreen'); loadPreviousGames();">View Previous Games</button>
-                <button class="btn btn-secondary" onclick="showScreen('leaderboardScreen'); loadLeaderboard();">View Leaderboard</button>
-                <button class="btn btn-secondary" onclick="showScreen('statsScreen'); loadStats();">View Stats</button>
                 <button class="btn btn-secondary" onclick="showScreen('addPlayerScreen')">Add New Player</button>
             </div>
         </div>
@@ -513,75 +185,15 @@
                 </div>
             </div>
         </div>
-
-        <div id="previousGamesScreen" class="screen">
-            <div class="card">
-                <h2>Previous Games</h2>
-                <div id="previousGamesContent" class="loading">Loading...</div>
-                <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
-            </div>
-        </div>
-
-        <div id="gameDetailScreen" class="screen">
-            <div class="card">
-                <h2 id="gameDetailTitle">Game Details</h2>
-                <div id="gameDetailContent"></div>
-                <div id="gameDetailGraphs"></div>
-                <button class="btn btn-secondary" onclick="showScreen('previousGamesScreen'); loadPreviousGames();">Back to Games</button>
-            </div>
-        </div>
-
-        <div id="leaderboardScreen" class="screen">
-            <div class="card">
-                <h2>Leaderboard</h2>
-                <div id="leaderboardContent" class="loading">Loading...</div>
-                <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
-            </div>
-        </div>
-
-        <div id="statsScreen" class="screen">
-            <div class="card">
-                <h2>Stats</h2>
-                
-                <div class="toggle-section">
-                    <h4>View</h4>
-                    <div class="toggle-buttons">
-                        <button class="active" onclick="setStatsMode('alltime')">All Time</button>
-                        <button onclick="setStatsMode('game')">Individual Game</button>
-                    </div>
-                </div>
-
-                <div id="gameSelectSection" class="hidden">
-                    <label for="statsGameSelect">Select Game</label>
-                    <select id="statsGameSelect" onchange="loadStats()">
-                        <option value="">Loading...</option>
-                    </select>
-                </div>
-
-                <div class="filter-section">
-                    <h4>Filter Players</h4>
-                    <div id="playerFilters" class="filter-checkboxes"></div>
-                </div>
-
-                <div id="statsContent" class="loading">Loading...</div>
-                <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
-            </div>
-        </div>
     </div>
     <script>
         const API_URL = 'https://script.google.com/macros/s/AKfycbwQ46Q24kOVOlKC2QGwoxBB5WJr4Dpw26TumoAeJi--i2DbemibS07oawvMek9mzmE/exec';
-
 
         let currentSession = null;
         let currentGame = null;
         let currentHandNumber = 1;
         let allPlayers = [];
         let sessionPlayers = [];
-        let gameHands = [];
-        let allGames = [];
-        let statsMode = 'alltime';
-        let selectedGameForStats = null;
-        let selectedPlayersForStats = [];
 
         async function apiCall(action, params) {
             const url = new URL(API_URL);
@@ -589,7 +201,6 @@
             for (let key in params) {
                 url.searchParams.append(key, params[key]);
             }
-            
             try {
                 const response = await fetch(url);
                 const data = await response.json();
@@ -606,7 +217,6 @@
                 screens[i].classList.remove('active');
             }
             document.getElementById(screenId).classList.add('active');
-            
             if (screenId === 'startSessionScreen') {
                 loadPlayersForSession();
             }
@@ -615,24 +225,19 @@
         async function loadPlayersForSession() {
             const data = await apiCall('getPlayers', {});
             if (data.error) {
-                document.getElementById('playerSelectionList').innerHTML = '<div class="error">Error loading players: ' + data.error + '</div>';
+                document.getElementById('playerSelectionList').innerHTML = '<div class="error">Error: ' + data.error + '</div>';
                 return;
             }
-            
             allPlayers = data;
-            
             const hostSelect = document.getElementById('sessionHost');
             hostSelect.innerHTML = '<option value="">Select host...</option>';
             for (let i = 0; i < data.length; i++) {
-                const player = data[i];
-                hostSelect.innerHTML += '<option value="' + player.player_id + '">' + player.username + '</option>';
+                hostSelect.innerHTML += '<option value="' + data[i].player_id + '">' + data[i].username + '</option>';
             }
-            
             const playerList = document.getElementById('playerSelectionList');
             let html = '<ul class="player-list">';
             for (let i = 0; i < data.length; i++) {
-                const player = data[i];
-                html += '<li class="player-item"><label><input type="checkbox" value="' + player.player_id + '" class="player-checkbox"> ' + player.username + '</label></li>';
+                html += '<li class="player-item"><label><input type="checkbox" value="' + data[i].player_id + '" class="player-checkbox"> ' + data[i].username + '</label></li>';
             }
             html += '</ul>';
             playerList.innerHTML = html;
@@ -641,25 +246,17 @@
         async function addPlayer() {
             const username = document.getElementById('newPlayerName').value.trim();
             const messageDiv = document.getElementById('addPlayerMessage');
-            
             if (!username) {
                 messageDiv.innerHTML = '<div class="error">Please enter a player name</div>';
                 return;
             }
-            
-            const data = await apiCall('addPlayer', { 
-                username: username,
-                editor_name: username
-            });
-            
+            const data = await apiCall('addPlayer', { username: username, editor_name: username });
             if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
             } else {
-                messageDiv.innerHTML = '<div class="success">Player "' + username + '" added successfully!</div>';
+                messageDiv.innerHTML = '<div class="success">Player added!</div>';
                 document.getElementById('newPlayerName').value = '';
-                setTimeout(function() {
-                    showScreen('homeScreen');
-                }, 1500);
+                setTimeout(function() { showScreen('homeScreen'); }, 1500);
             }
         }
 
@@ -672,31 +269,23 @@
                 selectedPlayers.push(checkboxes[i].value);
             }
             const messageDiv = document.getElementById('sessionMessage');
-            
             if (!title || !hostId || selectedPlayers.length === 0) {
-                messageDiv.innerHTML = '<div class="error">Please fill in all fields and select at least one player</div>';
+                messageDiv.innerHTML = '<div class="error">Please fill all fields</div>';
                 return;
             }
-            
             const data = await apiCall('createSession', {
                 title: title,
                 host_player_id: hostId,
                 players_involved: selectedPlayers.join(',')
             });
-            
             if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
             } else {
-                currentSession = {
-                    session_id: data.session_id,
-                    title: title,
-                    host_player_id: hostId
-                };
+                currentSession = { session_id: data.session_id, title: title, host_player_id: hostId };
                 sessionPlayers = [];
                 for (let i = 0; i < allPlayers.length; i++) {
-                    const p = allPlayers[i];
-                    if (selectedPlayers.indexOf(String(p.player_id)) !== -1) {
-                        sessionPlayers.push(p);
+                    if (selectedPlayers.indexOf(String(allPlayers[i].player_id)) !== -1) {
+                        sessionPlayers.push(allPlayers[i]);
                     }
                 }
                 showActiveSession();
@@ -705,11 +294,7 @@
 
         function showActiveSession() {
             document.getElementById('activeSessionTitle').textContent = currentSession.title;
-            let playerNames = '';
-            for (let i = 0; i < sessionPlayers.length; i++) {
-                if (i > 0) playerNames += ', ';
-                playerNames += sessionPlayers[i].username;
-            }
+            let playerNames = sessionPlayers.map(p => p.username).join(', ');
             document.getElementById('activeSessionInfo').innerHTML = 
                 '<p><strong>Session ID:</strong> ' + currentSession.session_id + '</p>' +
                 '<p><strong>Players:</strong> ' + playerNames + '</p>';
@@ -719,25 +304,16 @@
         }
 
         async function closeSession() {
-            if (!confirm('Are you sure you want to end this session?')) return;
-            
-            let hostPlayer = null;
-            for (let i = 0; i < allPlayers.length; i++) {
-                if (allPlayers[i].player_id == currentSession.host_player_id) {
-                    hostPlayer = allPlayers[i];
-                    break;
-                }
-            }
-            
+            if (!confirm('End this session?')) return;
+            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
             const data = await apiCall('closeSession', {
                 session_id: currentSession.session_id,
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
-            
             if (data.error) {
-                alert('Error closing session: ' + data.error);
+                alert('Error: ' + data.error);
             } else {
-                alert('Session closed successfully!');
+                alert('Session closed!');
                 currentSession = null;
                 currentGame = null;
                 showScreen('homeScreen');
@@ -745,32 +321,19 @@
         }
 
         async function startNewGame() {
-            let hostPlayer = null;
-            for (let i = 0; i < allPlayers.length; i++) {
-                if (allPlayers[i].player_id == currentSession.host_player_id) {
-                    hostPlayer = allPlayers[i];
-                    break;
-                }
-            }
-            
+            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
             const gamesData = await apiCall('getGames', { session_id: currentSession.session_id });
             const gameNumber = gamesData.length + 1;
-            
             const data = await apiCall('createGame', {
                 session_id: currentSession.session_id,
                 game_number: gameNumber,
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
-            
             if (data.error) {
-                alert('Error creating game: ' + data.error);
+                alert('Error: ' + data.error);
             } else {
-                currentGame = {
-                    game_id: data.game_id,
-                    game_number: gameNumber
-                };
+                currentGame = { game_id: data.game_id, game_number: gameNumber };
                 currentHandNumber = 1;
-                gameHands = [];
                 document.getElementById('currentGameNumber').textContent = gameNumber;
                 document.getElementById('gameArea').classList.remove('hidden');
                 document.getElementById('newGameBtn').style.display = 'none';
@@ -783,21 +346,15 @@
             document.getElementById('handMessage').innerHTML = '';
             const handInputs = document.getElementById('handInputs');
             let html = '';
-            
             for (let i = 0; i < sessionPlayers.length; i++) {
                 const player = sessionPlayers[i];
                 html += '<div class="player-hand-row">' +
                     '<label>' + player.username + '</label>' +
                     '<input type="number" id="score_' + player.player_id + '" placeholder="Score">' +
-                    '<div class="checkbox-group">' +
-                    '<label><input type="checkbox" id="lockout_' + player.player_id + '" onchange="handleLockoutChange(' + player.player_id + ')"> Locked Out</label>' +
-                    '</div>' +
-                    '<div class="checkbox-group">' +
-                    '<label><input type="checkbox" id="false_' + player.player_id + '" disabled> False</label>' +
-                    '</div>' +
+                    '<div class="checkbox-group"><label><input type="checkbox" id="lockout_' + player.player_id + '" onchange="handleLockoutChange(' + player.player_id + ')"> Locked Out</label></div>' +
+                    '<div class="checkbox-group"><label><input type="checkbox" id="false_' + player.player_id + '" disabled> False</label></div>' +
                     '</div>';
             }
-            
             handInputs.innerHTML = html;
         }
 
@@ -807,7 +364,6 @@
                 const cb = checkboxes[i];
                 const pId = cb.id.replace('lockout_', '');
                 const falseCheckbox = document.getElementById('false_' + pId);
-                
                 if (cb.checked) {
                     if (pId != playerId) {
                         cb.checked = false;
@@ -820,7 +376,6 @@
                 }
             }
         }
-
         async function submitHand() {
             const messageDiv = document.getElementById('handMessage');
             const scores = [];
@@ -830,17 +385,11 @@
             for (let i = 0; i < sessionPlayers.length; i++) {
                 const player = sessionPlayers[i];
                 const scoreVal = parseInt(document.getElementById('score_' + player.player_id).value);
-                
                 if (isNaN(scoreVal)) {
-                    messageDiv.innerHTML = '<div class="error">Please enter scores for all players</div>';
+                    messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
                     return;
                 }
-                
-                scores.push({
-                    player_id: player.player_id,
-                    score: scoreVal
-                });
-                
+                scores.push({ player_id: player.player_id, score: scoreVal });
                 const isLockedOut = document.getElementById('lockout_' + player.player_id).checked;
                 if (isLockedOut) {
                     lockoutPlayerId = player.player_id;
@@ -849,35 +398,23 @@
             }
             
             if (lockoutPlayerId === null) {
-                messageDiv.innerHTML = '<div class="error">One player must lock out each hand</div>';
+                messageDiv.innerHTML = '<div class="error">One player must lock out</div>';
                 return;
             }
             
-            let hostPlayer = null;
-            for (let i = 0; i < allPlayers.length; i++) {
-                if (allPlayers[i].player_id == currentSession.host_player_id) {
-                    hostPlayer = allPlayers[i];
-                    break;
-                }
-            }
-            
+            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
             const data = await apiCall('addHand', {
                 game_id: currentGame.game_id,
                 hand_number: currentHandNumber,
                 scores: JSON.stringify(scores),
+                lockout_player_id: lockoutPlayerId,
+                false_lockout: falseLockout,
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
             
             if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
             } else {
-                gameHands.push({
-                    hand_number: currentHandNumber,
-                    lockout_player_id: lockoutPlayerId,
-                    false_lockout: falseLockout,
-                    scores: scores
-                });
-                
                 currentHandNumber++;
                 setupHandInputs();
                 updateGameScores();
@@ -886,741 +423,48 @@
 
         async function updateGameScores() {
             const handsData = await apiCall('getHands', { game_id: currentGame.game_id });
-            
             if (handsData.error) return;
             
             const playerScores = {};
             for (let i = 0; i < sessionPlayers.length; i++) {
                 const player = sessionPlayers[i];
-                playerScores[player.player_id] = {
-                    username: player.username,
-                    total: 0,
-                    hands: []
-                };
+                playerScores[player.player_id] = { username: player.username, total: 0, hands: [] };
             }
             
             for (let i = 0; i < handsData.length; i++) {
                 const hand = handsData[i];
                 if (playerScores[hand.player_id]) {
                     playerScores[hand.player_id].total += Number(hand.score);
-                    playerScores[hand.player_id].hands.push({
-                        hand_number: hand.hand_number,
-                        score: hand.score
-                    });
+                    playerScores[hand.player_id].hands.push({ hand_number: hand.hand_number, score: hand.score });
                 }
             }
             
-            const scores = [];
-            for (let key in playerScores) {
-                scores.push(playerScores[key]);
-            }
-            scores.sort(function(a, b) {
-                return a.total - b.total;
-            });
-            
+            const scores = Object.values(playerScores).sort((a, b) => a.total - b.total);
             let html = '<h3>Current Scores</h3><table class="scores-table"><tr><th>Player</th><th>Total</th><th>Details</th></tr>';
             for (let i = 0; i < scores.length; i++) {
                 const p = scores[i];
-                let handDetails = '';
-                for (let j = 0; j < p.hands.length; j++) {
-                    const h = p.hands[j];
-                    handDetails += 'H' + h.hand_number + ': ' + h.score + ' ';
-                }
+                let handDetails = p.hands.map(h => 'H' + h.hand_number + ': ' + h.score).join(' ');
                 html += '<tr><td>' + p.username + '</td><td>' + p.total + '</td><td><small>' + handDetails + '</small></td></tr>';
             }
             html += '</table>';
-            
             document.getElementById('gameScores').innerHTML = html;
         }
 
         async function endGame() {
             if (!confirm('End this game?')) return;
-            
-            let hostPlayer = null;
-            for (let i = 0; i < allPlayers.length; i++) {
-                if (allPlayers[i].player_id == currentSession.host_player_id) {
-                    hostPlayer = allPlayers[i];
-                    break;
-                }
-            }
-            
-            const handsData = await apiCall('getHands', { game_id: currentGame.game_id });
-            
-            if (handsData.length === 0) {
-                alert('Game has no hands');
-                return;
-            }
-            
-            const playerTotals = {};
-            for (let i = 0; i < sessionPlayers.length; i++) {
-                playerTotals[sessionPlayers[i].player_id] = 0;
-            }
-            
-            for (let i = 0; i < handsData.length; i++) {
-                const hand = handsData[i];
-                playerTotals[hand.player_id] += Number(hand.score);
-            }
-            
-            let winnerPlayerId = null;
-            let lowestScore = Infinity;
-            for (let playerId in playerTotals) {
-                if (playerTotals[playerId] < lowestScore) {
-                    lowestScore = playerTotals[playerId];
-                    winnerPlayerId = playerId;
-                }
-            }
-            
+            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
             const data = await apiCall('closeGame', {
                 game_id: currentGame.game_id,
-                lockout_player_id: winnerPlayerId,
-                lockout_score: lowestScore,
-                false_lockout: false,
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
-            
             if (data.error) {
-                alert('Error ending game: ' + data.error);
+                alert('Error: ' + data.error);
             } else {
                 alert('Game ended!');
                 document.getElementById('gameArea').classList.add('hidden');
                 document.getElementById('newGameBtn').style.display = 'block';
                 currentGame = null;
-                gameHands = [];
             }
-        }
-
-        async function loadPreviousGames() {
-            const contentDiv = document.getElementById('previousGamesContent');
-            contentDiv.innerHTML = '<div class="loading">Loading games...</div>';
-            
-            const sessionsData = await apiCall('getSessions', {});
-            if (sessionsData.error) {
-                contentDiv.innerHTML = '<div class="error">Error loading games</div>';
-                return;
-            }
-            
-            allGames = [];
-            let html = '<ul class="games-list">';
-            
-            for (let s = 0; s < sessionsData.length; s++) {
-                const session = sessionsData[s];
-                const gamesData = await apiCall('getGames', { session_id: session.session_id });
-                
-                if (gamesData.error) continue;
-                
-                for (let g = 0; g < gamesData.length; g++) {
-                    const game = gamesData[g];
-                    allGames.push({
-                        game_id: game.game_id,
-                        session_id: session.session_id,
-                        session_title: session.title,
-                        game_number: game.game_number,
-                        date: session.date_started
-                    });
-                }
-            }
-            
-            for (let i = 0; i < allGames.length; i++) {
-                const game = allGames[i];
-                html += '<li class="game-item" onclick="viewGameDetail(' + i + ')">' +
-                    '<div class="game-item-header">' + game.session_title + ' - Game ' + game.game_number + '</div>' +
-                    '<div class="game-item-info">Date: ' + game.date + '</div>' +
-                    '</li>';
-            }
-            
-            html += '</ul>';
-            contentDiv.innerHTML = html;
-        }
-
-        async function viewGameDetail(gameIndex) {
-            const game = allGames[gameIndex];
-            const handsData = await apiCall('getHands', { game_id: game.game_id });
-            
-            if (handsData.error) {
-                alert('Error loading game details');
-                return;
-            }
-            
-            document.getElementById('gameDetailTitle').textContent = game.session_title + ' - Game ' + game.game_number;
-            
-            const playerTotals = {};
-            const playerHands = {};
-            
-            for (let i = 0; i < handsData.length; i++) {
-                const hand = handsData[i];
-                if (!playerTotals[hand.player_id]) {
-                    playerTotals[hand.player_id] = 0;
-                    playerHands[hand.player_id] = [];
-                }
-                playerTotals[hand.player_id] += Number(hand.score);
-                playerHands[hand.player_id].push(Number(hand.score));
-            }
-            
-            let html = '<h3>Final Scores</h3><table class="leaderboard-table"><tr><th>Player</th><th>Total</th></tr>';
-            const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
-                return playerTotals[a] - playerTotals[b];
-            });
-            
-            for (let i = 0; i < sortedPlayers.length; i++) {
-                const playerId = sortedPlayers[i];
-                const playerName = getPlayerName(playerId);
-                html += '<tr><td>' + playerName + '</td><td>' + playerTotals[playerId] + '</td></tr>';
-            }
-            html += '</table>';
-            
-            document.getElementById('gameDetailContent').innerHTML = html;
-            
-            let graphsHtml = '<h3>Graphs</h3>';
-            graphsHtml += '<div class="chart-container"><canvas id="wormChart"></canvas></div>';
-            graphsHtml += '<div class="chart-container"><canvas id="manhattanChart"></canvas></div>';
-            
-            document.getElementById('gameDetailGraphs').innerHTML = graphsHtml;
-            
-            showScreen('gameDetailScreen');
-            
-            setTimeout(function() {
-                drawGameWormChart(playerHands, sortedPlayers);
-                drawGameManhattanChart(playerHands, sortedPlayers);
-            }, 100);
-        }
-
-        function getPlayerName(playerId) {
-            for (let i = 0; i < allPlayers.length; i++) {
-                if (allPlayers[i].player_id == playerId) {
-                    return allPlayers[i].username;
-                }
-            }
-            return 'Unknown';
-        }
-
-        function drawGameWormChart(playerHands, playerIds) {
-            const ctx = document.getElementById('wormChart').getContext('2d');
-            const datasets = [];
-            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
-            
-            for (let i = 0; i < playerIds.length; i++) {
-                const playerId = playerIds[i];
-                const hands = playerHands[playerId];
-                let cumulative = 0;
-                const cumulativeScores = [];
-                
-                for (let j = 0; j < hands.length; j++) {
-                    cumulative += hands[j];
-                    cumulativeScores.push(cumulative);
-                }
-                
-                datasets.push({
-                    label: getPlayerName(playerId),
-                    data: cumulativeScores,
-                    borderColor: colors[i % colors.length],
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    tension: 0.1
-                });
-            }
-            
-            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
-            const labels = [];
-            for (let i = 1; i <= maxHands; i++) {
-                labels.push('Hand ' + i);
-            }
-            
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Cricket Worm - Cumulative Scores'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Cumulative Score'
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function drawGameManhattanChart(playerHands, playerIds) {
-            const ctx = document.getElementById('manhattanChart').getContext('2d');
-            const datasets = [];
-            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
-            
-            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
-            
-            for (let i = 0; i < playerIds.length; i++) {
-                const playerId = playerIds[i];
-                const hands = playerHands[playerId];
-                const paddedHands = [];
-                
-                for (let j = 0; j < maxHands; j++) {
-                    paddedHands.push(hands[j] || 0);
-                }
-                
-                datasets.push({
-                    label: getPlayerName(playerId),
-                    data: paddedHands,
-                    backgroundColor: colors[i % colors.length],
-                    borderColor: colors[i % colors.length],
-                    borderWidth: 1
-                });
-            }
-            
-            const labels = [];
-            for (let i = 1; i <= maxHands; i++) {
-                labels.push('Hand ' + i);
-            }
-            
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Manhattan - Per Hand Scores'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            stacked: false
-                        }
-                    }
-                }
-            });
-        }
-
-        function setStatsMode(mode) {
-            statsMode = mode;
-            const buttons = document.querySelectorAll('.toggle-buttons button');
-            for (let i = 0; i < buttons.length; i++) {
-                buttons[i].classList.remove('active');
-            }
-            event.target.classList.add('active');
-            
-            if (mode === 'game') {
-                document.getElementById('gameSelectSection').classList.remove('hidden');
-                loadGameSelectDropdown();
-            } else {
-                document.getElementById('gameSelectSection').classList.add('hidden');
-            }
-            
-            loadStats();
-        }
-
-        async function loadGameSelectDropdown() {
-            const select = document.getElementById('statsGameSelect');
-            const sessionsData = await apiCall('getSessions', {});
-            
-            let html = '<option value="">Select a game...</option>';
-            
-            for (let s = 0; s < sessionsData.length; s++) {
-                const session = sessionsData[s];
-                const gamesData = await apiCall('getGames', { session_id: session.session_id });
-                
-                if (gamesData.error) continue;
-                
-                for (let g = 0; g < gamesData.length; g++) {
-                    const game = gamesData[g];
-                    html += '<option value="' + game.game_id + '">' + session.title + ' - Game ' + game.game_number + '</option>';
-                }
-            }
-            
-            select.innerHTML = html;
-        }
-
-        async function loadStats() {
-            const contentDiv = document.getElementById('statsContent');
-            contentDiv.innerHTML = '<div class="loading">Loading stats...</div>';
-            
-            const playersData = await apiCall('getPlayers', {});
-            if (playersData.error) {
-                contentDiv.innerHTML = '<div class="error">Error loading stats</div>';
-                return;
-            }
-            
-            setupPlayerFilters(playersData);
-            
-            let html = '<div class="stats-grid">';
-            html += '<div class="stat-card"><h4>Win Rate</h4><p class="stat-value">Coming Soon</p></div>';
-            html += '<div class="stat-card"><h4>Avg Score/Hand</h4><p class="stat-value">Coming Soon</p></div>';
-            html += '<div class="stat-card"><h4>Avg Lockout Score</h4><p class="stat-value">Coming Soon</p></div>';
-            html += '<div class="stat-card"><h4>False Lockout %</h4><p class="stat-value">Coming Soon</p></div>';
-            html += '<div class="stat-card"><h4>Win Streak</h4><p class="stat-value">Coming Soon</p></div>';
-            html += '<div class="stat-card"><h4>Loss Streak</h4><p class="stat-value">Coming Soon</p></div>';
-            html += '<div class="stat-card"><h4>Best Margin</h4><p class="stat-value">Coming Soon</p></div>';
-            html += '<div class="stat-card"><h4>Worst Margin</h4><p class="stat-value">Coming Soon</p></div>';
-            html += '</div>';
-            html += '<div class="chart-container"><canvas id="allTimeWormChart"></canvas></div>';
-            html += '<div class="chart-container"><canvas id="allTimeManhattanChart"></canvas></div>';
-            
-            contentDiv.innerHTML = html;
-        }
-
-        function setupPlayerFilters(playersData) {
-            const filterDiv = document.getElementById('playerFilters');
-            let html = '';
-            
-            for (let i = 0; i < playersData.length; i++) {
-                const player = playersData[i];
-                html += '<div class="filter-checkbox">' +
-                    '<input type="checkbox" id="filter_' + player.player_id + '" checked onchange="loadStats()">' +
-                    '<label for="filter_' + player.player_id + '">' + player.username + '</label>' +
-                    '</div>';
-            }
-            
-            filterDiv.innerHTML = html;
-        }
-
-        window.addEventListener('DOMContentLoaded', function() {
-            console.log('Lockout Tracker loaded');
-               async function loadStats() {
-            const contentDiv = document.getElementById('statsContent');
-            contentDiv.innerHTML = '<div class="loading">Loading stats...</div>';
-            
-            const playersData = await apiCall('getPlayers', {});
-            if (playersData.error) {
-                contentDiv.innerHTML = '<div class="error">Error loading stats</div>';
-                return;
-            }
-            
-            setupPlayerFilters(playersData);
-            
-            let selectedPlayers = [];
-            const checkboxes = document.querySelectorAll('[id^="filter_"]:checked');
-            for (let i = 0; i < checkboxes.length; i++) {
-                const playerId = checkboxes[i].id.replace('filter_', '');
-                selectedPlayers.push(playerId);
-            }
-            
-            selectedPlayersForStats = selectedPlayers;
-            
-            let gameData = null;
-            if (statsMode === 'game') {
-                const gameId = document.getElementById('statsGameSelect').value;
-                if (!gameId) {
-                    contentDiv.innerHTML = '<div class="error">Please select a game</div>';
-                    return;
-                }
-                gameData = await apiCall('getHands', { game_id: gameId });
-            } else {
-                const sessionsData = await apiCall('getSessions', {});
-                gameData = [];
-                for (let s = 0; s < sessionsData.length; s++) {
-                    const gamesData = await apiCall('getGames', { session_id: sessionsData[s].session_id });
-                    if (!gamesData.error) {
-                        for (let g = 0; g < gamesData.length; g++) {
-                            const handsData = await apiCall('getHands', { game_id: gamesData[g].game_id });
-                            if (!handsData.error) {
-                                gameData = gameData.concat(handsData);
-                            }
-                        }
-                    }
-                }
-            }
-            
-            if (!gameData || gameData.length === 0) {
-                contentDiv.innerHTML = '<div class="error">No game data available</div>';
-                return;
-            }
-            
-            const stats = calculateStats(gameData, selectedPlayers, playersData);
-            
-            let html = '<div class="stats-grid">';
-            html += '<div class="stat-card"><h4>Win Rate</h4><p class="stat-value">' + stats.winRate + '%</p></div>';
-            html += '<div class="stat-card"><h4>Avg Score/Hand</h4><p class="stat-value">' + stats.avgScorePerHand + '</p></div>';
-            html += '<div class="stat-card"><h4>Avg Lockout Score</h4><p class="stat-value">' + stats.avgLockoutScore + '</p></div>';
-            html += '<div class="stat-card"><h4>False Lockout %</h4><p class="stat-value">' + stats.falseLockoutRate + '%</p></div>';
-            html += '<div class="stat-card"><h4>Win Streak</h4><p class="stat-value">' + stats.winStreak + '</p></div>';
-            html += '<div class="stat-card"><h4>Loss Streak</h4><p class="stat-value">' + stats.lossStreak + '</p></div>';
-            html += '<div class="stat-card"><h4>Best Margin</h4><p class="stat-value">' + stats.bestMargin + '</p></div>';
-            html += '<div class="stat-card"><h4>Worst Margin</h4><p class="stat-value">' + stats.worstMargin + '</p></div>';
-            html += '</div>';
-            html += '<div class="chart-container"><canvas id="allTimeWormChart"></canvas></div>';
-            html += '<div class="chart-container"><canvas id="allTimeManhattanChart"></canvas></div>';
-            
-            contentDiv.innerHTML = html;
-            
-            setTimeout(function() {
-                drawAllTimeWormChart(gameData, selectedPlayers, playersData);
-                drawAllTimeManhattanChart(gameData, selectedPlayers, playersData);
-            }, 100);
-        }
-
-        function calculateStats(gameData, selectedPlayers, playersData) {
-            const playerStats = {};
-            
-            for (let i = 0; i < selectedPlayers.length; i++) {
-                const playerId = selectedPlayers[i];
-                playerStats[playerId] = {
-                    wins: 0,
-                    losses: 0,
-                    totalScore: 0,
-                    handCount: 0,
-                    lockoutScores: [],
-                    falseLockouts: 0,
-                    totalLockouts: 0,
-                    margins: []
-                };
-            }
-            
-            const playerHands = {};
-            for (let i = 0; i < selectedPlayers.length; i++) {
-                playerHands[selectedPlayers[i]] = [];
-            }
-            
-            for (let i = 0; i < gameData.length; i++) {
-                const hand = gameData[i];
-                if (selectedPlayers.indexOf(String(hand.player_id)) !== -1) {
-                    playerStats[hand.player_id].totalScore += Number(hand.score);
-                    playerStats[hand.player_id].handCount++;
-                    playerHands[hand.player_id].push(Number(hand.score));
-                }
-            }
-            
-            const stats = {
-                winRate: '0',
-                avgScorePerHand: '0',
-                avgLockoutScore: '0',
-                falseLockoutRate: '0',
-                winStreak: '0',
-                lossStreak: '0',
-                bestMargin: '0',
-                worstMargin: '0'
-            };
-            
-            if (selectedPlayers.length === 0) return stats;
-            
-            const firstPlayer = selectedPlayers[0];
-            const ps = playerStats[firstPlayer];
-            
-            if (ps.handCount > 0) {
-                stats.avgScorePerHand = (ps.totalScore / ps.handCount).toFixed(2);
-            }
-            
-            if (ps.lockoutScores.length > 0) {
-                const sum = ps.lockoutScores.reduce(function(a, b) { return a + b; }, 0);
-                stats.avgLockoutScore = (sum / ps.lockoutScores.length).toFixed(2);
-            }
-            
-            if (ps.totalLockouts > 0) {
-                stats.falseLockoutRate = ((ps.falseLockouts / ps.totalLockouts) * 100).toFixed(1);
-            }
-            
-            stats.winRate = '0';
-            stats.winStreak = '0';
-            stats.lossStreak = '0';
-            stats.bestMargin = '0';
-            stats.worstMargin = '0';
-            
-            return stats;
-        }
-
-        function drawAllTimeWormChart(gameData, selectedPlayers, playersData) {
-            const ctx = document.getElementById('allTimeWormChart');
-            if (!ctx) return;
-            
-            const playerCumulative = {};
-            for (let i = 0; i < selectedPlayers.length; i++) {
-                playerCumulative[selectedPlayers[i]] = [];
-            }
-            
-            let cumulative = {};
-            for (let i = 0; i < selectedPlayers.length; i++) {
-                cumulative[selectedPlayers[i]] = 0;
-            }
-            
-            for (let i = 0; i < gameData.length; i++) {
-                const hand = gameData[i];
-                if (selectedPlayers.indexOf(String(hand.player_id)) !== -1) {
-                    cumulative[hand.player_id] += Number(hand.score);
-                    playerCumulative[hand.player_id].push(cumulative[hand.player_id]);
-                }
-            }
-            
-            const datasets = [];
-            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
-            
-            for (let i = 0; i < selectedPlayers.length; i++) {
-                const playerId = selectedPlayers[i];
-                const playerName = getPlayerName(playerId);
-                
-                datasets.push({
-                    label: playerName,
-                    data: playerCumulative[playerId],
-                    borderColor: colors[i % colors.length],
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    tension: 0.1
-                });
-            }
-            
-            const maxDataPoints = Math.max.apply(null, Object.keys(playerCumulative).map(k => playerCumulative[k].length));
-            const labels = [];
-            for (let i = 1; i <= maxDataPoints; i++) {
-                labels.push('Hand ' + i);
-            }
-            
-            const ctxElement = ctx.getContext('2d');
-            new Chart(ctxElement, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Cricket Worm - All Time Cumulative Scores'
-                        },
-                        legend: {
-                            display: true
-                        }
-                    },
-                    scales: {
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Cumulative Score'
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function drawAllTimeManhattanChart(gameData, selectedPlayers, playersData) {
-            const ctx = document.getElementById('allTimeManhattanChart');
-            if (!ctx) return;
-            
-            const playerScores = {};
-            for (let i = 0; i < selectedPlayers.length; i++) {
-                playerScores[selectedPlayers[i]] = [];
-            }
-            
-            for (let i = 0; i < gameData.length; i++) {
-                const hand = gameData[i];
-                if (selectedPlayers.indexOf(String(hand.player_id)) !== -1) {
-                    playerScores[hand.player_id].push(Number(hand.score));
-                }
-            }
-            
-            const datasets = [];
-            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
-            
-            const maxDataPoints = Math.max.apply(null, Object.keys(playerScores).map(k => playerScores[k].length));
-            
-            for (let i = 0; i < selectedPlayers.length; i++) {
-                const playerId = selectedPlayers[i];
-                const playerName = getPlayerName(playerId);
-                const scores = playerScores[playerId];
-                const paddedScores = [];
-                
-                for (let j = 0; j < maxDataPoints; j++) {
-                    paddedScores.push(scores[j] || 0);
-                }
-                
-                datasets.push({
-                    label: playerName,
-                    data: paddedScores,
-                    backgroundColor: colors[i % colors.length],
-                    borderColor: colors[i % colors.length],
-                    borderWidth: 1
-                });
-            }
-            
-            const labels = [];
-            for (let i = 1; i <= maxDataPoints; i++) {
-                labels.push('Hand ' + i);
-            }
-            
-            const ctxElement = ctx.getContext('2d');
-            new Chart(ctxElement, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Manhattan - Per Hand Scores'
-                        },
-                        legend: {
-                            display: true
-                        }
-                    },
-                    scales: {
-                        y: {
-                            stacked: false
-                        }
-                    }
-                }
-            });
-        }
-
-        function setupPlayerFilters(playersData) {
-            const filterDiv = document.getElementById('playerFilters');
-            let html = '';
-            
-            for (let i = 0; i < playersData.length; i++) {
-                const player = playersData[i];
-                html += '<div class="filter-checkbox">' +
-                    '<input type="checkbox" id="filter_' + player.player_id + '" checked onchange="loadStats()">' +
-                    '<label for="filter_' + player.player_id + '">' + player.username + '</label>' +
-                    '</div>';
-            }
-            
-            filterDiv.innerHTML = html;
-        }
-
-        async function loadLeaderboard() {
-            const contentDiv = document.getElementById('leaderboardContent');
-            contentDiv.innerHTML = '<div class="loading">Loading leaderboard...</div>';
-            
-            const playersData = await apiCall('getPlayers', {});
-            const sessionsData = await apiCall('getSessions', {});
-            
-            if (playersData.error || sessionsData.error) {
-                contentDiv.innerHTML = '<div class="error">Error loading leaderboard data</div>';
-                return;
-            }
-            
-            let html = '<h3>Players</h3><table class="leaderboard-table"><tr><th>Player</th><th>Joined</th></tr>';
-            for (let i = 0; i < playersData.length; i++) {
-                const p = playersData[i];
-                html += '<tr><td>' + p.username + '</td><td>' + p.date_added + '</td></tr>';
-            }
-            html += '</table><h3 style="margin-top: 20px;">Recent Sessions</h3><table class="leaderboard-table"><tr><th>Session</th><th>Date</th></tr>';
-            for (let i = 0; i < sessionsData.length; i++) {
-                const s = sessionsData[i];
-                html += '<tr><td>' + s.title + '</td><td>' + s.date_started + '</td></tr>';
-            }
-            html += '</table>';
-            
-            contentDiv.innerHTML = html;
         }
 
         window.addEventListener('DOMContentLoaded', function() {
