@@ -545,18 +545,8 @@
             
             document.getElementById('gameDetailContent').innerHTML = html;
             
-            let graphsHtml = '<h3>Graphs</h3>';
-            graphsHtml += '<div class="chart-container"><canvas id="wormChart"></canvas></div>';
-            graphsHtml += '<div class="chart-container"><canvas id="manhattanChart"></canvas></div>';
-            
-            document.getElementById('gameDetailGraphs').innerHTML = graphsHtml;
-            
-            showScreen('gameDetailScreen');
-            
-            setTimeout(function() {
-                drawGameWormChart(playerHands, sortedPlayers);
-                drawGameManhattanChart(playerHands, sortedPlayers);
-            }, 100);
+            document.getElementById('statsGraphsContainer').innerHTML = '';
+
         }
 
         function drawGameWormChart(playerHands, playerIds) {
