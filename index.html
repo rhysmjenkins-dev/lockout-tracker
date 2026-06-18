@@ -83,6 +83,7 @@
         <div id="homeScreen" class="screen active">
             <div class="card">
                 <h2>Welcome!</h2>
+                <div id="activeSessionsSection"></div>
                 <button class="btn" onclick="showScreen('startSessionScreen')">Start New Session</button>
                 <button class="btn btn-secondary" onclick="showScreen('previousSessionsScreen'); loadPreviousSessions();">View Previous Sessions</button>
                 <button class="btn btn-secondary" onclick="showScreen('statsScreen'); loadStats();">View Stats</button>
@@ -804,8 +805,76 @@
             document.getElementById('statsContent').innerHTML = html;
         }
 
+        async function checkActiveSessions() {
+            const sessionsData = await apiCall('getSessions', {});
+            if (sessionsData.error) return;
+            
+            const activeSessions = sessionsData.filter(s => !s.date_ended || s.date_ended === '');
+            
+            if (activeSessions.length > 0) {
+                let html = '<div style="background: #e8f5e9; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #4caf50;">';
+                html += '<h3 style="color: #2e7d32; margin-bottom: 10px;">Active Sessions</h3>';
+                
+                for (let i = 0; i < activeSessions.length; i++) {
+                    const session = activeSessions[i];
+                    const handsData = await apiCall('getHands', { session_id: session.session_id });
+                    const handCount = handsData.error ? 0 : Math.max(...handsData.map(h => h.hand_number));
+                    
+                    html += '<div style="background: white; padding: 10px; border-radius: 5px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center;">';
+                    html += '<div><strong>' + session.title + '</strong><br><small>' + handCount + ' hands played</small></div>';
+                    html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ')">Resume</button>';
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+                document.getElementById('activeSessionsSection').innerHTML = html;
+            } else {
+                document.getElementById('activeSessionsSection').innerHTML = '';
+            }
+        }
+
+        async function resumeSession(sessionId) {
+            const sessionData = await apiCall('getSession', { session_id: sessionId });
+            if (sessionData.error) {
+                alert('Error loading session: ' + sessionData.error);
+                return;
+            }
+            
+            const playersData = await apiCall('getPlayers', {});
+            if (playersData.error) {
+                alert('Error loading players');
+                return;
+            }
+            
+            allPlayers = playersData;
+            
+            const playerIds = sessionData.players_involved.split(',');
+            sessionPlayers = [];
+            for (let i = 0; i < playerIds.length; i++) {
+                const player = playersData.find(p => String(p.player_id) === String(playerIds[i]));
+                if (player) sessionPlayers.push(player);
+            }
+            
+            currentSession = {
+                session_id: sessionData.session_id,
+                title: sessionData.title,
+                host_player_id: sessionData.host_player_id
+            };
+            
+            const handsData = await apiCall('getHands', { session_id: sessionId });
+            if (handsData.error || handsData.length === 0) {
+                currentHandNumber = 1;
+            } else {
+                currentHandNumber = Math.max(...handsData.map(h => h.hand_number)) + 1;
+            }
+            
+            showActiveSession();
+            updateSessionScores();
+        }
+
         window.addEventListener('DOMContentLoaded', function() {
             console.log('Lockout Tracker v2 loaded');
+            checkActiveSessions();
         });
     </script>
 </body>
