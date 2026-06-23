@@ -227,9 +227,11 @@
                     <div id="handMessage"></div>
                 </div>
                 
-                <div id="sessionScores" class="game-summary"></div>
-                
-                <div class="nav-buttons">
+<div id="sessionScores" class="game-summary"></div>
+
+<div id="activeSessionCharts"></div>
+
+<div class="nav-buttons">
                     <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
                     <button class="btn btn-danger" onclick="endSession()">End Session</button>
                 </div>
@@ -741,12 +743,35 @@
                     html += '<div>• <strong>' + p.username + ':</strong> No lockouts yet</div>';
                 }
             }
-            
-            html += '</div></div>';
-            
-            document.getElementById('sessionScores').innerHTML = html;
+    html += '</div></div>';
+    
+    document.getElementById('sessionScores').innerHTML = html;
+    
+    // ✅ ADD CHARTS FOR ACTIVE SESSION
+    const chartSection = document.getElementById('activeSessionCharts');
+    if (chartSection) {
+        let chartsHtml = '<h3 style="margin-top: 30px;">Session Graphs</h3>';
+        chartsHtml += '<div class="chart-container"><canvas id="activeWormChart"></canvas></div>';
+        chartsHtml += '<div class="chart-container"><canvas id="activeManhattanChart"></canvas></div>';
+        chartSection.innerHTML = chartsHtml;
+        
+        // Build player hands data for charts
+        const playerHandsData = {};
+        const playerIdsArray = [];
+        
+        for (let i = 0; i < scores.length; i++) {
+            const p = scores[i];
+            const playerId = sessionPlayers.find(sp => sp.username === p.username).player_id;
+            playerIdsArray.push(playerId);
+            playerHandsData[playerId] = p.hands.map(h => h.score);
         }
-
+        
+        setTimeout(function() {
+            drawActiveWormChart(playerHandsData, playerIdsArray);
+            drawActiveManhattanChart(playerHandsData, playerIdsArray);
+        }, 100);
+    }
+}
         // ============================================
         // PREVIOUS SESSIONS & SESSION DETAILS
         // ============================================
@@ -1384,6 +1409,169 @@ function drawSessionManhattanChart(playerHands, playerIds) {
     
     // Store chart instance for potential future use
     window.manhattanChartInstance = chart;
+}
+        
+// ============================================
+// ACTIVE SESSION CHART FUNCTIONS
+// ============================================
+
+function drawActiveWormChart(playerHands, playerIds) {
+    const ctx = document.getElementById('activeWormChart');
+    if (!ctx) return;
+    const datasets = [];
+    const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+    
+    for (let i = 0; i < playerIds.length; i++) {
+        const playerId = playerIds[i];
+        const hands = playerHands[playerId];
+        let cumulative = 0;
+        const cumulativeScores = [];
+        
+        for (let j = 0; j < hands.length; j++) {
+            cumulative += hands[j];
+            cumulativeScores.push(cumulative);
+        }
+        
+        datasets.push({
+            label: getPlayerName(playerId),
+            data: cumulativeScores,
+            borderColor: colors[i % colors.length],
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            tension: 0.1
+        });
+    }
+    
+    const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+    const labels = [];
+    for (let i = 1; i <= maxHands; i++) {
+        labels.push('Hand ' + i);
+    }
+    
+    const chart = new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: { display: true, text: 'Cricket Worm - Cumulative Scores' },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    onClick: function(e, legendItem, legend) {
+                        const index = legendItem.datasetIndex;
+                        const ci = legend.chart;
+                        const meta = ci.getDatasetMeta(index);
+                        meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                        ci.update();
+                    }
+                }
+            },
+            scales: { y: { title: { display: true, text: 'Cumulative Score' } } }
+        }
+    });
+    
+    window.activeWormChartInstance = chart;
+}
+
+function drawActiveManhattanChart(playerHands, playerIds) {
+    const ctx = document.getElementById('activeManhattanChart');
+    if (!ctx) return;
+    
+    const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+    
+    const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+    const labels = [];
+    for (let i = 1; i <= maxHands; i++) {
+        labels.push('Hand ' + i);
+    }
+    
+    const datasets = [];
+    for (let i = 0; i < playerIds.length; i++) {
+        const playerId = playerIds[i];
+        const hands = playerHands[playerId];
+        
+        datasets.push({
+            label: getPlayerName(playerId),
+            data: hands,
+            backgroundColor: colors[i % colors.length],
+            borderColor: colors[i % colors.length],
+            borderWidth: 1,
+            barThickness: 'flex',
+            maxBarThickness: 40
+        });
+    }
+    
+    const chart = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: { 
+                    display: true, 
+                    text: 'Manhattan - Per Hand Scores',
+                    font: { size: 16, weight: 'bold' },
+                    padding: { top: 10, bottom: 20 }
+                },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    onClick: function(e, legendItem, legend) {
+                        const index = legendItem.datasetIndex;
+                        const ci = legend.chart;
+                        const meta = ci.getDatasetMeta(index);
+                        meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                        ci.update();
+                    },
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: { size: 13, weight: '600' }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y + ' runs';
+                        }
+                    }
+                }
+            },
+            scales: { 
+                x: {
+                    title: { 
+                        display: true, 
+                        text: 'Hand Number',
+                        font: { size: 14, weight: '600' }
+                    },
+                    grid: { display: false }
+                },
+                y: { 
+                    title: { 
+                        display: true, 
+                        text: 'Score',
+                        font: { size: 14, weight: '600' }
+                    },
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                }
+            },
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            grouped: true,
+            barPercentage: 0.8,
+            categoryPercentage: 0.9
+        }
+    });
+    
+    window.activeManhattanChartInstance = chart;
 }
 
         // ============================================
