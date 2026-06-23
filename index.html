@@ -318,51 +318,67 @@
             }
         }
 
-        async function submitHand() {
-            const messageDiv = document.getElementById('handMessage');
-            const scores = [];
-            let lockoutPlayerId = null;
-            let falseLockout = false;
-            
-            for (let i = 0; i < sessionPlayers.length; i++) {
-                const player = sessionPlayers[i];
-                const scoreVal = parseInt(document.getElementById('score_' + player.player_id).value);
-                if (isNaN(scoreVal)) {
-                    messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
-                    return;
-                }
-                scores.push({ player_id: player.player_id, score: scoreVal });
-                const isLockedOut = document.getElementById('lockout_' + player.player_id).checked;
-                if (isLockedOut) {
-                    lockoutPlayerId = player.player_id;
-                    falseLockout = document.getElementById('false_' + player.player_id).checked;
-                }
-            }
-            
-            if (lockoutPlayerId === null) {
-                messageDiv.innerHTML = '<div class="error">One player must lock out</div>';
-                return;
-            }
-            
-            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
-            const data = await apiCall('addHand', {
-                session_id: currentSession.session_id,
-                hand_number: currentHandNumber,
-                scores: JSON.stringify(scores),
-                lockout_player_id: lockoutPlayerId,
-                false_lockout: falseLockout,
-                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
-            });
-            
-            if (data.error) {
-                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-            } else {
-                currentHandNumber++;
-                setupHandInputs();
-                updateSessionScores();
-            }
+async function submitHand() {
+    const messageDiv = document.getElementById('handMessage');
+    const scores = [];
+    let lockoutPlayerId = null;
+    let falseLockout = false;
+    
+    for (let i = 0; i < sessionPlayers.length; i++) {
+        const player = sessionPlayers[i];
+        const scoreVal = parseInt(document.getElementById('score_' + player.player_id).value);
+        if (isNaN(scoreVal)) {
+            messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
+            return;
         }
-
+        scores.push({ player_id: player.player_id, score: scoreVal });
+        const isLockedOut = document.getElementById('lockout_' + player.player_id).checked;
+        if (isLockedOut) {
+            lockoutPlayerId = player.player_id;
+            falseLockout = document.getElementById('false_' + player.player_id).checked;
+        }
+    }
+    
+    if (lockoutPlayerId === null) {
+        messageDiv.innerHTML = '<div class="error">One player must lock out</div>';
+        return;
+    }
+    
+    // ✅ NEW VALIDATION: Check if false lockout is correctly marked
+    const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+    const lowestScore = Math.min(...scores.map(s => s.score));
+    
+    if (falseLockout && lockoutPlayerScore === lowestScore) {
+        messageDiv.innerHTML = '<div class="error">⚠️ Cannot mark as false lockout - this player has the lowest score! Uncheck "False" to continue.</div>';
+        return;
+    }
+    
+    if (!falseLockout && lockoutPlayerScore > lowestScore) {
+        // ✅ Show warning but allow submission (in case they forgot to check "False")
+        if (!confirm('⚠️ Warning: The lockout player does NOT have the lowest score. This should be marked as a FALSE lockout.\n\nDo you want to mark this as a false lockout?')) {
+            return;
+        }
+        falseLockout = true; // Auto-correct to false lockout
+    }
+    
+    let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+    const data = await apiCall('addHand', {
+        session_id: currentSession.session_id,
+        hand_number: currentHandNumber,
+        scores: JSON.stringify(scores),
+        lockout_player_id: lockoutPlayerId,
+        false_lockout: falseLockout,
+        editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+    });
+    
+    if (data.error) {
+        messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+    } else {
+        currentHandNumber++;
+        setupHandInputs();
+        updateSessionScores();
+    }
+}
         async function updateSessionScores() {
             const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
             if (handsData.error) return;
