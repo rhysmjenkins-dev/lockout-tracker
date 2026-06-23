@@ -35,11 +35,16 @@
         .btn-info { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #333; }
         .btn-warning { background: linear-gradient(135deg, #ffa751 0%, #ffe259 100%); color: #333; }
         .btn-small { width: auto; padding: 10px 20px; font-size: 0.9em; min-height: 44px; }
-        input, select { 
+        input, select, textarea { 
             width: 100%; padding: 14px; margin: 10px 0; border: 2px solid #e0e0e0; 
             border-radius: 8px; font-size: 1em; min-height: 48px;
+            font-family: inherit;
         }
-        input:focus, select:focus { outline: none; border-color: #667eea; }
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #667eea; }
         label { display: block; margin-top: 15px; font-weight: 600; color: #555; }
         .hidden { display: none; }
         .screen { display: none; }
@@ -91,7 +96,7 @@
         .placeholder-content h3 { color: #667eea; margin-bottom: 15px; font-size: 1.5em; }
         .placeholder-content p { margin-bottom: 20px; }
         
-        /* ✅ NEW: Edit/Delete Hand Styles */
+        /* Hand History Styles */
         .hand-history { background: #fff; padding: 15px; border-radius: 8px; margin: 15px 0; }
         .hand-history h4 { color: #667eea; margin-bottom: 10px; }
         .hand-item { 
@@ -102,7 +107,33 @@
         .hand-item-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .hand-item-actions .btn { min-width: 80px; }
         
-        /* ✅ NEW: Modal Styles */
+        /* ✅ NEW: Session metadata display */
+        .session-metadata { 
+            background: #f0f4ff; 
+            padding: 12px; 
+            border-radius: 8px; 
+            margin: 15px 0; 
+            border-left: 4px solid #667eea;
+        }
+        .session-metadata p { 
+            margin: 5px 0; 
+            font-size: 0.95em; 
+            color: #555;
+        }
+        .session-metadata strong { 
+            color: #667eea; 
+        }
+        .tag-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            margin: 2px;
+        }
+        
+        /* Modal Styles */
         .modal { 
             display: none; position: fixed; z-index: 1000; left: 0; top: 0; 
             width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);
@@ -122,7 +153,7 @@
         }
         .modal-close:hover { color: #333; }
         
-        /* ✅ MOBILE OPTIMIZATIONS */
+        /* MOBILE OPTIMIZATIONS */
         @media (max-width: 600px) {
             body { padding: 10px; }
             .header h1 { font-size: 1.8em; }
@@ -146,10 +177,10 @@
             .modal-content { padding: 20px; margin: 10px; }
         }
         
-        /* ✅ Touch-friendly improvements */
+        /* Touch-friendly improvements */
         @media (hover: none) and (pointer: coarse) {
             .btn { min-height: 48px; }
-            input, select { min-height: 48px; font-size: 16px; }
+            input, select, textarea { min-height: 48px; font-size: 16px; }
             .session-item { min-height: 72px; }
         }
     </style>
@@ -226,6 +257,7 @@
         <div id="sessionDetailScreen" class="screen">
             <div class="card">
                 <h2 id="sessionDetailTitle">Session Details</h2>
+                <div id="sessionDetailMetadata"></div>
                 <div id="sessionDetailContent"></div>
                 <div id="sessionDetailGraphs"></div>
                 <button class="btn btn-secondary" onclick="showScreen('previousSessionsScreen'); loadPreviousSessions();">Back to Sessions</button>
@@ -253,6 +285,22 @@
                     <option value="">Select host...</option>
                 </select>
                 
+                <!-- ✅ NEW: Session Notes -->
+                <label for="sessionNotes">Session Notes (Optional)</label>
+                <textarea id="sessionNotes" placeholder="e.g. Playing at John's house, bring snacks"></textarea>
+                
+                <!-- ✅ NEW: Session Tags -->
+                <label for="sessionTags">Session Type (Optional)</label>
+                <select id="sessionTags" multiple size="4" style="min-height: 120px;">
+                    <option value="Tournament">🏆 Tournament</option>
+                    <option value="Practice">🎯 Practice</option>
+                    <option value="Casual">😎 Casual</option>
+                    <option value="Championship">👑 Championship</option>
+                    <option value="Friendly">🤝 Friendly</option>
+                    <option value="Competitive">⚔️ Competitive</option>
+                </select>
+                <small style="color: #666; display: block; margin-top: 5px;">Hold Ctrl (Cmd on Mac) to select multiple</small>
+                
                 <label>Select Players</label>
                 <div id="playerSelectionList" class="loading">Loading players...</div>
                 
@@ -268,14 +316,21 @@
                 <h2 id="activeSessionTitle">Session Name</h2>
                 <div id="activeSessionInfo"></div>
                 
+                <!-- ✅ NEW: Session metadata display -->
+                <div id="activeSessionMetadata"></div>
+                
                 <div class="hand-input-section">
                     <h4>Hand <span id="currentHandNumber"></span></h4>
                     <div id="handInputs"></div>
+                    
+                    <!-- ✅ NEW: Hand comment field -->
+                    <label for="handComment" style="margin-top: 15px;">Hand Note (Optional)</label>
+                    <input type="text" id="handComment" placeholder="e.g. Epic comeback, close call...">
+                    
                     <button class="btn btn-success" onclick="submitHand()">Submit Hand</button>
                     <div id="handMessage"></div>
                 </div>
                 
-                <!-- ✅ NEW: Hand History Section -->
                 <div id="handHistorySection" class="hand-history" style="display: none;">
                     <h4>Hand History</h4>
                     <div id="handHistoryList"></div>
@@ -285,6 +340,7 @@
                 <div id="activeSessionCharts"></div>
                 
                 <div class="nav-buttons">
+                    <button class="btn btn-warning btn-small" onclick="showEditSessionModal()">✏️ Edit Session</button>
                     <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
                     <button class="btn btn-danger" onclick="endSession()">End Session</button>
                 </div>
@@ -292,7 +348,7 @@
         </div>
     </div>
 
-    <!-- ✅ NEW: Edit Hand Modal -->
+    <!-- EDIT HAND MODAL -->
     <div id="editHandModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -300,12 +356,44 @@
                 <button class="modal-close" onclick="closeEditModal()">&times;</button>
             </div>
             <div id="editHandInputs"></div>
+            
+            <!-- ✅ NEW: Edit hand comment -->
+            <label for="editHandComment" style="margin-top: 15px;">Hand Note (Optional)</label>
+            <input type="text" id="editHandComment" placeholder="e.g. Epic comeback, close call...">
+            
             <button class="btn btn-success" onclick="saveEditedHand()">Save Changes</button>
             <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
             <div id="editHandMessage"></div>
         </div>
     </div>
 
+    <!-- ✅ NEW: EDIT SESSION MODAL -->
+    <div id="editSessionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Session Details</h3>
+                <button class="modal-close" onclick="closeEditSessionModal()">&times;</button>
+            </div>
+            
+            <label for="editSessionNotes">Session Notes</label>
+            <textarea id="editSessionNotes" placeholder="e.g. Playing at John's house"></textarea>
+            
+            <label for="editSessionTags">Session Type</label>
+            <select id="editSessionTags" multiple size="4" style="min-height: 120px;">
+                <option value="Tournament">🏆 Tournament</option>
+                <option value="Practice">🎯 Practice</option>
+                <option value="Casual">😎 Casual</option>
+                <option value="Championship">👑 Championship</option>
+                <option value="Friendly">🤝 Friendly</option>
+                <option value="Competitive">⚔️ Competitive</option>
+            </select>
+            <small style="color: #666; display: block; margin-top: 5px;">Hold Ctrl (Cmd on Mac) to select multiple</small>
+            
+            <button class="btn btn-success" onclick="saveEditedSession()">Save Changes</button>
+            <button class="btn btn-secondary" onclick="closeEditSessionModal()">Cancel</button>
+            <div id="editSessionMessage"></div>
+        </div>
+    </div>
     <script>
         // ============================================
         // CONFIGURATION & GLOBAL VARIABLES
@@ -317,7 +405,7 @@
         let allPlayers = [];
         let sessionPlayers = [];
         let allSessions = [];
-        let currentEditingHand = null; // ✅ NEW: Track hand being edited
+        let currentEditingHand = null;
 
         // Performance cache
         let playersLoaded = false;
@@ -475,23 +563,42 @@
                 selectedPlayers.push(checkboxes[i].value);
             }
             
+            // ✅ NEW: Get notes and tags
+            const notes = document.getElementById('sessionNotes').value.trim();
+            const tagsSelect = document.getElementById('sessionTags');
+            const selectedTags = [];
+            for (let i = 0; i < tagsSelect.options.length; i++) {
+                if (tagsSelect.options[i].selected) {
+                    selectedTags.push(tagsSelect.options[i].value);
+                }
+            }
+            const tags = selectedTags.join(',');
+            
             const messageDiv = document.getElementById('sessionMessage');
             
             if (!title || !hostId || selectedPlayers.length === 0) {
-                messageDiv.innerHTML = '<div class="error">Please fill all fields</div>';
+                messageDiv.innerHTML = '<div class="error">Please fill all required fields</div>';
                 return;
             }
             
             const data = await apiCall('createSession', {
                 title: title,
                 host_player_id: hostId,
-                players_involved: selectedPlayers.join(',')
+                players_involved: selectedPlayers.join(','),
+                notes: notes,
+                tags: tags
             });
             
             if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
             } else {
-                currentSession = { session_id: data.session_id, title: title, host_player_id: hostId };
+                currentSession = { 
+                    session_id: data.session_id, 
+                    title: title, 
+                    host_player_id: hostId,
+                    notes: notes,
+                    tags: tags
+                };
                 sessionPlayers = [];
                 for (let i = 0; i < allPlayers.length; i++) {
                     if (selectedPlayers.indexOf(String(allPlayers[i].player_id)) !== -1) {
@@ -522,7 +629,9 @@
             currentSession = {
                 session_id: sessionData.session_id,
                 title: sessionData.title,
-                host_player_id: sessionData.host_player_id
+                host_player_id: sessionData.host_player_id,
+                notes: sessionData.notes || '',
+                tags: sessionData.tags || ''
             };
             
             const handsData = await apiCall('getHands', { session_id: sessionId });
@@ -542,8 +651,104 @@
             document.getElementById('activeSessionInfo').innerHTML = 
                 '<p><strong>Session ID:</strong> ' + currentSession.session_id + '</p>' +
                 '<p><strong>Players:</strong> ' + playerNames + '</p>';
+            
+            // ✅ NEW: Display session metadata
+            displaySessionMetadata('activeSessionMetadata');
+            
             setupHandInputs();
             showScreen('activeSessionScreen');
+        }
+
+        // ✅ NEW: Display session notes/tags
+        function displaySessionMetadata(containerId) {
+            const container = document.getElementById(containerId);
+            if (!currentSession) return;
+            
+            let html = '';
+            
+            if (currentSession.notes || currentSession.tags) {
+                html += '<div class="session-metadata">';
+                
+                if (currentSession.notes) {
+                    html += '<p><strong>📝 Notes:</strong> ' + currentSession.notes + '</p>';
+                }
+                
+                if (currentSession.tags) {
+                    const tagsArray = currentSession.tags.split(',').filter(t => t.trim());
+                    if (tagsArray.length > 0) {
+                        html += '<p><strong>🏷️ Tags:</strong> ';
+                        for (let i = 0; i < tagsArray.length; i++) {
+                            html += '<span class="tag-badge">' + tagsArray[i] + '</span>';
+                        }
+                        html += '</p>';
+                    }
+                }
+                
+                html += '</div>';
+            }
+            
+            container.innerHTML = html;
+        }
+
+        // ✅ NEW: Show edit session modal
+        function showEditSessionModal() {
+            document.getElementById('editSessionNotes').value = currentSession.notes || '';
+            
+            // Set selected tags
+            const tagsSelect = document.getElementById('editSessionTags');
+            const currentTags = (currentSession.tags || '').split(',').filter(t => t.trim());
+            
+            for (let i = 0; i < tagsSelect.options.length; i++) {
+                tagsSelect.options[i].selected = currentTags.indexOf(tagsSelect.options[i].value) !== -1;
+            }
+            
+            document.getElementById('editSessionModal').classList.add('active');
+        }
+
+        // ✅ NEW: Save edited session
+        async function saveEditedSession() {
+            const notes = document.getElementById('editSessionNotes').value.trim();
+            const tagsSelect = document.getElementById('editSessionTags');
+            const selectedTags = [];
+            
+            for (let i = 0; i < tagsSelect.options.length; i++) {
+                if (tagsSelect.options[i].selected) {
+                    selectedTags.push(tagsSelect.options[i].value);
+                }
+            }
+            const tags = selectedTags.join(',');
+            
+            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+            
+            const data = await apiCall('updateSession', {
+                session_id: currentSession.session_id,
+                notes: notes,
+                tags: tags,
+                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+            });
+            
+            const messageDiv = document.getElementById('editSessionMessage');
+            
+            if (data.error) {
+                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+            } else {
+                currentSession.notes = notes;
+                currentSession.tags = tags;
+                messageDiv.innerHTML = '<div class="success">Session updated!</div>';
+                
+                // Update display
+                displaySessionMetadata('activeSessionMetadata');
+                
+                setTimeout(function() {
+                    closeEditSessionModal();
+                }, 1000);
+            }
+        }
+
+        // ✅ NEW: Close edit session modal
+        function closeEditSessionModal() {
+            document.getElementById('editSessionModal').classList.remove('active');
+            document.getElementById('editSessionMessage').innerHTML = '';
         }
 
         async function endSession() {
@@ -571,6 +776,8 @@
         function setupHandInputs() {
             document.getElementById('currentHandNumber').textContent = currentHandNumber;
             document.getElementById('handMessage').innerHTML = '';
+            document.getElementById('handComment').value = ''; // ✅ Clear comment field
+            
             const handInputs = document.getElementById('handInputs');
             let html = '';
             
@@ -656,6 +863,9 @@
                 falseLockout = true;
             }
             
+            // ✅ NEW: Get hand comment
+            const comment = document.getElementById('handComment').value.trim();
+            
             let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
             const data = await apiCall('addHand', {
                 session_id: currentSession.session_id,
@@ -663,7 +873,8 @@
                 scores: JSON.stringify(scores),
                 lockout_player_id: lockoutPlayerId,
                 false_lockout: falseLockout,
-                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+                editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
+                comment: comment
             });
             
             if (data.error) {
@@ -676,7 +887,7 @@
         }
 
         // ============================================
-        // ✅ NEW: EDIT/DELETE HAND FUNCTIONS
+        // EDIT/DELETE HAND FUNCTIONS
         // ============================================
         
         async function displayHandHistory() {
@@ -686,7 +897,6 @@
                 return;
             }
             
-            // Group hands by hand_number
             const handsByNumber = {};
             for (let i = 0; i < handsData.length; i++) {
                 const hand = handsData[i];
@@ -696,7 +906,6 @@
                 handsByNumber[hand.hand_number].push(hand);
             }
             
-            // Sort hand numbers descending (most recent first)
             const handNumbers = Object.keys(handsByNumber).sort((a, b) => b - a);
             
             let html = '';
@@ -704,10 +913,10 @@
                 const handNum = handNumbers[i];
                 const hands = handsByNumber[handNum];
                 
-                // Build score summary
                 let scoreText = '';
                 let lockoutPlayer = '';
                 let isFalseLockout = false;
+                let handComment = '';
                 
                 for (let j = 0; j < hands.length; j++) {
                     const h = hands[j];
@@ -716,19 +925,28 @@
                         lockoutPlayer = getPlayerName(h.player_id);
                         isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
                     }
+                    // ✅ NEW: Get comment (same for all players in hand)
+                    if (h.comment && !handComment) {
+                        handComment = h.comment;
+                    }
                 }
-                scoreText = scoreText.slice(0, -3); // Remove last ' | '
+                scoreText = scoreText.slice(0, -3);
                 
                 html += '<div class="hand-item">';
                 html += '<div class="hand-item-info">';
                 html += '<strong>Hand ' + handNum + '</strong><br>';
                 html += '<small>' + scoreText + '</small><br>';
                 html += '<small>Lockout: ' + lockoutPlayer + (isFalseLockout ? ' (FALSE)' : '') + '</small>';
+                
+                // ✅ NEW: Display comment if exists
+                if (handComment) {
+                    html += '<br><small style="color: #667eea;">💬 ' + handComment + '</small>';
+                }
+                
                 html += '</div>';
                 html += '<div class="hand-item-actions">';
                 html += '<button class="btn btn-warning btn-small" onclick="editHand(' + handNum + ')">Edit</button>';
                 
-                // Only allow deleting the most recent hand
                 if (i === 0) {
                     html += '<button class="btn btn-danger btn-small" onclick="deleteHand(' + handNum + ')">Delete</button>';
                 }
@@ -756,12 +974,17 @@
             let html = '';
             let lockoutPlayerId = null;
             let isFalseLockout = false;
+            let handComment = '';
             
             for (let i = 0; i < handsToEdit.length; i++) {
                 const hand = handsToEdit[i];
                 if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
                     lockoutPlayerId = hand.player_id;
                     isFalseLockout = (hand.false_lockout == 1 || hand.false_lockout === true);
+                }
+                // ✅ NEW: Get comment
+                if (hand.comment && !handComment) {
+                    handComment = hand.comment;
                 }
             }
             
@@ -780,6 +1003,10 @@
             }
             
             document.getElementById('editHandInputs').innerHTML = html;
+            
+            // ✅ NEW: Set comment in edit modal
+            document.getElementById('editHandComment').value = handComment;
+            
             document.getElementById('editHandModal').classList.add('active');
         }
         
@@ -828,7 +1055,6 @@
                 return;
             }
             
-            // Validation
             const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
             const lowestScore = Math.min(...scores.map(s => s.score));
             const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
@@ -854,6 +1080,9 @@
                 falseLockout = true;
             }
             
+            // ✅ NEW: Get edited comment
+            const comment = document.getElementById('editHandComment').value.trim();
+            
             let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
             const data = await apiCall('updateHand', {
                 session_id: currentSession.session_id,
@@ -861,7 +1090,8 @@
                 scores: JSON.stringify(scores),
                 lockout_player_id: lockoutPlayerId,
                 false_lockout: falseLockout,
-                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+                editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
+                comment: comment
             });
             
             if (data.error) {
@@ -896,7 +1126,6 @@
             if (data.error) {
                 alert('Error: ' + data.error);
             } else {
-                // Update current hand number if we deleted the last hand
                 if (handNumber == currentHandNumber - 1) {
                     currentHandNumber--;
                     setupHandInputs();
@@ -906,13 +1135,15 @@
         }
 
         // ============================================
+        // CONTINUE TO PART 3 FOR REST OF CODE...
+        // ============================================
+        // ============================================
         // ACTIVE SESSION SCORES UPDATE
         // ============================================
         async function updateSessionScores() {
             const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
             if (handsData.error) return;
             
-            // ✅ Display hand history
             displayHandHistory();
             
             const playerScores = {};
@@ -1121,6 +1352,30 @@
             
             document.getElementById('sessionDetailTitle').textContent = session.title;
             
+            // ✅ NEW: Display session metadata in detail view
+            let metadataHtml = '';
+            if (session.notes || session.tags) {
+                metadataHtml += '<div class="session-metadata">';
+                
+                if (session.notes) {
+                    metadataHtml += '<p><strong>📝 Notes:</strong> ' + session.notes + '</p>';
+                }
+                
+                if (session.tags) {
+                    const tagsArray = session.tags.split(',').filter(t => t.trim());
+                    if (tagsArray.length > 0) {
+                        metadataHtml += '<p><strong>🏷️ Tags:</strong> ';
+                        for (let i = 0; i < tagsArray.length; i++) {
+                            metadataHtml += '<span class="tag-badge">' + tagsArray[i] + '</span>';
+                        }
+                        metadataHtml += '</p>';
+                    }
+                }
+                
+                metadataHtml += '</div>';
+            }
+            document.getElementById('sessionDetailMetadata').innerHTML = metadataHtml;
+            
             const playerTotals = {};
             const playerHands = {};
             const playerStats = {};
@@ -1204,7 +1459,7 @@
         }
 
         // ============================================
-        // STATS CALCULATION
+        // STATS CALCULATION (keeping existing code)
         // ============================================
         async function loadStats() {
             const contentDiv = document.getElementById('statsContent');
@@ -1490,7 +1745,7 @@
         }
 
         // ============================================
-        // CHART DRAWING FUNCTIONS
+        // CHART DRAWING FUNCTIONS (keeping existing)
         // ============================================
         function drawSessionWormChart(playerHands, playerIds) {
             const ctx = document.getElementById('wormChart');
@@ -1829,7 +2084,7 @@
         // INITIALIZATION
         // ============================================
         window.addEventListener('DOMContentLoaded', function() {
-            console.log('Lockout Tracker v2.5 - Edit/Delete + Mobile Optimized! 📱✏️');
+            console.log('Lockout Tracker v2.5 - Session Enhancements! 📝🏷️💬');
             ensurePlayersLoaded();
             checkActiveSessions();
         });
