@@ -970,112 +970,129 @@ function calculateOverallStats(completedSessionsData, allSessionsData, playersDa
     
     return playerStats;
 }
-        function displayOverallStats(stats, totalSessions) {
-            let mostSessionsWon = { player: 'N/A', wins: 0 };
-            let mostHandsWon = { player: 'N/A', hands: 0 };
-            let bestSessionWinRate = { player: 'N/A', rate: 0 };
-            let bestHandWinRate = { player: 'N/A', rate: 0 };
-            let lowestAvgScore = { player: 'N/A', avg: Infinity };
-            let mostFalseLockouts = { player: 'N/A', count: 0 };
-            let longestHandStreak = { player: 'N/A', streak: 0 };
-            let bestAvgLockoutScore = { player: 'N/A', avg: Infinity };
-
-            for (let playerId in stats) {
-                const ps = stats[playerId];
-                
-                if (ps.sessionsWon > mostSessionsWon.wins) {
-                    mostSessionsWon = { player: ps.username, wins: ps.sessionsWon.toFixed(1) };
-                }
-                
-                if (ps.handsWon > mostHandsWon.hands) {
-                    mostHandsWon = { player: ps.username, hands: ps.handsWon };
-                }
-                
-                if (ps.sessionsPlayed > 0) {
-                    const sessionWinRate = (ps.sessionsWon / ps.sessionsPlayed) * 100;
-                    if (sessionWinRate > bestSessionWinRate.rate) {
-                        bestSessionWinRate = { player: ps.username, rate: sessionWinRate.toFixed(1) };
-                    }
-                }
-                
-                if (ps.handsPlayed > 0) {
-                    const handWinRate = (ps.handsWon / ps.handsPlayed) * 100;
-                    if (handWinRate > bestHandWinRate.rate) {
-                        bestHandWinRate = { player: ps.username, rate: handWinRate.toFixed(1) };
-                    }
-                }
-                
-                if (ps.handsPlayed > 0) {
-                    const avgScore = ps.totalScore / ps.handsPlayed;
-                    if (avgScore < lowestAvgScore.avg) {
-                        lowestAvgScore = { player: ps.username, avg: avgScore.toFixed(2) };
-                    }
-                }
-                
-                if (ps.falseLockouts > mostFalseLockouts.count) {
-                    mostFalseLockouts = { player: ps.username, count: ps.falseLockouts };
-                }
-                
-                if (ps.maxHandStreak > longestHandStreak.streak) {
-                    longestHandStreak = { player: ps.username, streak: ps.maxHandStreak };
-                }
-                
-                // ✅ NEW: Calculate best average lockout score
-                if (ps.lockoutScores.length > 0) {
-                    const avgLockoutScore = ps.lockoutScores.reduce((sum, score) => sum + score, 0) / ps.lockoutScores.length;
-                    if (avgLockoutScore < bestAvgLockoutScore.avg) {
-                        bestAvgLockoutScore = { player: ps.username, avg: avgLockoutScore.toFixed(2) };
-                    }
-                }
-            }
-            
-            let html = '<div class="stats-grid">';
-            html += '<div class="stat-card"><h4>Total Sessions</h4><p class="stat-value">' + totalSessions + '</p></div>';
-            html += '<div class="stat-card"><h4>Most Sessions Won</h4><p class="stat-value">' + mostSessionsWon.player + '</p><p>' + mostSessionsWon.wins + ' wins</p></div>';
-            html += '<div class="stat-card"><h4>Most Hands Won</h4><p class="stat-value">' + mostHandsWon.player + '</p><p>' + mostHandsWon.hands + ' hands</p></div>';
-            html += '<div class="stat-card"><h4>Best Session Win Rate</h4><p class="stat-value">' + bestSessionWinRate.player + '</p><p>' + bestSessionWinRate.rate + '%</p></div>';
-            html += '<div class="stat-card"><h4>Best Hand Win Rate</h4><p class="stat-value">' + bestHandWinRate.player + '</p><p>' + bestHandWinRate.rate + '%</p></div>';
-            html += '<div class="stat-card"><h4>Lowest Avg Score/Hand</h4><p class="stat-value">' + lowestAvgScore.player + '</p><p>' + lowestAvgScore.avg + '</p></div>';
-            html += '<div class="stat-card"><h4>Most False Lockouts</h4><p class="stat-value">' + mostFalseLockouts.player + '</p><p>' + mostFalseLockouts.count + ' times</p></div>';
-            html += '<div class="stat-card"><h4>Longest Hand Streak</h4><p class="stat-value">' + longestHandStreak.player + '</p><p>' + longestHandStreak.streak + ' hands</p></div>';
-            html += '<div class="stat-card"><h4>Best Avg Lockout Score</h4><p class="stat-value">' + bestAvgLockoutScore.player + '</p><p>' + bestAvgLockoutScore.avg + '</p></div>';
-            html += '</div>';
-            html += '<div style="background: #fff3cd; padding: 10px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #ffc107; font-size: 0.9em;">';
-html += '<strong>ℹ️ Note:</strong> Hand-level stats (Hands, Lockouts, Averages) include active sessions. Session-level stats (Wins, Win Rate) only include completed sessions.';
-html += '</div>';
-            html += '<h3 style="margin-top: 30px;">Player Breakdown</h3>';
-            html += '<div style="overflow-x: auto;">';
-            html += '<table class="scores-table">';
-            html += '<tr><th>Player</th><th>Sessions</th><th>Wins</th><th>Win Rate</th><th>Hands</th><th>Lockouts</th><th>Lockout Rate</th><th>Avg/Hand</th><th>Avg Lockout Score</th><th>False Lockout Rate</th></tr>';
-            
-            for (let playerId in stats) {
-                const ps = stats[playerId];
-                const sessionWinRate = ps.sessionsPlayed > 0 ? ((ps.sessionsWon / ps.sessionsPlayed) * 100).toFixed(1) : '0';
-                const lockoutRate = ps.handsPlayed > 0 ? ((ps.handsWon / ps.handsPlayed) * 100).toFixed(1) : '0';
-                const avgScore = ps.handsPlayed > 0 ? (ps.totalScore / ps.handsPlayed).toFixed(2) : '0';
-                const falseLockoutRate = ps.totalLockouts > 0 ? ((ps.falseLockouts / ps.totalLockouts) * 100).toFixed(1) : '0';
-                // ✅ NEW: Calculate average lockout score
-                const avgLockoutScore = ps.lockoutScores.length > 0 ? (ps.lockoutScores.reduce((sum, score) => sum + score, 0) / ps.lockoutScores.length).toFixed(2) : 'N/A';
-                
-                html += '<tr>';
-                html += '<td>' + ps.username + '</td>';
-                html += '<td>' + ps.sessionsPlayed + '</td>';
-                html += '<td>' + ps.sessionsWon.toFixed(1) + '</td>';
-                html += '<td>' + sessionWinRate + '%</td>';
-                html += '<td>' + ps.handsPlayed + '</td>';
-                html += '<td>' + ps.handsWon + '</td>';
-                html += '<td>' + lockoutRate + '%</td>';
-                html += '<td>' + avgScore + '</td>';
-                html += '<td>' + avgLockoutScore + '</td>';
-                html += '<td>' + falseLockoutRate + '%</td>';
-                html += '</tr>';
-            }
-            
-            html += '</table>';
-            html += '</div>';
-            document.getElementById('statsContent').innerHTML = html;
+function displayOverallStats(stats, totalSessions) {
+    let mostSessionsWon = { player: 'N/A', wins: 0 };
+    let mostHandsWon = { player: 'N/A', hands: 0 };
+    let bestSessionWinRate = { player: 'N/A', rate: 0 };
+    let bestHandWinRate = { player: 'N/A', rate: 0 };
+    let lowestAvgScore = { player: 'N/A', avg: Infinity };
+    let mostFalseLockouts = { player: 'N/A', count: 0 };
+    let longestHandStreak = { player: 'N/A', streak: 0 };
+    let bestAvgLockoutScore = { player: 'N/A', avg: Infinity };
+    
+    // ✅ NEW: Calculate total hands across all sessions
+    let totalHands = 0;
+    for (let playerId in stats) {
+        const ps = stats[playerId];
+        if (ps.handsPlayed > totalHands) {
+            totalHands = ps.handsPlayed;
         }
+    }
+    // More accurate: sum unique hands across all players
+    let uniqueHandsSet = new Set();
+    for (let playerId in stats) {
+        totalHands = Math.max(totalHands, stats[playerId].handsPlayed);
+    }
 
+    for (let playerId in stats) {
+        const ps = stats[playerId];
+        
+        if (ps.sessionsWon > mostSessionsWon.wins) {
+            mostSessionsWon = { player: ps.username, wins: ps.sessionsWon.toFixed(1) };
+        }
+        
+        if (ps.handsWon > mostHandsWon.hands) {
+            mostHandsWon = { player: ps.username, hands: ps.handsWon };
+        }
+        
+        if (ps.sessionsPlayed > 0) {
+            const sessionWinRate = (ps.sessionsWon / ps.sessionsPlayed) * 100;
+            if (sessionWinRate > bestSessionWinRate.rate) {
+                bestSessionWinRate = { player: ps.username, rate: sessionWinRate.toFixed(1) };
+            }
+        }
+        
+        if (ps.handsPlayed > 0) {
+            const handWinRate = (ps.handsWon / ps.handsPlayed) * 100;
+            if (handWinRate > bestHandWinRate.rate) {
+                bestHandWinRate = { player: ps.username, rate: handWinRate.toFixed(1) };
+            }
+        }
+        
+        if (ps.handsPlayed > 0) {
+            const avgScore = ps.totalScore / ps.handsPlayed;
+            if (avgScore < lowestAvgScore.avg) {
+                lowestAvgScore = { player: ps.username, avg: avgScore.toFixed(2) };
+            }
+        }
+        
+        if (ps.falseLockouts > mostFalseLockouts.count) {
+            mostFalseLockouts = { player: ps.username, count: ps.falseLockouts };
+        }
+        
+        if (ps.maxHandStreak > longestHandStreak.streak) {
+            longestHandStreak = { player: ps.username, streak: ps.maxHandStreak };
+        }
+        
+        if (ps.lockoutScores.length > 0) {
+            const avgLockoutScore = ps.lockoutScores.reduce((sum, score) => sum + score, 0) / ps.lockoutScores.length;
+            if (avgLockoutScore < bestAvgLockoutScore.avg) {
+                bestAvgLockoutScore = { player: ps.username, avg: avgLockoutScore.toFixed(2) };
+            }
+        }
+    }
+    
+    // ✅ UPDATED: New order with Total Hands added
+    let html = '<div class="stats-grid">';
+    html += '<div class="stat-card"><h4>Total Sessions</h4><p class="stat-value">' + totalSessions + '</p></div>';
+    html += '<div class="stat-card"><h4>Total Hands</h4><p class="stat-value">' + totalHands + '</p></div>';
+    html += '<div class="stat-card"><h4>Most Sessions Won</h4><p class="stat-value">' + mostSessionsWon.player + '</p><p>' + mostSessionsWon.wins + ' wins</p></div>';
+    html += '<div class="stat-card"><h4>Most Hands Won</h4><p class="stat-value">' + mostHandsWon.player + '</p><p>' + mostHandsWon.hands + ' hands</p></div>';
+    html += '<div class="stat-card"><h4>Best Session Win Rate</h4><p class="stat-value">' + bestSessionWinRate.player + '</p><p>' + bestSessionWinRate.rate + '%</p></div>';
+    html += '<div class="stat-card"><h4>Best Hand Win Rate</h4><p class="stat-value">' + bestHandWinRate.player + '</p><p>' + bestHandWinRate.rate + '%</p></div>';
+    html += '<div class="stat-card"><h4>Lowest Avg Score/Hand</h4><p class="stat-value">' + lowestAvgScore.player + '</p><p>' + lowestAvgScore.avg + '</p></div>';
+    html += '<div class="stat-card"><h4>Best Avg Lockout Score</h4><p class="stat-value">' + bestAvgLockoutScore.player + '</p><p>' + bestAvgLockoutScore.avg + '</p></div>';
+    html += '<div class="stat-card"><h4>Longest Hand Streak</h4><p class="stat-value">' + longestHandStreak.player + '</p><p>' + longestHandStreak.streak + ' hands</p></div>';
+    html += '<div class="stat-card"><h4>Most False Lockouts</h4><p class="stat-value">' + mostFalseLockouts.player + '</p><p>' + mostFalseLockouts.count + ' times</p></div>';
+    html += '</div>';
+    
+    html += '<div style="background: #fff3cd; padding: 10px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #ffc107; font-size: 0.9em;">';
+    html += '<strong>ℹ️ Note:</strong> Hand-level stats (Hands, Lockouts, Averages) include active sessions. Session-level stats (Wins, Win Rate) only include completed sessions.';
+    html += '</div>';
+    
+    // ✅ UPDATED: New table headers
+    html += '<h3 style="margin-top: 30px;">Player Breakdown</h3>';
+    html += '<div style="overflow-x: auto;">';
+    html += '<table class="scores-table">';
+    html += '<tr><th>Player</th><th>Sessions</th><th>Wins</th><th>Win Rate</th><th>Hands</th><th>Avg Hand</th><th>Lockouts</th><th>LO Rate</th><th>Avg LO Score</th><th>False Lockouts</th><th>False LO Rate</th></tr>';
+    
+    for (let playerId in stats) {
+        const ps = stats[playerId];
+        const sessionWinRate = ps.sessionsPlayed > 0 ? ((ps.sessionsWon / ps.sessionsPlayed) * 100).toFixed(1) : '0';
+        const lockoutRate = ps.handsPlayed > 0 ? ((ps.handsWon / ps.handsPlayed) * 100).toFixed(1) : '0';
+        const avgScore = ps.handsPlayed > 0 ? (ps.totalScore / ps.handsPlayed).toFixed(2) : '0';
+        const falseLockoutRate = ps.totalLockouts > 0 ? ((ps.falseLockouts / ps.totalLockouts) * 100).toFixed(1) : '0';
+        const avgLockoutScore = ps.lockoutScores.length > 0 ? (ps.lockoutScores.reduce((sum, score) => sum + score, 0) / ps.lockoutScores.length).toFixed(2) : 'N/A';
+        
+        html += '<tr>';
+        html += '<td>' + ps.username + '</td>';
+        html += '<td>' + ps.sessionsPlayed + '</td>';
+        html += '<td>' + ps.sessionsWon.toFixed(1) + '</td>';
+        html += '<td>' + sessionWinRate + '%</td>';
+        html += '<td>' + ps.handsPlayed + '</td>';
+        html += '<td>' + avgScore + '</td>';
+        html += '<td>' + ps.handsWon + '</td>';
+        html += '<td>' + lockoutRate + '%</td>';
+        html += '<td>' + avgLockoutScore + '</td>';
+        html += '<td>' + ps.falseLockouts + '</td>';
+        html += '<td>' + falseLockoutRate + '%</td>';
+        html += '</tr>';
+    }
+    
+    html += '</table>';
+    html += '</div>';
+    document.getElementById('statsContent').innerHTML = html;
+}
         // ============================================
         // CHART DRAWING FUNCTIONS
         // ============================================
