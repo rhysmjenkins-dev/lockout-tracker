@@ -1230,7 +1230,7 @@ async function loadStats() {
                 labels.push('Hand ' + i);
             }
             
-            new Chart(ctx.getContext('2d'), {
+            const chart = new Chart(ctx.getContext('2d'), {
                 type: 'line',
                 data: { labels: labels, datasets: datasets },
                 options: {
@@ -1242,104 +1242,149 @@ async function loadStats() {
                     scales: { y: { title: { display: true, text: 'Cumulative Score' } } }
                 }
             });
+                
+    window.wormChartInstance = chart;
         }
 
-        function drawSessionManhattanChart(playerHands, playerIds) {
-            const ctx = document.getElementById('manhattanChart');
-            if (!ctx) return;
-            
-            const colors = [
-                'rgba(102, 126, 234, 0.7)',
-                'rgba(245, 87, 108, 0.7)',
-                'rgba(79, 172, 254, 0.7)',
-                'rgba(0, 242, 254, 0.7)',
-                'rgba(250, 112, 154, 0.7)'
-            ];
-            
-            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
-            const labels = [];
-            for (let i = 1; i <= maxHands; i++) {
-                labels.push('Hand ' + i);
-            }
-            
-            const datasets = [];
-            for (let i = 0; i < playerIds.length; i++) {
-                const playerId = playerIds[i];
-                const hands = playerHands[playerId];
-                
-                datasets.push({
-                    label: getPlayerName(playerId),
-                    data: hands,
-                    backgroundColor: colors[i % colors.length],
-                    borderColor: colors[i % colors.length].replace('0.7', '1'),
-                    borderWidth: 2,
-                    barPercentage: 0.9,
-                    categoryPercentage: 0.9
-                });
-            }
-            
-            new Chart(ctx.getContext('2d'), {
-                type: 'bar',
-                data: { labels: labels, datasets: datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: { 
-                            display: true, 
-                            text: 'Manhattan - Per Hand Scores',
-                            font: { size: 16, weight: 'bold' }
-                        },
-                        legend: {
-                            display: true,
-                            position: 'top',
-                            onClick: function(e, legendItem, legend) {
-                                const index = legendItem.datasetIndex;
-                                const ci = legend.chart;
-                                const meta = ci.getDatasetMeta(index);
-                                meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
-                                ci.update();
-                            },
-                            labels: {
-                                usePointStyle: true,
-                                padding: 15,
-                                font: { size: 12 }
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return context.dataset.label + ': ' + context.parsed.y + ' points';
-                                }
-                            }
-                        }
+function drawSessionManhattanChart(playerHands, playerIds) {
+    const ctx = document.getElementById('manhattanChart');
+    if (!ctx) return;
+    
+    // Distinct colors for each player
+    const colors = [
+        '#667eea', // Purple
+        '#f5576c', // Pink/Red
+        '#4facfe', // Blue
+        '#00f2fe', // Cyan
+        '#fa709a'  // Rose
+    ];
+    
+    const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+    const labels = [];
+    for (let i = 1; i <= maxHands; i++) {
+        labels.push('Hand ' + i);
+    }
+    
+    const datasets = [];
+    for (let i = 0; i < playerIds.length; i++) {
+        const playerId = playerIds[i];
+        const hands = playerHands[playerId];
+        
+        datasets.push({
+            label: getPlayerName(playerId),
+            data: hands,
+            backgroundColor: colors[i % colors.length],
+            borderColor: colors[i % colors.length],
+            borderWidth: 1,
+            barThickness: 'flex',
+            maxBarThickness: 40
+        });
+    }
+    
+    const chart = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: { 
+                    display: true, 
+                    text: 'Manhattan - Per Hand Scores',
+                    font: { size: 16, weight: 'bold' },
+                    padding: { top: 10, bottom: 20 }
+                },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    onClick: function(e, legendItem, legend) {
+                        const index = legendItem.datasetIndex;
+                        const ci = legend.chart;
+                        const meta = ci.getDatasetMeta(index);
+                        
+                        // Toggle visibility
+                        meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                        ci.update();
                     },
-                    scales: { 
-                        x: {
-                            title: { 
-                                display: true, 
-                                text: 'Hand Number',
-                                font: { size: 14 }
-                            },
-                            grid: { display: false }
-                        },
-                        y: { 
-                            title: { 
-                                display: true, 
-                                text: 'Score',
-                                font: { size: 14 }
-                            },
-                            beginAtZero: true,
-                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: { size: 13, weight: '600' },
+                        generateLabels: function(chart) {
+                            const datasets = chart.data.datasets;
+                            return datasets.map((dataset, i) => ({
+                                text: dataset.label,
+                                fillStyle: dataset.backgroundColor,
+                                strokeStyle: dataset.borderColor,
+                                lineWidth: 2,
+                                hidden: !chart.isDatasetVisible(i),
+                                datasetIndex: i
+                            }));
                         }
-                    },
-                    interaction: {
-                        mode: 'index',
-                        intersect: false
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 14, weight: 'bold' },
+                    bodyFont: { size: 13 },
+                    callbacks: {
+                        title: function(context) {
+                            return context[0].label;
+                        },
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y + ' runs';
+                        }
                     }
                 }
-            });
+            },
+            scales: { 
+                x: {
+                    title: { 
+                        display: true, 
+                        text: 'Hand Number',
+                        font: { size: 14, weight: '600' },
+                        padding: { top: 10 }
+                    },
+                    grid: { 
+                        display: false 
+                    },
+                    ticks: {
+                        font: { size: 12 }
+                    }
+                },
+                y: { 
+                    title: { 
+                        display: true, 
+                        text: 'Score',
+                        font: { size: 14, weight: '600' },
+                        padding: { bottom: 10 }
+                    },
+                    beginAtZero: true,
+                    grid: { 
+                        color: 'rgba(0, 0, 0, 0.05)',
+                        lineWidth: 1
+                    },
+                    ticks: {
+                        font: { size: 12 },
+                        stepSize: 2
+                    }
+                }
+            },
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            // ✅ Side-by-side bars (not stacked)
+            grouped: true,
+            barPercentage: 0.8,
+            categoryPercentage: 0.9
         }
+    });
+    
+    // Store chart instance for potential future use
+    window.manhattanChartInstance = chart;
+}
 
         // ============================================
         // INITIALIZATION
