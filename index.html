@@ -734,26 +734,27 @@
                 tags: tags
             });
             
-            if (data.error) {
-                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-            } else {
-                currentSession = { 
-                    session_id: data.session_id, 
-                    title: title, 
-                    host_player_id: hostId,
-                    notes: notes,
-                    tags: tags,
-                    player_join_info: '{}' // ✅ NEW: Empty join info for new session
-                };
-                sessionPlayers = [];
-                for (let i = 0; i < allPlayers.length; i++) {
-                    if (selectedPlayers.indexOf(String(allPlayers[i].player_id)) !== -1) {
-                        sessionPlayers.push(allPlayers[i]);
-                    }
-                }
-                currentHandNumber = 1;
-                showActiveSession();
-            }
+if (data.error) {
+    messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+} else {
+    currentSession = { 
+        session_id: data.session_id, 
+        title: title, 
+        host_player_id: hostId,
+        notes: notes,
+        tags: tags,
+        player_join_info: '{}',
+        players_involved: selectedPlayers.join(',') // ✅ ADD THIS LINE
+    };
+    sessionPlayers = [];
+    for (let i = 0; i < allPlayers.length; i++) {
+        if (selectedPlayers.indexOf(String(allPlayers[i].player_id)) !== -1) {
+            sessionPlayers.push(allPlayers[i]);
+        }
+    }
+    currentHandNumber = 1;
+    showActiveSession();
+}
         }
 
 async function resumeSession(sessionId) {
