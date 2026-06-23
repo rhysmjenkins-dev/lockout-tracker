@@ -613,109 +613,112 @@
             displayOverallStats(stats, allSessionsData.length);
         }
 
-        function calculateOverallStats(allSessionsData, playersData) {
-            const playerStats = {};
-            
-            for (let i = 0; i < playersData.length; i++) {
-                const player = playersData[i];
-                playerStats[player.player_id] = {
-                    username: player.username,
-                    sessionsWon: 0,
-                    sessionsPlayed: 0,
-                    handsWon: 0,
-                    handsPlayed: 0,
-                    totalScore: 0,
-                    lockoutScores: [],
-                    falseLockouts: 0,
-                    totalLockouts: 0,
-                    currentHandStreak: 0,
-                    maxHandStreak: 0,
-                    bestMargin: 0,
-                    worstMargin: 0
-                };
-            }
-            
-            for (let s = 0; s < allSessionsData.length; s++) {
-                const session = allSessionsData[s];
-                const playerTotals = {};
-                const playerHandsInSession = {};
-                
-                for (let i = 0; i < playersData.length; i++) {
-                    playerHandsInSession[playersData[i].player_id] = 0;
-                }
-                
-                for (let h = 0; h < session.hands.length; h++) {
-                    const hand = session.hands[h];
-                    if (!playerTotals[hand.player_id]) {
-                        playerTotals[hand.player_id] = 0;
-                    }
-                    playerTotals[hand.player_id] += Number(hand.score);
-                    
-                    if (playerStats[hand.player_id]) {
-                        playerStats[hand.player_id].totalScore += Number(hand.score);
-                        playerHandsInSession[hand.player_id]++;
-                        
-                        if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
-                            playerStats[hand.player_id].totalLockouts++;
-                            
-                            if (hand.false_lockout == 1 || hand.false_lockout === true) {
-                                playerStats[hand.player_id].falseLockouts++;
-                                playerStats[hand.player_id].currentHandStreak = 0;
-                            } else {
-                                playerStats[hand.player_id].handsWon++;
-                                playerStats[hand.player_id].currentHandStreak++;
-                                if (playerStats[hand.player_id].currentHandStreak > playerStats[hand.player_id].maxHandStreak) {
-                                    playerStats[hand.player_id].maxHandStreak = playerStats[hand.player_id].currentHandStreak;
-                                }
-                            }
-                        } else {
-                            playerStats[hand.player_id].currentHandStreak = 0;
-                        }
-                    }
-                }
-                
-                for (let playerId in playerHandsInSession) {
-                    if (playerHandsInSession[playerId] > 0) {
-                        playerStats[playerId].handsPlayed += playerHandsInSession[playerId];
-                        playerStats[playerId].sessionsPlayed++;
-                    }
-                }
-                
-                let winnerPlayerId = null;
-                let lowestScore = Infinity;
-                let secondLowestScore = Infinity;
-                
-                for (let playerId in playerTotals) {
-                    const score = playerTotals[playerId];
-                    if (score < lowestScore) {
-                        secondLowestScore = lowestScore;
-                        lowestScore = score;
-                        winnerPlayerId = playerId;
-                    } else if (score < secondLowestScore) {
-                        secondLowestScore = score;
-                    }
-                }
-                
-                for (let playerId in playerTotals) {
-                    if (playerStats[playerId]) {
-                        if (String(playerId) === String(winnerPlayerId)) {
-                            playerStats[playerId].sessionsWon++;
-                            const margin = secondLowestScore - lowestScore;
-                            if (margin > playerStats[playerId].bestMargin) {
-                                playerStats[playerId].bestMargin = margin;
-                            }
-                        } else {
-                            const margin = playerTotals[playerId] - lowestScore;
-                            if (margin > playerStats[playerId].worstMargin) {
-                                playerStats[playerId].worstMargin = margin;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            return playerStats;
+function calculateOverallStats(allSessionsData, playersData) {
+    const playerStats = {};
+    
+    for (let i = 0; i < playersData.length; i++) {
+        const player = playersData[i];
+        playerStats[player.player_id] = {
+            username: player.username,
+            sessionsWon: 0,
+            sessionsPlayed: 0,
+            handsWon: 0,
+            handsPlayed: 0,
+            totalScore: 0,
+            lockoutScores: [],
+            falseLockouts: 0,
+            totalLockouts: 0,
+            currentHandStreak: 0,
+            maxHandStreak: 0,
+            bestMargin: 0,
+            worstMargin: 0
+        };
+    }
+    
+    for (let s = 0; s < allSessionsData.length; s++) {
+        const session = allSessionsData[s];
+        const playerTotals = {};
+        const playerUniqueHands = {}; // ✅ NEW: Track unique hand_numbers per player
+        
+        for (let i = 0; i < playersData.length; i++) {
+            playerUniqueHands[playersData[i].player_id] = new Set(); // ✅ Use Set for unique values
         }
+        
+        for (let h = 0; h < session.hands.length; h++) {
+            const hand = session.hands[h];
+            if (!playerTotals[hand.player_id]) {
+                playerTotals[hand.player_id] = 0;
+            }
+            playerTotals[hand.player_id] += Number(hand.score);
+            
+            if (playerStats[hand.player_id]) {
+                playerStats[hand.player_id].totalScore += Number(hand.score);
+                playerUniqueHands[hand.player_id].add(hand.hand_number); // ✅ Add unique hand_number
+                
+                if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+                    playerStats[hand.player_id].totalLockouts++;
+                    
+                    if (hand.false_lockout == 1 || hand.false_lockout === true) {
+                        playerStats[hand.player_id].falseLockouts++;
+                        playerStats[hand.player_id].currentHandStreak = 0;
+                    } else {
+                        playerStats[hand.player_id].handsWon++;
+                        playerStats[hand.player_id].currentHandStreak++;
+                        if (playerStats[hand.player_id].currentHandStreak > playerStats[hand.player_id].maxHandStreak) {
+                            playerStats[hand.player_id].maxHandStreak = playerStats[hand.player_id].currentHandStreak;
+                        }
+                    }
+                } else {
+                    playerStats[hand.player_id].currentHandStreak = 0;
+                }
+            }
+        }
+        
+        // ✅ Count unique hands played per player
+        for (let playerId in playerUniqueHands) {
+            const uniqueHandCount = playerUniqueHands[playerId].size;
+            if (uniqueHandCount > 0) {
+                playerStats[playerId].handsPlayed += uniqueHandCount;
+                playerStats[playerId].sessionsPlayed++;
+            }
+        }
+        
+        // ... rest of the function (winner calculation, margins, etc.) stays the same
+        let winnerPlayerId = null;
+        let lowestScore = Infinity;
+        let secondLowestScore = Infinity;
+        
+        for (let playerId in playerTotals) {
+            const score = playerTotals[playerId];
+            if (score < lowestScore) {
+                secondLowestScore = lowestScore;
+                lowestScore = score;
+                winnerPlayerId = playerId;
+            } else if (score < secondLowestScore) {
+                secondLowestScore = score;
+            }
+        }
+        
+        for (let playerId in playerTotals) {
+            if (playerStats[playerId]) {
+                if (String(playerId) === String(winnerPlayerId)) {
+                    playerStats[playerId].sessionsWon++;
+                    const margin = secondLowestScore - lowestScore;
+                    if (margin > playerStats[playerId].bestMargin) {
+                        playerStats[playerId].bestMargin = margin;
+                    }
+                } else {
+                    const margin = playerTotals[playerId] - lowestScore;
+                    if (margin > playerStats[playerId].worstMargin) {
+                        playerStats[playerId].worstMargin = margin;
+                    }
+                }
+            }
+        }
+    }
+    
+    return playerStats;
+}
         function displayOverallStats(stats, totalSessions) {
             let mostSessionsWon = { player: 'N/A', wins: 0 };
             let mostHandsWon = { player: 'N/A', hands: 0 };
