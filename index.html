@@ -55,6 +55,7 @@
             display: flex; justify-content: space-between; align-items: center; min-height: 56px;
         }
         .player-item input[type="checkbox"] { width: auto; margin: 0; min-width: 24px; min-height: 24px; }
+        .player-item input[type="radio"] { width: auto; margin: 0; min-width: 24px; min-height: 24px; }
         .hand-input-section { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
         .player-hand-row { 
             display: grid; grid-template-columns: 1fr 80px 100px 100px; gap: 10px; 
@@ -107,7 +108,7 @@
         .hand-item-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .hand-item-actions .btn { min-width: 80px; }
         
-        /* ✅ NEW: Session metadata display */
+        /* Session metadata display */
         .session-metadata { 
             background: #f0f4ff; 
             padding: 12px; 
@@ -131,6 +132,18 @@
             border-radius: 12px;
             font-size: 0.85em;
             margin: 2px;
+        }
+        
+        /* ✅ NEW: Late join indicator */
+        .late-join-badge {
+            display: inline-block;
+            background: #ff9800;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 0.75em;
+            margin-left: 5px;
+            font-weight: 600;
         }
         
         /* Modal Styles */
@@ -285,11 +298,9 @@
                     <option value="">Select host...</option>
                 </select>
                 
-                <!-- ✅ NEW: Session Notes -->
                 <label for="sessionNotes">Session Notes (Optional)</label>
                 <textarea id="sessionNotes" placeholder="e.g. Playing at John's house, bring snacks"></textarea>
                 
-                <!-- ✅ NEW: Session Tags -->
                 <label for="sessionTags">Session Type (Optional)</label>
                 <select id="sessionTags" multiple size="4" style="min-height: 120px;">
                     <option value="Tournament">🏆 Tournament</option>
@@ -316,14 +327,12 @@
                 <h2 id="activeSessionTitle">Session Name</h2>
                 <div id="activeSessionInfo"></div>
                 
-                <!-- ✅ NEW: Session metadata display -->
                 <div id="activeSessionMetadata"></div>
                 
                 <div class="hand-input-section">
                     <h4>Hand <span id="currentHandNumber"></span></h4>
                     <div id="handInputs"></div>
                     
-                    <!-- ✅ NEW: Hand comment field -->
                     <label for="handComment" style="margin-top: 15px;">Hand Note (Optional)</label>
                     <input type="text" id="handComment" placeholder="e.g. Epic comeback, close call...">
                     
@@ -340,6 +349,7 @@
                 <div id="activeSessionCharts"></div>
                 
                 <div class="nav-buttons">
+                    <button class="btn btn-info btn-small" onclick="showAddPlayerModal()">➕ Add Player</button>
                     <button class="btn btn-warning btn-small" onclick="showEditSessionModal()">✏️ Edit Session</button>
                     <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
                     <button class="btn btn-danger" onclick="endSession()">End Session</button>
@@ -357,7 +367,6 @@
             </div>
             <div id="editHandInputs"></div>
             
-            <!-- ✅ NEW: Edit hand comment -->
             <label for="editHandComment" style="margin-top: 15px;">Hand Note (Optional)</label>
             <input type="text" id="editHandComment" placeholder="e.g. Epic comeback, close call...">
             
@@ -367,7 +376,7 @@
         </div>
     </div>
 
-    <!-- ✅ NEW: EDIT SESSION MODAL -->
+    <!-- EDIT SESSION MODAL -->
     <div id="editSessionModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -394,6 +403,30 @@
             <div id="editSessionMessage"></div>
         </div>
     </div>
+
+    <!-- ✅ NEW: ADD PLAYER TO SESSION MODAL -->
+    <div id="addPlayerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Player to Session</h3>
+                <button class="modal-close" onclick="closeAddPlayerModal()">&times;</button>
+            </div>
+            
+            <p style="margin-bottom: 15px; color: #666;">Select a player to add to this session. They will join from the next hand onwards.</p>
+            
+            <label>Select Player</label>
+            <div id="addPlayerList" class="loading">Loading players...</div>
+            
+            <div id="addPlayerConfirm" style="display: none; background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <p><strong>⚠️ Confirmation:</strong></p>
+                <p id="addPlayerConfirmText"></p>
+            </div>
+            
+            <button class="btn btn-success" onclick="confirmAddPlayer()" id="confirmAddPlayerBtn" disabled>Add Player</button>
+            <button class="btn btn-secondary" onclick="closeAddPlayerModal()">Cancel</button>
+            <div id="addPlayerMessage"></div>
+        </div>
+    </div>
     <script>
         // ============================================
         // CONFIGURATION & GLOBAL VARIABLES
@@ -406,6 +439,7 @@
         let sessionPlayers = [];
         let allSessions = [];
         let currentEditingHand = null;
+        let selectedPlayerToAdd = null; // ✅ NEW: For add player modal
 
         // Performance cache
         let playersLoaded = false;
@@ -441,6 +475,23 @@
                 }
             }
             return 'Unknown';
+        }
+
+        // ✅ NEW: Parse player join info
+        function parsePlayerJoinInfo(joinInfoString) {
+            if (!joinInfoString || joinInfoString === '') return {};
+            try {
+                return JSON.parse(joinInfoString);
+            } catch(e) {
+                return {};
+            }
+        }
+
+        // ✅ NEW: Check if player joined late
+        function getPlayerJoinHand(playerId) {
+            if (!currentSession || !currentSession.player_join_info) return 1;
+            const joinInfo = parsePlayerJoinInfo(currentSession.player_join_info);
+            return joinInfo[playerId] || 1;
         }
 
         // ============================================
@@ -520,39 +571,130 @@
         }
 
         // ============================================
-        // ACTIVE SESSIONS CHECK
+        // ✅ NEW: ADD PLAYER TO ACTIVE SESSION
         // ============================================
-async function checkActiveSessions() {
-    const sessionsData = await apiCall('getSessions', {});
-    if (sessionsData.error) return;
-    
-    // ✅ FIXED: Better empty check
-    const activeSessions = sessionsData.filter(s => {
-        const dateEnded = s.date_ended;
-        return !dateEnded || dateEnded === '' || dateEnded.toString().trim() === '';
-    });
-    
-    if (activeSessions.length > 0) {
-        let html = '<div class="active-session-box">';
-        html += '<h3>Active Sessions</h3>';
         
-        for (let i = 0; i < activeSessions.length; i++) {
-            const session = activeSessions[i];
-            const handsData = await apiCall('getHands', { session_id: session.session_id });
-            const handCount = handsData.error ? 0 : (handsData.length > 0 ? Math.max(...handsData.map(h => h.hand_number)) : 0);
+        async function showAddPlayerModal() {
+            await ensurePlayersLoaded();
             
-            html += '<div class="active-session-item">';
-            html += '<div><strong>' + session.title + '</strong><br><small>' + handCount + ' hands played</small></div>';
-            html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ')">Resume</button>';
-            html += '</div>';
+            // Get current session player IDs
+            const currentPlayerIds = sessionPlayers.map(p => String(p.player_id));
+            
+            // Filter out players already in session
+            const availablePlayers = allPlayers.filter(p => currentPlayerIds.indexOf(String(p.player_id)) === -1);
+            
+            if (availablePlayers.length === 0) {
+                alert('All players are already in this session!');
+                return;
+            }
+            
+            const playerList = document.getElementById('addPlayerList');
+            let html = '<ul class="player-list">';
+            for (let i = 0; i < availablePlayers.length; i++) {
+                const player = availablePlayers[i];
+                html += '<li class="player-item">';
+                html += '<label><input type="radio" name="addPlayerRadio" value="' + player.player_id + '" onchange="selectPlayerToAdd(' + player.player_id + ', \'' + player.username + '\')"> ' + player.username + '</label>';
+                html += '</li>';
+            }
+            html += '</ul>';
+            playerList.innerHTML = html;
+            
+            selectedPlayerToAdd = null;
+            document.getElementById('confirmAddPlayerBtn').disabled = true;
+            document.getElementById('addPlayerConfirm').style.display = 'none';
+            document.getElementById('addPlayerMessage').innerHTML = '';
+            
+            document.getElementById('addPlayerModal').classList.add('active');
         }
         
-        html += '</div>';
-        document.getElementById('activeSessionsSection').innerHTML = html;
-    } else {
-        document.getElementById('activeSessionsSection').innerHTML = '';
-    }
-}
+        function selectPlayerToAdd(playerId, playerName) {
+            selectedPlayerToAdd = playerId;
+            document.getElementById('confirmAddPlayerBtn').disabled = false;
+            
+            const confirmDiv = document.getElementById('addPlayerConfirm');
+            const confirmText = document.getElementById('addPlayerConfirmText');
+            
+            confirmText.innerHTML = '<strong>' + playerName + '</strong> will join from <strong>Hand ' + currentHandNumber + '</strong> onwards.';
+            confirmDiv.style.display = 'block';
+        }
+        
+        async function confirmAddPlayer() {
+            if (!selectedPlayerToAdd) return;
+            
+            const messageDiv = document.getElementById('addPlayerMessage');
+            messageDiv.innerHTML = '<div class="loading">Adding player...</div>';
+            
+            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+            
+            const data = await apiCall('addPlayerToSession', {
+                session_id: currentSession.session_id,
+                player_id: selectedPlayerToAdd,
+                join_hand_number: currentHandNumber,
+                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+            });
+            
+            if (data.error) {
+                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+            } else {
+                messageDiv.innerHTML = '<div class="success">Player added successfully!</div>';
+                
+                // Update current session data
+                currentSession.players_involved = data.players_involved;
+                currentSession.player_join_info = data.player_join_info;
+                
+                // Add player to sessionPlayers array
+                const newPlayer = allPlayers.find(p => String(p.player_id) === String(selectedPlayerToAdd));
+                if (newPlayer) {
+                    sessionPlayers.push(newPlayer);
+                }
+                
+                setTimeout(function() {
+                    closeAddPlayerModal();
+                    showActiveSession();
+                    updateSessionScores();
+                }, 1500);
+            }
+        }
+        
+        function closeAddPlayerModal() {
+            document.getElementById('addPlayerModal').classList.remove('active');
+            document.getElementById('addPlayerMessage').innerHTML = '';
+            selectedPlayerToAdd = null;
+        }
+
+        // ============================================
+        // ACTIVE SESSIONS CHECK
+        // ============================================
+        async function checkActiveSessions() {
+            const sessionsData = await apiCall('getSessions', {});
+            if (sessionsData.error) return;
+            
+            const activeSessions = sessionsData.filter(s => {
+                const dateEnded = s.date_ended;
+                return !dateEnded || dateEnded === '' || dateEnded.toString().trim() === '';
+            });
+            
+            if (activeSessions.length > 0) {
+                let html = '<div class="active-session-box">';
+                html += '<h3>Active Sessions</h3>';
+                
+                for (let i = 0; i < activeSessions.length; i++) {
+                    const session = activeSessions[i];
+                    const handsData = await apiCall('getHands', { session_id: session.session_id });
+                    const handCount = handsData.error ? 0 : (handsData.length > 0 ? Math.max(...handsData.map(h => h.hand_number)) : 0);
+                    
+                    html += '<div class="active-session-item">';
+                    html += '<div><strong>' + session.title + '</strong><br><small>' + handCount + ' hands played</small></div>';
+                    html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ')">Resume</button>';
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+                document.getElementById('activeSessionsSection').innerHTML = html;
+            } else {
+                document.getElementById('activeSessionsSection').innerHTML = '';
+            }
+        }
 
         // ============================================
         // SESSION MANAGEMENT
@@ -567,7 +709,6 @@ async function checkActiveSessions() {
                 selectedPlayers.push(checkboxes[i].value);
             }
             
-            // ✅ NEW: Get notes and tags
             const notes = document.getElementById('sessionNotes').value.trim();
             const tagsSelect = document.getElementById('sessionTags');
             const selectedTags = [];
@@ -601,7 +742,8 @@ async function checkActiveSessions() {
                     title: title, 
                     host_player_id: hostId,
                     notes: notes,
-                    tags: tags
+                    tags: tags,
+                    player_join_info: '{}' // ✅ NEW: Empty join info for new session
                 };
                 sessionPlayers = [];
                 for (let i = 0; i < allPlayers.length; i++) {
@@ -614,57 +756,64 @@ async function checkActiveSessions() {
             }
         }
 
-async function resumeSession(sessionId) {
-    const sessionData = await apiCall('getSession', { session_id: sessionId });
-    if (sessionData.error) {
-        alert('Error loading session: ' + sessionData.error);
-        return;
-    }
-    
-    await ensurePlayersLoaded();
-    
-    const playerIds = sessionData.players_involved.split(',');
-    sessionPlayers = [];
-    for (let i = 0; i < playerIds.length; i++) {
-        const player = allPlayers.find(p => String(p.player_id) === String(playerIds[i]));
-        if (player) sessionPlayers.push(player);
-    }
-    
-    // ✅ FIX: Ensure notes/tags exist
-    currentSession = {
-        session_id: sessionData.session_id,
-        title: sessionData.title,
-        host_player_id: sessionData.host_player_id,
-        notes: sessionData.notes || '',
-        tags: sessionData.tags || ''
-    };
-    
-    const handsData = await apiCall('getHands', { session_id: sessionId });
-    if (handsData.error || handsData.length === 0) {
-        currentHandNumber = 1;
-    } else {
-        currentHandNumber = Math.max(...handsData.map(h => h.hand_number)) + 1;
-    }
-    
-    showActiveSession();
-    updateSessionScores();
-}
+        async function resumeSession(sessionId) {
+            const sessionData = await apiCall('getSession', { session_id: sessionId });
+            if (sessionData.error) {
+                alert('Error loading session: ' + sessionData.error);
+                return;
+            }
+            
+            await ensurePlayersLoaded();
+            
+            const playerIds = sessionData.players_involved.split(',');
+            sessionPlayers = [];
+            for (let i = 0; i < playerIds.length; i++) {
+                const player = allPlayers.find(p => String(p.player_id) === String(playerIds[i]));
+                if (player) sessionPlayers.push(player);
+            }
+            
+            currentSession = {
+                session_id: sessionData.session_id,
+                title: sessionData.title,
+                host_player_id: sessionData.host_player_id,
+                notes: sessionData.notes || '',
+                tags: sessionData.tags || '',
+                player_join_info: sessionData.player_join_info || '{}' // ✅ NEW
+            };
+            
+            const handsData = await apiCall('getHands', { session_id: sessionId });
+            if (handsData.error || handsData.length === 0) {
+                currentHandNumber = 1;
+            } else {
+                currentHandNumber = Math.max(...handsData.map(h => h.hand_number)) + 1;
+            }
+            
+            showActiveSession();
+            updateSessionScores();
+        }
 
         function showActiveSession() {
             document.getElementById('activeSessionTitle').textContent = currentSession.title;
-            let playerNames = sessionPlayers.map(p => p.username).join(', ');
+            
+            // ✅ UPDATED: Show player join info
+            let playerNames = sessionPlayers.map(p => {
+                const joinHand = getPlayerJoinHand(p.player_id);
+                if (joinHand > 1) {
+                    return p.username + ' <span class="late-join-badge">Joined H' + joinHand + '</span>';
+                }
+                return p.username;
+            }).join(', ');
+            
             document.getElementById('activeSessionInfo').innerHTML = 
                 '<p><strong>Session ID:</strong> ' + currentSession.session_id + '</p>' +
                 '<p><strong>Players:</strong> ' + playerNames + '</p>';
             
-            // ✅ NEW: Display session metadata
             displaySessionMetadata('activeSessionMetadata');
             
             setupHandInputs();
             showScreen('activeSessionScreen');
         }
 
-        // ✅ NEW: Display session notes/tags
         function displaySessionMetadata(containerId) {
             const container = document.getElementById(containerId);
             if (!currentSession) return;
@@ -695,11 +844,9 @@ async function resumeSession(sessionId) {
             container.innerHTML = html;
         }
 
-        // ✅ NEW: Show edit session modal
         function showEditSessionModal() {
             document.getElementById('editSessionNotes').value = currentSession.notes || '';
             
-            // Set selected tags
             const tagsSelect = document.getElementById('editSessionTags');
             const currentTags = (currentSession.tags || '').split(',').filter(t => t.trim());
             
@@ -710,7 +857,6 @@ async function resumeSession(sessionId) {
             document.getElementById('editSessionModal').classList.add('active');
         }
 
-        // ✅ NEW: Save edited session
         async function saveEditedSession() {
             const notes = document.getElementById('editSessionNotes').value.trim();
             const tagsSelect = document.getElementById('editSessionTags');
@@ -741,7 +887,6 @@ async function resumeSession(sessionId) {
                 currentSession.tags = tags;
                 messageDiv.innerHTML = '<div class="success">Session updated!</div>';
                 
-                // Update display
                 displaySessionMetadata('activeSessionMetadata');
                 
                 setTimeout(function() {
@@ -750,7 +895,6 @@ async function resumeSession(sessionId) {
             }
         }
 
-        // ✅ NEW: Close edit session modal
         function closeEditSessionModal() {
             document.getElementById('editSessionModal').classList.remove('active');
             document.getElementById('editSessionMessage').innerHTML = '';
@@ -781,19 +925,24 @@ async function resumeSession(sessionId) {
         function setupHandInputs() {
             document.getElementById('currentHandNumber').textContent = currentHandNumber;
             document.getElementById('handMessage').innerHTML = '';
-            document.getElementById('handComment').value = ''; // ✅ Clear comment field
+            document.getElementById('handComment').value = '';
             
             const handInputs = document.getElementById('handInputs');
             let html = '';
             
             for (let i = 0; i < sessionPlayers.length; i++) {
                 const player = sessionPlayers[i];
-                html += '<div class="player-hand-row">' +
-                    '<label>' + player.username + '</label>' +
-                    '<input type="number" id="score_' + player.player_id + '" placeholder="Score">' +
-                    '<div class="checkbox-group"><label><input type="checkbox" id="lockout_' + player.player_id + '" onchange="handleLockoutChange(' + player.player_id + ')"> Locked Out</label></div>' +
-                    '<div class="checkbox-group"><label><input type="checkbox" id="false_' + player.player_id + '" disabled> False</label></div>' +
-                    '</div>';
+                const joinHand = getPlayerJoinHand(player.player_id);
+                
+                // ✅ NEW: Only show input if player has joined by this hand
+                if (joinHand <= currentHandNumber) {
+                    html += '<div class="player-hand-row">' +
+                        '<label>' + player.username + (joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '') + '</label>' +
+                        '<input type="number" id="score_' + player.player_id + '" placeholder="Score">' +
+                        '<div class="checkbox-group"><label><input type="checkbox" id="lockout_' + player.player_id + '" onchange="handleLockoutChange(' + player.player_id + ')"> Locked Out</label></div>' +
+                        '<div class="checkbox-group"><label><input type="checkbox" id="false_' + player.player_id + '" disabled> False</label></div>' +
+                        '</div>';
+                }
             }
             handInputs.innerHTML = html;
         }
@@ -823,18 +972,23 @@ async function resumeSession(sessionId) {
             let lockoutPlayerId = null;
             let falseLockout = false;
             
+            // ✅ UPDATED: Only get scores for players who have joined
             for (let i = 0; i < sessionPlayers.length; i++) {
                 const player = sessionPlayers[i];
-                const scoreVal = parseInt(document.getElementById('score_' + player.player_id).value);
-                if (isNaN(scoreVal)) {
-                    messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
-                    return;
-                }
-                scores.push({ player_id: player.player_id, score: scoreVal });
-                const isLockedOut = document.getElementById('lockout_' + player.player_id).checked;
-                if (isLockedOut) {
-                    lockoutPlayerId = player.player_id;
-                    falseLockout = document.getElementById('false_' + player.player_id).checked;
+                const joinHand = getPlayerJoinHand(player.player_id);
+                
+                if (joinHand <= currentHandNumber) {
+                    const scoreVal = parseInt(document.getElementById('score_' + player.player_id).value);
+                    if (isNaN(scoreVal)) {
+                        messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
+                        return;
+                    }
+                    scores.push({ player_id: player.player_id, score: scoreVal });
+                    const isLockedOut = document.getElementById('lockout_' + player.player_id).checked;
+                    if (isLockedOut) {
+                        lockoutPlayerId = player.player_id;
+                        falseLockout = document.getElementById('false_' + player.player_id).checked;
+                    }
                 }
             }
             
@@ -868,7 +1022,6 @@ async function resumeSession(sessionId) {
                 falseLockout = true;
             }
             
-            // ✅ NEW: Get hand comment
             const comment = document.getElementById('handComment').value.trim();
             
             let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
@@ -930,7 +1083,6 @@ async function resumeSession(sessionId) {
                         lockoutPlayer = getPlayerName(h.player_id);
                         isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
                     }
-                    // ✅ NEW: Get comment (same for all players in hand)
                     if (h.comment && !handComment) {
                         handComment = h.comment;
                     }
@@ -943,7 +1095,6 @@ async function resumeSession(sessionId) {
                 html += '<small>' + scoreText + '</small><br>';
                 html += '<small>Lockout: ' + lockoutPlayer + (isFalseLockout ? ' (FALSE)' : '') + '</small>';
                 
-                // ✅ NEW: Display comment if exists
                 if (handComment) {
                     html += '<br><small style="color: #667eea;">💬 ' + handComment + '</small>';
                 }
@@ -987,29 +1138,31 @@ async function resumeSession(sessionId) {
                     lockoutPlayerId = hand.player_id;
                     isFalseLockout = (hand.false_lockout == 1 || hand.false_lockout === true);
                 }
-                // ✅ NEW: Get comment
                 if (hand.comment && !handComment) {
                     handComment = hand.comment;
                 }
             }
             
+            // ✅ UPDATED: Only show players who were in the session at this hand
             for (let i = 0; i < sessionPlayers.length; i++) {
                 const player = sessionPlayers[i];
-                const handData = handsToEdit.find(h => String(h.player_id) === String(player.player_id));
-                const score = handData ? handData.score : '';
-                const isLockout = (lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id));
+                const joinHand = getPlayerJoinHand(player.player_id);
                 
-                html += '<div class="player-hand-row">';
-                html += '<label>' + player.username + '</label>';
-                html += '<input type="number" id="edit_score_' + player.player_id + '" value="' + score + '" placeholder="Score">';
-                html += '<div class="checkbox-group"><label><input type="checkbox" id="edit_lockout_' + player.player_id + '" onchange="handleEditLockoutChange(' + player.player_id + ')" ' + (isLockout ? 'checked' : '') + '> Locked Out</label></div>';
-                html += '<div class="checkbox-group"><label><input type="checkbox" id="edit_false_' + player.player_id + '" ' + (isLockout ? '' : 'disabled') + ' ' + (isFalseLockout ? 'checked' : '') + '> False</label></div>';
-                html += '</div>';
+                if (joinHand <= handNumber) {
+                    const handData = handsToEdit.find(h => String(h.player_id) === String(player.player_id));
+                    const score = handData ? handData.score : '';
+                    const isLockout = (lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id));
+                    
+                    html += '<div class="player-hand-row">';
+                    html += '<label>' + player.username + '</label>';
+                    html += '<input type="number" id="edit_score_' + player.player_id + '" value="' + score + '" placeholder="Score">';
+                    html += '<div class="checkbox-group"><label><input type="checkbox" id="edit_lockout_' + player.player_id + '" onchange="handleEditLockoutChange(' + player.player_id + ')" ' + (isLockout ? 'checked' : '') + '> Locked Out</label></div>';
+                    html += '<div class="checkbox-group"><label><input type="checkbox" id="edit_false_' + player.player_id + '" ' + (isLockout ? '' : 'disabled') + ' ' + (isFalseLockout ? 'checked' : '') + '> False</label></div>';
+                    html += '</div>';
+                }
             }
             
             document.getElementById('editHandInputs').innerHTML = html;
-            
-            // ✅ NEW: Set comment in edit modal
             document.getElementById('editHandComment').value = handComment;
             
             document.getElementById('editHandModal').classList.add('active');
@@ -1040,18 +1193,23 @@ async function resumeSession(sessionId) {
             let lockoutPlayerId = null;
             let falseLockout = false;
             
+            // ✅ UPDATED: Only get scores for players who were in session at this hand
             for (let i = 0; i < sessionPlayers.length; i++) {
                 const player = sessionPlayers[i];
-                const scoreVal = parseInt(document.getElementById('edit_score_' + player.player_id).value);
-                if (isNaN(scoreVal)) {
-                    messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
-                    return;
-                }
-                scores.push({ player_id: player.player_id, score: scoreVal });
-                const isLockedOut = document.getElementById('edit_lockout_' + player.player_id).checked;
-                if (isLockedOut) {
-                    lockoutPlayerId = player.player_id;
-                    falseLockout = document.getElementById('edit_false_' + player.player_id).checked;
+                const joinHand = getPlayerJoinHand(player.player_id);
+                
+                if (joinHand <= currentEditingHand) {
+                    const scoreVal = parseInt(document.getElementById('edit_score_' + player.player_id).value);
+                    if (isNaN(scoreVal)) {
+                        messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
+                        return;
+                    }
+                    scores.push({ player_id: player.player_id, score: scoreVal });
+                    const isLockedOut = document.getElementById('edit_lockout_' + player.player_id).checked;
+                    if (isLockedOut) {
+                        lockoutPlayerId = player.player_id;
+                        falseLockout = document.getElementById('edit_false_' + player.player_id).checked;
+                    }
                 }
             }
             
@@ -1085,7 +1243,6 @@ async function resumeSession(sessionId) {
                 falseLockout = true;
             }
             
-            // ✅ NEW: Get edited comment
             const comment = document.getElementById('editHandComment').value.trim();
             
             let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
@@ -1140,7 +1297,7 @@ async function resumeSession(sessionId) {
         }
 
         // ============================================
-        // CONTINUE TO PART 3 FOR REST OF CODE...
+        // CONTINUE TO NEXT MESSAGE FOR REST...
         // ============================================
         // ============================================
         // ACTIVE SESSION SCORES UPDATE
@@ -1156,6 +1313,7 @@ async function resumeSession(sessionId) {
             let totalLockouts = 0;
             let falseLockoutCount = 0;
             
+            // ✅ UPDATED: Initialize with join hand info
             for (let i = 0; i < sessionPlayers.length; i++) {
                 const player = sessionPlayers[i];
                 playerScores[player.player_id] = { 
@@ -1165,7 +1323,8 @@ async function resumeSession(sessionId) {
                     lockouts: 0,
                     lockoutScores: [],
                     falseLockouts: 0,
-                    totalLockouts: 0
+                    totalLockouts: 0,
+                    joinHand: getPlayerJoinHand(player.player_id)
                 };
             }
             
@@ -1225,7 +1384,8 @@ async function resumeSession(sessionId) {
                 const falseLockoutRate = p.totalLockouts > 0 ? ((p.falseLockouts / p.totalLockouts) * 100).toFixed(1) : '0';
                 
                 html += '<tr>';
-                html += '<td><strong>' + p.username + '</strong></td>';
+                // ✅ UPDATED: Show join indicator
+                html += '<td><strong>' + p.username + '</strong>' + (p.joinHand > 1 ? ' <span class="late-join-badge">H' + p.joinHand + '</span>' : '') + '</td>';
                 html += '<td>' + p.total + '</td>';
                 html += '<td>' + handsPlayed + '</td>';
                 html += '<td>' + avgHand + '</td>';
@@ -1297,185 +1457,196 @@ async function resumeSession(sessionId) {
         // ============================================
         // PREVIOUS SESSIONS & SESSION DETAILS
         // ============================================
-async function loadPreviousSessions() {
-    const contentDiv = document.getElementById('previousSessionsContent');
-    contentDiv.innerHTML = '<div class="loading">Loading sessions...</div>';
-    
-    await ensurePlayersLoaded();
-    
-    const sessionsWithHands = await apiCall('getSessionsWithHands', {});
-    
-    if (sessionsWithHands.error) {
-        contentDiv.innerHTML = '<div class="error">Error loading sessions: ' + sessionsWithHands.error + '</div>';
-        return;
-    }
-    
-    const completedSessions = [];
-    for (let i = 0; i < sessionsWithHands.length; i++) {
-        const item = sessionsWithHands[i];
-        
-        // ✅ FIX: Ensure notes/tags exist (handle old data)
-        if (!item.session.notes) item.session.notes = '';
-        if (!item.session.tags) item.session.tags = '';
-        
-        if (item.session.date_ended && item.session.date_ended !== '') {
-            completedSessions.push({
-                session: item.session,
-                hands: item.hands,
-                index: i
-            });
-        }
-    }
-    
-    allSessions = completedSessions.map(item => item.session);
-    
-    window.sessionsHandsCache = {};
-    for (let i = 0; i < completedSessions.length; i++) {
-        window.sessionsHandsCache[completedSessions[i].session.session_id] = completedSessions[i].hands;
-    }
-    
-    if (completedSessions.length === 0) {
-        contentDiv.innerHTML = '<div class="placeholder-content"><h3>No Completed Sessions</h3><p>Complete a session to see it here!</p></div>';
-        return;
-    }
-    
-    let html = '<ul class="session-list">';
-    for (let i = 0; i < completedSessions.length; i++) {
-        const session = completedSessions[i].session;
-        html += '<li class="session-item" onclick="viewSessionDetail(' + i + ')">' +
-            '<div class="session-item-header">' + session.title + '</div>' +
-            '<div class="session-item-info">Date: ' + session.date_started + '</div>' +
-            '</li>';
-    }
-    html += '</ul>';
-    contentDiv.innerHTML = html;
-}
-async function viewSessionDetail(sessionIndex) {
-    const session = allSessions[sessionIndex];
-    
-    let handsData;
-    if (window.sessionsHandsCache && window.sessionsHandsCache[session.session_id]) {
-        handsData = window.sessionsHandsCache[session.session_id];
-    } else {
-        handsData = await apiCall('getHands', { session_id: session.session_id });
-        if (handsData.error) {
-            alert('Error loading session details');
-            return;
-        }
-    }
-    
-    // ✅ FIX: Ensure hands have comment field
-    for (let i = 0; i < handsData.length; i++) {
-        if (!handsData[i].comment) handsData[i].comment = '';
-    }
-    
-    document.getElementById('sessionDetailTitle').textContent = session.title;
-    
-    // ✅ FIX: Display session metadata (handle missing data)
-    let metadataHtml = '';
-    if ((session.notes && session.notes !== '') || (session.tags && session.tags !== '')) {
-        metadataHtml += '<div class="session-metadata">';
-        
-        if (session.notes && session.notes !== '') {
-            metadataHtml += '<p><strong>📝 Notes:</strong> ' + session.notes + '</p>';
-        }
-        
-        if (session.tags && session.tags !== '') {
-            const tagsArray = session.tags.split(',').filter(t => t.trim());
-            if (tagsArray.length > 0) {
-                metadataHtml += '<p><strong>🏷️ Tags:</strong> ';
-                for (let i = 0; i < tagsArray.length; i++) {
-                    metadataHtml += '<span class="tag-badge">' + tagsArray[i] + '</span>';
-                }
-                metadataHtml += '</p>';
-            }
-        }
-        
-        metadataHtml += '</div>';
-    }
-    document.getElementById('sessionDetailMetadata').innerHTML = metadataHtml;
-    
-    const playerTotals = {};
-    const playerHands = {};
-    const playerStats = {};
-    
-    for (let i = 0; i < handsData.length; i++) {
-        const hand = handsData[i];
-        if (!playerTotals[hand.player_id]) {
-            playerTotals[hand.player_id] = 0;
-            playerHands[hand.player_id] = [];
-            playerStats[hand.player_id] = {
-                lockouts: 0,
-                lockoutScores: [],
-                falseLockouts: 0,
-                totalLockouts: 0
-            };
-        }
-        playerTotals[hand.player_id] += Number(hand.score);
-        playerHands[hand.player_id].push(Number(hand.score));
-        
-        if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
-            playerStats[hand.player_id].totalLockouts++;
+        async function loadPreviousSessions() {
+            const contentDiv = document.getElementById('previousSessionsContent');
+            contentDiv.innerHTML = '<div class="loading">Loading sessions...</div>';
             
-            if (hand.false_lockout == 1 || hand.false_lockout === true) {
-                playerStats[hand.player_id].falseLockouts++;
-            } else {
-                playerStats[hand.player_id].lockouts++;
-                playerStats[hand.player_id].lockoutScores.push(Number(hand.score));
+            await ensurePlayersLoaded();
+            
+            const sessionsWithHands = await apiCall('getSessionsWithHands', {});
+            
+            if (sessionsWithHands.error) {
+                contentDiv.innerHTML = '<div class="error">Error loading sessions: ' + sessionsWithHands.error + '</div>';
+                return;
             }
+            
+            const completedSessions = [];
+            for (let i = 0; i < sessionsWithHands.length; i++) {
+                const item = sessionsWithHands[i];
+                
+                if (!item.session.notes) item.session.notes = '';
+                if (!item.session.tags) item.session.tags = '';
+                if (!item.session.player_join_info) item.session.player_join_info = '{}'; // ✅ NEW
+                
+                if (item.session.date_ended && item.session.date_ended !== '') {
+                    completedSessions.push({
+                        session: item.session,
+                        hands: item.hands,
+                        index: i
+                    });
+                }
+            }
+            
+            allSessions = completedSessions.map(item => item.session);
+            
+            window.sessionsHandsCache = {};
+            for (let i = 0; i < completedSessions.length; i++) {
+                window.sessionsHandsCache[completedSessions[i].session.session_id] = completedSessions[i].hands;
+            }
+            
+            if (completedSessions.length === 0) {
+                contentDiv.innerHTML = '<div class="placeholder-content"><h3>No Completed Sessions</h3><p>Complete a session to see it here!</p></div>';
+                return;
+            }
+            
+            let html = '<ul class="session-list">';
+            for (let i = 0; i < completedSessions.length; i++) {
+                const session = completedSessions[i].session;
+                html += '<li class="session-item" onclick="viewSessionDetail(' + i + ')">' +
+                    '<div class="session-item-header">' + session.title + '</div>' +
+                    '<div class="session-item-info">Date: ' + session.date_started + '</div>' +
+                    '</li>';
+            }
+            html += '</ul>';
+            contentDiv.innerHTML = html;
         }
-    }
-    
-    const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
-        return playerTotals[a] - playerTotals[b];
-    });
-    
-    let html = '<h3>Final Scores</h3>';
-    html += '<div style="overflow-x: auto;">';
-    html += '<table class="scores-table">';
-    html += '<tr><th>Player</th><th>Total</th><th>Hands</th><th>Avg Hand</th><th>Lockouts</th><th>LO Rate</th><th>Avg LO Score</th><th>False LO</th><th>False LO Rate</th></tr>';
-    
-    for (let i = 0; i < sortedPlayers.length; i++) {
-        const playerId = sortedPlayers[i];
-        const playerName = getPlayerName(playerId);
-        const total = playerTotals[playerId];
-        const handsPlayed = playerHands[playerId].length;
-        const avgHand = handsPlayed > 0 ? (total / handsPlayed).toFixed(2) : '0';
-        const stats = playerStats[playerId];
-        const lockoutRate = handsPlayed > 0 ? ((stats.lockouts / handsPlayed) * 100).toFixed(1) : '0';
-        const avgLockoutScore = stats.lockoutScores.length > 0 ? (stats.lockoutScores.reduce((sum, s) => sum + s, 0) / stats.lockoutScores.length).toFixed(2) : 'N/A';
-        const falseLockoutRate = stats.totalLockouts > 0 ? ((stats.falseLockouts / stats.totalLockouts) * 100).toFixed(1) : '0';
-        
-        html += '<tr>';
-        html += '<td><strong>' + playerName + '</strong></td>';
-        html += '<td>' + total + '</td>';
-        html += '<td>' + handsPlayed + '</td>';
-        html += '<td>' + avgHand + '</td>';
-        html += '<td>' + stats.lockouts + '</td>';
-        html += '<td>' + lockoutRate + '%</td>';
-        html += '<td>' + avgLockoutScore + '</td>';
-        html += '<td>' + stats.falseLockouts + '</td>';
-        html += '<td>' + falseLockoutRate + '%</td>';
-        html += '</tr>';
-    }
-    html += '</table>';
-    html += '</div>';
-    
-    document.getElementById('sessionDetailContent').innerHTML = html;
-    
-    let graphsHtml = '<h3>Graphs</h3>';
-    graphsHtml += '<div class="chart-container"><canvas id="wormChart"></canvas></div>';
-    graphsHtml += '<div class="chart-container"><canvas id="manhattanChart"></canvas></div>';
-    
-    document.getElementById('sessionDetailGraphs').innerHTML = graphsHtml;
-    
-    showScreen('sessionDetailScreen');
-    
-    setTimeout(function() {
-        drawSessionWormChart(playerHands, sortedPlayers);
-        drawSessionManhattanChart(playerHands, sortedPlayers);
-    }, 100);
-}
+
+        async function viewSessionDetail(sessionIndex) {
+            const session = allSessions[sessionIndex];
+            
+            let handsData;
+            if (window.sessionsHandsCache && window.sessionsHandsCache[session.session_id]) {
+                handsData = window.sessionsHandsCache[session.session_id];
+            } else {
+                handsData = await apiCall('getHands', { session_id: session.session_id });
+                if (handsData.error) {
+                    alert('Error loading session details');
+                    return;
+                }
+            }
+            
+            for (let i = 0; i < handsData.length; i++) {
+                if (!handsData[i].comment) handsData[i].comment = '';
+            }
+            
+            document.getElementById('sessionDetailTitle').textContent = session.title;
+            
+            // ✅ UPDATED: Show player join info in metadata
+            let metadataHtml = '';
+            if ((session.notes && session.notes !== '') || (session.tags && session.tags !== '') || (session.player_join_info && session.player_join_info !== '{}')) {
+                metadataHtml += '<div class="session-metadata">';
+                
+                if (session.notes && session.notes !== '') {
+                    metadataHtml += '<p><strong>📝 Notes:</strong> ' + session.notes + '</p>';
+                }
+                
+                if (session.tags && session.tags !== '') {
+                    const tagsArray = session.tags.split(',').filter(t => t.trim());
+                    if (tagsArray.length > 0) {
+                        metadataHtml += '<p><strong>🏷️ Tags:</strong> ';
+                        for (let i = 0; i < tagsArray.length; i++) {
+                            metadataHtml += '<span class="tag-badge">' + tagsArray[i] + '</span>';
+                        }
+                        metadataHtml += '</p>';
+                    }
+                }
+                
+                // ✅ NEW: Show late joiners
+                const joinInfo = parsePlayerJoinInfo(session.player_join_info);
+                if (Object.keys(joinInfo).length > 0) {
+                    metadataHtml += '<p><strong>👥 Late Joiners:</strong> ';
+                    const joiners = [];
+                    for (let playerId in joinInfo) {
+                        joiners.push(getPlayerName(playerId) + ' (Hand ' + joinInfo[playerId] + ')');
+                    }
+                    metadataHtml += joiners.join(', ') + '</p>';
+                }
+                
+                metadataHtml += '</div>';
+            }
+            document.getElementById('sessionDetailMetadata').innerHTML = metadataHtml;
+            
+            const playerTotals = {};
+            const playerHands = {};
+            const playerStats = {};
+            
+            for (let i = 0; i < handsData.length; i++) {
+                const hand = handsData[i];
+                if (!playerTotals[hand.player_id]) {
+                    playerTotals[hand.player_id] = 0;
+                    playerHands[hand.player_id] = [];
+                    playerStats[hand.player_id] = {
+                        lockouts: 0,
+                        lockoutScores: [],
+                        falseLockouts: 0,
+                        totalLockouts: 0
+                    };
+                }
+                playerTotals[hand.player_id] += Number(hand.score);
+                playerHands[hand.player_id].push(Number(hand.score));
+                
+                if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+                    playerStats[hand.player_id].totalLockouts++;
+                    
+                    if (hand.false_lockout == 1 || hand.false_lockout === true) {
+                        playerStats[hand.player_id].falseLockouts++;
+                    } else {
+                        playerStats[hand.player_id].lockouts++;
+                        playerStats[hand.player_id].lockoutScores.push(Number(hand.score));
+                    }
+                }
+            }
+            
+            const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
+                return playerTotals[a] - playerTotals[b];
+            });
+            
+            let html = '<h3>Final Scores</h3>';
+            html += '<div style="overflow-x: auto;">';
+            html += '<table class="scores-table">';
+            html += '<tr><th>Player</th><th>Total</th><th>Hands</th><th>Avg Hand</th><th>Lockouts</th><th>LO Rate</th><th>Avg LO Score</th><th>False LO</th><th>False LO Rate</th></tr>';
+            
+            for (let i = 0; i < sortedPlayers.length; i++) {
+                const playerId = sortedPlayers[i];
+                const playerName = getPlayerName(playerId);
+                const total = playerTotals[playerId];
+                const handsPlayed = playerHands[playerId].length;
+                const avgHand = handsPlayed > 0 ? (total / handsPlayed).toFixed(2) : '0';
+                const stats = playerStats[playerId];
+                const lockoutRate = handsPlayed > 0 ? ((stats.lockouts / handsPlayed) * 100).toFixed(1) : '0';
+                const avgLockoutScore = stats.lockoutScores.length > 0 ? (stats.lockoutScores.reduce((sum, s) => sum + s, 0) / stats.lockoutScores.length).toFixed(2) : 'N/A';
+                const falseLockoutRate = stats.totalLockouts > 0 ? ((stats.falseLockouts / stats.totalLockouts) * 100).toFixed(1) : '0';
+                
+                html += '<tr>';
+                html += '<td><strong>' + playerName + '</strong></td>';
+                html += '<td>' + total + '</td>';
+                html += '<td>' + handsPlayed + '</td>';
+                html += '<td>' + avgHand + '</td>';
+                html += '<td>' + stats.lockouts + '</td>';
+                html += '<td>' + lockoutRate + '%</td>';
+                html += '<td>' + avgLockoutScore + '</td>';
+                html += '<td>' + stats.falseLockouts + '</td>';
+                html += '<td>' + falseLockoutRate + '%</td>';
+                html += '</tr>';
+            }
+            html += '</table>';
+            html += '</div>';
+            
+            document.getElementById('sessionDetailContent').innerHTML = html;
+            
+            let graphsHtml = '<h3>Graphs</h3>';
+            graphsHtml += '<div class="chart-container"><canvas id="wormChart"></canvas></div>';
+            graphsHtml += '<div class="chart-container"><canvas id="manhattanChart"></canvas></div>';
+            
+            document.getElementById('sessionDetailGraphs').innerHTML = graphsHtml;
+            
+            showScreen('sessionDetailScreen');
+            
+            setTimeout(function() {
+                drawSessionWormChart(playerHands, sortedPlayers);
+                drawSessionManhattanChart(playerHands, sortedPlayers);
+            }, 100);
+        }
 
         // ============================================
         // STATS CALCULATION (keeping existing code)
@@ -2103,7 +2274,7 @@ async function viewSessionDetail(sessionIndex) {
         // INITIALIZATION
         // ============================================
         window.addEventListener('DOMContentLoaded', function() {
-            console.log('Lockout Tracker v2.5 - Session Enhancements! 📝🏷️💬');
+            console.log('Lockout Tracker v2.6 - Mid-Session Player Joins! 👥➕');
             ensurePlayersLoaded();
             checkActiveSessions();
         });
