@@ -2265,12 +2265,13 @@ function drawActiveManhattanChart(playerHands, playerIds) {
                 tooltip: {
                     backgroundColor: 'rgba(0, 0, 0, 0.8)',
                     padding: 12,
-                    callbacks: {
+                   callbacks: {
                         label: function(context) {
                             if (context.parsed.y === null) return null;
-                            return context.dataset.label + ': ' + context.parsed.y + ' runs';
+                            return context.dataset.label + ': ' + context.parsed.y + ' runs'; // ← CHANGE THIS
                         }
                     }
+
                 }
             },
             scales: { 
