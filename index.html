@@ -522,33 +522,37 @@
         // ============================================
         // ACTIVE SESSIONS CHECK
         // ============================================
-        async function checkActiveSessions() {
-            const sessionsData = await apiCall('getSessions', {});
-            if (sessionsData.error) return;
+async function checkActiveSessions() {
+    const sessionsData = await apiCall('getSessions', {});
+    if (sessionsData.error) return;
+    
+    // ✅ FIXED: Better empty check
+    const activeSessions = sessionsData.filter(s => {
+        const dateEnded = s.date_ended;
+        return !dateEnded || dateEnded === '' || dateEnded.toString().trim() === '';
+    });
+    
+    if (activeSessions.length > 0) {
+        let html = '<div class="active-session-box">';
+        html += '<h3>Active Sessions</h3>';
+        
+        for (let i = 0; i < activeSessions.length; i++) {
+            const session = activeSessions[i];
+            const handsData = await apiCall('getHands', { session_id: session.session_id });
+            const handCount = handsData.error ? 0 : (handsData.length > 0 ? Math.max(...handsData.map(h => h.hand_number)) : 0);
             
-            const activeSessions = sessionsData.filter(s => !s.date_ended || s.date_ended === '');
-            
-            if (activeSessions.length > 0) {
-                let html = '<div class="active-session-box">';
-                html += '<h3>Active Sessions</h3>';
-                
-                for (let i = 0; i < activeSessions.length; i++) {
-                    const session = activeSessions[i];
-                    const handsData = await apiCall('getHands', { session_id: session.session_id });
-                    const handCount = handsData.error ? 0 : (handsData.length > 0 ? Math.max(...handsData.map(h => h.hand_number)) : 0);
-                    
-                    html += '<div class="active-session-item">';
-                    html += '<div><strong>' + session.title + '</strong><br><small>' + handCount + ' hands played</small></div>';
-                    html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ')">Resume</button>';
-                    html += '</div>';
-                }
-                
-                html += '</div>';
-                document.getElementById('activeSessionsSection').innerHTML = html;
-            } else {
-                document.getElementById('activeSessionsSection').innerHTML = '';
-            }
+            html += '<div class="active-session-item">';
+            html += '<div><strong>' + session.title + '</strong><br><small>' + handCount + ' hands played</small></div>';
+            html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ')">Resume</button>';
+            html += '</div>';
         }
+        
+        html += '</div>';
+        document.getElementById('activeSessionsSection').innerHTML = html;
+    } else {
+        document.getElementById('activeSessionsSection').innerHTML = '';
+    }
+}
 
         // ============================================
         // SESSION MANAGEMENT
