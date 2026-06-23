@@ -756,41 +756,43 @@
             }
         }
 
-        async function resumeSession(sessionId) {
-            const sessionData = await apiCall('getSession', { session_id: sessionId });
-            if (sessionData.error) {
-                alert('Error loading session: ' + sessionData.error);
-                return;
-            }
-            
-            await ensurePlayersLoaded();
-            
-            const playerIds = sessionData.players_involved.split(',');
-            sessionPlayers = [];
-            for (let i = 0; i < playerIds.length; i++) {
-                const player = allPlayers.find(p => String(p.player_id) === String(playerIds[i]));
-                if (player) sessionPlayers.push(player);
-            }
-            
-            currentSession = {
-                session_id: sessionData.session_id,
-                title: sessionData.title,
-                host_player_id: sessionData.host_player_id,
-                notes: sessionData.notes || '',
-                tags: sessionData.tags || '',
-                player_join_info: sessionData.player_join_info || '{}' // ✅ NEW
-            };
-            
-            const handsData = await apiCall('getHands', { session_id: sessionId });
-            if (handsData.error || handsData.length === 0) {
-                currentHandNumber = 1;
-            } else {
-                currentHandNumber = Math.max(...handsData.map(h => h.hand_number)) + 1;
-            }
-            
-            showActiveSession();
-            updateSessionScores();
-        }
+async function resumeSession(sessionId) {
+    const sessionData = await apiCall('getSession', { session_id: sessionId });
+    if (sessionData.error) {
+        alert('Error loading session: ' + sessionData.error);
+        return;
+    }
+    
+    await ensurePlayersLoaded();
+    
+    const playerIds = sessionData.players_involved.split(',');
+    sessionPlayers = [];
+    for (let i = 0; i < playerIds.length; i++) {
+        const player = allPlayers.find(p => String(p.player_id) === String(playerIds[i]));
+        if (player) sessionPlayers.push(player);
+    }
+    
+    // ✅ FIX: Store ALL session data including players_involved
+    currentSession = {
+        session_id: sessionData.session_id,
+        title: sessionData.title,
+        host_player_id: sessionData.host_player_id,
+        notes: sessionData.notes || '',
+        tags: sessionData.tags || '',
+        player_join_info: sessionData.player_join_info || '{}',
+        players_involved: sessionData.players_involved // ✅ ADDED THIS LINE
+    };
+    
+    const handsData = await apiCall('getHands', { session_id: sessionId });
+    if (handsData.error || handsData.length === 0) {
+        currentHandNumber = 1;
+    } else {
+        currentHandNumber = Math.max(...handsData.map(h => h.hand_number)) + 1;
+    }
+    
+    showActiveSession();
+    updateSessionScores();
+}
 
         function showActiveSession() {
             document.getElementById('activeSessionTitle').textContent = currentSession.title;
