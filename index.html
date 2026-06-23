@@ -689,25 +689,23 @@ function calculateOverallStats(allSessionsData, playersData) {
                 // Add unique hand number to Set
                 playerUniqueHands[hand.player_id].add(Number(hand.hand_number));
                 
-                // Track lockouts
-                if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
-                    playerStats[hand.player_id].totalLockouts++;
-                    
-                    if (hand.false_lockout == 1 || hand.false_lockout === true) {
-                        playerStats[hand.player_id].falseLockouts++;
-                        playerStats[hand.player_id].currentHandStreak = 0;
-                    } else {
-                        playerStats[hand.player_id].handsWon++;
-                        playerStats[hand.player_id].currentHandStreak++;
-                        if (playerStats[hand.player_id].currentHandStreak > playerStats[hand.player_id].maxHandStreak) {
-                            playerStats[hand.player_id].maxHandStreak = playerStats[hand.player_id].currentHandStreak;
-                        }
-                    }
-                } else {
-                    playerStats[hand.player_id].currentHandStreak = 0;
-                }
-            }
+// Track lockouts
+if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+    playerStats[hand.player_id].totalLockouts++;
+    
+    if (hand.false_lockout == 1 || hand.false_lockout === true) {
+        playerStats[hand.player_id].falseLockouts++;
+        playerStats[hand.player_id].currentHandStreak = 0;
+    } else {
+        playerStats[hand.player_id].handsWon++;
+        // ✅ NEW: Track lockout score
+        playerStats[hand.player_id].lockoutScores.push(Number(hand.score));
+        playerStats[hand.player_id].currentHandStreak++;
+        if (playerStats[hand.player_id].currentHandStreak > playerStats[hand.player_id].maxHandStreak) {
+            playerStats[hand.player_id].maxHandStreak = playerStats[hand.player_id].currentHandStreak;
         }
+    }
+}
         
         // Count unique hands played per player
         for (let playerId in playerUniqueHands) {
@@ -778,7 +776,8 @@ function calculateOverallStats(allSessionsData, playersData) {
             let lowestAvgScore = { player: 'N/A', avg: Infinity };
             let mostFalseLockouts = { player: 'N/A', count: 0 };
             let longestHandStreak = { player: 'N/A', streak: 0 };
-            
+            let bestAvgLockoutScore = { player: 'N/A', avg: Infinity };
+
             for (let playerId in stats) {
                 const ps = stats[playerId];
                 
@@ -811,14 +810,18 @@ function calculateOverallStats(allSessionsData, playersData) {
                     }
                 }
                 
-                if (ps.falseLockouts > mostFalseLockouts.count) {
-                    mostFalseLockouts = { player: ps.username, count: ps.falseLockouts };
-                }
-                
                 if (ps.maxHandStreak > longestHandStreak.streak) {
-                    longestHandStreak = { player: ps.username, streak: ps.maxHandStreak };
-                }
-            }
+    longestHandStreak = { player: ps.username, streak: ps.maxHandStreak };
+}
+
+// ✅ NEW: Calculate best average lockout score
+if (ps.lockoutScores.length > 0) {
+    const avgLockoutScore = ps.lockoutScores.reduce((sum, score) => sum + score, 0) / ps.lockoutScores.length;
+    if (avgLockoutScore < bestAvgLockoutScore.avg) {
+        bestAvgLockoutScore = { player: ps.username, avg: avgLockoutScore.toFixed(2) };
+    }
+}
+
             
             let html = '<div class="stats-grid">';
             html += '<div class="stat-card"><h4>Total Sessions</h4><p class="stat-value">' + totalSessions + '</p></div>';
@@ -829,31 +832,35 @@ function calculateOverallStats(allSessionsData, playersData) {
             html += '<div class="stat-card"><h4>Lowest Avg Score/Hand</h4><p class="stat-value">' + lowestAvgScore.player + '</p><p>' + lowestAvgScore.avg + '</p></div>';
             html += '<div class="stat-card"><h4>Most False Lockouts</h4><p class="stat-value">' + mostFalseLockouts.player + '</p><p>' + mostFalseLockouts.count + ' times</p></div>';
             html += '<div class="stat-card"><h4>Longest Hand Streak</h4><p class="stat-value">' + longestHandStreak.player + '</p><p>' + longestHandStreak.streak + ' hands</p></div>';
+            html += '<div class="stat-card"><h4>Best Avg Lockout Score</h4><p class="stat-value">' + bestAvgLockoutScore.player + '</p><p>' + bestAvgLockoutScore.avg + '</p></div>';
             html += '</div>';
             
             html += '<h3 style="margin-top: 30px;">Player Breakdown</h3>';
             html += '<table class="scores-table">';
-            html += '<tr><th>Player</th><th>Sessions</th><th>Wins</th><th>Win Rate</th><th>Hands</th><th>Lockouts</th><th>Lockout Rate</th><th>Avg/Hand</th><th>False Lockout Rate</th></tr>';
+            html += '<tr><th>Player</th><th>Sessions</th><th>Wins</th><th>Win Rate</th><th>Hands</th><th>Lockouts</th><th>Lockout Rate</th><th>Avg/Hand</th><th>Avg Lockout Score</th><th>False Lockout Rate</th></tr>';
             
             for (let playerId in stats) {
                 const ps = stats[playerId];
                 const sessionWinRate = ps.sessionsPlayed > 0 ? ((ps.sessionsWon / ps.sessionsPlayed) * 100).toFixed(1) : '0';
                 const lockoutRate = ps.handsPlayed > 0 ? ((ps.handsWon / ps.handsPlayed) * 100).toFixed(1) : '0';
                 const avgScore = ps.handsPlayed > 0 ? (ps.totalScore / ps.handsPlayed).toFixed(2) : '0';
-                const falseLockoutRate = ps.totalLockouts > 0 ? ((ps.falseLockouts / ps.totalLockouts) * 100).toFixed(1) : '0';
-                
-                html += '<tr>';
-                html += '<td>' + ps.username + '</td>';
-                html += '<td>' + ps.sessionsPlayed + '</td>';
-                html += '<td>' + ps.sessionsWon + '</td>';
-                html += '<td>' + sessionWinRate + '%</td>';
-                html += '<td>' + ps.handsPlayed + '</td>';
-                html += '<td>' + ps.handsWon + '</td>';
-                html += '<td>' + lockoutRate + '%</td>';
-                html += '<td>' + avgScore + '</td>';
-                html += '<td>' + falseLockoutRate + '%</td>';
-                html += '</tr>';
-            }
+               const falseLockoutRate = ps.totalLockouts > 0 ? ((ps.falseLockouts / ps.totalLockouts) * 100).toFixed(1) : '0';
+// ✅ NEW: Calculate average lockout score
+const avgLockoutScore = ps.lockoutScores.length > 0 ? (ps.lockoutScores.reduce((sum, score) => sum + score, 0) / ps.lockoutScores.length).toFixed(2) : 'N/A';
+
+html += '<tr>';
+html += '<td>' + ps.username + '</td>';
+html += '<td>' + ps.sessionsPlayed + '</td>';
+html += '<td>' + ps.sessionsWon + '</td>';
+html += '<td>' + sessionWinRate + '%</td>';
+html += '<td>' + ps.handsPlayed + '</td>';
+html += '<td>' + ps.handsWon + '</td>';
+html += '<td>' + lockoutRate + '%</td>';
+html += '<td>' + avgScore + '</td>';
+html += '<td>' + avgLockoutScore + '</td>';
+html += '<td>' + falseLockoutRate + '%</td>';
+html += '</tr>';
+
             
             html += '</table>';
             document.getElementById('statsContent').innerHTML = html;
