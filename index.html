@@ -598,36 +598,39 @@ async function submitHand() {
             });
         }
 
-        async function loadStats() {
-            const contentDiv = document.getElementById('statsContent');
-            contentDiv.innerHTML = '<div class="loading">Loading stats...</div>';
-            
-            const playersData = await apiCall('getPlayers', {});
-            const sessionsData = await apiCall('getSessions', {});
-            
-            if (playersData.error || sessionsData.error) {
-                contentDiv.innerHTML = '<div class="error">Error loading stats</div>';
-                return;
-            }
-            
-            allPlayers = playersData;
-            
-            const allSessionsData = [];
-            for (let s = 0; s < sessionsData.length; s++) {
-                const session = sessionsData[s];
-                const handsData = await apiCall('getHands', { session_id: session.session_id });
-                if (!handsData.error) {
-                    allSessionsData.push({
-                        session_id: session.session_id,
-                        title: session.title,
-                        hands: handsData
-                    });
-                }
-            }
-            
-            const stats = calculateOverallStats(allSessionsData, playersData);
-            displayOverallStats(stats, allSessionsData.length);
+async function loadStats() {
+    const contentDiv = document.getElementById('statsContent');
+    contentDiv.innerHTML = '<div class="loading">Loading stats...</div>';
+    
+    const playersData = await apiCall('getPlayers', {});
+    const sessionsData = await apiCall('getSessions', {});
+    
+    if (playersData.error || sessionsData.error) {
+        contentDiv.innerHTML = '<div class="error">Error loading stats</div>';
+        return;
+    }
+    
+    allPlayers = playersData;
+    
+    // ✅ NEW: Filter out active sessions (only include completed sessions)
+    const completedSessions = sessionsData.filter(s => s.date_ended && s.date_ended !== '');
+    
+    const allSessionsData = [];
+    for (let s = 0; s < completedSessions.length; s++) {
+        const session = completedSessions[s];
+        const handsData = await apiCall('getHands', { session_id: session.session_id });
+        if (!handsData.error) {
+            allSessionsData.push({
+                session_id: session.session_id,
+                title: session.title,
+                hands: handsData
+            });
         }
+    }
+    
+    const stats = calculateOverallStats(allSessionsData, playersData);
+    displayOverallStats(stats, allSessionsData.length);
+}
 
 function calculateOverallStats(allSessionsData, playersData) {
     const playerStats = {};
@@ -655,8 +658,14 @@ function calculateOverallStats(allSessionsData, playersData) {
     // Process each session
     for (let s = 0; s < allSessionsData.length; s++) {
         const session = allSessionsData[s];
+        
+        // ✅ NEW: Skip active sessions (no date_ended)
+        // We need to check if the session has date_ended from the original sessions data
+        // For now, we'll process all sessions in allSessionsData since they should be filtered
+        // But we'll add a check to ensure we only count completed sessions
+        
         const playerTotals = {};
-        const playerUniqueHands = {}; // ✅ Track unique hand numbers per player
+        const playerUniqueHands = {};
         
         // Initialize unique hands tracker for all players
         for (let i = 0; i < playersData.length; i++) {
@@ -677,7 +686,7 @@ function calculateOverallStats(allSessionsData, playersData) {
                 // Add to total score
                 playerStats[hand.player_id].totalScore += Number(hand.score);
                 
-                // ✅ Add unique hand number to Set (automatically handles duplicates)
+                // Add unique hand number to Set
                 playerUniqueHands[hand.player_id].add(Number(hand.hand_number));
                 
                 // Track lockouts
@@ -700,7 +709,7 @@ function calculateOverallStats(allSessionsData, playersData) {
             }
         }
         
-        // ✅ Count unique hands played per player using Set.size
+        // Count unique hands played per player
         for (let playerId in playerUniqueHands) {
             const uniqueHandCount = playerUniqueHands[playerId].size;
             if (uniqueHandCount > 0) {
@@ -709,18 +718,26 @@ function calculateOverallStats(allSessionsData, playersData) {
             }
         }
         
-        // Calculate winner and margins
-        let winnerPlayerId = null;
+        // ✅ FIXED: Calculate winner(s) - handle ties properly
         let lowestScore = Infinity;
-        let secondLowestScore = Infinity;
+        let winnerPlayerIds = [];
         
+        // Find the lowest score
         for (let playerId in playerTotals) {
             const score = playerTotals[playerId];
             if (score < lowestScore) {
-                secondLowestScore = lowestScore;
                 lowestScore = score;
-                winnerPlayerId = playerId;
-            } else if (score < secondLowestScore) {
+                winnerPlayerIds = [playerId];
+            } else if (score === lowestScore) {
+                winnerPlayerIds.push(playerId);
+            }
+        }
+        
+        // Find second lowest score for margin calculation
+        let secondLowestScore = Infinity;
+        for (let playerId in playerTotals) {
+            const score = playerTotals[playerId];
+            if (score > lowestScore && score < secondLowestScore) {
                 secondLowestScore = score;
             }
         }
@@ -728,13 +745,20 @@ function calculateOverallStats(allSessionsData, playersData) {
         // Update win stats and margins
         for (let playerId in playerTotals) {
             if (playerStats[playerId]) {
-                if (String(playerId) === String(winnerPlayerId)) {
-                    playerStats[playerId].sessionsWon++;
-                    const margin = secondLowestScore - lowestScore;
-                    if (margin > playerStats[playerId].bestMargin) {
-                        playerStats[playerId].bestMargin = margin;
+                // Check if this player is a winner (or tied for winner)
+                if (winnerPlayerIds.indexOf(String(playerId)) !== -1) {
+                    // ✅ FIXED: If there's a tie, each winner gets a fractional win
+                    playerStats[playerId].sessionsWon += (1 / winnerPlayerIds.length);
+                    
+                    // Calculate margin (only if there's a second place)
+                    if (secondLowestScore !== Infinity) {
+                        const margin = secondLowestScore - lowestScore;
+                        if (margin > playerStats[playerId].bestMargin) {
+                            playerStats[playerId].bestMargin = margin;
+                        }
                     }
                 } else {
+                    // Calculate how far behind the winner this player was
                     const margin = playerTotals[playerId] - lowestScore;
                     if (margin > playerStats[playerId].worstMargin) {
                         playerStats[playerId].worstMargin = margin;
