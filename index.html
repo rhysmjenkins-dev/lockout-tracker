@@ -616,6 +616,7 @@
 function calculateOverallStats(allSessionsData, playersData) {
     const playerStats = {};
     
+    // Initialize player stats
     for (let i = 0; i < playersData.length; i++) {
         const player = playersData[i];
         playerStats[player.player_id] = {
@@ -635,26 +636,35 @@ function calculateOverallStats(allSessionsData, playersData) {
         };
     }
     
+    // Process each session
     for (let s = 0; s < allSessionsData.length; s++) {
         const session = allSessionsData[s];
         const playerTotals = {};
-        const playerUniqueHands = {}; // ✅ NEW: Track unique hand_numbers per player
+        const playerUniqueHands = {}; // ✅ Track unique hand numbers per player
         
+        // Initialize unique hands tracker for all players
         for (let i = 0; i < playersData.length; i++) {
-            playerUniqueHands[playersData[i].player_id] = new Set(); // ✅ Use Set for unique values
+            playerUniqueHands[playersData[i].player_id] = new Set();
         }
         
+        // Process each hand row
         for (let h = 0; h < session.hands.length; h++) {
             const hand = session.hands[h];
+            
+            // Track total scores
             if (!playerTotals[hand.player_id]) {
                 playerTotals[hand.player_id] = 0;
             }
             playerTotals[hand.player_id] += Number(hand.score);
             
             if (playerStats[hand.player_id]) {
+                // Add to total score
                 playerStats[hand.player_id].totalScore += Number(hand.score);
-                playerUniqueHands[hand.player_id].add(hand.hand_number); // ✅ Add unique hand_number
                 
+                // ✅ Add unique hand number to Set (automatically handles duplicates)
+                playerUniqueHands[hand.player_id].add(Number(hand.hand_number));
+                
+                // Track lockouts
                 if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
                     playerStats[hand.player_id].totalLockouts++;
                     
@@ -674,7 +684,7 @@ function calculateOverallStats(allSessionsData, playersData) {
             }
         }
         
-        // ✅ Count unique hands played per player
+        // ✅ Count unique hands played per player using Set.size
         for (let playerId in playerUniqueHands) {
             const uniqueHandCount = playerUniqueHands[playerId].size;
             if (uniqueHandCount > 0) {
@@ -683,7 +693,7 @@ function calculateOverallStats(allSessionsData, playersData) {
             }
         }
         
-        // ... rest of the function (winner calculation, margins, etc.) stays the same
+        // Calculate winner and margins
         let winnerPlayerId = null;
         let lowestScore = Infinity;
         let secondLowestScore = Infinity;
@@ -699,6 +709,7 @@ function calculateOverallStats(allSessionsData, playersData) {
             }
         }
         
+        // Update win stats and margins
         for (let playerId in playerTotals) {
             if (playerStats[playerId]) {
                 if (String(playerId) === String(winnerPlayerId)) {
