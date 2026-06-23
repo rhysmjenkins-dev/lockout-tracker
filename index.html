@@ -750,41 +750,67 @@
         // ============================================
         // PREVIOUS SESSIONS & SESSION DETAILS
         // ============================================
-        async function loadPreviousSessions() {
-            const contentDiv = document.getElementById('previousSessionsContent');
-            contentDiv.innerHTML = '<div class="loading">Loading sessions...</div>';
-            
-            await ensurePlayersLoaded();
-            
-            const sessionsData = await apiCall('getSessions', {});
-            if (sessionsData.error) {
-                contentDiv.innerHTML = '<div class="error">Error loading sessions</div>';
-                return;
-            }
-            
-            const completedSessions = sessionsData.filter(s => s.date_ended && s.date_ended !== '');
-            allSessions = completedSessions;
-            
-            let html = '<ul class="session-list">';
-            for (let i = 0; i < completedSessions.length; i++) {
-                const session = completedSessions[i];
-                html += '<li class="session-item" onclick="viewSessionDetail(' + i + ')">' +
-                    '<div class="session-item-header">' + session.title + '</div>' +
-                    '<div class="session-item-info">Date: ' + session.date_started + '</div>' +
-                    '</li>';
-            }
-            html += '</ul>';
-            contentDiv.innerHTML = html;
+async function loadPreviousSessions() {
+    const contentDiv = document.getElementById('previousSessionsContent');
+    contentDiv.innerHTML = '<div class="loading">Loading sessions...</div>';
+    
+    await ensurePlayersLoaded();
+    
+    // ✅ NEW: Use batch endpoint
+    const sessionsWithHands = await apiCall('getSessionsWithHands', {});
+    
+    if (sessionsWithHands.error) {
+        contentDiv.innerHTML = '<div class="error">Error loading sessions</div>';
+        return;
+    }
+    
+    // Filter completed sessions and store with hands
+    const completedSessions = [];
+    for (let i = 0; i < sessionsWithHands.length; i++) {
+        const item = sessionsWithHands[i];
+        if (item.session.date_ended && item.session.date_ended !== '') {
+            completedSessions.push({
+                session: item.session,
+                hands: item.hands,
+                index: i
+            });
         }
+    }
+    
+    allSessions = completedSessions.map(item => item.session);
+    
+    // ✅ Store hands data for faster detail view
+    window.sessionsHandsCache = {};
+    for (let i = 0; i < completedSessions.length; i++) {
+        window.sessionsHandsCache[completedSessions[i].session.session_id] = completedSessions[i].hands;
+    }
+    
+    let html = '<ul class="session-list">';
+    for (let i = 0; i < completedSessions.length; i++) {
+        const session = completedSessions[i].session;
+        html += '<li class="session-item" onclick="viewSessionDetail(' + i + ')">' +
+            '<div class="session-item-header">' + session.title + '</div>' +
+            '<div class="session-item-info">Date: ' + session.date_started + '</div>' +
+            '</li>';
+    }
+    html += '</ul>';
+    contentDiv.innerHTML = html;
+}
 
-        async function viewSessionDetail(sessionIndex) {
-            const session = allSessions[sessionIndex];
-            const handsData = await apiCall('getHands', { session_id: session.session_id });
-            
-            if (handsData.error) {
-                alert('Error loading session details');
-                return;
-            }
+async function viewSessionDetail(sessionIndex) {
+    const session = allSessions[sessionIndex];
+    
+    // ✅ NEW: Use cached hands data if available
+    let handsData;
+    if (window.sessionsHandsCache && window.sessionsHandsCache[session.session_id]) {
+        handsData = window.sessionsHandsCache[session.session_id];
+    } else {
+        handsData = await apiCall('getHands', { session_id: session.session_id });
+        if (handsData.error) {
+            alert('Error loading session details');
+            return;
+        }
+    }
             
             document.getElementById('sessionDetailTitle').textContent = session.title;
             
@@ -877,54 +903,45 @@
         // ============================================
         // STATS CALCULATION
         // ============================================
-        async function loadStats() {
-            const contentDiv = document.getElementById('statsContent');
-            contentDiv.innerHTML = '<div class="loading">Loading stats...</div>';
-            
-            await ensurePlayersLoaded();
-            
-            const sessionsData = await apiCall('getSessions', {});
-            
-            if (sessionsData.error) {
-                contentDiv.innerHTML = '<div class="error">Error loading stats</div>';
-                return;
-            }
-            
-            const completedSessions = sessionsData.filter(s => s.date_ended && s.date_ended !== '');
-            const allSessionsForHands = sessionsData;
-            
-            // Fetch hands for completed sessions
-            const completedSessionsData = [];
-            for (let s = 0; s < completedSessions.length; s++) {
-                const session = completedSessions[s];
-                const handsData = await apiCall('getHands', { session_id: session.session_id });
-                if (!handsData.error) {
-                    completedSessionsData.push({
-                        session_id: session.session_id,
-                        title: session.title,
-                        hands: handsData
-                    });
-                }
-            }
-            
-            // Fetch hands for ALL sessions
-            const allSessionsData = [];
-            for (let s = 0; s < allSessionsForHands.length; s++) {
-                const session = allSessionsForHands[s];
-                const handsData = await apiCall('getHands', { session_id: session.session_id });
-                if (!handsData.error) {
-                    allSessionsData.push({
-                        session_id: session.session_id,
-                        title: session.title,
-                        hands: handsData,
-                        is_completed: (session.date_ended && session.date_ended !== '')
-                    });
-                }
-            }
-            
-            const stats = calculateOverallStats(completedSessionsData, allSessionsData, allPlayers);
-            displayOverallStats(stats, completedSessionsData.length);
+async function loadStats() {
+    const contentDiv = document.getElementById('statsContent');
+    contentDiv.innerHTML = '<div class="loading">Loading stats...</div>';
+    
+    await ensurePlayersLoaded();
+    
+    // ✅ NEW: Single batch call instead of N+1 calls
+    const sessionsWithHands = await apiCall('getSessionsWithHands', {});
+    
+    if (sessionsWithHands.error) {
+        contentDiv.innerHTML = '<div class="error">Error loading stats</div>';
+        return;
+    }
+    
+    // Separate completed and all sessions
+    const completedSessionsData = [];
+    const allSessionsData = [];
+    
+    for (let i = 0; i < sessionsWithHands.length; i++) {
+        const item = sessionsWithHands[i];
+        const isCompleted = (item.session.date_ended && item.session.date_ended !== '');
+        
+        const sessionData = {
+            session_id: item.session.session_id,
+            title: item.session.title,
+            hands: item.hands,
+            is_completed: isCompleted
+        };
+        
+        allSessionsData.push(sessionData);
+        
+        if (isCompleted) {
+            completedSessionsData.push(sessionData);
         }
+    }
+    
+    const stats = calculateOverallStats(completedSessionsData, allSessionsData, allPlayers);
+    displayOverallStats(stats, completedSessionsData.length);
+}
 
         function calculateOverallStats(completedSessionsData, allSessionsData, playersData) {
             const playerStats = {};
