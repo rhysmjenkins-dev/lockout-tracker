@@ -1940,65 +1940,69 @@ async function resumeSession(sessionId) {
         // ============================================
         // CHART DRAWING FUNCTIONS (keeping existing)
         // ============================================
-        function drawSessionWormChart(playerHands, playerIds) {
-            const ctx = document.getElementById('wormChart');
-            if (!ctx) return;
-            const datasets = [];
-            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
-            
-            for (let i = 0; i < playerIds.length; i++) {
-                const playerId = playerIds[i];
-                const hands = playerHands[playerId];
-                let cumulative = 0;
-                const cumulativeScores = [];
-                
-                for (let j = 0; j < hands.length; j++) {
-                    cumulative += hands[j];
-                    cumulativeScores.push(cumulative);
-                }
-                
-                datasets.push({
-                    label: getPlayerName(playerId),
-                    data: cumulativeScores,
-                    borderColor: colors[i % colors.length],
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    tension: 0.1
-                });
-            }
-            
-            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
-            const labels = [];
-            for (let i = 1; i <= maxHands; i++) {
-                labels.push('Hand ' + i);
-            }
-            
-            const chart = new Chart(ctx.getContext('2d'), {
-                type: 'line',
-                data: { labels: labels, datasets: datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: { display: true, text: 'Cricket Worm - Cumulative Scores' },
-                        legend: {
-                            display: true,
-                            position: 'top',
-                            onClick: function(e, legendItem, legend) {
-                                const index = legendItem.datasetIndex;
-                                const ci = legend.chart;
-                                const meta = ci.getDatasetMeta(index);
-                                meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
-                                ci.update();
-                            }
-                        }
-                    },
-                    scales: { y: { title: { display: true, text: 'Cumulative Score' } } }
-                }
-            });
-            
-            window.wormChartInstance = chart;
+function drawSessionWormChart(playerHands, playerIds) {
+    const ctx = document.getElementById('wormChart');
+    if (!ctx) return;
+    const datasets = [];
+    const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+    
+    const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+    
+    for (let i = 0; i < playerIds.length; i++) {
+        const playerId = playerIds[i];
+        const hands = playerHands[playerId];
+        
+        // ✅ For completed sessions, check if player joined late
+        // (This requires session context - for now, assume all started at hand 1)
+        let cumulative = 0;
+        const cumulativeScores = [];
+        
+        for (let j = 0; j < hands.length; j++) {
+            cumulative += hands[j];
+            cumulativeScores.push(cumulative);
         }
+        
+        datasets.push({
+            label: getPlayerName(playerId),
+            data: cumulativeScores,
+            borderColor: colors[i % colors.length],
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            tension: 0.1
+        });
+    }
+    
+    const labels = [];
+    for (let i = 1; i <= maxHands; i++) {
+        labels.push('Hand ' + i);
+    }
+    
+    const chart = new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: { display: true, text: 'Cricket Worm - Cumulative Scores' },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    onClick: function(e, legendItem, legend) {
+                        const index = legendItem.datasetIndex;
+                        const ci = legend.chart;
+                        const meta = ci.getDatasetMeta(index);
+                        meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                        ci.update();
+                    }
+                }
+            },
+            scales: { y: { title: { display: true, text: 'Cumulative Score' } } }
+        }
+    });
+    
+    window.wormChartInstance = chart;
+}
 
         function drawSessionManhattanChart(playerHands, playerIds) {
             const ctx = document.getElementById('manhattanChart');
@@ -2114,164 +2118,192 @@ async function resumeSession(sessionId) {
             window.manhattanChartInstance = chart;
         }
 
-        function drawActiveWormChart(playerHands, playerIds) {
-            const ctx = document.getElementById('activeWormChart');
-            if (!ctx) return;
-            const datasets = [];
-            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
-            
-            for (let i = 0; i < playerIds.length; i++) {
-                const playerId = playerIds[i];
-                const hands = playerHands[playerId];
-                let cumulative = 0;
-                const cumulativeScores = [];
-                
-                for (let j = 0; j < hands.length; j++) {
-                    cumulative += hands[j];
-                    cumulativeScores.push(cumulative);
-                }
-                
-                datasets.push({
-                    label: getPlayerName(playerId),
-                    data: cumulativeScores,
-                    borderColor: colors[i % colors.length],
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    tension: 0.1
-                });
-            }
-            
-            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
-            const labels = [];
-            for (let i = 1; i <= maxHands; i++) {
-                labels.push('Hand ' + i);
-            }
-            
-            const chart = new Chart(ctx.getContext('2d'), {
-                type: 'line',
-                data: { labels: labels, datasets: datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: { display: true, text: 'Cricket Worm - Cumulative Scores' },
-                        legend: {
-                            display: true,
-                            position: 'top',
-                            onClick: function(e, legendItem, legend) {
-                                const index = legendItem.datasetIndex;
-                                const ci = legend.chart;
-                                const meta = ci.getDatasetMeta(index);
-                                meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
-                                ci.update();
-                            }
-                        }
-                    },
-                    scales: { y: { title: { display: true, text: 'Cumulative Score' } } }
-                }
-            });
-            
-            window.activeWormChartInstance = chart;
+function drawActiveWormChart(playerHands, playerIds) {
+    const ctx = document.getElementById('activeWormChart');
+    if (!ctx) return;
+    const datasets = [];
+    const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+    
+    // ✅ FIX: Get max hands across all players
+    const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+    
+    for (let i = 0; i < playerIds.length; i++) {
+        const playerId = playerIds[i];
+        const hands = playerHands[playerId];
+        const joinHand = getPlayerJoinHand(playerId);
+        
+        let cumulative = 0;
+        const cumulativeScores = [];
+        
+        // ✅ FIX: Add null values for hands before player joined
+        for (let h = 1; h < joinHand; h++) {
+            cumulativeScores.push(null);
         }
+        
+        // ✅ FIX: Add actual scores from join point onwards
+        for (let j = 0; j < hands.length; j++) {
+            cumulative += hands[j];
+            cumulativeScores.push(cumulative);
+        }
+        
+        datasets.push({
+            label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''),
+            data: cumulativeScores,
+            borderColor: colors[i % colors.length],
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            tension: 0.1,
+            spanGaps: false // ✅ Don't connect across null values
+        });
+    }
+    
+    const labels = [];
+    for (let i = 1; i <= maxHands; i++) {
+        labels.push('Hand ' + i);
+    }
+    
+    const chart = new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: { display: true, text: 'Cricket Worm - Cumulative Scores' },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    onClick: function(e, legendItem, legend) {
+                        const index = legendItem.datasetIndex;
+                        const ci = legend.chart;
+                        const meta = ci.getDatasetMeta(index);
+                        meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                        ci.update();
+                    }
+                }
+            },
+            scales: { y: { title: { display: true, text: 'Cumulative Score' } } }
+        }
+    });
+    
+    window.activeWormChartInstance = chart;
+}
 
-        function drawActiveManhattanChart(playerHands, playerIds) {
-            const ctx = document.getElementById('activeManhattanChart');
-            if (!ctx) return;
-            
-            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
-            
-            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
-            const labels = [];
-            for (let i = 1; i <= maxHands; i++) {
-                labels.push('Hand ' + i);
-            }
-            
-            const datasets = [];
-            for (let i = 0; i < playerIds.length; i++) {
-                const playerId = playerIds[i];
-                const hands = playerHands[playerId];
-                
-                datasets.push({
-                    label: getPlayerName(playerId),
-                    data: hands,
-                    backgroundColor: colors[i % colors.length],
-                    borderColor: colors[i % colors.length],
-                    borderWidth: 1,
-                    barThickness: 'flex',
-                    maxBarThickness: 40
-                });
-            }
-            
-            const chart = new Chart(ctx.getContext('2d'), {
-                type: 'bar',
-                data: { labels: labels, datasets: datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: { 
-                            display: true, 
-                            text: 'Manhattan - Per Hand Scores',
-                            font: { size: 16, weight: 'bold' },
-                            padding: { top: 10, bottom: 20 }
-                        },
-                        legend: {
-                            display: true,
-                            position: 'top',
-                            onClick: function(e, legendItem, legend) {
-                                const index = legendItem.datasetIndex;
-                                const ci = legend.chart;
-                                const meta = ci.getDatasetMeta(index);
-                                meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
-                                ci.update();
-                            },
-                            labels: {
-                                usePointStyle: true,
-                                padding: 15,
-                                font: { size: 13, weight: '600' }
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            padding: 12,
-                            callbacks: {
-                                label: function(context) {
-                                    return context.dataset.label + ': ' + context.parsed.y + ' runs';
-                                }
-                            }
-                        }
-                    },
-                    scales: { 
-                        x: {
-                            title: { 
-                                display: true, 
-                                text: 'Hand Number',
-                                font: { size: 14, weight: '600' }
-                            },
-                            grid: { display: false }
-                        },
-                        y: { 
-                            title: { 
-                                display: true, 
-                                text: 'Score',
-                                font: { size: 14, weight: '600' }
-                            },
-                            beginAtZero: true,
-                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
-                        }
-                    },
-                    interaction: {
-                        mode: 'index',
-                        intersect: false
-                    },
-                    grouped: true,
-                    barPercentage: 0.8,
-                    categoryPercentage: 0.9
-                }
-            });
-            
-            window.activeManhattanChartInstance = chart;
+function drawActiveManhattanChart(playerHands, playerIds) {
+    const ctx = document.getElementById('activeManhattanChart');
+    if (!ctx) return;
+    
+    const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+    
+    // ✅ FIX: Get max hands across all players
+    const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+    
+    const labels = [];
+    for (let i = 1; i <= maxHands; i++) {
+        labels.push('Hand ' + i);
+    }
+    
+    const datasets = [];
+    for (let i = 0; i < playerIds.length; i++) {
+        const playerId = playerIds[i];
+        const hands = playerHands[playerId];
+        const joinHand = getPlayerJoinHand(playerId);
+        
+        // ✅ FIX: Create data array with nulls for hands before joining
+        const dataArray = [];
+        
+        // Add null for hands before player joined
+        for (let h = 1; h < joinHand; h++) {
+            dataArray.push(null);
         }
+        
+        // Add actual scores from join point onwards
+        for (let j = 0; j < hands.length; j++) {
+            dataArray.push(hands[j]);
+        }
+        
+        datasets.push({
+            label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''),
+            data: dataArray,
+            backgroundColor: colors[i % colors.length],
+            borderColor: colors[i % colors.length],
+            borderWidth: 1,
+            barThickness: 'flex',
+            maxBarThickness: 40
+        });
+    }
+    
+    const chart = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: { 
+                    display: true, 
+                    text: 'Manhattan - Per Hand Scores',
+                    font: { size: 16, weight: 'bold' },
+                    padding: { top: 10, bottom: 20 }
+                },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    onClick: function(e, legendItem, legend) {
+                        const index = legendItem.datasetIndex;
+                        const ci = legend.chart;
+                        const meta = ci.getDatasetMeta(index);
+                        meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                        ci.update();
+                    },
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: { size: 13, weight: '600' }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    callbacks: {
+                        label: function(context) {
+                            if (context.parsed.y === null) return null;
+                            return context.dataset.label + ': ' + context.parsed.y + ' runs';
+                        }
+                    }
+                }
+            },
+            scales: { 
+                x: {
+                    title: { 
+                        display: true, 
+                        text: 'Hand Number',
+                        font: { size: 14, weight: '600' }
+                    },
+                    grid: { display: false }
+                },
+                y: { 
+                    title: { 
+                        display: true, 
+                        text: 'Score',
+                        font: { size: 14, weight: '600' }
+                    },
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                }
+            },
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            grouped: true,
+            barPercentage: 0.8,
+            categoryPercentage: 0.9
+        }
+    });
+    
+    window.activeManhattanChartInstance = chart;
+}
 
         // ============================================
         // INITIALIZATION
