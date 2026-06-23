@@ -680,31 +680,39 @@ async function updateSessionScores() {
         // ============================================
         // PREVIOUS SESSIONS & SESSION DETAILS
         // ============================================
-        async function loadPreviousSessions() {
-            const contentDiv = document.getElementById('previousSessionsContent');
-            contentDiv.innerHTML = '<div class="loading">Loading sessions...</div>';
-            
-            const sessionsData = await apiCall('getSessions', {});
-            if (sessionsData.error) {
-                contentDiv.innerHTML = '<div class="error">Error loading sessions</div>';
-                return;
-            }
-            
-            // Filter to show only completed sessions
-            const completedSessions = sessionsData.filter(s => s.date_ended && s.date_ended !== '');
-            allSessions = completedSessions;
-            
-            let html = '<ul class="session-list">';
-            for (let i = 0; i < completedSessions.length; i++) {
-                const session = completedSessions[i];
-                html += '<li class="session-item" onclick="viewSessionDetail(' + i + ')">' +
-                    '<div class="session-item-header">' + session.title + '</div>' +
-                    '<div class="session-item-info">Date: ' + session.date_started + '</div>' +
-                    '</li>';
-            }
-            html += '</ul>';
-            contentDiv.innerHTML = html;
-        }
+async function loadPreviousSessions() {
+    const contentDiv = document.getElementById('previousSessionsContent');
+    contentDiv.innerHTML = '<div class="loading">Loading sessions...</div>';
+    
+    // ✅ FIX: Load players first
+    const playersData = await apiCall('getPlayers', {});
+    if (playersData.error) {
+        contentDiv.innerHTML = '<div class="error">Error loading players</div>';
+        return;
+    }
+    allPlayers = playersData;
+    
+    const sessionsData = await apiCall('getSessions', {});
+    if (sessionsData.error) {
+        contentDiv.innerHTML = '<div class="error">Error loading sessions</div>';
+        return;
+    }
+    
+    // Filter to show only completed sessions
+    const completedSessions = sessionsData.filter(s => s.date_ended && s.date_ended !== '');
+    allSessions = completedSessions;
+    
+    let html = '<ul class="session-list">';
+    for (let i = 0; i < completedSessions.length; i++) {
+        const session = completedSessions[i];
+        html += '<li class="session-item" onclick="viewSessionDetail(' + i + ')">' +
+            '<div class="session-item-header">' + session.title + '</div>' +
+            '<div class="session-item-info">Date: ' + session.date_started + '</div>' +
+            '</li>';
+    }
+    html += '</ul>';
+    contentDiv.innerHTML = html;
+}
 
         async function viewSessionDetail(sessionIndex) {
             const session = allSessions[sessionIndex];
