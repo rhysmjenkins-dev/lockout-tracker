@@ -522,21 +522,34 @@
                 return;
             }
             
-            // ✅ VALIDATION: Check if false lockout is correctly marked
-            const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
-            const lowestScore = Math.min(...scores.map(s => s.score));
-            
-            if (falseLockout && lockoutPlayerScore === lowestScore) {
-                messageDiv.innerHTML = '<div class="error">⚠️ Cannot mark as false lockout - this player has the lowest score! Uncheck "False" to continue.</div>';
-                return;
-            }
-            
-            if (!falseLockout && lockoutPlayerScore > lowestScore) {
-                if (!confirm('⚠️ Warning: The lockout player does NOT have the lowest score. This should be marked as a FALSE lockout.\n\nDo you want to mark this as a false lockout?')) {
-                    return;
-                }
-                falseLockout = true; // Auto-correct to false lockout
-            }
+    // ✅ VALIDATION: Check if false lockout is correctly marked
+    const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+    const lowestScore = Math.min(...scores.map(s => s.score));
+    
+    // Check if lockout player has STRICTLY the lowest score (no ties)
+    const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
+    const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
+    
+    if (falseLockout && hasStrictlyLowestScore) {
+        messageDiv.innerHTML = '<div class="error">⚠️ Cannot mark as false lockout - this player has the ONLY lowest score! Uncheck "False" to continue.</div>';
+        return;
+    }
+    
+    if (!falseLockout && !hasStrictlyLowestScore) {
+        // Lockout player either has higher score OR tied for lowest
+        let warningMessage = '';
+        if (lockoutPlayerScore > lowestScore) {
+            warningMessage = '⚠️ Warning: The lockout player does NOT have the lowest score.\n\n';
+        } else if (playersWithLowestScore.length > 1) {
+            warningMessage = '⚠️ Warning: The lockout player is TIED for lowest score (not strictly lowest).\n\n';
+        }
+        warningMessage += 'This should be marked as a FALSE lockout.\n\nDo you want to mark this as a false lockout?';
+        
+        if (!confirm(warningMessage)) {
+            return;
+        }
+        falseLockout = true; // Auto-correct to false lockout
+    }
             
             let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
             const data = await apiCall('addHand', {
