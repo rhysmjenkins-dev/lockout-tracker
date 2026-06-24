@@ -97,7 +97,6 @@
         .placeholder-content h3 { color: #667eea; margin-bottom: 15px; font-size: 1.5em; }
         .placeholder-content p { margin-bottom: 20px; }
         
-        /* Hand History Styles */
         .hand-history { background: #fff; padding: 15px; border-radius: 8px; margin: 15px 0; }
         .hand-history h4 { color: #667eea; margin-bottom: 10px; }
         .hand-item { 
@@ -108,7 +107,6 @@
         .hand-item-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .hand-item-actions .btn { min-width: 80px; }
         
-        /* Session metadata display */
         .session-metadata { 
             background: #f0f4ff; 
             padding: 12px; 
@@ -134,7 +132,6 @@
             margin: 2px;
         }
         
-        /* ✅ NEW: Late join indicator */
         .late-join-badge {
             display: inline-block;
             background: #ff9800;
@@ -146,7 +143,6 @@
             font-weight: 600;
         }
         
-        /* Modal Styles */
         .modal { 
             display: none; position: fixed; z-index: 1000; left: 0; top: 0; 
             width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);
@@ -166,7 +162,6 @@
         }
         .modal-close:hover { color: #333; }
         
-        /* MOBILE OPTIMIZATIONS */
         @media (max-width: 600px) {
             body { padding: 10px; }
             .header h1 { font-size: 1.8em; }
@@ -190,7 +185,6 @@
             .modal-content { padding: 20px; margin: 10px; }
         }
         
-        /* Touch-friendly improvements */
         @media (hover: none) and (pointer: coarse) {
             .btn { min-height: 48px; }
             input, select, textarea { min-height: 48px; font-size: 16px; }
@@ -404,7 +398,7 @@
         </div>
     </div>
 
-    <!-- ✅ NEW: ADD PLAYER TO SESSION MODAL -->
+    <!-- ADD PLAYER TO SESSION MODAL -->
     <div id="addPlayerModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -427,6 +421,7 @@
             <div id="addPlayerMessage"></div>
         </div>
     </div>
+
     <script>
         // ============================================
         // CONFIGURATION & GLOBAL VARIABLES
@@ -439,7 +434,7 @@
         let sessionPlayers = [];
         let allSessions = [];
         let currentEditingHand = null;
-        let selectedPlayerToAdd = null; // ✅ NEW: For add player modal
+        let selectedPlayerToAdd = null;
 
         // Performance cache
         let playersLoaded = false;
@@ -477,17 +472,49 @@
             return 'Unknown';
         }
 
-        // ✅ NEW: Parse player join info
+        // ✅ UPDATED: Parse player join info (handles both old and new format)
         function parsePlayerJoinInfo(joinInfoString) {
-            if (!joinInfoString || joinInfoString === '') return {};
+            if (!joinInfoString || joinInfoString === '' || joinInfoString === '{}') return {};
             try {
-                return JSON.parse(joinInfoString);
+                const parsed = JSON.parse(joinInfoString);
+                const result = {};
+                for (let playerId in parsed) {
+                    const value = parsed[playerId];
+                    // New format: {"player_id": {"hand": 3, "starting_score": 10}}
+                    if (typeof value === 'object' && value.hand !== undefined) {
+                        result[playerId] = value.hand;
+                    }
+                    // Old format: {"player_id": 3}
+                    else if (typeof value === 'number') {
+                        result[playerId] = value;
+                    }
+                }
+                return result;
             } catch(e) {
                 return {};
             }
         }
 
-        // ✅ NEW: Check if player joined late
+        // ✅ NEW: Get player starting score
+        function getPlayerStartingScore(playerId) {
+            if (!currentSession || !currentSession.player_join_info) return 0;
+            
+            try {
+                const fullInfo = JSON.parse(currentSession.player_join_info);
+                const info = fullInfo[playerId];
+                if (!info) return 0;
+                
+                // New format with starting_score
+                if (typeof info === 'object' && info.starting_score !== undefined) {
+                    return info.starting_score;
+                }
+            } catch(e) {
+                // Fall through to return 0
+            }
+            
+            return 0;
+        }
+
         function getPlayerJoinHand(playerId) {
             if (!currentSession || !currentSession.player_join_info) return 1;
             const joinInfo = parsePlayerJoinInfo(currentSession.player_join_info);
@@ -571,16 +598,13 @@
         }
 
         // ============================================
-        // ✅ NEW: ADD PLAYER TO ACTIVE SESSION
+        // ADD PLAYER TO ACTIVE SESSION
         // ============================================
         
         async function showAddPlayerModal() {
             await ensurePlayersLoaded();
             
-            // Get current session player IDs
             const currentPlayerIds = sessionPlayers.map(p => String(p.player_id));
-            
-            // Filter out players already in session
             const availablePlayers = allPlayers.filter(p => currentPlayerIds.indexOf(String(p.player_id)) === -1);
             
             if (availablePlayers.length === 0) {
@@ -636,13 +660,15 @@
             if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
             } else {
-                messageDiv.innerHTML = '<div class="success">Player added successfully!</div>';
+                // ✅ UPDATED: Show starting score in success message
+                const startingScore = data.startingScore || 0;
+                messageDiv.innerHTML = '<div class="success">Player added successfully!' + 
+                    (startingScore > 0 ? ' (Starting with ' + startingScore + ' points)' : '') + 
+                    '</div>';
                 
-                // Update current session data
                 currentSession.players_involved = data.players_involved;
                 currentSession.player_join_info = data.player_join_info;
                 
-                // Add player to sessionPlayers array
                 const newPlayer = allPlayers.find(p => String(p.player_id) === String(selectedPlayerToAdd));
                 if (newPlayer) {
                     sessionPlayers.push(newPlayer);
@@ -695,7 +721,6 @@
                 document.getElementById('activeSessionsSection').innerHTML = '';
             }
         }
-
         // ============================================
         // SESSION MANAGEMENT
         // ============================================
@@ -734,71 +759,69 @@
                 tags: tags
             });
             
-if (data.error) {
-    messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-} else {
-    currentSession = { 
-        session_id: data.session_id, 
-        title: title, 
-        host_player_id: hostId,
-        notes: notes,
-        tags: tags,
-        player_join_info: '{}',
-        players_involved: selectedPlayers.join(',') // ✅ ADD THIS LINE
-    };
-    sessionPlayers = [];
-    for (let i = 0; i < allPlayers.length; i++) {
-        if (selectedPlayers.indexOf(String(allPlayers[i].player_id)) !== -1) {
-            sessionPlayers.push(allPlayers[i]);
-        }
-    }
-    currentHandNumber = 1;
-    showActiveSession();
-}
+            if (data.error) {
+                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+            } else {
+                currentSession = { 
+                    session_id: data.session_id, 
+                    title: title, 
+                    host_player_id: hostId,
+                    notes: notes,
+                    tags: tags,
+                    player_join_info: '{}',
+                    players_involved: selectedPlayers.join(',')
+                };
+                sessionPlayers = [];
+                for (let i = 0; i < allPlayers.length; i++) {
+                    if (selectedPlayers.indexOf(String(allPlayers[i].player_id)) !== -1) {
+                        sessionPlayers.push(allPlayers[i]);
+                    }
+                }
+                currentHandNumber = 1;
+                showActiveSession();
+            }
         }
 
-async function resumeSession(sessionId) {
-    const sessionData = await apiCall('getSession', { session_id: sessionId });
-    if (sessionData.error) {
-        alert('Error loading session: ' + sessionData.error);
-        return;
-    }
-    
-    await ensurePlayersLoaded();
-    
-    const playerIds = sessionData.players_involved.split(',');
-    sessionPlayers = [];
-    for (let i = 0; i < playerIds.length; i++) {
-        const player = allPlayers.find(p => String(p.player_id) === String(playerIds[i]));
-        if (player) sessionPlayers.push(player);
-    }
-    
-    // ✅ FIX: Store ALL session data including players_involved
-    currentSession = {
-        session_id: sessionData.session_id,
-        title: sessionData.title,
-        host_player_id: sessionData.host_player_id,
-        notes: sessionData.notes || '',
-        tags: sessionData.tags || '',
-        player_join_info: sessionData.player_join_info || '{}',
-        players_involved: sessionData.players_involved // ✅ ADDED THIS LINE
-    };
-    
-    const handsData = await apiCall('getHands', { session_id: sessionId });
-    if (handsData.error || handsData.length === 0) {
-        currentHandNumber = 1;
-    } else {
-        currentHandNumber = Math.max(...handsData.map(h => h.hand_number)) + 1;
-    }
-    
-    showActiveSession();
-    updateSessionScores();
-}
+        async function resumeSession(sessionId) {
+            const sessionData = await apiCall('getSession', { session_id: sessionId });
+            if (sessionData.error) {
+                alert('Error loading session: ' + sessionData.error);
+                return;
+            }
+            
+            await ensurePlayersLoaded();
+            
+            const playerIds = sessionData.players_involved.split(',');
+            sessionPlayers = [];
+            for (let i = 0; i < playerIds.length; i++) {
+                const player = allPlayers.find(p => String(p.player_id) === String(playerIds[i]));
+                if (player) sessionPlayers.push(player);
+            }
+            
+            currentSession = {
+                session_id: sessionData.session_id,
+                title: sessionData.title,
+                host_player_id: sessionData.host_player_id,
+                notes: sessionData.notes || '',
+                tags: sessionData.tags || '',
+                player_join_info: sessionData.player_join_info || '{}',
+                players_involved: sessionData.players_involved
+            };
+            
+            const handsData = await apiCall('getHands', { session_id: sessionId });
+            if (handsData.error || handsData.length === 0) {
+                currentHandNumber = 1;
+            } else {
+                currentHandNumber = Math.max(...handsData.map(h => h.hand_number)) + 1;
+            }
+            
+            showActiveSession();
+            updateSessionScores();
+        }
 
         function showActiveSession() {
             document.getElementById('activeSessionTitle').textContent = currentSession.title;
             
-            // ✅ UPDATED: Show player join info
             let playerNames = sessionPlayers.map(p => {
                 const joinHand = getPlayerJoinHand(p.player_id);
                 if (joinHand > 1) {
@@ -937,7 +960,6 @@ async function resumeSession(sessionId) {
                 const player = sessionPlayers[i];
                 const joinHand = getPlayerJoinHand(player.player_id);
                 
-                // ✅ NEW: Only show input if player has joined by this hand
                 if (joinHand <= currentHandNumber) {
                     html += '<div class="player-hand-row">' +
                         '<label>' + player.username + (joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '') + '</label>' +
@@ -975,7 +997,6 @@ async function resumeSession(sessionId) {
             let lockoutPlayerId = null;
             let falseLockout = false;
             
-            // ✅ UPDATED: Only get scores for players who have joined
             for (let i = 0; i < sessionPlayers.length; i++) {
                 const player = sessionPlayers[i];
                 const joinHand = getPlayerJoinHand(player.player_id);
@@ -1046,7 +1067,6 @@ async function resumeSession(sessionId) {
                 updateSessionScores();
             }
         }
-
         // ============================================
         // EDIT/DELETE HAND FUNCTIONS
         // ============================================
@@ -1146,7 +1166,6 @@ async function resumeSession(sessionId) {
                 }
             }
             
-            // ✅ UPDATED: Only show players who were in the session at this hand
             for (let i = 0; i < sessionPlayers.length; i++) {
                 const player = sessionPlayers[i];
                 const joinHand = getPlayerJoinHand(player.player_id);
@@ -1196,7 +1215,6 @@ async function resumeSession(sessionId) {
             let lockoutPlayerId = null;
             let falseLockout = false;
             
-            // ✅ UPDATED: Only get scores for players who were in session at this hand
             for (let i = 0; i < sessionPlayers.length; i++) {
                 const player = sessionPlayers[i];
                 const joinHand = getPlayerJoinHand(player.player_id);
@@ -1298,10 +1316,6 @@ async function resumeSession(sessionId) {
                 updateSessionScores();
             }
         }
-
-        // ============================================
-        // CONTINUE TO NEXT MESSAGE FOR REST...
-        // ============================================
         // ============================================
         // ACTIVE SESSION SCORES UPDATE
         // ============================================
@@ -1316,18 +1330,20 @@ async function resumeSession(sessionId) {
             let totalLockouts = 0;
             let falseLockoutCount = 0;
             
-            // ✅ UPDATED: Initialize with join hand info
+            // ✅ UPDATED: Initialize with starting scores
             for (let i = 0; i < sessionPlayers.length; i++) {
                 const player = sessionPlayers[i];
+                const startingScore = getPlayerStartingScore(player.player_id);
                 playerScores[player.player_id] = { 
                     username: player.username, 
-                    total: 0, 
+                    total: startingScore, // ✅ START WITH BASELINE
                     hands: [],
                     lockouts: 0,
                     lockoutScores: [],
                     falseLockouts: 0,
                     totalLockouts: 0,
-                    joinHand: getPlayerJoinHand(player.player_id)
+                    joinHand: getPlayerJoinHand(player.player_id),
+                    startingScore: startingScore // ✅ TRACK SEPARATELY
                 };
             }
             
@@ -1387,7 +1403,6 @@ async function resumeSession(sessionId) {
                 const falseLockoutRate = p.totalLockouts > 0 ? ((p.falseLockouts / p.totalLockouts) * 100).toFixed(1) : '0';
                 
                 html += '<tr>';
-                // ✅ UPDATED: Show join indicator
                 html += '<td><strong>' + p.username + '</strong>' + (p.joinHand > 1 ? ' <span class="late-join-badge">H' + p.joinHand + '</span>' : '') + '</td>';
                 html += '<td>' + p.total + '</td>';
                 html += '<td>' + handsPlayed + '</td>';
@@ -1456,7 +1471,6 @@ async function resumeSession(sessionId) {
                 }, 100);
             }
         }
-
         // ============================================
         // PREVIOUS SESSIONS & SESSION DETAILS
         // ============================================
@@ -1479,7 +1493,7 @@ async function resumeSession(sessionId) {
                 
                 if (!item.session.notes) item.session.notes = '';
                 if (!item.session.tags) item.session.tags = '';
-                if (!item.session.player_join_info) item.session.player_join_info = '{}'; // ✅ NEW
+                if (!item.session.player_join_info) item.session.player_join_info = '{}';
                 
                 if (item.session.date_ended && item.session.date_ended !== '') {
                     completedSessions.push({
@@ -1534,7 +1548,6 @@ async function resumeSession(sessionId) {
             
             document.getElementById('sessionDetailTitle').textContent = session.title;
             
-            // ✅ UPDATED: Show player join info in metadata
             let metadataHtml = '';
             if ((session.notes && session.notes !== '') || (session.tags && session.tags !== '') || (session.player_join_info && session.player_join_info !== '{}')) {
                 metadataHtml += '<div class="session-metadata">';
@@ -1554,7 +1567,6 @@ async function resumeSession(sessionId) {
                     }
                 }
                 
-                // ✅ NEW: Show late joiners
                 const joinInfo = parsePlayerJoinInfo(session.player_join_info);
                 if (Object.keys(joinInfo).length > 0) {
                     metadataHtml += '<p><strong>👥 Late Joiners:</strong> ';
@@ -1652,7 +1664,7 @@ async function resumeSession(sessionId) {
         }
 
         // ============================================
-        // STATS CALCULATION (keeping existing code)
+        // STATS CALCULATION
         // ============================================
         async function loadStats() {
             const contentDiv = document.getElementById('statsContent');
@@ -1691,7 +1703,6 @@ async function resumeSession(sessionId) {
             const stats = calculateOverallStats(completedSessionsData, allSessionsData, allPlayers);
             displayOverallStats(stats, completedSessionsData.length);
         }
-
         function calculateOverallStats(completedSessionsData, allSessionsData, playersData) {
             const playerStats = {};
             
@@ -1936,73 +1947,70 @@ async function resumeSession(sessionId) {
             html += '</div>';
             document.getElementById('statsContent').innerHTML = html;
         }
-
         // ============================================
-        // CHART DRAWING FUNCTIONS (keeping existing)
+        // CHART DRAWING FUNCTIONS
         // ============================================
-function drawSessionWormChart(playerHands, playerIds) {
-    const ctx = document.getElementById('wormChart');
-    if (!ctx) return;
-    const datasets = [];
-    const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
-    
-    const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
-    
-    for (let i = 0; i < playerIds.length; i++) {
-        const playerId = playerIds[i];
-        const hands = playerHands[playerId];
-        
-        // ✅ For completed sessions, check if player joined late
-        // (This requires session context - for now, assume all started at hand 1)
-        let cumulative = 0;
-        const cumulativeScores = [];
-        
-        for (let j = 0; j < hands.length; j++) {
-            cumulative += hands[j];
-            cumulativeScores.push(cumulative);
-        }
-        
-        datasets.push({
-            label: getPlayerName(playerId),
-            data: cumulativeScores,
-            borderColor: colors[i % colors.length],
-            backgroundColor: 'transparent',
-            borderWidth: 2,
-            tension: 0.1
-        });
-    }
-    
-    const labels = [];
-    for (let i = 1; i <= maxHands; i++) {
-        labels.push('Hand ' + i);
-    }
-    
-    const chart = new Chart(ctx.getContext('2d'), {
-        type: 'line',
-        data: { labels: labels, datasets: datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: { display: true, text: 'Cricket Worm - Cumulative Scores' },
-                legend: {
-                    display: true,
-                    position: 'top',
-                    onClick: function(e, legendItem, legend) {
-                        const index = legendItem.datasetIndex;
-                        const ci = legend.chart;
-                        const meta = ci.getDatasetMeta(index);
-                        meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
-                        ci.update();
-                    }
+        function drawSessionWormChart(playerHands, playerIds) {
+            const ctx = document.getElementById('wormChart');
+            if (!ctx) return;
+            const datasets = [];
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            
+            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+            
+            for (let i = 0; i < playerIds.length; i++) {
+                const playerId = playerIds[i];
+                const hands = playerHands[playerId];
+                
+                let cumulative = 0;
+                const cumulativeScores = [];
+                
+                for (let j = 0; j < hands.length; j++) {
+                    cumulative += hands[j];
+                    cumulativeScores.push(cumulative);
                 }
-            },
-            scales: { y: { title: { display: true, text: 'Cumulative Score' } } }
+                
+                datasets.push({
+                    label: getPlayerName(playerId),
+                    data: cumulativeScores,
+                    borderColor: colors[i % colors.length],
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.1
+                });
+            }
+            
+            const labels = [];
+            for (let i = 1; i <= maxHands; i++) {
+                labels.push('Hand ' + i);
+            }
+            
+            const chart = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Cricket Worm - Cumulative Scores' },
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            onClick: function(e, legendItem, legend) {
+                                const index = legendItem.datasetIndex;
+                                const ci = legend.chart;
+                                const meta = ci.getDatasetMeta(index);
+                                meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                                ci.update();
+                            }
+                        }
+                    },
+                    scales: { y: { title: { display: true, text: 'Cumulative Score' } } }
+                }
+            });
+            
+            window.wormChartInstance = chart;
         }
-    });
-    
-    window.wormChartInstance = chart;
-}
 
         function drawSessionManhattanChart(playerHands, playerIds) {
             const ctx = document.getElementById('manhattanChart');
@@ -2071,7 +2079,7 @@ function drawSessionWormChart(playerHands, playerIds) {
                                     return context[0].label;
                                 },
                                 label: function(context) {
-                                    return context.dataset.label + ': ' + context.parsed.y + ' runs';
+                                    return context.dataset.label + ': ' + context.parsed.y + ' points';
                                 }
                             }
                         }
@@ -2118,199 +2126,196 @@ function drawSessionWormChart(playerHands, playerIds) {
             window.manhattanChartInstance = chart;
         }
 
-function drawActiveWormChart(playerHands, playerIds) {
-    const ctx = document.getElementById('activeWormChart');
-    if (!ctx) return;
-    const datasets = [];
-    const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
-    
-    // ✅ FIX: Get max hands across all players
-    const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
-    
-    for (let i = 0; i < playerIds.length; i++) {
-        const playerId = playerIds[i];
-        const hands = playerHands[playerId];
-        const joinHand = getPlayerJoinHand(playerId);
-        
-        let cumulative = 0;
-        const cumulativeScores = [];
-        
-        // ✅ FIX: Add null values for hands before player joined
-        for (let h = 1; h < joinHand; h++) {
-            cumulativeScores.push(null);
-        }
-        
-        // ✅ FIX: Add actual scores from join point onwards
-        for (let j = 0; j < hands.length; j++) {
-            cumulative += hands[j];
-            cumulativeScores.push(cumulative);
-        }
-        
-        datasets.push({
-            label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''),
-            data: cumulativeScores,
-            borderColor: colors[i % colors.length],
-            backgroundColor: 'transparent',
-            borderWidth: 2,
-            tension: 0.1,
-            spanGaps: false // ✅ Don't connect across null values
-        });
-    }
-    
-    const labels = [];
-    for (let i = 1; i <= maxHands; i++) {
-        labels.push('Hand ' + i);
-    }
-    
-    const chart = new Chart(ctx.getContext('2d'), {
-        type: 'line',
-        data: { labels: labels, datasets: datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: { display: true, text: 'Cricket Worm - Cumulative Scores' },
-                legend: {
-                    display: true,
-                    position: 'top',
-                    onClick: function(e, legendItem, legend) {
-                        const index = legendItem.datasetIndex;
-                        const ci = legend.chart;
-                        const meta = ci.getDatasetMeta(index);
-                        meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
-                        ci.update();
-                    }
+        function drawActiveWormChart(playerHands, playerIds) {
+            const ctx = document.getElementById('activeWormChart');
+            if (!ctx) return;
+            const datasets = [];
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            
+            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+            
+            for (let i = 0; i < playerIds.length; i++) {
+                const playerId = playerIds[i];
+                const hands = playerHands[playerId];
+                const joinHand = getPlayerJoinHand(playerId);
+                const startingScore = getPlayerStartingScore(playerId);
+                
+                let cumulative = startingScore;
+                const cumulativeScores = [];
+                
+                for (let h = 1; h < joinHand; h++) {
+                    cumulativeScores.push(null);
                 }
-            },
-            scales: { y: { title: { display: true, text: 'Cumulative Score' } } }
-        }
-    });
-    
-    window.activeWormChartInstance = chart;
-}
-
-function drawActiveManhattanChart(playerHands, playerIds) {
-    const ctx = document.getElementById('activeManhattanChart');
-    if (!ctx) return;
-    
-    const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
-    
-    // ✅ FIX: Get max hands across all players
-    const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
-    
-    const labels = [];
-    for (let i = 1; i <= maxHands; i++) {
-        labels.push('Hand ' + i);
-    }
-    
-    const datasets = [];
-    for (let i = 0; i < playerIds.length; i++) {
-        const playerId = playerIds[i];
-        const hands = playerHands[playerId];
-        const joinHand = getPlayerJoinHand(playerId);
-        
-        // ✅ FIX: Create data array with nulls for hands before joining
-        const dataArray = [];
-        
-        // Add null for hands before player joined
-        for (let h = 1; h < joinHand; h++) {
-            dataArray.push(null);
-        }
-        
-        // Add actual scores from join point onwards
-        for (let j = 0; j < hands.length; j++) {
-            dataArray.push(hands[j]);
-        }
-        
-        datasets.push({
-            label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''),
-            data: dataArray,
-            backgroundColor: colors[i % colors.length],
-            borderColor: colors[i % colors.length],
-            borderWidth: 1,
-            barThickness: 'flex',
-            maxBarThickness: 40
-        });
-    }
-    
-    const chart = new Chart(ctx.getContext('2d'), {
-        type: 'bar',
-        data: { labels: labels, datasets: datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: { 
-                    display: true, 
-                    text: 'Manhattan - Per Hand Scores',
-                    font: { size: 16, weight: 'bold' },
-                    padding: { top: 10, bottom: 20 }
-                },
-                legend: {
-                    display: true,
-                    position: 'top',
-                    onClick: function(e, legendItem, legend) {
-                        const index = legendItem.datasetIndex;
-                        const ci = legend.chart;
-                        const meta = ci.getDatasetMeta(index);
-                        meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
-                        ci.update();
-                    },
-                    labels: {
-                        usePointStyle: true,
-                        padding: 15,
-                        font: { size: 13, weight: '600' }
-                    }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    padding: 12,
-                   callbacks: {
-                        label: function(context) {
-                            if (context.parsed.y === null) return null;
-                            return context.dataset.label + ': ' + context.parsed.y + ' runs'; // ← CHANGE THIS
+                
+                if (joinHand > 1 && startingScore > 0) {
+                    cumulativeScores.push(startingScore);
+                }
+                
+                for (let j = 0; j < hands.length; j++) {
+                    cumulative += hands[j];
+                    cumulativeScores.push(cumulative);
+                }
+                
+                datasets.push({
+                    label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''),
+                    data: cumulativeScores,
+                    borderColor: colors[i % colors.length],
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    spanGaps: false
+                });
+            }
+            
+            const labels = [];
+            for (let i = 1; i <= maxHands; i++) {
+                labels.push('Hand ' + i);
+            }
+            
+            const chart = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Cricket Worm - Cumulative Scores' },
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            onClick: function(e, legendItem, legend) {
+                                const index = legendItem.datasetIndex;
+                                const ci = legend.chart;
+                                const meta = ci.getDatasetMeta(index);
+                                meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                                ci.update();
+                            }
                         }
-                    }
-
-                }
-            },
-            scales: { 
-                x: {
-                    title: { 
-                        display: true, 
-                        text: 'Hand Number',
-                        font: { size: 14, weight: '600' }
                     },
-                    grid: { display: false }
-                },
-                y: { 
-                    title: { 
-                        display: true, 
-                        text: 'Score',
-                        font: { size: 14, weight: '600' }
-                    },
-                    beginAtZero: true,
-                    grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    scales: { y: { title: { display: true, text: 'Cumulative Score' } } }
                 }
-            },
-            interaction: {
-                mode: 'index',
-                intersect: false
-            },
-            grouped: true,
-            barPercentage: 0.8,
-            categoryPercentage: 0.9
+            });
+            
+            window.activeWormChartInstance = chart;
         }
-    });
-    
-    window.activeManhattanChartInstance = chart;
-}
+
+        function drawActiveManhattanChart(playerHands, playerIds) {
+            const ctx = document.getElementById('activeManhattanChart');
+            if (!ctx) return;
+            
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            
+            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+            
+            const labels = [];
+            for (let i = 1; i <= maxHands; i++) {
+                labels.push('Hand ' + i);
+            }
+            
+            const datasets = [];
+            for (let i = 0; i < playerIds.length; i++) {
+                const playerId = playerIds[i];
+                const hands = playerHands[playerId];
+                const joinHand = getPlayerJoinHand(playerId);
+                
+                const dataArray = [];
+                
+                for (let h = 1; h < joinHand; h++) {
+                    dataArray.push(null);
+                }
+                
+                for (let j = 0; j < hands.length; j++) {
+                    dataArray.push(hands[j]);
+                }
+                
+                datasets.push({
+                    label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''),
+                    data: dataArray,
+                    backgroundColor: colors[i % colors.length],
+                    borderColor: colors[i % colors.length],
+                    borderWidth: 1,
+                    barThickness: 'flex',
+                    maxBarThickness: 40
+                });
+            }
+            
+            const chart = new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Manhattan - Per Hand Scores',
+                            font: { size: 16, weight: 'bold' },
+                            padding: { top: 10, bottom: 20 }
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            onClick: function(e, legendItem, legend) {
+                                const index = legendItem.datasetIndex;
+                                const ci = legend.chart;
+                                const meta = ci.getDatasetMeta(index);
+                                meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                                ci.update();
+                            },
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15,
+                                font: { size: 13, weight: '600' }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.parsed.y === null) return null;
+                                    return context.dataset.label + ': ' + context.parsed.y + ' points';
+                                }
+                            }
+                        }
+                    },
+                    scales: { 
+                        x: {
+                            title: { 
+                                display: true, 
+                                text: 'Hand Number',
+                                font: { size: 14, weight: '600' }
+                            },
+                            grid: { display: false }
+                        },
+                        y: { 
+                            title: { 
+                                display: true, 
+                                text: 'Score',
+                                font: { size: 14, weight: '600' }
+                            },
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        }
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    grouped: true,
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.9
+                }
+            });
+            
+            window.activeManhattanChartInstance = chart;
+        }
 
         // ============================================
         // INITIALIZATION
         // ============================================
         window.addEventListener('DOMContentLoaded', function() {
-            console.log('Lockout Tracker v2.6 - Mid-Session Player Joins! 👥➕');
+            console.log('Lockout Tracker v2.6 - Mid-Session Player Joins with Baseline! 🎯');
             ensurePlayersLoaded();
             checkActiveSessions();
         });
