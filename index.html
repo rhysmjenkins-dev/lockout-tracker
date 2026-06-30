@@ -569,7 +569,7 @@
 async function checkActiveSessions() {
             document.getElementById('activeSessionsSection').innerHTML = '<div class="loading">Loading active sessions...</div>';
             const sessionsData = await apiCall('getSessions', {});
-            if (sessionsData.error) return;
+            if (sessionsData.error) {                 document.getElementById('activeSessionsSection').innerHTML = '<p style="color: #c33;">Error loading sessions</p>';                 return;             }
             const activeSessions = sessionsData.filter(s => {
                 const dateEnded = s.date_ended;
                 return !dateEnded || dateEnded === '' || dateEnded.toString().trim() === '';
