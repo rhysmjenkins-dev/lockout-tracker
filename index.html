@@ -1568,8 +1568,59 @@
                 
                 html += '<tr><td><strong>' + playerName + '</strong></td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td></tr>';
             }
-            html += '</table></div>';
-            document.getElementById('sessionDetailContent').innerHTML = html;
+html += '</table></div>';
+
+// ADD HAND-BY-HAND BREAKDOWN
+html += '<h3 style="margin-top: 30px;">Hand-by-Hand Breakdown</h3>';
+html += '<div class="hand-history">';
+
+const handsByNumber = {};
+for (let i = 0; i < handsData.length; i++) {
+    const hand = handsData[i];
+    if (!handsByNumber[hand.hand_number]) {
+        handsByNumber[hand.hand_number] = [];
+    }
+    handsByNumber[hand.hand_number].push(hand);
+}
+
+const handNumbers = Object.keys(handsByNumber).sort((a, b) => Number(a) - Number(b));
+
+for (let i = 0; i < handNumbers.length; i++) {
+    const handNum = handNumbers[i];
+    const hands = handsByNumber[handNum];
+    let scoreText = '';
+    let lockoutPlayer = '';
+    let isFalseLockout = false;
+    let handComment = '';
+    
+    for (let j = 0; j < hands.length; j++) {
+        const h = hands[j];
+        scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
+        if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
+            lockoutPlayer = getPlayerName(h.player_id);
+            isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
+        }
+        if (h.comment && !handComment) {
+            handComment = h.comment;
+        }
+    }
+    scoreText = scoreText.slice(0, -3);
+    
+    html += '<div class="hand-item">';
+    html += '<div class="hand-item-info">';
+    html += '<strong>Hand ' + handNum + '</strong><br>';
+    html += '<small>' + scoreText + '</small><br>';
+    html += '<small>Lockout: ' + lockoutPlayer + (isFalseLockout ? ' (FALSE)' : '') + '</small>';
+    if (handComment) {
+        html += '<br><small style="color: #667eea;">💬 ' + handComment + '</small>';
+    }
+    html += '</div>';
+    html += '</div>';
+}
+
+html += '</div>';
+
+document.getElementById('sessionDetailContent').innerHTML = html;
             
             let graphsHtml = '<h3>Graphs</h3>';
             graphsHtml += '<div class="chart-container"><canvas id="wormChart"></canvas></div>';
