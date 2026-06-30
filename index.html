@@ -2376,3 +2376,510 @@
                 drawSessionManhattanChart(playerHands, sortedPlayers);
             }, 100);
         }
+        // ============================================
+        // STATS CALCULATION
+        // ============================================
+        async function loadStats() {
+            const contentDiv = document.getElementById('statsContent');
+            contentDiv.innerHTML = '<div class="loading">Loading stats...</div>';
+            
+            await ensurePlayersLoaded();
+            
+            const sessionsWithHands = await apiCall('getSessionsWithHands', {});
+            
+            if (sessionsWithHands.error) {
+                contentDiv.innerHTML = '<div class="error">Error loading stats</div>';
+                return;
+            }
+            
+            const completedSessionsData = [];
+            const allSessionsData = [];
+            
+            for (let i = 0; i < sessionsWithHands.length; i++) {
+                const item = sessionsWithHands[i];
+                const isCompleted = (item.session.date_ended && item.session.date_ended !== '');
+                
+                const sessionData = {
+                    session_id: item.session.session_id,
+                    title: item.session.title,
+                    hands: item.hands,
+                    is_completed: isCompleted
+                };
+                
+                allSessionsData.push(sessionData);
+                
+                if (isCompleted) {
+                    completedSessionsData.push(sessionData);
+                }
+            }
+            
+            const stats = calculateOverallStats(completedSessionsData, allSessionsData, allPlayers);
+            displayOverallStats(stats, completedSessionsData.length);
+        }
+
+        function calculateOverallStats(completedSessionsData, allSessionsData, playersData) {
+            const playerStats = {};
+            
+            for (let i = 0; i < playersData.length; i++) {
+                const player = playersData[i];
+                playerStats[player.player_id] = {
+                    username: player.username,
+                    sessionsWon: 0,
+                    sessionsPlayed: 0,
+                    handsWon: 0,
+                    handsPlayed: 0,
+                    totalScore: 0,
+                    lockoutScores: [],
+                    falseLockouts: 0,
+                    totalLockouts: 0,
+                    currentHandStreak: 0,
+                    maxHandStreak: 0,
+                    bestMargin: 0,
+                    worstMargin: 0
+                };
+            }
+            
+            for (let s = 0; s < allSessionsData.length; s++) {
+                const session = allSessionsData[s];
+                const playerUniqueHands = {};
+                
+                for (let i = 0; i < playersData.length; i++) {
+                    playerUniqueHands[playersData[i].player_id] = new Set();
+                }
+                
+                for (let h = 0; h < session.hands.length; h++) {
+                    const hand = session.hands[h];
+                    
+                    if (playerStats[hand.player_id]) {
+                        playerStats[hand.player_id].totalScore += Number(hand.score);
+                        playerUniqueHands[hand.player_id].add(Number(hand.hand_number));
+                        
+                        if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+                            playerStats[hand.player_id].totalLockouts++;
+                            
+                            if (hand.false_lockout == 1 || hand.false_lockout === true) {
+                                playerStats[hand.player_id].falseLockouts++;
+                                playerStats[hand.player_id].currentHandStreak = 0;
+                            } else {
+                                playerStats[hand.player_id].handsWon++;
+                                playerStats[hand.player_id].lockoutScores.push(Number(hand.score));
+                                playerStats[hand.player_id].currentHandStreak++;
+                                if (playerStats[hand.player_id].currentHandStreak > playerStats[hand.player_id].maxHandStreak) {
+                                    playerStats[hand.player_id].maxHandStreak = playerStats[hand.player_id].currentHandStreak;
+                                }
+                            }
+                        } else {
+                            playerStats[hand.player_id].currentHandStreak = 0;
+                        }
+                    }
+                }
+                
+                for (let playerId in playerUniqueHands) {
+                    const uniqueHandCount = playerUniqueHands[playerId].size;
+                    if (uniqueHandCount > 0) {
+                        playerStats[playerId].handsPlayed += uniqueHandCount;
+                    }
+                }
+            }
+            
+            for (let s = 0; s < completedSessionsData.length; s++) {
+                const session = completedSessionsData[s];
+                const playerTotals = {};
+                const playersInSession = new Set();
+                
+                for (let h = 0; h < session.hands.length; h++) {
+                    const hand = session.hands[h];
+                    if (!playerTotals[hand.player_id]) {
+                        playerTotals[hand.player_id] = 0;
+                    }
+                    playerTotals[hand.player_id] += Number(hand.score);
+                    playersInSession.add(hand.player_id);
+                }
+                
+                playersInSession.forEach(playerId => {
+                    if (playerStats[playerId]) {
+                        playerStats[playerId].sessionsPlayed++;
+                    }
+                });
+                
+                let lowestScore = Infinity;
+                let winnerPlayerIds = [];
+                
+                for (let playerId in playerTotals) {
+                    const score = playerTotals[playerId];
+                    if (score < lowestScore) {
+                        lowestScore = score;
+                        winnerPlayerIds = [playerId];
+                    } else if (score === lowestScore) {
+                        winnerPlayerIds.push(playerId);
+                    }
+                }
+                
+                let secondLowestScore = Infinity;
+                for (let playerId in playerTotals) {
+                    const score = playerTotals[playerId];
+                    if (score > lowestScore && score < secondLowestScore) {
+                        secondLowestScore = score;
+                    }
+                }
+                
+                for (let playerId in playerTotals) {
+                    if (playerStats[playerId]) {
+                        if (winnerPlayerIds.indexOf(String(playerId)) !== -1) {
+                            playerStats[playerId].sessionsWon += (1 / winnerPlayerIds.length);
+                            
+                            if (secondLowestScore !== Infinity) {
+                                const margin = secondLowestScore - lowestScore;
+                                if (margin > playerStats[playerId].bestMargin) {
+                                    playerStats[playerId].bestMargin = margin;
+                                }
+                            }
+                        } else {
+                            const margin = playerTotals[playerId] - lowestScore;
+                            if (margin > playerStats[playerId].worstMargin) {
+                                playerStats[playerId].worstMargin = margin;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return playerStats;
+        }
+
+        function displayOverallStats(stats, totalSessions) {
+            let mostSessionsWon = { player: 'N/A', wins: 0 };
+            let mostHandsWon = { player: 'N/A', hands: 0 };
+            let bestSessionWinRate = { player: 'N/A', rate: 0 };
+            let bestHandWinRate = { player: 'N/A', rate: 0 };
+            let lowestAvgScore = { player: 'N/A', avg: Infinity };
+            let mostFalseLockouts = { player: 'N/A', count: 0 };
+            let longestHandStreak = { player: 'N/A', streak: 0 };
+            let bestAvgLockoutScore = { player: 'N/A', avg: Infinity };
+            
+            let totalHands = 0;
+            for (let playerId in stats) {
+                if (stats[playerId].handsPlayed > totalHands) {
+                    totalHands = stats[playerId].handsPlayed;
+                }
+            }
+
+            for (let playerId in stats) {
+                const ps = stats[playerId];
+                
+                if (ps.sessionsWon > mostSessionsWon.wins) {
+                    mostSessionsWon = { player: ps.username, wins: ps.sessionsWon.toFixed(1) };
+                }
+                
+                if (ps.handsWon > mostHandsWon.hands) {
+                    mostHandsWon = { player: ps.username, hands: ps.handsWon };
+                }
+                
+                if (ps.sessionsPlayed > 0) {
+                    const sessionWinRate = (ps.sessionsWon / ps.sessionsPlayed) * 100;
+                    if (sessionWinRate > bestSessionWinRate.rate) {
+                        bestSessionWinRate = { player: ps.username, rate: sessionWinRate.toFixed(1) };
+                    }
+                }
+                
+                if (ps.handsPlayed > 0) {
+                    const handWinRate = (ps.handsWon / ps.handsPlayed) * 100;
+                    if (handWinRate > bestHandWinRate.rate) {
+                        bestHandWinRate = { player: ps.username, rate: handWinRate.toFixed(1) };
+                    }
+                }
+                
+                if (ps.handsPlayed > 0) {
+                    const avgScore = ps.totalScore / ps.handsPlayed;
+                    if (avgScore < lowestAvgScore.avg) {
+                        lowestAvgScore = { player: ps.username, avg: avgScore.toFixed(2) };
+                    }
+                }
+                
+                if (ps.falseLockouts > mostFalseLockouts.count) {
+                    mostFalseLockouts = { player: ps.username, count: ps.falseLockouts };
+                }
+                
+                if (ps.maxHandStreak > longestHandStreak.streak) {
+                    longestHandStreak = { player: ps.username, streak: ps.maxHandStreak };
+                }
+                
+                if (ps.lockoutScores.length > 0) {
+                    const avgLockoutScore = ps.lockoutScores.reduce((sum, score) => sum + score, 0) / ps.lockoutScores.length;
+                    if (avgLockoutScore < bestAvgLockoutScore.avg) {
+                        bestAvgLockoutScore = { player: ps.username, avg: avgLockoutScore.toFixed(2) };
+                    }
+                }
+            }
+            
+            let html = '<div class="stats-grid">';
+            html += '<div class="stat-card"><h4>Total Sessions</h4><p class="stat-value">' + totalSessions + '</p></div>';
+            html += '<div class="stat-card"><h4>Total Hands</h4><p class="stat-value">' + totalHands + '</p></div>';
+            html += '<div class="stat-card"><h4>Most Sessions Won</h4><p class="stat-value">' + mostSessionsWon.player + '</p><p>' + mostSessionsWon.wins + ' wins</p></div>';
+            html += '<div class="stat-card"><h4>Most Hands Won</h4><p class="stat-value">' + mostHandsWon.player + '</p><p>' + mostHandsWon.hands + ' hands</p></div>';
+            html += '<div class="stat-card"><h4>Best Session Win Rate</h4><p class="stat-value">' + bestSessionWinRate.player + '</p><p>' + bestSessionWinRate.rate + '%</p></div>';
+            html += '<div class="stat-card"><h4>Best Hand Win Rate</h4><p class="stat-value">' + bestHandWinRate.player + '</p><p>' + bestHandWinRate.rate + '%</p></div>';
+            html += '<div class="stat-card"><h4>Lowest Avg Score/Hand</h4><p class="stat-value">' + lowestAvgScore.player + '</p><p>' + lowestAvgScore.avg + '</p></div>';
+            html += '<div class="stat-card"><h4>Best Avg Lockout Score</h4><p class="stat-value">' + bestAvgLockoutScore.player + '</p><p>' + bestAvgLockoutScore.avg + '</p></div>';
+            html += '<div class="stat-card"><h4>Longest Hand Streak</h4><p class="stat-value">' + longestHandStreak.player + '</p><p>' + longestHandStreak.streak + ' hands</p></div>';
+            html += '<div class="stat-card"><h4>Most False Lockouts</h4><p class="stat-value">' + mostFalseLockouts.player + '</p><p>' + mostFalseLockouts.count + ' times</p></div>';
+            html += '</div>';
+            
+            html += '<div style="background: #fff3cd; padding: 10px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #ffc107; font-size: 0.9em;">';
+            html += '<strong>ℹ️ Note:</strong> Hand-level stats (Hands, Lockouts, Averages) include active sessions. Session-level stats (Wins, Win Rate) only include completed sessions.';
+            html += '</div>';
+            
+            html += '<h3 style="margin-top: 30px;">Player Breakdown</h3>';
+            html += '<div style="overflow-x: auto;">';
+            html += '<table class="scores-table">';
+            html += '<tr><th>Player</th><th>Sessions</th><th>Wins</th><th>Win Rate</th><th>Hands</th><th>Avg Hand</th><th>Lockouts</th><th>LO Rate</th><th>Avg LO Score</th><th>False Lockouts</th><th>False LO Rate</th></tr>';
+            
+            for (let playerId in stats) {
+                const ps = stats[playerId];
+                const sessionWinRate = ps.sessionsPlayed > 0 ? ((ps.sessionsWon / ps.sessionsPlayed) * 100).toFixed(1) : '0';
+                const lockoutRate = ps.handsPlayed > 0 ? ((ps.handsWon / ps.handsPlayed) * 100).toFixed(1) : '0';
+                const avgScore = ps.handsPlayed > 0 ? (ps.totalScore / ps.handsPlayed).toFixed(2) : '0';
+                const falseLockoutRate = ps.totalLockouts > 0 ? ((ps.falseLockouts / ps.totalLockouts) * 100).toFixed(1) : '0';
+                const avgLockoutScore = ps.lockoutScores.length > 0 ? (ps.lockoutScores.reduce((sum, score) => sum + score, 0) / ps.lockoutScores.length).toFixed(2) : 'N/A';
+                
+                html += '<tr>';
+                html += '<td>' + ps.username + '</td>';
+                html += '<td>' + ps.sessionsPlayed + '</td>';
+                html += '<td>' + ps.sessionsWon.toFixed(1) + '</td>';
+                html += '<td>' + sessionWinRate + '%</td>';
+                html += '<td>' + ps.handsPlayed + '</td>';
+                html += '<td>' + avgScore + '</td>';
+                html += '<td>' + ps.handsWon + '</td>';
+                html += '<td>' + lockoutRate + '%</td>';
+                html += '<td>' + avgLockoutScore + '</td>';
+                html += '<td>' + ps.falseLockouts + '</td>';
+                html += '<td>' + falseLockoutRate + '%</td>';
+                html += '</tr>';
+            }
+            
+            html += '</table>';
+            html += '</div>';
+            document.getElementById('statsContent').innerHTML = html;
+        }
+
+        // ============================================
+        // CHART DRAWING FUNCTIONS
+        // ============================================
+        function drawSessionWormChart(playerHands, playerIds) {
+            const ctx = document.getElementById('wormChart');
+            if (!ctx) return;
+            const datasets = [];
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            
+            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+            
+            for (let i = 0; i < playerIds.length; i++) {
+                const playerId = playerIds[i];
+                const hands = playerHands[playerId];
+                
+                let cumulative = 0;
+                const cumulativeScores = [];
+                
+                for (let j = 0; j < hands.length; j++) {
+                    cumulative += hands[j];
+                    cumulativeScores.push(cumulative);
+                }
+                
+                datasets.push({
+                    label: getPlayerName(playerId),
+                    data: cumulativeScores,
+                    borderColor: colors[i % colors.length],
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.1
+                });
+            }
+            
+            const labels = [];
+            for (let i = 1; i <= maxHands; i++) {
+                labels.push('Hand ' + i);
+            }
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Cricket Worm - Cumulative Scores' },
+                        legend: { display: true, position: 'top' }
+                    },
+                    scales: { y: { title: { display: true, text: 'Cumulative Score' } } }
+                }
+            });
+        }
+
+        function drawSessionManhattanChart(playerHands, playerIds) {
+            const ctx = document.getElementById('manhattanChart');
+            if (!ctx) return;
+            
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+            const labels = [];
+            for (let i = 1; i <= maxHands; i++) {
+                labels.push('Hand ' + i);
+            }
+            
+            const datasets = [];
+            for (let i = 0; i < playerIds.length; i++) {
+                const playerId = playerIds[i];
+                const hands = playerHands[playerId];
+                
+                datasets.push({
+                    label: getPlayerName(playerId),
+                    data: hands,
+                    backgroundColor: colors[i % colors.length],
+                    borderColor: colors[i % colors.length],
+                    borderWidth: 1
+                });
+            }
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Manhattan - Per Hand Scores' },
+                        legend: { display: true, position: 'top' }
+                    },
+                    scales: { 
+                        x: { title: { display: true, text: 'Hand Number' } },
+                        y: { title: { display: true, text: 'Score' }, beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function drawActiveWormChart(playerHands, playerIds) {
+            const ctx = document.getElementById('activeWormChart');
+            if (!ctx) return;
+            const datasets = [];
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            
+            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+            
+            for (let i = 0; i < playerIds.length; i++) {
+                const playerId = playerIds[i];
+                const hands = playerHands[playerId];
+                const joinHand = getPlayerJoinHand(playerId);
+                const startingScore = getPlayerStartingScore(playerId);
+                
+                let cumulative = startingScore;
+                const cumulativeScores = [];
+                
+                for (let h = 1; h < joinHand; h++) {
+                    cumulativeScores.push(null);
+                }
+                
+                if (joinHand > 1 && startingScore > 0) {
+                    cumulativeScores.push(startingScore);
+                }
+                
+                for (let j = 0; j < hands.length; j++) {
+                    cumulative += hands[j];
+                    cumulativeScores.push(cumulative);
+                }
+                
+                datasets.push({
+                    label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''),
+                    data: cumulativeScores,
+                    borderColor: colors[i % colors.length],
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    spanGaps: false
+                });
+            }
+            
+            const labels = [];
+            for (let i = 1; i <= maxHands; i++) {
+                labels.push('Hand ' + i);
+            }
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Cricket Worm - Cumulative Scores' },
+                        legend: { display: true, position: 'top' }
+                    },
+                    scales: { y: { title: { display: true, text: 'Cumulative Score' } } }
+                }
+            });
+        }
+
+        function drawActiveManhattanChart(playerHands, playerIds) {
+            const ctx = document.getElementById('activeManhattanChart');
+            if (!ctx) return;
+            
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+            
+            const labels = [];
+            for (let i = 1; i <= maxHands; i++) {
+                labels.push('Hand ' + i);
+            }
+            
+            const datasets = [];
+            for (let i = 0; i < playerIds.length; i++) {
+                const playerId = playerIds[i];
+                const hands = playerHands[playerId];
+                const joinHand = getPlayerJoinHand(playerId);
+                
+                const dataArray = [];
+                for (let h = 1; h < joinHand; h++) {
+                    dataArray.push(null);
+                }
+                for (let j = 0; j < hands.length; j++) {
+                    dataArray.push(hands[j]);
+                }
+                
+                datasets.push({
+                    label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''),
+                    data: dataArray,
+                    backgroundColor: colors[i % colors.length],
+                    borderColor: colors[i % colors.length],
+                    borderWidth: 1
+                });
+            }
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Manhattan - Per Hand Scores' },
+                        legend: { display: true, position: 'top' }
+                    },
+                    scales: { 
+                        x: { title: { display: true, text: 'Hand Number' } },
+                        y: { title: { display: true, text: 'Score' }, beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('Lockout Tracker v2.7 - Optimized Base! 🚀');
+            ensurePlayersLoaded();
+            checkActiveSessions();
+        });
+    </script>
+</body>
+</html>
