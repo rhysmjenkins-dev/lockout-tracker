@@ -440,6 +440,89 @@
         let playersLoaded = false;
         let playerCache = {};
 
+        // ============================================
+        // CLIENT-SIDE CACHE
+        // ============================================
+        const AppCache = {
+            data: {},
+            
+            get(key) {
+                const item = this.data[key];
+                if (!item) return null;
+                if (Date.now() > item.expiry) {
+                    delete this.data[key];
+                    return null;
+                }
+                return item.value;
+            },
+            
+            set(key, value, ttlSeconds) {
+                if (ttlSeconds === undefined) ttlSeconds = 300;
+                this.data[key] = {
+                    value: value,
+                    expiry: Date.now() + (ttlSeconds * 1000)
+                };
+            },
+            
+            clear(key) {
+                if (key) {
+                    delete this.data[key];
+                } else {
+                    this.data = {};
+                }
+            }
+        };
+
+        // ============================================
+        // OPTIMIZED API CALL WITH CACHING
+        // ============================================
+        async function apiCall(action, params) {
+            const cacheKey = action + JSON.stringify(params);
+            const cached = AppCache.get(cacheKey);
+            
+            if (cached) {
+                console.log('✅ Cache hit:', action);
+                return cached;
+            }
+            
+            const url = new URL(API_URL);
+            url.searchParams.append('action', action);
+            for (let key in params) {
+                url.searchParams.append(key, params[key]);
+            }
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                // Cache read operations only
+                if (['getPlayers', 'getSessions', 'getSession', 'getHands', 'getSessionsWithHands', 'getEditHistory'].indexOf(action) !== -1) {
+                    AppCache.set(cacheKey, data);
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                return { error: error.message };
+            }
+        }
+
+        // Clear cache after write operations
+        function clearCacheAfterWrite(action) {
+            if (action.indexOf('add') !== -1 || action.indexOf('update') !== -1 || action.indexOf('delete') !== -1 || action.indexOf('close') !== -1 || action.indexOf('create') !== -1) {
+                AppCache.clear();
+                playersLoaded = false;
+            }
+        }
+
+        // ============================================
+        // KEEP SCRIPT WARM (PING EVERY 4 MINUTES)
+        // ============================================
+        setInterval(function() {
+            fetch(API_URL + '?action=getPlayers').catch(function() {});
+            console.log('🔥 Keep-alive ping sent');
+        }, 240000);
+
         async function ensurePlayersLoaded() {
             if (playersLoaded) return allPlayers;
             
@@ -522,25 +605,6 @@
         }
 
         // ============================================
-        // API CALL FUNCTION
-        // ============================================
-        async function apiCall(action, params) {
-            const url = new URL(API_URL);
-            url.searchParams.append('action', action);
-            for (let key in params) {
-                url.searchParams.append(key, params[key]);
-            }
-            try {
-                const response = await fetch(url);
-                const data = await response.json();
-                return data;
-            } catch (error) {
-                console.error('API Error:', error);
-                return { error: error.message };
-            }
-        }
-
-        // ============================================
         // NAVIGATION FUNCTIONS
         // ============================================
         function showScreen(screenId) {
@@ -586,13 +650,13 @@
             }
             
             const data = await apiCall('addPlayer', { username: username, editor_name: username });
+            clearCacheAfterWrite('addPlayer');
             
             if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
             } else {
                 messageDiv.innerHTML = '<div class="success">Player added!</div>';
                 document.getElementById('newPlayerName').value = '';
-                playersLoaded = false;
                 setTimeout(function() { showScreen('homeScreen'); }, 1500);
             }
         }
@@ -656,12 +720,12 @@
                 join_hand_number: currentHandNumber,
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
+            clearCacheAfterWrite('addPlayerToSession');
             
             if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
             } else {
-                // ✅ UPDATED: Show starting score in success message
-                const startingScore = data.startingScore || 0;
+                const startingScore = data.starting_score || 0;
                 messageDiv.innerHTML = '<div class="success">Player added successfully!' + 
                     (startingScore > 0 ? ' (Starting with ' + startingScore + ' points)' : '') + 
                     '</div>';
@@ -758,6 +822,7 @@
                 notes: notes,
                 tags: tags
             });
+            clearCacheAfterWrite('createSession');
             
             if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
@@ -903,6 +968,7 @@
                 tags: tags,
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
+            clearCacheAfterWrite('updateSession');
             
             const messageDiv = document.getElementById('editSessionMessage');
             
@@ -934,6 +1000,7 @@
                 session_id: currentSession.session_id,
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
+            clearCacheAfterWrite('closeSession');
             
             if (data.error) {
                 alert('Error: ' + data.error);
@@ -1058,6 +1125,7 @@
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
                 comment: comment
             });
+            clearCacheAfterWrite('addHand');
             
             if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
@@ -1276,6 +1344,7 @@
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
                 comment: comment
             });
+            clearCacheAfterWrite('updateHand');
             
             if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
@@ -1305,6 +1374,7 @@
                 hand_number: handNumber,
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
+            clearCacheAfterWrite('deleteHand');
             
             if (data.error) {
                 alert('Error: ' + data.error);
@@ -2315,7 +2385,7 @@
         // INITIALIZATION
         // ============================================
         window.addEventListener('DOMContentLoaded', function() {
-            console.log('Lockout Tracker v2.6 - Mid-Session Player Joins with Baseline! 🎯');
+            console.log('Lockout Tracker v2.7 - Performance Optimized! 🚀');
             ensurePlayersLoaded();
             checkActiveSessions();
         });
