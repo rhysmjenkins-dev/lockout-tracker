@@ -979,11 +979,18 @@ if (hasStrictlyLowestScore) {
     falseLockout = false;
     for (let i = 0; i < scores.length; i++) {
         if (String(scores[i].player_id) === String(lockoutPlayerId)) {
-            scores[i].score = 0;
+            // If positive score, set to 0 (benefit)
+            // If negative score, keep it (already a benefit)
+            if (lockoutScoreValue > 0) {
+                scores[i].score = 0;
+            }
+            // else: score stays as lockoutScoreValue (0 or negative)
             break;
         }
     }
-} else {
+}
+
+else {
     // False lockout - show confirmation
     const lockoutPlayerName = getPlayerName(lockoutPlayerId);
     let warningMessage = '⚠️ FALSE LOCKOUT DETECTED\n\n';
@@ -1076,10 +1083,17 @@ async function displayHandHistory() {
                     // False lockout: show "15 (5 + 10 penalty)"
                     const penalty = h.score - h.lockout_score;
                     scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + penalty + ' penalty) | ';
-                } else {
-                    // Successful lockout: show "0 (5)"
-                    scoreText += getPlayerName(h.player_id) + ': 0 (' + h.lockout_score + ') | ';
-                }
+} else {
+    // Successful lockout
+    if (h.lockout_score < 0) {
+        // Negative lockout - show actual negative score
+        scoreText += getPlayerName(h.player_id) + ': ' + h.lockout_score + ' | ';
+    } else {
+        // Positive lockout - show "0 (5)"
+        scoreText += getPlayerName(h.player_id) + ': 0 (' + h.lockout_score + ') | ';
+    }
+}
+
             } else {
                 // Regular player or old data without lockout_score
                 scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
@@ -1243,11 +1257,18 @@ if (hasStrictlyLowestScore) {
     falseLockout = false;
     for (let i = 0; i < scores.length; i++) {
         if (String(scores[i].player_id) === String(lockoutPlayerId)) {
-            scores[i].score = 0;
+            // If positive score, set to 0 (benefit)
+            // If negative score, keep it (already a benefit)
+            if (lockoutScoreValue > 0) {
+                scores[i].score = 0;
+            }
+            // else: score stays as lockoutScoreValue (0 or negative)
             break;
         }
     }
-} else {
+}
+
+else {
     // False lockout - show confirmation
     const lockoutPlayerName = getPlayerName(lockoutPlayerId);
     let warningMessage = '⚠️ FALSE LOCKOUT DETECTED\\n\\n';
@@ -1769,10 +1790,17 @@ if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) 
             // False lockout: show "15 (5 + 10 penalty)"
             const penalty = h.score - h.lockout_score;
             scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + penalty + ' penalty) | ';
-        } else {
-            // Successful lockout: show "0 (5)"
-            scoreText += getPlayerName(h.player_id) + ': 0 (' + h.lockout_score + ') | ';
-        }
+} else {
+    // Successful lockout
+    if (h.lockout_score < 0) {
+        // Negative lockout - show actual negative score
+        scoreText += getPlayerName(h.player_id) + ': ' + h.lockout_score + ' | ';
+    } else {
+        // Positive lockout - show "0 (5)"
+        scoreText += getPlayerName(h.player_id) + ': 0 (' + h.lockout_score + ') | ';
+    }
+}
+
     } else {
         // Old data without lockout_score - show normally
         scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
