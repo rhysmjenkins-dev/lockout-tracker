@@ -892,18 +892,30 @@ async function resumeSession(sessionId, buttonElement) {
                 const player = sessionPlayers[i];
                 const joinHand = getPlayerJoinHand(player.player_id);
                 if (joinHand <= currentHandNumber) {
-                    html += '<div class="player-hand-row">' +
-                    '<label>' + player.username + (joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '') + '</label>' +
-                    '<input type="number" id="score_' + player.player_id + '" placeholder="Lockout Score">' +
-                    '<div class="checkbox-group">' +
-                    '<label><input type="radio" name="lockout_type_' + player.player_id + '" id="lockout_success_' + player.player_id + '" value="success"> Success</label>' +
-                    '<label><input type="radio" name="lockout_type_' + player.player_id + '" id="lockout_false_' + player.player_id + '" value="false"> False</label>' +
-                    '</div>' +
-                    '</div>';
+ html += '<div class="player-hand-row">' +
+    '<label>' + player.username + (joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '') + '</label>' +
+    '<input type="number" id="score_' + player.player_id + '" placeholder="Lockout Score">' +
+    '<div class="checkbox-group">' +
+    '<label><input type="checkbox" id="lockout_' + player.player_id + '" onchange="handleLockoutChange(' + player.player_id + ')"> Locked Out</label>' +
+    '</div>' +
+    '</div>';
                 }
             }
             handInputs.innerHTML = html;
         }
+}  // ← End of setupHandInputs
+
+function handleLockoutChange(playerId) {
+    // Ensure only one player can be locked out at a time
+    const checkboxes = document.querySelectorAll('[id^="lockout_"]');
+    for (let i = 0; i < checkboxes.length; i++) {
+        const cb = checkboxes[i];
+        const pId = cb.id.replace('lockout_', '');
+        if (pId != playerId && cb.checked) {
+            cb.checked = false;
+        }
+    }
+}
 
 async function submitHand() {
     const messageDiv = document.getElementById('handMessage');
@@ -925,12 +937,11 @@ async function submitHand() {
                 return;
             }
             scores.push({ player_id: player.player_id, score: scoreVal });
-                const successRadio = document.getElementById('lockout_success_' + player.player_id);
-                const falseRadio = document.getElementById('lockout_false_' + player.player_id);
-                if (successRadio.checked || falseRadio.checked) {
-                    lockoutPlayerId = player.player_id;
-                    falseLockout = falseRadio.checked;
-                }
+const lockoutCheckbox = document.getElementById('lockout_' + player.player_id);
+if (lockoutCheckbox && lockoutCheckbox.checked) {
+    lockoutPlayerId = player.player_id;
+}
+
         }
     }
     
@@ -965,25 +976,48 @@ async function submitHand() {
         }
         falseLockout = true;
     }
-// Get penalty from session and calculate actual scores
-let penalty = 10; // default
+// Get penalty from session
+let penalty = 10;
 if (currentSession.false_lockout_penalty) {
     penalty = Number(currentSession.false_lockout_penalty);
 }
 
 const lockoutScoreValue = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+const lowestScore = Math.min(...scores.map(s => s.score));
+const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
+const hasStrictlyLowestScore = (lockoutScoreValue === lowestScore && playersWithLowestScore.length === 1);
 
-// Adjust lockout player's score based on success/false
-for (let i = 0; i < scores.length; i++) {
-    if (String(scores[i].player_id) === String(lockoutPlayerId)) {
-        if (falseLockout) {
-            // False lockout: score = lockout score + penalty
-            scores[i].score = lockoutScoreValue + penalty;
-        } else {
-            // Successful lockout: score = 0
+// Determine if lockout is successful or false
+if (hasStrictlyLowestScore) {
+    // Successful lockout
+    falseLockout = false;
+    for (let i = 0; i < scores.length; i++) {
+        if (String(scores[i].player_id) === String(lockoutPlayerId)) {
             scores[i].score = 0;
+            break;
         }
-        break;
+    }
+} else {
+    // False lockout - show confirmation
+    const lockoutPlayerName = getPlayerName(lockoutPlayerId);
+    let warningMessage = '⚠️ FALSE LOCKOUT DETECTED\n\n';
+    warningMessage += lockoutPlayerName + ' does not have the strictly lowest score.\n\n';
+    warningMessage += 'Lockout score: ' + lockoutScoreValue + '\n';
+    warningMessage += 'Lowest score: ' + lowestScore + '\n\n';
+    warningMessage += 'Penalty of ' + penalty + ' points will be applied.\n\n';
+    warningMessage += 'Continue with false lockout?';
+    
+    if (!confirm(warningMessage)) {
+        setButtonLoading(submitBtn, false);
+        return;
+    }
+    
+    falseLockout = true;
+    for (let i = 0; i < scores.length; i++) {
+        if (String(scores[i].player_id) === String(lockoutPlayerId)) {
+            scores[i].score = lockoutScoreValue + penalty;
+            break;
+        }
     }
 }
     
@@ -1164,32 +1198,7 @@ if (successRadio && (successRadio.checked || falseRadio.checked)) {
                 setButtonLoading(saveBtn, false);
                 return;
             }
-            
-            const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
-            const lowestScore = Math.min(...scores.map(s => s.score));
-            const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
-            const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
-            
-            if (falseLockout && hasStrictlyLowestScore) {
-                messageDiv.innerHTML = '<div class="error">⚠️ Cannot mark as false lockout - this player has the ONLY lowest score!</div>';
-                setButtonLoading(saveBtn, false);
-                return;
-            }
-            
-            if (!falseLockout && !hasStrictlyLowestScore) {
-                let warningMessage = '';
-                if (lockoutPlayerScore > lowestScore) {
-                    warningMessage = '⚠️ Warning: The lockout player does NOT have the lowest score.\n\n';
-                } else if (playersWithLowestScore.length > 1) {
-                    warningMessage = '⚠️ Warning: The lockout player is TIED for lowest score.\n\n';
-                }
-                warningMessage += 'This should be marked as a FALSE lockout.\n\nDo you want to mark this as a false lockout?';
-                if (!confirm(warningMessage)) {
-                    setButtonLoading(saveBtn, false);
-                    return;
-                }
-                falseLockout = true;
-            }
+
 // Get penalty and calculate actual scores
 let penalty = 10;
 if (currentSession.false_lockout_penalty) {
