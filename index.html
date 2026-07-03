@@ -582,39 +582,47 @@ async function addPlayer() {
             confirmDiv.style.display = 'block';
         }
 
-        async function confirmAddPlayer() {
-            if (!selectedPlayerToAdd) return;
-            const messageDiv = document.getElementById('addPlayerMessage');
-            messageDiv.innerHTML = '<div class="loading">Adding player...</div>';
-            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
-            const data = await apiCall('addPlayerToSession', {
-                session_id: currentSession.session_id,
-                player_id: selectedPlayerToAdd,
-                join_hand_number: currentHandNumber,
-                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
-            });
-            if (data.error) {
-                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-                setButtonLoading(saveBtn, false);
-            } else {
-                const startingScore = data.starting_score || 0;
-                messageDiv.innerHTML = '<div class="success">Player added successfully!' + 
-                    (startingScore > 0 ? ' (Starting with ' + startingScore + ' points)' : '') + 
-                    '</div>';
-                currentSession.players_involved = data.players_involved;
-                currentSession.player_join_info = data.player_join_info;
-                const newPlayer = allPlayers.find(p => String(p.player_id) === String(selectedPlayerToAdd));
-                if (newPlayer) {
-                    sessionPlayers.push(newPlayer);
-                }
-                setTimeout(function() {
-                    closeAddPlayerModal();
-                    showActiveSession();
-                    updateSessionScores();
-                }, 1500);
-            }
+async function confirmAddPlayer() {
+    if (!selectedPlayerToAdd) return;
+    const messageDiv = document.getElementById('addPlayerMessage');
+    const addBtn = document.getElementById('confirmAddPlayerBtn');
+    
+    if (addBtn) {
+        setButtonLoading(addBtn, true);
+    }
+    
+    messageDiv.innerHTML = '<div class="loading">Adding player...</div>';
+    let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+    const data = await apiCall('addPlayerToSession', {
+        session_id: currentSession.session_id,
+        player_id: selectedPlayerToAdd,
+        join_hand_number: currentHandNumber,
+        editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+    });
+    
+    if (data.error) {
+        messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+        if (addBtn) setButtonLoading(addBtn, false);
+    } else {
+        const startingScore = data.starting_score || 0;
+        messageDiv.innerHTML = '<div class="success">Player added successfully!' + 
+            (startingScore > 0 ? ' (Starting with ' + startingScore + ' points)' : '') + 
+            '</div>';
+        currentSession.players_involved = data.players_involved;
+        currentSession.player_join_info = data.player_join_info;
+        const newPlayer = allPlayers.find(p => String(p.player_id) === String(selectedPlayerToAdd));
+        if (newPlayer) {
+            sessionPlayers.push(newPlayer);
         }
-
+        setTimeout(function() {
+            closeAddPlayerModal();
+            showActiveSession();
+            updateSessionScores();
+            if (addBtn) setButtonLoading(addBtn, false);
+        }, 1500);
+    }
+}
+        
         function closeAddPlayerModal() {
             document.getElementById('addPlayerModal').classList.remove('active');
             document.getElementById('addPlayerMessage').innerHTML = '';
