@@ -6,7 +6,11 @@
     <title>Lockout Tracker v2.8</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        /* ============================================
+           BASE STYLES
+           ============================================ */
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -15,16 +19,54 @@
             color: #333;
             -webkit-tap-highlight-color: transparent;
         }
+        
         .container { max-width: 800px; margin: 0 auto; }
-        .header { text-align: center; color: white; margin-bottom: 30px; }
-        .header h1 { font-size: 2.5em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
-        .card { background: white; border-radius: 15px; padding: 25px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        
+        /* ============================================
+           HEADER
+           ============================================ */
+        .header { 
+            text-align: center; 
+            color: white; 
+            margin-bottom: 30px; 
+        }
+        .header h1 { 
+            font-size: 2.5em; 
+            margin-bottom: 10px; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2); 
+        }
+        
+        /* ============================================
+           CARDS & SCREENS
+           ============================================ */
+        .card { 
+            background: white; 
+            border-radius: 15px; 
+            padding: 25px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+        }
+        
+        .screen { display: none; }
+        .screen.active { display: block; }
+        
+        /* ============================================
+           BUTTONS
+           ============================================ */
         .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white; border: none; padding: 15px 30px; border-radius: 10px;
-            font-size: 1em; cursor: pointer; width: 100%; margin-top: 10px;
-            font-weight: 600; transition: transform 0.2s;
-            touch-action: manipulation; min-height: 48px;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            font-weight: 600;
+            transition: transform 0.2s;
+            touch-action: manipulation;
+            min-height: 48px;
         }
         .btn:hover { transform: translateY(-2px); }
         .btn:active { transform: translateY(0); }
@@ -34,108 +76,326 @@
         .btn-info { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #333; }
         .btn-warning { background: linear-gradient(135deg, #ffa751 0%, #ffe259 100%); color: #333; }
         .btn-small { width: auto; padding: 10px 20px; font-size: 0.9em; min-height: 44px; }
+        
+        /* ============================================
+           FORM INPUTS
+           ============================================ */
         input, select, textarea { 
-            width: 100%; padding: 14px; margin: 10px 0; border: 2px solid #e0e0e0; 
-            border-radius: 8px; font-size: 1em; min-height: 48px; font-family: inherit;
+            width: 100%;
+            padding: 14px;
+            margin: 10px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            min-height: 48px;
+            font-family: inherit;
         }
         textarea { min-height: 80px; resize: vertical; }
-        input:focus, select:focus, textarea:focus { outline: none; border-color: #667eea; }
-        label { display: block; margin-top: 15px; font-weight: 600; color: #555; }
-        .hidden { display: none; }
-        .screen { display: none; }
-        .screen.active { display: block; }
+        input:focus, select:focus, textarea:focus { 
+            outline: none; 
+            border-color: #667eea; 
+        }
+        label { 
+            display: block; 
+            margin-top: 15px; 
+            font-weight: 600; 
+            color: #555; 
+        }
+        
+        /* ============================================
+           LISTS & ITEMS
+           ============================================ */
         .player-list { list-style: none; padding: 0; }
         .player-item { 
-            padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 8px; 
-            display: flex; justify-content: space-between; align-items: center; min-height: 56px;
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 56px;
         }
-        .player-item input[type="checkbox"] { width: auto; margin: 0; min-width: 24px; min-height: 24px; }
-        .player-item input[type="radio"] { width: auto; margin: 0; min-width: 24px; min-height: 24px; }
-        .hand-input-section { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
-        .player-hand-row { 
-            display: grid; grid-template-columns: 1fr 80px 100px 100px; gap: 10px; 
-            align-items: center; padding: 15px; background: white; border-radius: 8px; margin: 10px 0; 
+        .player-item input[type="checkbox"],
+        .player-item input[type="radio"] { 
+            width: auto; 
+            margin: 0; 
+            min-width: 24px; 
+            min-height: 24px; 
         }
-        .player-hand-row label { margin: 0; font-weight: 600; }
-        .player-hand-row input[type="number"] { margin: 0; padding: 10px; min-height: 44px; }
-        .checkbox-group { display: flex; gap: 10px; align-items: center; }
-        .checkbox-group label { display: flex; align-items: center; gap: 5px; margin: 0; font-weight: normal; font-size: 0.9em; }
-        .checkbox-group input[type="checkbox"] { width: auto; margin: 0; min-width: 20px; min-height: 20px; }
-        .game-summary { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; }
-        .game-summary h3 { margin-bottom: 10px; color: #667eea; }
-        .scores-table { width: 100%; border-collapse: collapse; margin-top: 15px; overflow-x: auto; display: block; }
-        .scores-table th, .scores-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e0e0e0; white-space: nowrap; }
-        .scores-table th { background: #667eea; color: white; font-weight: 600; position: sticky; top: 0; z-index: 10; }
-        .scores-table tr:hover { background: #f8f9fa; }
+        
         .session-list { list-style: none; padding: 0; }
         .session-item { 
-            padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 8px; 
-            cursor: pointer; transition: background 0.2s; min-height: 64px;
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            min-height: 64px;
         }
         .session-item:hover, .session-item:active { background: #e8e9ff; }
         .session-item-header { font-weight: 600; color: #667eea; margin-bottom: 5px; }
         .session-item-info { font-size: 0.9em; color: #666; }
-        .chart-container { position: relative; height: 300px; margin: 20px 0; background: white; padding: 15px; border-radius: 8px; }
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
-        .stat-card { background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #667eea; }
-        .stat-card h4 { color: #667eea; margin-bottom: 10px; font-size: 0.9em; }
-        .stat-value { font-size: 2em; font-weight: bold; color: #333; }
-        .loading { text-align: center; padding: 20px; color: #667eea; }
-        .error { background: #fee; color: #c33; padding: 15px; border-radius: 8px; margin: 15px 0; }
-        .success { background: #efe; color: #3c3; padding: 15px; border-radius: 8px; margin: 15px 0; }
-        .nav-buttons { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
-        .nav-buttons .btn { flex: 1; min-width: 140px; }
-        .active-session-box { background: #e8f5e9; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #4caf50; }
+        
+        /* ============================================
+           HAND INPUT SECTION
+           ============================================ */
+        .hand-input-section { 
+            background: #f8f9fa; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin: 20px 0; 
+        }
+        .player-hand-row { 
+            display: grid;
+            grid-template-columns: 1fr 80px 100px;
+            gap: 10px;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .player-hand-row label { margin: 0; font-weight: 600; }
+        .player-hand-row input[type="number"] { margin: 0; padding: 10px; min-height: 44px; }
+        
+        .checkbox-group { 
+            display: flex; 
+            gap: 10px; 
+            align-items: center; 
+        }
+        .checkbox-group label { 
+            display: flex; 
+            align-items: center; 
+            gap: 5px; 
+            margin: 0; 
+            font-weight: normal; 
+            font-size: 0.9em; 
+        }
+        .checkbox-group input[type="checkbox"] { 
+            width: auto; 
+            margin: 0; 
+            min-width: 20px; 
+            min-height: 20px; 
+        }
+        
+        /* ============================================
+           TABLES & CHARTS
+           ============================================ */
+        .scores-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 15px; 
+            overflow-x: auto; 
+            display: block; 
+        }
+        .scores-table th, .scores-table td { 
+            padding: 12px; 
+            text-align: left; 
+            border-bottom: 1px solid #e0e0e0; 
+            white-space: nowrap; 
+        }
+        .scores-table th { 
+            background: #667eea; 
+            color: white; 
+            font-weight: 600; 
+            position: sticky; 
+            top: 0; 
+            z-index: 10; 
+        }
+        .scores-table tr:hover { background: #f8f9fa; }
+        
+        .chart-container { 
+            position: relative; 
+            height: 300px; 
+            margin: 20px 0; 
+            background: white; 
+            padding: 15px; 
+            border-radius: 8px; 
+        }
+        
+        /* ============================================
+           SPECIAL SECTIONS
+           ============================================ */
+        .active-session-box { 
+            background: #e8f5e9; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin-bottom: 15px; 
+            border-left: 4px solid #4caf50; 
+        }
         .active-session-box h3 { color: #2e7d32; margin-bottom: 10px; }
-        .active-session-item { background: white; padding: 10px; border-radius: 5px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-        .placeholder-content { text-align: center; padding: 40px 20px; color: #666; }
-        .placeholder-content h3 { color: #667eea; margin-bottom: 15px; font-size: 1.5em; }
-        .placeholder-content p { margin-bottom: 20px; }
-        .hand-history { background: #fff; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .active-session-item { 
+            background: white; 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin: 5px 0; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            gap: 10px; 
+        }
+        
+        .session-metadata { 
+            background: #f0f4ff; 
+            padding: 12px; 
+            border-radius: 8px; 
+            margin: 15px 0; 
+            border-left: 4px solid #667eea;
+        }
+        .session-metadata p { margin: 5px 0; font-size: 0.95em; color: #555; }
+        .session-metadata strong { color: #667eea; }
+        
+        .hand-history { 
+            background: #fff; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 15px 0; 
+        }
         .hand-history h4 { color: #667eea; margin-bottom: 10px; }
         .hand-item { 
-            background: #f8f9fa; padding: 12px; border-radius: 6px; margin: 8px 0; 
-            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+            background: #f8f9fa; 
+            padding: 12px; 
+            border-radius: 6px; 
+            margin: 8px 0; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            gap: 10px;
         }
         .hand-item-info { flex: 1; min-width: 200px; }
         .hand-item-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .hand-item-actions .btn { min-width: 80px; }
-        .session-metadata { 
-            background: #f0f4ff; padding: 12px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #667eea;
+        
+        .game-summary { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 15px 0; 
         }
-        .session-metadata p { margin: 5px 0; font-size: 0.95em; color: #555; }
-        .session-metadata strong { color: #667eea; }
+        .game-summary h3 { margin-bottom: 10px; color: #667eea; }
+        
+        .stats-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+            margin: 20px 0; 
+        }
+        .stat-card { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 8px; 
+            border-left: 4px solid #667eea; 
+        }
+        .stat-card h4 { color: #667eea; margin-bottom: 10px; font-size: 0.9em; }
+        .stat-value { font-size: 2em; font-weight: bold; color: #333; }
+        
+        /* ============================================
+           BADGES & TAGS
+           ============================================ */
         .tag-badge {
-            display: inline-block; background: #667eea; color: white;
-            padding: 4px 12px; border-radius: 12px; font-size: 0.85em; margin: 2px;
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            margin: 2px;
         }
         .late-join-badge {
-            display: inline-block; background: #ff9800; color: white;
-            padding: 2px 8px; border-radius: 8px; font-size: 0.75em;
-            margin-left: 5px; font-weight: 600;
+            display: inline-block;
+            background: #ff9800;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 0.75em;
+            margin-left: 5px;
+            font-weight: 600;
         }
+        
+        /* ============================================
+           MODALS
+           ============================================ */
         .modal { 
-            display: none; position: fixed; z-index: 1000; left: 0; top: 0; 
-            width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); padding: 20px;
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+            padding: 20px;
         }
-        .modal.active { display: flex; align-items: center; justify-content: center; }
+        .modal.active { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
         .modal-content { 
-            background: white; border-radius: 15px; padding: 25px; 
-            max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto;
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
             box-shadow: 0 10px 40px rgba(0,0,0,0.3);
         }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 20px; 
+        }
         .modal-header h3 { color: #667eea; margin: 0; }
         .modal-close { 
-            background: none; border: none; font-size: 28px; cursor: pointer; 
-            color: #999; padding: 0; width: 32px; height: 32px; line-height: 1;
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #999;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            line-height: 1;
         }
         .modal-close:hover { color: #333; }
+        
+        /* ============================================
+           UTILITY CLASSES
+           ============================================ */
+        .hidden { display: none; }
+        .loading { text-align: center; padding: 20px; color: #667eea; }
+        .error { background: #fee; color: #c33; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .success { background: #efe; color: #3c3; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .placeholder-content { text-align: center; padding: 40px 20px; color: #666; }
+        .placeholder-content h3 { color: #667eea; margin-bottom: 15px; font-size: 1.5em; }
+        .placeholder-content p { margin-bottom: 20px; }
+        
+        .nav-buttons { 
+            display: flex; 
+            gap: 10px; 
+            margin-top: 20px; 
+            flex-wrap: wrap; 
+        }
+        .nav-buttons .btn { flex: 1; min-width: 140px; }
+        
+        /* ============================================
+           RESPONSIVE DESIGN
+           ============================================ */
         @media (max-width: 600px) {
             body { padding: 10px; }
             .header h1 { font-size: 1.8em; }
             .card { padding: 15px; }
-            .player-hand-row { grid-template-columns: 1fr; gap: 8px; }
+            .player-hand-row { 
+                grid-template-columns: 1fr; 
+                gap: 8px; 
+            }
             .player-hand-row > * { width: 100%; }
             .stats-grid { grid-template-columns: 1fr; }
             .scores-table { font-size: 0.85em; }
@@ -150,6 +410,7 @@
             .hand-item-actions .btn { flex: 1; }
             .modal-content { padding: 20px; margin: 10px; }
         }
+        
         @media (hover: none) and (pointer: coarse) {
             .btn { min-height: 48px; }
             input, select, textarea { min-height: 48px; font-size: 16px; }
@@ -164,7 +425,9 @@
             <p>Track your games, dominate the leaderboard</p>
         </div>
 
-        <!-- HOME SCREEN -->
+        <!-- ============================================
+             HOME SCREEN
+             ============================================ -->
         <div id="homeScreen" class="screen active">
             <div class="card">
                 <h2>Welcome!</h2>
@@ -180,7 +443,9 @@
             </div>
         </div>
 
-        <!-- ADD PLAYER SCREEN -->
+        <!-- ============================================
+             ADD PLAYER SCREEN
+             ============================================ -->
         <div id="addPlayerScreen" class="screen">
             <div class="card">
                 <h2>Add New Player</h2>
@@ -192,7 +457,9 @@
             </div>
         </div>
 
-        <!-- DICTIONARY SCREEN -->
+        <!-- ============================================
+             DICTIONARY SCREEN (PLACEHOLDER)
+             ============================================ -->
         <div id="dictionaryScreen" class="screen">
             <div class="card">
                 <h2>📖 Dictionary</h2>
@@ -205,7 +472,9 @@
             </div>
         </div>
 
-        <!-- RULES SCREEN -->
+        <!-- ============================================
+             RULES SCREEN (PLACEHOLDER)
+             ============================================ -->
         <div id="rulesScreen" class="screen">
             <div class="card">
                 <h2>📜 Rules</h2>
@@ -218,7 +487,9 @@
             </div>
         </div>
 
-        <!-- PREVIOUS SESSIONS SCREEN -->
+        <!-- ============================================
+             PREVIOUS SESSIONS SCREEN
+             ============================================ -->
         <div id="previousSessionsScreen" class="screen">
             <div class="card">
                 <h2>Previous Sessions</h2>
@@ -227,7 +498,9 @@
             </div>
         </div>
 
-        <!-- SESSION DETAIL SCREEN -->
+        <!-- ============================================
+             SESSION DETAIL SCREEN
+             ============================================ -->
         <div id="sessionDetailScreen" class="screen">
             <div class="card">
                 <h2 id="sessionDetailTitle">Session Details</h2>
@@ -238,7 +511,9 @@
             </div>
         </div>
 
-        <!-- STATS SCREEN -->
+        <!-- ============================================
+             STATS SCREEN
+             ============================================ -->
         <div id="statsScreen" class="screen">
             <div class="card">
                 <h2>Overall Stats</h2>
@@ -247,18 +522,24 @@
             </div>
         </div>
 
-        <!-- START SESSION SCREEN -->
+        <!-- ============================================
+             START SESSION SCREEN
+             ============================================ -->
         <div id="startSessionScreen" class="screen">
             <div class="card">
                 <h2>Start New Session</h2>
+                
                 <label for="sessionTitle">Session Title</label>
                 <input type="text" id="sessionTitle" placeholder="e.g. Magaluf 2024">
+                
                 <label for="sessionHost">Who's hosting?</label>
                 <select id="sessionHost">
                     <option value="">Select host...</option>
                 </select>
+                
                 <label for="sessionNotes">Session Notes (Optional)</label>
                 <textarea id="sessionNotes" placeholder="e.g. Playing at John's house, bring snacks"></textarea>
+                
                 <label for="sessionTags">Session Type (Optional)</label>
                 <select id="sessionTags" multiple size="4" style="min-height: 120px;">
                     <option value="Tournament">🏆 Tournament</option>
@@ -269,40 +550,55 @@
                     <option value="Competitive">⚔️ Competitive</option>
                 </select>
                 <small style="color: #666; display: block; margin-top: 5px;">Hold Ctrl (Cmd on Mac) to select multiple</small>
+                
                 <label for="falseLockoutPenalty">False Lockout Penalty</label>
                 <input type="number" id="falseLockoutPenalty" placeholder="e.g. 10" value="10" min="0">
                 <small style="color: #666; display: block; margin-top: 5px;">Points added to score when a lockout attempt fails</small>
+                
                 <label>Select Players</label>
                 <div id="playerSelectionList" class="loading">Loading players...</div>
+                
                 <button class="btn btn-success" onclick="createSession()">Start Session</button>
                 <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Cancel</button>
                 <div id="sessionMessage"></div>
             </div>
         </div>
 
-        <!-- ACTIVE SESSION SCREEN -->
+        <!-- ============================================
+             ACTIVE SESSION SCREEN
+             ============================================ -->
         <div id="activeSessionScreen" class="screen">
             <div class="card">
                 <h2 id="activeSessionTitle">Session Name</h2>
                 <div id="activeSessionInfo"></div>
                 <div id="activeSessionMetadata"></div>
+                
+                <!-- Hand Input Section -->
                 <div class="hand-input-section">
                     <h4>Hand <span id="currentHandNumber"></span></h4>
-<p style="background: #fff3cd; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 0.9em;">
-    <strong>ℹ️ Instructions:</strong> Enter the score you locked out on. Check "Locked Out" for the player who locked out. The app will automatically determine if it's successful (0 points) or false (score + penalty).
-</p>
+                    <p style="background: #fff3cd; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 0.9em;">
+                        <strong>ℹ️ Instructions:</strong> Enter the score you locked out on. Check "Locked Out" for the player who locked out. The app will automatically determine if it's successful (0 points) or false (score + penalty).
+                    </p>
                     <div id="handInputs"></div>
                     <label for="handComment" style="margin-top: 15px;">Hand Note (Optional)</label>
                     <input type="text" id="handComment" placeholder="e.g. Epic comeback, close call...">
                     <button class="btn btn-success" onclick="submitHand()">Submit Hand</button>
                     <div id="handMessage"></div>
                 </div>
+                
+                <!-- Hand History -->
                 <div id="handHistorySection" class="hand-history" style="display: none;">
                     <h4>Hand History</h4>
                     <div id="handHistoryList"></div>
                 </div>
+                
+                <!-- Session Scores -->
                 <div id="sessionScores" class="game-summary"></div>
+                
+                <!-- Charts -->
                 <div id="activeSessionCharts"></div>
+                
+                <!-- Navigation Buttons -->
                 <div class="nav-buttons">
                     <button class="btn btn-info btn-small" onclick="showAddPlayerModal()">➕ Add Player</button>
                     <button class="btn btn-warning btn-small" onclick="showEditSessionModal()">✏️ Edit Session</button>
@@ -312,7 +608,12 @@
             </div>
         </div>
     </div>
-    <!-- EDIT HAND MODAL -->
+
+    <!-- ============================================
+         MODALS
+         ============================================ -->
+    
+    <!-- Edit Hand Modal -->
     <div id="editHandModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -328,7 +629,7 @@
         </div>
     </div>
 
-    <!-- EDIT SESSION MODAL -->
+    <!-- Edit Session Modal -->
     <div id="editSessionModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -353,7 +654,7 @@
         </div>
     </div>
 
-    <!-- ADD PLAYER TO SESSION MODAL -->
+    <!-- Add Player to Session Modal -->
     <div id="addPlayerModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -378,9 +679,10 @@
         // CONFIGURATION & STATE
         // ============================================
         const API_URL = 'https://script.google.com/macros/s/AKfycbzcbiMfkq6D6PcySY2O-80NTHHmQplU0xzi1kzQG8OFuAYuw0F-YdI2IONkA3DVOhlH/exec';
+        
         let currentSession = null;
         let currentHandNumber = 1;
-        let allPlayers = []
+        let allPlayers = [];
         let sessionPlayers = [];
         let allSessions = [];
         let currentEditingHand = null;
@@ -388,62 +690,27 @@
         let playersLoaded = false;
         let playerCache = {};
 
-// ============================================
-// BUTTON LOADING STATE HELPER
-// ============================================
-function setButtonLoading(buttonElement, isLoading, originalText) {
-    if (isLoading) {
-        buttonElement.disabled = true;
-        buttonElement.dataset.originalText = buttonElement.textContent;
-        buttonElement.textContent = '⏳ Loading...';
-        buttonElement.style.opacity = '0.6';
-        buttonElement.style.cursor = 'not-allowed';
-    } else {
-        buttonElement.disabled = false;
-        buttonElement.textContent = originalText || buttonElement.dataset.originalText || 'Submit';
-        buttonElement.style.opacity = '1';
-        buttonElement.style.cursor = 'pointer';
-    }
-}
-
         // ============================================
-        // API & UTILITY FUNCTIONS
+        // UTILITY FUNCTIONS
         // ============================================
-        async function apiCall(action, params) {
-            const url = new URL(API_URL);
-            url.searchParams.append('action', action);
-            for (let key in params) {
-                url.searchParams.append(key, params[key]);
+        
+        function setButtonLoading(buttonElement, isLoading, originalText) {
+            if (isLoading) {
+                buttonElement.disabled = true;
+                buttonElement.dataset.originalText = buttonElement.textContent;
+                buttonElement.textContent = '⏳ Loading...';
+                buttonElement.style.opacity = '0.6';
+                buttonElement.style.cursor = 'not-allowed';
+            } else {
+                buttonElement.disabled = false;
+                buttonElement.textContent = originalText || buttonElement.dataset.originalText || 'Submit';
+                buttonElement.style.opacity = '1';
+                buttonElement.style.cursor = 'pointer';
             }
-            try {
-                const response = await fetch(url);
-                const data = await response.json();
-                return data;
-            } catch (error) {
-                console.error('API Error:', error);
-                return { error: error.message };
-            }
-        }
-
-        async function ensurePlayersLoaded() {
-            if (playersLoaded) return allPlayers;
-            const data = await apiCall('getPlayers', {});
-            if (data.error) {
-                console.error('Error loading players:', data.error);
-                return [];
-            }
-            allPlayers = data;
-            playersLoaded = true;
-            for (let i = 0; i < data.length; i++) {
-                playerCache[data[i].player_id] = data[i].username;
-            }
-            return allPlayers;
         }
 
         function getPlayerName(playerId) {
-            if (playerCache[playerId]) {
-                return playerCache[playerId];
-            }
+            if (playerCache[playerId]) return playerCache[playerId];
             for (let i = 0; i < allPlayers.length; i++) {
                 if (allPlayers[i].player_id == playerId) {
                     return allPlayers[i].username;
@@ -491,83 +758,128 @@ function setButtonLoading(buttonElement, isLoading, originalText) {
         }
 
         // ============================================
+        // API FUNCTIONS
+        // ============================================
+        
+        async function apiCall(action, params) {
+            const url = new URL(API_URL);
+            url.searchParams.append('action', action);
+            for (let key in params) {
+                url.searchParams.append(key, params[key]);
+            }
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                return { error: error.message };
+            }
+        }
+
+        async function ensurePlayersLoaded() {
+            if (playersLoaded) return allPlayers;
+            const data = await apiCall('getPlayers', {});
+            if (data.error) {
+                console.error('Error loading players:', data.error);
+                return [];
+            }
+            allPlayers = data;
+            playersLoaded = true;
+            // Build player cache
+            for (let i = 0; i < data.length; i++) {
+                playerCache[data[i].player_id] = data[i].username;
+            }
+            return allPlayers;
+        }
+
+        // ============================================
         // SCREEN NAVIGATION
         // ============================================
-function showScreen(screenId) {
-    const screens = document.querySelectorAll('.screen');
-    for (let i = 0; i < screens.length; i++) {
-        screens[i].classList.remove('active');
-    }
-    document.getElementById(screenId).classList.add('active');
-    
-    if (screenId === 'startSessionScreen') {
-        loadPlayersForSession();
-    }
-    
-    if (screenId === 'homeScreen') {
-        checkActiveSessions();
-    }
-}
-
+        
+        function showScreen(screenId) {
+            const screens = document.querySelectorAll('.screen');
+            for (let i = 0; i < screens.length; i++) {
+                screens[i].classList.remove('active');
+            }
+            document.getElementById(screenId).classList.add('active');
+            
+            if (screenId === 'startSessionScreen') {
+                loadPlayersForSession();
+            }
+            if (screenId === 'homeScreen') {
+                checkActiveSessions();
+            }
+        }
 
         // ============================================
         // PLAYER MANAGEMENT
         // ============================================
+        
         async function loadPlayersForSession() {
             await ensurePlayersLoaded();
+            
+            // Populate host dropdown
             const hostSelect = document.getElementById('sessionHost');
             hostSelect.innerHTML = '<option value="">Select host...</option>';
             for (let i = 0; i < allPlayers.length; i++) {
                 hostSelect.innerHTML += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
             }
+            
+            // Populate player selection list
             const playerList = document.getElementById('playerSelectionList');
             let html = '<ul class="player-list">';
             for (let i = 0; i < allPlayers.length; i++) {
-                html += '<li class="player-item"><label><input type="checkbox" value="' + allPlayers[i].player_id + '" class="player-checkbox"> ' + allPlayers[i].username + '</label></li>';
+                html += '<li class="player-item">';
+                html += '<label><input type="checkbox" value="' + allPlayers[i].player_id + '" class="player-checkbox"> ' + allPlayers[i].username + '</label>';
+                html += '</li>';
             }
             html += '</ul>';
             playerList.innerHTML = html;
         }
 
-async function addPlayer() {
-    const username = document.getElementById('newPlayerName').value.trim();
-    const messageDiv = document.getElementById('addPlayerMessage');
-    const addBtn = event.target;
-    
-    if (!username) {
-        messageDiv.innerHTML = '<div class="error">Please enter a player name</div>';
-        return;
-    }
-    
-    setButtonLoading(addBtn, true);
-    
-    const data = await apiCall('addPlayer', { username: username, editor_name: username });
-    
-    if (data.error) {
-        messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-        setButtonLoading(addBtn, false);
-    } else {
-        messageDiv.innerHTML = '<div class="success">Player added!</div>';
-        document.getElementById('newPlayerName').value = '';
-        playersLoaded = false;
-        setTimeout(function() { 
-            showScreen('homeScreen'); 
-            setButtonLoading(addBtn, false);
-        }, 1500);
-    }
-}
+        async function addPlayer() {
+            const username = document.getElementById('newPlayerName').value.trim();
+            const messageDiv = document.getElementById('addPlayerMessage');
+            const addBtn = event.target;
+            
+            if (!username) {
+                messageDiv.innerHTML = '<div class="error">Please enter a player name</div>';
+                return;
+            }
+            
+            setButtonLoading(addBtn, true);
+            
+            const data = await apiCall('addPlayer', { username: username, editor_name: username });
+            
+            if (data.error) {
+                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                setButtonLoading(addBtn, false);
+            } else {
+                messageDiv.innerHTML = '<div class="success">Player added!</div>';
+                document.getElementById('newPlayerName').value = '';
+                playersLoaded = false;
+                setTimeout(function() { 
+                    showScreen('homeScreen'); 
+                    setButtonLoading(addBtn, false);
+                }, 1500);
+            }
+        }
 
         // ============================================
         // ADD PLAYER TO ACTIVE SESSION
         // ============================================
+        
         async function showAddPlayerModal() {
             await ensurePlayersLoaded();
             const currentPlayerIds = sessionPlayers.map(p => String(p.player_id));
             const availablePlayers = allPlayers.filter(p => currentPlayerIds.indexOf(String(p.player_id)) === -1);
+            
             if (availablePlayers.length === 0) {
                 alert('All players are already in this session!');
                 return;
             }
+            
             const playerList = document.getElementById('addPlayerList');
             let html = '<ul class="player-list">';
             for (let i = 0; i < availablePlayers.length; i++) {
@@ -578,6 +890,7 @@ async function addPlayer() {
             }
             html += '</ul>';
             playerList.innerHTML = html;
+            
             selectedPlayerToAdd = null;
             document.getElementById('confirmAddPlayerBtn').disabled = true;
             document.getElementById('addPlayerConfirm').style.display = 'none';
@@ -594,74 +907,80 @@ async function addPlayer() {
             confirmDiv.style.display = 'block';
         }
 
-async function confirmAddPlayer() {
-    if (!selectedPlayerToAdd) return;
-    const messageDiv = document.getElementById('addPlayerMessage');
-    const addBtn = document.getElementById('confirmAddPlayerBtn');
-    
-    if (addBtn) {
-        setButtonLoading(addBtn, true);
-    }
-    
-    messageDiv.innerHTML = '<div class="loading">Adding player...</div>';
-    let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
-    const data = await apiCall('addPlayerToSession', {
-        session_id: currentSession.session_id,
-        player_id: selectedPlayerToAdd,
-        join_hand_number: currentHandNumber,
-        editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
-    });
-    
-    if (data.error) {
-        messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-        if (addBtn) setButtonLoading(addBtn, false);
-    } else {
-        const startingScore = data.starting_score || 0;
-        messageDiv.innerHTML = '<div class="success">Player added successfully!' + 
-            (startingScore > 0 ? ' (Starting with ' + startingScore + ' points)' : '') + 
-            '</div>';
-        currentSession.players_involved = data.players_involved;
-        currentSession.player_join_info = data.player_join_info;
-        const newPlayer = allPlayers.find(p => String(p.player_id) === String(selectedPlayerToAdd));
-        if (newPlayer) {
-            sessionPlayers.push(newPlayer);
+        async function confirmAddPlayer() {
+            if (!selectedPlayerToAdd) return;
+            const messageDiv = document.getElementById('addPlayerMessage');
+            const addBtn = document.getElementById('confirmAddPlayerBtn');
+            
+            if (addBtn) setButtonLoading(addBtn, true);
+            
+            messageDiv.innerHTML = '<div class="loading">Adding player...</div>';
+            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+            
+            const data = await apiCall('addPlayerToSession', {
+                session_id: currentSession.session_id,
+                player_id: selectedPlayerToAdd,
+                join_hand_number: currentHandNumber,
+                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+            });
+            
+            if (data.error) {
+                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                if (addBtn) setButtonLoading(addBtn, false);
+            } else {
+                const startingScore = data.starting_score || 0;
+                messageDiv.innerHTML = '<div class="success">Player added successfully!' + 
+                    (startingScore > 0 ? ' (Starting with ' + startingScore + ' points)' : '') + 
+                    '</div>';
+                
+                // Update session data
+                currentSession.players_involved = data.players_involved;
+                currentSession.player_join_info = data.player_join_info;
+                
+                const newPlayer = allPlayers.find(p => String(p.player_id) === String(selectedPlayerToAdd));
+                if (newPlayer) {
+                    sessionPlayers.push(newPlayer);
+                }
+                
+                setTimeout(function() {
+                    closeAddPlayerModal();
+                    showActiveSession();
+                    updateSessionScores();
+                    if (addBtn) setButtonLoading(addBtn, false);
+                }, 1500);
+            }
         }
-        setTimeout(function() {
-            closeAddPlayerModal();
-            showActiveSession();
-            updateSessionScores();
-            if (addBtn) setButtonLoading(addBtn, false);
-        }, 1500);
-    }
-}
         
         function closeAddPlayerModal() {
             document.getElementById('addPlayerModal').classList.remove('active');
             document.getElementById('addPlayerMessage').innerHTML = '';
             selectedPlayerToAdd = null;
         }
-
         // ============================================
         // SESSION MANAGEMENT
         // ============================================
+        
         async function checkActiveSessions() {
             document.getElementById('activeSessionsSection').innerHTML = '<div class="loading">Loading active sessions...</div>';
             const sessionsData = await apiCall('getSessions', {});
+            
             if (sessionsData.error) {
                 document.getElementById('activeSessionsSection').innerHTML = '<p style="color: #c33;">Error loading sessions</p>';
                 return;
             }
+            
             const activeSessions = sessionsData.filter(s => {
                 const dateEnded = s.date_ended;
                 return !dateEnded || dateEnded === '' || dateEnded.toString().trim() === '';
             });
+            
             if (activeSessions.length > 0) {
-                let html = '<div class="active-session-box">';
-                html += '<h3>Active Sessions</h3>';
+                let html = '<div class="active-session-box"><h3>Active Sessions</h3>';
                 for (let i = 0; i < activeSessions.length; i++) {
                     const session = activeSessions[i];
                     const handsData = await apiCall('getHands', { session_id: session.session_id });
                     const handCount = handsData.error ? 0 : (handsData.length > 0 ? Math.max(...handsData.map(h => h.hand_number)) : 0);
+                    
                     html += '<div class="active-session-item">';
                     html += '<div><strong>' + session.title + '</strong><br><small>' + handCount + ' hands played</small></div>';
                     html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ', this)">Resume</button>';
@@ -674,119 +993,118 @@ async function confirmAddPlayer() {
             }
         }
 
-async function createSession() {
-    const title = document.getElementById('sessionTitle').value.trim();
-    const hostId = document.getElementById('sessionHost').value;
-    const checkboxes = document.querySelectorAll('.player-checkbox:checked');
-    const selectedPlayers = [];
-    for (let i = 0; i < checkboxes.length; i++) {
-        selectedPlayers.push(checkboxes[i].value);
-    }
-    const notes = document.getElementById('sessionNotes').value.trim();
-    const tagsSelect = document.getElementById('sessionTags');
-    const selectedTags = [];
-    for (let i = 0; i < tagsSelect.options.length; i++) {
-        if (tagsSelect.options[i].selected) {
-            selectedTags.push(tagsSelect.options[i].value);
+        async function createSession() {
+            const title = document.getElementById('sessionTitle').value.trim();
+            const hostId = document.getElementById('sessionHost').value;
+            const checkboxes = document.querySelectorAll('.player-checkbox:checked');
+            const selectedPlayers = [];
+            for (let i = 0; i < checkboxes.length; i++) {
+                selectedPlayers.push(checkboxes[i].value);
+            }
+            const notes = document.getElementById('sessionNotes').value.trim();
+            const tagsSelect = document.getElementById('sessionTags');
+            const selectedTags = [];
+            for (let i = 0; i < tagsSelect.options.length; i++) {
+                if (tagsSelect.options[i].selected) {
+                    selectedTags.push(tagsSelect.options[i].value);
+                }
+            }
+            const tags = selectedTags.join(',');
+            const penalty = document.getElementById('falseLockoutPenalty').value.trim();
+            const messageDiv = document.getElementById('sessionMessage');
+            const createBtn = event.target;
+            
+            if (!title || !hostId || selectedPlayers.length === 0) {
+                messageDiv.innerHTML = '<div class="error">Please fill all required fields</div>';
+                return;
+            }
+            
+            setButtonLoading(createBtn, true);
+            
+            const data = await apiCall('createSession', {
+                title: title,
+                host_player_id: hostId,
+                players_involved: selectedPlayers.join(','),
+                notes: notes,
+                tags: tags,
+                false_lockout_penalty: penalty
+            });
+            
+            if (data.error) {
+                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                setButtonLoading(createBtn, false);
+            } else {
+                currentSession = { 
+                    session_id: data.session_id, 
+                    title: title, 
+                    host_player_id: hostId,
+                    notes: notes,
+                    tags: tags,
+                    player_join_info: '{}',
+                    players_involved: selectedPlayers.join(','),
+                    false_lockout_penalty: penalty
+                };
+                sessionPlayers = [];
+                for (let i = 0; i < allPlayers.length; i++) {
+                    if (selectedPlayers.indexOf(String(allPlayers[i].player_id)) !== -1) {
+                        sessionPlayers.push(allPlayers[i]);
+                    }
+                }
+                currentHandNumber = 1;
+                showActiveSession();
+                setButtonLoading(createBtn, false);
+            }
         }
-    }
-    const tags = selectedTags.join(',');
-    const penalty = document.getElementById('falseLockoutPenalty').value.trim();
-    const messageDiv = document.getElementById('sessionMessage');
-    const createBtn = event.target;
-    
-    if (!title || !hostId || selectedPlayers.length === 0) {
-        messageDiv.innerHTML = '<div class="error">Please fill all required fields</div>';
-        return;
-    }
-    
-    setButtonLoading(createBtn, true);
-    
-const data = await apiCall('createSession', {
-    title: title,
-    host_player_id: hostId,
-    players_involved: selectedPlayers.join(','),
-    notes: notes,
-    tags: tags,
-    false_lockout_penalty: penalty
-});
-    
-    if (data.error) {
-        messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-        setButtonLoading(createBtn, false);
-} else {
-    currentSession = { 
-        session_id: data.session_id, 
-        title: title, 
-        host_player_id: hostId,
-        notes: notes,
-        tags: tags,
-        player_join_info: '{}',
-        players_involved: selectedPlayers.join(','),
-        false_lockout_penalty: penalty
-    };
-    sessionPlayers = [];
-    for (let i = 0; i < allPlayers.length; i++) {
-        if (selectedPlayers.indexOf(String(allPlayers[i].player_id)) !== -1) {
-            sessionPlayers.push(allPlayers[i]);
-        }
-    }
-    currentHandNumber = 1;
-    showActiveSession();
-    setButtonLoading(createBtn, false);
-}
-}
         
-async function resumeSession(sessionId, buttonElement) {
-    if (buttonElement) {
-        setButtonLoading(buttonElement, true);
-    }
-    
-    const sessionData = await apiCall('getSession', { session_id: sessionId });
-    if (sessionData.error) {
-        alert('Error loading session: ' + sessionData.error);
-        if (buttonElement) setButtonLoading(buttonElement, false);
-        return;
-    }
-    
-    await ensurePlayersLoaded();
-    const playerIds = sessionData.players_involved.split(',');
-    sessionPlayers = [];
-    for (let i = 0; i < playerIds.length; i++) {
-        const player = allPlayers.find(p => String(p.player_id) === String(playerIds[i]));
-        if (player) sessionPlayers.push(player);
-    }
-    
-    currentSession = {
-        session_id: sessionData.session_id,
-        title: sessionData.title,
-        host_player_id: sessionData.host_player_id,
-        notes: sessionData.notes || '',
-        tags: sessionData.tags || '',
-        player_join_info: sessionData.player_join_info || '{}',
-        players_involved: sessionData.players_involved,
-        false_lockout_penalty: sessionData.false_lockout_penalty || 10
-    };
-    
-    const handsData = await apiCall('getHands', { session_id: sessionId });
-    if (handsData.error || handsData.length === 0) {
-        currentHandNumber = 1;
-    } else {
-        currentHandNumber = Math.max(...handsData.map(h => h.hand_number)) + 1;
-    }
-    
-    showActiveSession();
-    updateSessionScores();
-    
-    if (buttonElement) setButtonLoading(buttonElement, false);
-}
+        async function resumeSession(sessionId, buttonElement) {
+            if (buttonElement) setButtonLoading(buttonElement, true);
+            
+            const sessionData = await apiCall('getSession', { session_id: sessionId });
+            if (sessionData.error) {
+                alert('Error loading session: ' + sessionData.error);
+                if (buttonElement) setButtonLoading(buttonElement, false);
+                return;
+            }
+            
+            await ensurePlayersLoaded();
+            const playerIds = sessionData.players_involved.split(',');
+            sessionPlayers = [];
+            for (let i = 0; i < playerIds.length; i++) {
+                const player = allPlayers.find(p => String(p.player_id) === String(playerIds[i]));
+                if (player) sessionPlayers.push(player);
+            }
+            
+            currentSession = {
+                session_id: sessionData.session_id,
+                title: sessionData.title,
+                host_player_id: sessionData.host_player_id,
+                notes: sessionData.notes || '',
+                tags: sessionData.tags || '',
+                player_join_info: sessionData.player_join_info || '{}',
+                players_involved: sessionData.players_involved,
+                false_lockout_penalty: sessionData.false_lockout_penalty || 10
+            };
+            
+            const handsData = await apiCall('getHands', { session_id: sessionId });
+            if (handsData.error || handsData.length === 0) {
+                currentHandNumber = 1;
+            } else {
+                currentHandNumber = Math.max(...handsData.map(h => h.hand_number)) + 1;
+            }
+            
+            showActiveSession();
+            updateSessionScores();
+            
+            if (buttonElement) setButtonLoading(buttonElement, false);
+        }
 
-
-function showActiveSession() {
-    // Clear any previous hand history
-    document.getElementById('handHistorySection').style.display = 'none';
-    document.getElementById('handHistoryList').innerHTML = '';
+        function showActiveSession() {
+            // Clear hand history
+            document.getElementById('handHistorySection').style.display = 'none';
+            document.getElementById('handHistoryList').innerHTML = '';
+            
             document.getElementById('activeSessionTitle').textContent = currentSession.title;
+            
             let playerNames = sessionPlayers.map(p => {
                 const joinHand = getPlayerJoinHand(p.player_id);
                 if (joinHand > 1) {
@@ -794,9 +1112,11 @@ function showActiveSession() {
                 }
                 return p.username;
             }).join(', ');
+            
             document.getElementById('activeSessionInfo').innerHTML = 
                 '<p><strong>Session ID:</strong> ' + currentSession.session_id + '</p>' +
                 '<p><strong>Players:</strong> ' + playerNames + '</p>';
+            
             displaySessionMetadata('activeSessionMetadata');
             setupHandInputs();
             showScreen('activeSessionScreen');
@@ -805,6 +1125,7 @@ function showActiveSession() {
         function displaySessionMetadata(containerId) {
             const container = document.getElementById(containerId);
             if (!currentSession) return;
+            
             let html = '';
             if (currentSession.notes || currentSession.tags) {
                 html += '<div class="session-metadata">';
@@ -847,16 +1168,17 @@ function showActiveSession() {
             }
             const tags = selectedTags.join(',');
             let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+            
             const data = await apiCall('updateSession', {
                 session_id: currentSession.session_id,
                 notes: notes,
                 tags: tags,
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
+            
             const messageDiv = document.getElementById('editSessionMessage');
             if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-                setButtonLoading(saveBtn, false);
             } else {
                 currentSession.notes = notes;
                 currentSession.tags = tags;
@@ -876,10 +1198,12 @@ function showActiveSession() {
         async function endSession() {
             if (!confirm('End this session?')) return;
             let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+            
             const data = await apiCall('closeSession', {
                 session_id: currentSession.session_id,
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
+            
             if (data.error) {
                 alert('Error: ' + data.error);
             } else {
@@ -889,252 +1213,247 @@ function showActiveSession() {
                 checkActiveSessions();
             }
         }
+
         // ============================================
         // HAND INPUT & SUBMISSION
         // ============================================
+        
         function setupHandInputs() {
             document.getElementById('currentHandNumber').textContent = currentHandNumber;
             document.getElementById('handMessage').innerHTML = '';
             document.getElementById('handComment').value = '';
+            
             const handInputs = document.getElementById('handInputs');
             let html = '';
+            
             for (let i = 0; i < sessionPlayers.length; i++) {
                 const player = sessionPlayers[i];
                 const joinHand = getPlayerJoinHand(player.player_id);
+                
                 if (joinHand <= currentHandNumber) {
- html += '<div class="player-hand-row">' +
-    '<label>' + player.username + (joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '') + '</label>' +
-    '<input type="number" id="score_' + player.player_id + '" placeholder="Lockout Score">' +
-    '<div class="checkbox-group">' +
-    '<label><input type="checkbox" id="lockout_' + player.player_id + '" onchange="handleLockoutChange(' + player.player_id + ')"> Locked Out</label>' +
-    '</div>' +
-    '</div>';
+                    html += '<div class="player-hand-row">';
+                    html += '<label>' + player.username + (joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '') + '</label>';
+                    html += '<input type="number" id="score_' + player.player_id + '" placeholder="Lockout Score">';
+                    html += '<div class="checkbox-group">';
+                    html += '<label><input type="checkbox" id="lockout_' + player.player_id + '" onchange="handleLockoutChange(' + player.player_id + ')"> Locked Out</label>';
+                    html += '</div>';
+                    html += '</div>';
                 }
             }
             handInputs.innerHTML = html;
         }
-}  // ← End of setupHandInputs
 
-function handleLockoutChange(playerId) {
-    // Ensure only one player can be locked out at a time
-    const checkboxes = document.querySelectorAll('[id^="lockout_"]');
-    for (let i = 0; i < checkboxes.length; i++) {
-        const cb = checkboxes[i];
-        const pId = cb.id.replace('lockout_', '');
-        if (pId != playerId && cb.checked) {
-            cb.checked = false;
+        function handleLockoutChange(playerId) {
+            // Ensure only one player can be locked out at a time
+            const checkboxes = document.querySelectorAll('[id^="lockout_"]');
+            for (let i = 0; i < checkboxes.length; i++) {
+                const cb = checkboxes[i];
+                const pId = cb.id.replace('lockout_', '');
+                if (pId != playerId && cb.checked) {
+                    cb.checked = false;
+                }
+            }
         }
-    }
-}
 
-async function submitHand() {
-    const messageDiv = document.getElementById('handMessage');
-    const submitBtn = event.target;
-    setButtonLoading(submitBtn, true);
-    
-    const scores = [];
-    let lockoutPlayerId = null;
-    let falseLockout = false;
-    
-    for (let i = 0; i < sessionPlayers.length; i++) {
-        const player = sessionPlayers[i];
-        const joinHand = getPlayerJoinHand(player.player_id);
-        if (joinHand <= currentHandNumber) {
-            const scoreVal = parseInt(document.getElementById('score_' + player.player_id).value);
-            if (isNaN(scoreVal)) {
-                messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
+        async function submitHand() {
+            const messageDiv = document.getElementById('handMessage');
+            const submitBtn = event.target;
+            setButtonLoading(submitBtn, true);
+            
+            const scores = [];
+            let lockoutPlayerId = null;
+            
+            // Collect scores and lockout player
+            for (let i = 0; i < sessionPlayers.length; i++) {
+                const player = sessionPlayers[i];
+                const joinHand = getPlayerJoinHand(player.player_id);
+                
+                if (joinHand <= currentHandNumber) {
+                    const scoreVal = parseInt(document.getElementById('score_' + player.player_id).value);
+                    if (isNaN(scoreVal)) {
+                        messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
+                        setButtonLoading(submitBtn, false);
+                        return;
+                    }
+                    scores.push({ player_id: player.player_id, score: scoreVal });
+                    
+                    const lockoutCheckbox = document.getElementById('lockout_' + player.player_id);
+                    if (lockoutCheckbox && lockoutCheckbox.checked) {
+                        lockoutPlayerId = player.player_id;
+                    }
+                }
+            }
+            
+            if (lockoutPlayerId === null) {
+                messageDiv.innerHTML = '<div class="error">One player must lock out</div>';
                 setButtonLoading(submitBtn, false);
                 return;
             }
-            scores.push({ player_id: player.player_id, score: scoreVal });
-const lockoutCheckbox = document.getElementById('lockout_' + player.player_id);
-if (lockoutCheckbox && lockoutCheckbox.checked) {
-    lockoutPlayerId = player.player_id;
-}
-
-        }
-    }
-    
-    if (lockoutPlayerId === null) {
-        messageDiv.innerHTML = '<div class="error">One player must lock out</div>';
-        setButtonLoading(submitBtn, false);
-        return;
-    }
-    
-
-// Get penalty from session
-let penalty = 10;
-if (currentSession.false_lockout_penalty) {
-    penalty = Number(currentSession.false_lockout_penalty);
-}
-
-const lockoutScoreValue = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
-const lowestScore = Math.min(...scores.map(s => s.score));
-const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
-const hasStrictlyLowestScore = (lockoutScoreValue === lowestScore && playersWithLowestScore.length === 1);
-
-// Determine if lockout is successful or false
-if (hasStrictlyLowestScore) {
-    // Successful lockout
-    falseLockout = false;
-    for (let i = 0; i < scores.length; i++) {
-        if (String(scores[i].player_id) === String(lockoutPlayerId)) {
-            // If positive score, set to 0 (benefit)
-            // If negative score, keep it (already a benefit)
-            if (lockoutScoreValue > 0) {
-                scores[i].score = 0;
+            
+            // Calculate lockout logic
+            let penalty = currentSession.false_lockout_penalty ? Number(currentSession.false_lockout_penalty) : 10;
+            const lockoutScoreValue = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+            const lowestScore = Math.min(...scores.map(s => s.score));
+            const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
+            const hasStrictlyLowestScore = (lockoutScoreValue === lowestScore && playersWithLowestScore.length === 1);
+            
+            let falseLockout = false;
+            
+            if (hasStrictlyLowestScore) {
+                // Successful lockout
+                for (let i = 0; i < scores.length; i++) {
+                    if (String(scores[i].player_id) === String(lockoutPlayerId)) {
+                        if (lockoutScoreValue > 0) {
+                            scores[i].score = 0;
+                        }
+                        // Negative scores stay as-is
+                        break;
+                    }
+                }
+            } else {
+                // False lockout - confirm
+                const lockoutPlayerName = getPlayerName(lockoutPlayerId);
+                let warningMessage = '⚠️ FALSE LOCKOUT DETECTED\n\n';
+                warningMessage += lockoutPlayerName + ' does not have the strictly lowest score.\n\n';
+                warningMessage += 'Lockout score: ' + lockoutScoreValue + '\n';
+                warningMessage += 'Lowest score: ' + lowestScore + '\n\n';
+                warningMessage += 'Penalty of ' + penalty + ' points will be applied.\n\n';
+                warningMessage += 'Continue with false lockout?';
+                
+                if (!confirm(warningMessage)) {
+                    setButtonLoading(submitBtn, false);
+                    return;
+                }
+                
+                falseLockout = true;
+                for (let i = 0; i < scores.length; i++) {
+                    if (String(scores[i].player_id) === String(lockoutPlayerId)) {
+                        scores[i].score = lockoutScoreValue + penalty;
+                        break;
+                    }
+                }
             }
-            // else: score stays as lockoutScoreValue (0 or negative)
-            break;
+            
+            const comment = document.getElementById('handComment').value.trim();
+            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+            
+            const data = await apiCall('addHand', {
+                session_id: currentSession.session_id,
+                hand_number: currentHandNumber,
+                scores: JSON.stringify(scores),
+                lockout_player_id: lockoutPlayerId,
+                false_lockout: falseLockout,
+                editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
+                comment: comment,
+                lockout_score: lockoutScoreValue
+            });
+            
+            if (data.error) {
+                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                setButtonLoading(submitBtn, false);
+            } else {
+                currentHandNumber++;
+                setupHandInputs();
+                updateSessionScores();
+                setButtonLoading(submitBtn, false);
+            }
         }
-    }
-}
-
-else {
-    // False lockout - show confirmation
-    const lockoutPlayerName = getPlayerName(lockoutPlayerId);
-    let warningMessage = '⚠️ FALSE LOCKOUT DETECTED\n\n';
-    warningMessage += lockoutPlayerName + ' does not have the strictly lowest score.\n\n';
-    warningMessage += 'Lockout score: ' + lockoutScoreValue + '\n';
-    warningMessage += 'Lowest score: ' + lowestScore + '\n\n';
-    warningMessage += 'Penalty of ' + penalty + ' points will be applied.\n\n';
-    warningMessage += 'Continue with false lockout?';
-    
-    if (!confirm(warningMessage)) {
-        setButtonLoading(submitBtn, false);
-        return;
-    }
-    
-    falseLockout = true;
-    for (let i = 0; i < scores.length; i++) {
-        if (String(scores[i].player_id) === String(lockoutPlayerId)) {
-            scores[i].score = lockoutScoreValue + penalty;
-            break;
-        }
-    }
-}
-    
-    const comment = document.getElementById('handComment').value.trim();
-    let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
-const data = await apiCall('addHand', {
-    session_id: currentSession.session_id,
-    hand_number: currentHandNumber,
-    scores: JSON.stringify(scores),
-    lockout_player_id: lockoutPlayerId,
-    false_lockout: falseLockout,
-    editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
-    comment: comment,
-    lockout_score: lockoutScoreValue
-});
-    
-    if (data.error) {
-        messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-        setButtonLoading(submitBtn, false);
-    } else {
-        currentHandNumber++;
-        setupHandInputs();
-        updateSessionScores();
-        setButtonLoading(submitBtn, false);
-    }
-}
-
         // ============================================
         // HAND HISTORY & EDITING
         // ============================================
-async function displayHandHistory() {
-    if (!currentSession || !currentSession.session_id) {
-        document.getElementById('handHistorySection').style.display = 'none';
-        return;
-    }
-    
-    const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
-    
-    if (handsData.error || handsData.length === 0) {
-        document.getElementById('handHistorySection').style.display = 'none';
-        return;
-    }
-    
-    const handsByNumber = {};
-    for (let i = 0; i < handsData.length; i++) {
-        const hand = handsData[i];
-        if (!handsByNumber[hand.hand_number]) {
-            handsByNumber[hand.hand_number] = [];
-        }
-        handsByNumber[hand.hand_number].push(hand);
-    }
-    
-    const handNumbers = Object.keys(handsByNumber).sort((a, b) => b - a);
-    let html = '';
-    
-    for (let i = 0; i < handNumbers.length; i++) {
-        const handNum = handNumbers[i];
-        const hands = handsByNumber[handNum];
-        let scoreText = '';
-        let lockoutPlayer = '';
-        let isFalseLockout = false;
-        let handComment = '';
         
-        for (let j = 0; j < hands.length; j++) {
-            const h = hands[j];
-            
-            // Check if this is the lockout player and format accordingly
-            if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id) && h.lockout_score) {
-                if (h.false_lockout == 1 || h.false_lockout === true) {
-                    // False lockout: show "15 (5 + 10 penalty)"
-                    const penalty = h.score - h.lockout_score;
-                    scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + penalty + ' penalty) | ';
-} else {
-    // Successful lockout
-    if (h.lockout_score < 0) {
-        // Negative lockout - show actual negative score
-        scoreText += getPlayerName(h.player_id) + ': ' + h.lockout_score + ' | ';
-    } else {
-        // Positive lockout - show "0 (5)"
-        scoreText += getPlayerName(h.player_id) + ': 0 (' + h.lockout_score + ') | ';
-    }
-}
-
-            } else {
-                // Regular player or old data without lockout_score
-                scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
+        async function displayHandHistory() {
+            if (!currentSession || !currentSession.session_id) {
+                document.getElementById('handHistorySection').style.display = 'none';
+                return;
             }
             
-            if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
-                lockoutPlayer = getPlayerName(h.player_id);
-                isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
+            const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
+            
+            if (handsData.error || handsData.length === 0) {
+                document.getElementById('handHistorySection').style.display = 'none';
+                return;
             }
-            if (h.comment && !handComment) {
-                handComment = h.comment;
+            
+            // Group hands by hand number
+            const handsByNumber = {};
+            for (let i = 0; i < handsData.length; i++) {
+                const hand = handsData[i];
+                if (!handsByNumber[hand.hand_number]) {
+                    handsByNumber[hand.hand_number] = [];
+                }
+                handsByNumber[hand.hand_number].push(hand);
             }
+            
+            const handNumbers = Object.keys(handsByNumber).sort((a, b) => b - a);
+            let html = '';
+            
+            for (let i = 0; i < handNumbers.length; i++) {
+                const handNum = handNumbers[i];
+                const hands = handsByNumber[handNum];
+                let scoreText = '';
+                let lockoutPlayer = '';
+                let isFalseLockout = false;
+                let handComment = '';
+                
+                for (let j = 0; j < hands.length; j++) {
+                    const h = hands[j];
+                    
+                    // Format score display
+                    if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id) && h.lockout_score) {
+                        if (h.false_lockout == 1 || h.false_lockout === true) {
+                            // False lockout: "15 (5 + 10 penalty)"
+                            const penalty = h.score - h.lockout_score;
+                            scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + penalty + ' penalty) | ';
+                        } else {
+                            // Successful lockout
+                            if (h.lockout_score < 0) {
+                                scoreText += getPlayerName(h.player_id) + ': ' + h.lockout_score + ' | ';
+                            } else {
+                                scoreText += getPlayerName(h.player_id) + ': 0 (' + h.lockout_score + ') | ';
+                            }
+                        }
+                    } else {
+                        // Regular player
+                        scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
+                    }
+                    
+                    if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
+                        lockoutPlayer = getPlayerName(h.player_id);
+                        isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
+                    }
+                    if (h.comment && !handComment) {
+                        handComment = h.comment;
+                    }
+                }
+                scoreText = scoreText.slice(0, -3);
+                
+                html += '<div class="hand-item">';
+                html += '<div class="hand-item-info">';
+                html += '<strong>Hand ' + handNum + '</strong><br>';
+                html += '<small>' + scoreText + '</small><br>';
+                html += '<small>Lockout: ' + lockoutPlayer + (isFalseLockout ? ' (FALSE)' : '') + '</small>';
+                if (handComment) {
+                    html += '<br><small style="color: #667eea;">💬 ' + handComment + '</small>';
+                }
+                html += '</div>';
+                html += '<div class="hand-item-actions">';
+                html += '<button class="btn btn-warning btn-small" onclick="editHand(' + handNum + ')">Edit</button>';
+                if (i === 0) {
+                    html += '<button class="btn btn-danger btn-small" onclick="deleteHand(' + handNum + ')">Delete</button>';
+                }
+                html += '</div>';
+                html += '</div>';
+            }
+            
+            document.getElementById('handHistoryList').innerHTML = html;
+            document.getElementById('handHistorySection').style.display = 'block';
         }
-        scoreText = scoreText.slice(0, -3);
-        
-        html += '<div class="hand-item">';
-        html += '<div class="hand-item-info">';
-        html += '<strong>Hand ' + handNum + '</strong><br>';
-        html += '<small>' + scoreText + '</small><br>';
-        html += '<small>Lockout: ' + lockoutPlayer + (isFalseLockout ? ' (FALSE)' : '') + '</small>';
-        if (handComment) {
-            html += '<br><small style="color: #667eea;">💬 ' + handComment + '</small>';
-        }
-        html += '</div>';
-        html += '<div class="hand-item-actions">';
-        html += '<button class="btn btn-warning btn-small" onclick="editHand(' + handNum + ')">Edit</button>';
-        if (i === 0) {
-            html += '<button class="btn btn-danger btn-small" onclick="deleteHand(' + handNum + ')">Delete</button>';
-        }
-        html += '</div>';
-        html += '</div>';
-    }
-    
-    document.getElementById('handHistoryList').innerHTML = html;
-    document.getElementById('handHistorySection').style.display = 'block';
-}
-
 
         async function editHand(handNumber) {
             const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
             const handsToEdit = handsData.filter(h => h.hand_number == handNumber);
+            
             if (handsToEdit.length === 0) {
                 alert('Hand not found');
                 return;
@@ -1142,37 +1461,37 @@ async function displayHandHistory() {
             
             currentEditingHand = handNumber;
             document.getElementById('editHandNumber').textContent = handNumber;
-            let html = '';
+            
             let lockoutPlayerId = null;
-            let isFalseLockout = false;
             let handComment = '';
             
             for (let i = 0; i < handsToEdit.length; i++) {
                 const hand = handsToEdit[i];
                 if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
                     lockoutPlayerId = hand.player_id;
-                    isFalseLockout = (hand.false_lockout == 1 || hand.false_lockout === true);
                 }
                 if (hand.comment && !handComment) {
                     handComment = hand.comment;
                 }
             }
             
+            let html = '';
             for (let i = 0; i < sessionPlayers.length; i++) {
                 const player = sessionPlayers[i];
                 const joinHand = getPlayerJoinHand(player.player_id);
+                
                 if (joinHand <= handNumber) {
                     const handData = handsToEdit.find(h => String(h.player_id) === String(player.player_id));
                     const score = handData ? handData.score : '';
                     const isLockout = (lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id));
-html += '<div class="player-hand-row">';
-html += '<label>' + player.username + '</label>';
-html += '<input type="number" id="edit_score_' + player.player_id + '" value="' + score + '" placeholder="Lockout Score">';
-html += '<div class="checkbox-group">';
-html += '<label><input type="checkbox" id="edit_lockout_' + player.player_id + '" onchange="handleEditLockoutChange(' + player.player_id + ')" ' + (isLockout ? 'checked' : '') + '> Locked Out</label>';
-html += '</div>';
-html += '</div>';
-
+                    
+                    html += '<div class="player-hand-row">';
+                    html += '<label>' + player.username + '</label>';
+                    html += '<input type="number" id="edit_score_' + player.player_id + '" value="' + score + '" placeholder="Lockout Score">';
+                    html += '<div class="checkbox-group">';
+                    html += '<label><input type="checkbox" id="edit_lockout_' + player.player_id + '" onchange="handleEditLockoutChange(' + player.player_id + ')" ' + (isLockout ? 'checked' : '') + '> Locked Out</label>';
+                    html += '</div>';
+                    html += '</div>';
                 }
             }
             
@@ -1182,31 +1501,30 @@ html += '</div>';
         }
 
         function handleEditLockoutChange(playerId) {
-    // Ensure only one player can be locked out at a time
-    const checkboxes = document.querySelectorAll('[id^="edit_lockout_"]');
-    for (let i = 0; i < checkboxes.length; i++) {
-        const cb = checkboxes[i];
-        const pId = cb.id.replace('edit_lockout_', '');
-        if (pId != playerId && cb.checked) {
-            cb.checked = false;
+            // Ensure only one player can be locked out at a time
+            const checkboxes = document.querySelectorAll('[id^="edit_lockout_"]');
+            for (let i = 0; i < checkboxes.length; i++) {
+                const cb = checkboxes[i];
+                const pId = cb.id.replace('edit_lockout_', '');
+                if (pId != playerId && cb.checked) {
+                    cb.checked = false;
+                }
+            }
         }
-    }
-}
         
-async function saveEditedHand() {
-    const messageDiv = document.getElementById('editHandMessage');
-    const saveBtn = event.target;
-    if (saveBtn) setButtonLoading(saveBtn, true);
-
+        async function saveEditedHand() {
+            const messageDiv = document.getElementById('editHandMessage');
             const saveBtn = event.target;
             setButtonLoading(saveBtn, true);
+            
             const scores = [];
             let lockoutPlayerId = null;
-            let falseLockout = false;
             
+            // Collect scores and lockout player
             for (let i = 0; i < sessionPlayers.length; i++) {
                 const player = sessionPlayers[i];
                 const joinHand = getPlayerJoinHand(player.player_id);
+                
                 if (joinHand <= currentEditingHand) {
                     const scoreVal = parseInt(document.getElementById('edit_score_' + player.player_id).value);
                     if (isNaN(scoreVal)) {
@@ -1215,97 +1533,76 @@ async function saveEditedHand() {
                         return;
                     }
                     scores.push({ player_id: player.player_id, score: scoreVal });
-const lockoutCheckbox = document.getElementById('edit_lockout_' + player.player_id);
-if (lockoutCheckbox && lockoutCheckbox.checked) {
-    lockoutPlayerId = player.player_id;
-}
-
+                    
+                    const lockoutCheckbox = document.getElementById('edit_lockout_' + player.player_id);
+                    if (lockoutCheckbox && lockoutCheckbox.checked) {
+                        lockoutPlayerId = player.player_id;
+                    }
                 }
             }
-            // Collect lockout player
-for (let i = 0; i < sessionPlayers.length; i++) {
-    const player = sessionPlayers[i];
-    const joinHand = getPlayerJoinHand(player.player_id);
-    if (joinHand <= currentEditingHand) {
-        const lockoutCheckbox = document.getElementById('edit_lockout_' + player.player_id);
-        if (lockoutCheckbox && lockoutCheckbox.checked) {
-            lockoutPlayerId = player.player_id;
-        }
-    }
-}
-
+            
             if (lockoutPlayerId === null) {
                 messageDiv.innerHTML = '<div class="error">One player must lock out</div>';
                 setButtonLoading(saveBtn, false);
                 return;
             }
-
-// Get penalty and calculate actual scores
-let penalty = 10;
-if (currentSession.false_lockout_penalty) {
-    penalty = Number(currentSession.false_lockout_penalty);
-}
-
-const lockoutScoreValue = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
-const lowestScore = Math.min(...scores.map(s => s.score));
-const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
-const hasStrictlyLowestScore = (lockoutScoreValue === lowestScore && playersWithLowestScore.length === 1);
-
-// Determine if lockout is successful or false
-if (hasStrictlyLowestScore) {
-    // Successful lockout
-    falseLockout = false;
-    for (let i = 0; i < scores.length; i++) {
-        if (String(scores[i].player_id) === String(lockoutPlayerId)) {
-            // If positive score, set to 0 (benefit)
-            // If negative score, keep it (already a benefit)
-            if (lockoutScoreValue > 0) {
-                scores[i].score = 0;
+            
+            // Calculate lockout logic (same as submitHand)
+            let penalty = currentSession.false_lockout_penalty ? Number(currentSession.false_lockout_penalty) : 10;
+            const lockoutScoreValue = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+            const lowestScore = Math.min(...scores.map(s => s.score));
+            const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
+            const hasStrictlyLowestScore = (lockoutScoreValue === lowestScore && playersWithLowestScore.length === 1);
+            
+            let falseLockout = false;
+            
+            if (hasStrictlyLowestScore) {
+                // Successful lockout
+                for (let i = 0; i < scores.length; i++) {
+                    if (String(scores[i].player_id) === String(lockoutPlayerId)) {
+                        if (lockoutScoreValue > 0) {
+                            scores[i].score = 0;
+                        }
+                        break;
+                    }
+                }
+            } else {
+                // False lockout - confirm
+                const lockoutPlayerName = getPlayerName(lockoutPlayerId);
+                let warningMessage = '⚠️ FALSE LOCKOUT DETECTED\n\n';
+                warningMessage += lockoutPlayerName + ' does not have the strictly lowest score.\n\n';
+                warningMessage += 'Lockout score: ' + lockoutScoreValue + '\n';
+                warningMessage += 'Lowest score: ' + lowestScore + '\n\n';
+                warningMessage += 'Penalty of ' + penalty + ' points will be applied.\n\n';
+                warningMessage += 'Continue with false lockout?';
+                
+                if (!confirm(warningMessage)) {
+                    setButtonLoading(saveBtn, false);
+                    return;
+                }
+                
+                falseLockout = true;
+                for (let i = 0; i < scores.length; i++) {
+                    if (String(scores[i].player_id) === String(lockoutPlayerId)) {
+                        scores[i].score = lockoutScoreValue + penalty;
+                        break;
+                    }
+                }
             }
-            // else: score stays as lockoutScoreValue (0 or negative)
-            break;
-        }
-    }
-}
-
-else {
-    // False lockout - show confirmation
-    const lockoutPlayerName = getPlayerName(lockoutPlayerId);
-    let warningMessage = '⚠️ FALSE LOCKOUT DETECTED\\n\\n';
-    warningMessage += lockoutPlayerName + ' does not have the strictly lowest score.\\n\\n';
-    warningMessage += 'Lockout score: ' + lockoutScoreValue + '\\n';
-    warningMessage += 'Lowest score: ' + lowestScore + '\\n\\n';
-    warningMessage += 'Penalty of ' + penalty + ' points will be applied.\\n\\n';
-    warningMessage += 'Continue with false lockout?';
-    
-    if (!confirm(warningMessage)) {
-        if (saveBtn) setButtonLoading(saveBtn, false);
-        return;
-    }
-    
-    falseLockout = true;
-    for (let i = 0; i < scores.length; i++) {
-        if (String(scores[i].player_id) === String(lockoutPlayerId)) {
-            scores[i].score = lockoutScoreValue + penalty;
-            break;
-        }
-    }
-}
-
             
             const comment = document.getElementById('editHandComment').value.trim();
             let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
-const data = await apiCall('updateHand', {
-    session_id: currentSession.session_id,
-    hand_number: currentEditingHand,
-    scores: JSON.stringify(scores),
-    lockout_player_id: lockoutPlayerId,
-    false_lockout: falseLockout,
-    editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
-    comment: comment,
-    lockout_score: lockoutScoreValue
-});
-
+            
+            const data = await apiCall('updateHand', {
+                session_id: currentSession.session_id,
+                hand_number: currentEditingHand,
+                scores: JSON.stringify(scores),
+                lockout_player_id: lockoutPlayerId,
+                false_lockout: falseLockout,
+                editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
+                comment: comment,
+                lockout_score: lockoutScoreValue
+            });
             
             if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
@@ -1326,15 +1623,15 @@ const data = await apiCall('updateHand', {
         }
 
         async function deleteHand(handNumber) {
-            if (!confirm('Delete Hand ' + handNumber + '? This cannot be undone.')) {
-                return;
-            }
+            if (!confirm('Delete Hand ' + handNumber + '? This cannot be undone.')) return;
+            
             let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
             const data = await apiCall('deleteHand', {
                 session_id: currentSession.session_id,
                 hand_number: handNumber,
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
+            
             if (data.error) {
                 alert('Error: ' + data.error);
             } else {
@@ -1349,16 +1646,19 @@ const data = await apiCall('updateHand', {
         // ============================================
         // ACTIVE SESSION SCORING & CHARTS
         // ============================================
-async function updateSessionScores() {
-    // Clear hand history first
-    document.getElementById('handHistorySection').style.display = 'none';
-    document.getElementById('handHistoryList').innerHTML = '';
+        
+        async function updateSessionScores() {
+            // Clear hand history first
+            document.getElementById('handHistorySection').style.display = 'none';
+            document.getElementById('handHistoryList').innerHTML = '';
+            
             document.getElementById('sessionScores').innerHTML = '<div class="loading">Calculating scores...</div>';
             const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
             if (handsData.error) return;
             
             displayHandHistory();
             
+            // Initialize player scores
             const playerScores = {};
             let totalLockoutScore = 0;
             let totalLockouts = 0;
@@ -1380,6 +1680,7 @@ async function updateSessionScores() {
                 };
             }
             
+            // Process hands
             for (let i = 0; i < handsData.length; i++) {
                 const hand = handsData[i];
                 if (playerScores[hand.player_id]) {
@@ -1388,6 +1689,7 @@ async function updateSessionScores() {
                         hand_number: hand.hand_number,
                         score: hand.score
                     });
+                    
                     if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
                         playerScores[hand.player_id].totalLockouts++;
                         if (hand.false_lockout == 1 || hand.false_lockout === true) {
@@ -1395,8 +1697,8 @@ async function updateSessionScores() {
                             playerScores[hand.player_id].falseLockouts++;
                         } else {
                             playerScores[hand.player_id].lockouts++;
-const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
-playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
+                            const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+                            playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
                             totalLockoutScore += Number(hand.score);
                             totalLockouts++;
                         }
@@ -1419,6 +1721,7 @@ playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
             const avgScorePerHand = handsData.reduce((sum, h) => sum + Number(h.score), 0) / handsData.length;
             const overallAvgLockout = totalLockouts > 0 ? (totalLockoutScore / totalLockouts).toFixed(2) : 'N/A';
             
+            // Build HTML
             let html = '<h3>Current Scores</h3>';
             html += '<div style="overflow-x: auto;">';
             html += '<table class="scores-table">';
@@ -1446,6 +1749,7 @@ playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
             }
             html += '</table></div>';
             
+            // Session statistics
             html += '<div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 20px; border-radius: 10px; margin-top: 20px; border-left: 4px solid #4caf50;">';
             html += '<h3 style="color: #2e7d32; margin-bottom: 15px;">📊 Session Statistics</h3>';
             html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">';
@@ -1474,6 +1778,7 @@ playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
             
             document.getElementById('sessionScores').innerHTML = html;
             
+            // Draw charts
             const chartSection = document.getElementById('activeSessionCharts');
             if (chartSection && handsData.length > 0) {
                 let chartsHtml = '<h3 style="margin-top: 30px;">Session Graphs</h3>';
@@ -1497,9 +1802,6 @@ playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
             }
         }
 
-        // ============================================
-        // ACTIVE SESSION CHARTS
-        // ============================================
         function drawActiveWormChart(playerHands, playerIds) {
             const ctx = document.getElementById('activeWormChart');
             if (!ctx) return;
@@ -1516,10 +1818,12 @@ playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
                 let cumulative = startingScore;
                 const cumulativeScores = [];
                 
+                // Add nulls before join hand
                 for (let h = 1; h < joinHand; h++) {
                     cumulativeScores.push(null);
                 }
                 
+                // Add cumulative scores
                 for (let j = 0; j < hands.length; j++) {
                     cumulative += hands[j];
                     cumulativeScores.push(cumulative);
@@ -1550,7 +1854,10 @@ playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
                         legend: { display: true, position: 'top' }
                     },
                     scales: {
-                        y: { title: { display: true, text: 'Cumulative Score' } }
+                        y: { 
+                            title: { display: true, text: 'Cumulative Score' },
+                            reverse: true
+                        }
                     }
                 }
             });
@@ -1610,6 +1917,7 @@ playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
         // ============================================
         // PREVIOUS SESSIONS & SESSION DETAIL
         // ============================================
+        
         async function loadPreviousSessions() {
             const contentDiv = document.getElementById('previousSessionsContent');
             contentDiv.innerHTML = '<div class="loading">Loading sessions...</div>';
@@ -1676,6 +1984,7 @@ playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
             document.getElementById('sessionDetailTitle').textContent = session.title;
             const joinInfo = parsePlayerJoinInfo(session.player_join_info);
             
+            // Display metadata
             let metadataHtml = '';
             if ((session.notes && session.notes !== '') || (session.tags && session.tags !== '') || (Object.keys(joinInfo).length > 0)) {
                 metadataHtml += '<div class="session-metadata">';
@@ -1704,6 +2013,7 @@ playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
             }
             document.getElementById('sessionDetailMetadata').innerHTML = metadataHtml;
             
+            // Calculate player totals and stats
             const playerTotals = {};
             const playerHandScores = {};
             const playerStats = {};
@@ -1723,14 +2033,15 @@ playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
                 }
                 playerTotals[pid] += Number(hand.score);
                 playerHandScores[pid].push({ handNum: Number(hand.hand_number), score: Number(hand.score) });
+                
                 if (hand.lockout_player_id && String(hand.lockout_player_id) === String(pid)) {
                     playerStats[pid].totalLockouts++;
                     if (hand.false_lockout == 1 || hand.false_lockout === true) {
                         playerStats[pid].falseLockouts++;
                     } else {
                         playerStats[pid].lockouts++;
-const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
-playerStats[pid].lockoutScores.push(lockoutScoreToUse);
+                        const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+                        playerStats[pid].lockoutScores.push(lockoutScoreToUse);
                     }
                 }
             }
@@ -1739,6 +2050,7 @@ playerStats[pid].lockoutScores.push(lockoutScoreToUse);
                 return playerTotals[a] - playerTotals[b];
             });
             
+            // Build scores table
             let html = '<h3>Final Scores</h3>';
             html += '<div style="overflow-x: auto;"><table class="scores-table">';
             html += '<tr><th>Player</th><th>Total</th><th>Hands</th><th>Avg Hand</th><th>Lockouts</th><th>LO Rate</th><th>Avg LO Score</th><th>False LO</th><th>False LO Rate</th></tr>';
@@ -1756,86 +2068,79 @@ playerStats[pid].lockoutScores.push(lockoutScoreToUse);
                 
                 html += '<tr><td><strong>' + playerName + '</strong></td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td></tr>';
             }
-html += '</table></div>';
-
-// ADD HAND-BY-HAND BREAKDOWN
-html += '<h3 style="margin-top: 30px;">Hand-by-Hand Breakdown</h3>';
-html += '<div class="hand-history">';
-
-const handsByNumber = {};
-for (let i = 0; i < handsData.length; i++) {
-    const hand = handsData[i];
-    if (!handsByNumber[hand.hand_number]) {
-        handsByNumber[hand.hand_number] = [];
-    }
-    handsByNumber[hand.hand_number].push(hand);
-}
-
-const handNumbers = Object.keys(handsByNumber).sort((a, b) => Number(a) - Number(b));
-
-for (let i = 0; i < handNumbers.length; i++) {
-    const handNum = handNumbers[i];
-    const hands = handsByNumber[handNum];
-    let scoreText = '';
-    let lockoutPlayer = '';
-    let isFalseLockout = false;
-    let handComment = '';
-    
-    for (let j = 0; j < hands.length; j++) {
-        const h = hands[j];
-if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
-    // This player locked out - show special format
-    if (h.lockout_score) {
-        if (h.false_lockout == 1 || h.false_lockout === true) {
-            // False lockout: show "15 (5 + 10 penalty)"
-            const penalty = h.score - h.lockout_score;
-            scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + penalty + ' penalty) | ';
-} else {
-    // Successful lockout
-    if (h.lockout_score < 0) {
-        // Negative lockout - show actual negative score
-        scoreText += getPlayerName(h.player_id) + ': ' + h.lockout_score + ' | ';
-    } else {
-        // Positive lockout - show "0 (5)"
-        scoreText += getPlayerName(h.player_id) + ': 0 (' + h.lockout_score + ') | ';
-    }
-}
-
-    } else {
-        // Old data without lockout_score - show normally
-        scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
-    }
-} else {
-    // Regular player (not lockout) - show normally
-    scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
-}
-
-        if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
-            lockoutPlayer = getPlayerName(h.player_id);
-            isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
-        }
-        if (h.comment && !handComment) {
-            handComment = h.comment;
-        }
-    }
-    scoreText = scoreText.slice(0, -3);
-    
-    html += '<div class="hand-item">';
-    html += '<div class="hand-item-info">';
-    html += '<strong>Hand ' + handNum + '</strong><br>';
-    html += '<small>' + scoreText + '</small><br>';
-    html += '<small>Lockout: ' + lockoutPlayer + (isFalseLockout ? ' (FALSE)' : '') + '</small>';
-    if (handComment) {
-        html += '<br><small style="color: #667eea;">💬 ' + handComment + '</small>';
-    }
-    html += '</div>';
-    html += '</div>';
-}
-
-html += '</div>';
-
-document.getElementById('sessionDetailContent').innerHTML = html;
+            html += '</table></div>';
             
+            // Hand-by-hand breakdown
+            html += '<h3 style="margin-top: 30px;">Hand-by-Hand Breakdown</h3>';
+            html += '<div class="hand-history">';
+            
+            const handsByNumber = {};
+            for (let i = 0; i < handsData.length; i++) {
+                const hand = handsData[i];
+                if (!handsByNumber[hand.hand_number]) {
+                    handsByNumber[hand.hand_number] = [];
+                }
+                handsByNumber[hand.hand_number].push(hand);
+            }
+            
+            const handNumbers = Object.keys(handsByNumber).sort((a, b) => Number(a) - Number(b));
+            
+            for (let i = 0; i < handNumbers.length; i++) {
+                const handNum = handNumbers[i];
+                const hands = handsByNumber[handNum];
+                let scoreText = '';
+                let lockoutPlayer = '';
+                let isFalseLockout = false;
+                let handComment = '';
+                
+                for (let j = 0; j < hands.length; j++) {
+                    const h = hands[j];
+                    
+                    if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
+                        if (h.lockout_score) {
+                            if (h.false_lockout == 1 || h.false_lockout === true) {
+                                const penalty = h.score - h.lockout_score;
+                                scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + penalty + ' penalty) | ';
+                            } else {
+                                if (h.lockout_score < 0) {
+                                    scoreText += getPlayerName(h.player_id) + ': ' + h.lockout_score + ' | ';
+                                } else {
+                                    scoreText += getPlayerName(h.player_id) + ': 0 (' + h.lockout_score + ') | ';
+                                }
+                            }
+                        } else {
+                            scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
+                        }
+                    } else {
+                        scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
+                    }
+                    
+                    if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
+                        lockoutPlayer = getPlayerName(h.player_id);
+                        isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
+                    }
+                    if (h.comment && !handComment) {
+                        handComment = h.comment;
+                    }
+                }
+                scoreText = scoreText.slice(0, -3);
+                
+                html += '<div class="hand-item">';
+                html += '<div class="hand-item-info">';
+                html += '<strong>Hand ' + handNum + '</strong><br>';
+                html += '<small>' + scoreText + '</small><br>';
+                html += '<small>Lockout: ' + lockoutPlayer + (isFalseLockout ? ' (FALSE)' : '') + '</small>';
+                if (handComment) {
+                    html += '<br><small style="color: #667eea;">💬 ' + handComment + '</small>';
+                }
+                html += '</div>';
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            document.getElementById('sessionDetailContent').innerHTML = html;
+            
+            // Draw charts
             let graphsHtml = '<h3>Graphs</h3>';
             graphsHtml += '<div class="chart-container"><canvas id="wormChart"></canvas></div>';
             graphsHtml += '<div class="chart-container"><canvas id="manhattanChart"></canvas></div>';
@@ -1843,15 +2148,12 @@ document.getElementById('sessionDetailContent').innerHTML = html;
             
             showScreen('sessionDetailScreen');
             setTimeout(function() {
-                drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
-                drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
+                drawSessionWormChart(playerHandScores, sortedPlayers, playerJoinHands, session);
+                drawSessionManhattanChart(playerHandScores, sortedPlayers, playerJoinHands, session);
             }, 100);
         }
 
-        // ============================================
-        // COMPLETED SESSION CHARTS (WITH LATE JOINER SUPPORT)
-        // ============================================
-        function drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session) {
+        function drawSessionWormChart(playerHandScores, sortedPlayers, playerJoinHands, session) {
             const ctx = document.getElementById('wormChart');
             if (!ctx) return;
             
@@ -1920,13 +2222,16 @@ document.getElementById('sessionDetailContent').innerHTML = html;
                         legend: { display: true, position: 'top' }
                     },
                     scales: {
-                        y: { title: { display: true, text: 'Cumulative Score' } }
+                        y: { 
+                            title: { display: true, text: 'Cumulative Score' },
+                            reverse: true
+                        }
                     }
                 }
             });
         }
 
-        function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session) {
+        function drawSessionManhattanChart(playerHandScores, sortedPlayers, playerJoinHands, session) {
             const ctx = document.getElementById('manhattanChart');
             if (!ctx) return;
             
@@ -1987,11 +2292,9 @@ document.getElementById('sessionDetailContent').innerHTML = html;
         }
 
         // ============================================
-        // STATS (Continued in next message due to length)
-        // ============================================
-        // ============================================
         // OVERALL STATS
         // ============================================
+        
         async function loadStats() {
             const contentDiv = document.getElementById('statsContent');
             contentDiv.innerHTML = '<div class="loading">Loading stats...</div>';
@@ -2028,6 +2331,7 @@ document.getElementById('sessionDetailContent').innerHTML = html;
         function calculateOverallStats(completedSessionsData, allSessionsData, playersData) {
             const playerStats = {};
             
+            // Initialize player stats
             for (let i = 0; i < playersData.length; i++) {
                 const player = playersData[i];
                 playerStats[player.player_id] = {
@@ -2047,6 +2351,7 @@ document.getElementById('sessionDetailContent').innerHTML = html;
                 };
             }
             
+            // Process all sessions for hand-level stats
             for (let s = 0; s < allSessionsData.length; s++) {
                 const session = allSessionsData[s];
                 const playerUniqueHands = {};
@@ -2068,8 +2373,8 @@ document.getElementById('sessionDetailContent').innerHTML = html;
                                 playerStats[hand.player_id].currentHandStreak = 0;
                             } else {
                                 playerStats[hand.player_id].handsWon++;
-const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
-playerStats[hand.player_id].lockoutScores.push(lockoutScoreToUse);
+                                const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+                                playerStats[hand.player_id].lockoutScores.push(lockoutScoreToUse);
                                 playerStats[hand.player_id].currentHandStreak++;
                                 if (playerStats[hand.player_id].currentHandStreak > playerStats[hand.player_id].maxHandStreak) {
                                     playerStats[hand.player_id].maxHandStreak = playerStats[hand.player_id].currentHandStreak;
@@ -2089,6 +2394,7 @@ playerStats[hand.player_id].lockoutScores.push(lockoutScoreToUse);
                 }
             }
             
+            // Process completed sessions for session-level stats
             for (let s = 0; s < completedSessionsData.length; s++) {
                 const session = completedSessionsData[s];
                 const playerTotals = {};
@@ -2249,8 +2555,9 @@ playerStats[hand.player_id].lockoutScores.push(lockoutScoreToUse);
         // ============================================
         // INITIALIZATION
         // ============================================
+        
         window.addEventListener('DOMContentLoaded', function() {
-            console.log('Lockout Tracker v2.8 - Clean Baseline! 🚀');
+            console.log('Lockout Tracker v2.8 - Cleaned & Optimized! 🚀');
             ensurePlayersLoaded();
             checkActiveSessions();
         });
