@@ -782,14 +782,7 @@ async function resumeSession(sessionId, buttonElement) {
 }
 
 
-function showActiveSession() {
-    // Clear any previous hand history
-    document.getElementById('handHistorySection').style.display = 'none';
-    document.getElementById('handHistoryList').innerHTML = '';
-    
-    // Rest of existing code continues...
-    document.getElementById('activeSessionTitle').textContent = currentSession.title;
-
+        function showActiveSession() {
             document.getElementById('activeSessionTitle').textContent = currentSession.title;
             let playerNames = sessionPlayers.map(p => {
                 const joinHand = getPlayerJoinHand(p.player_id);
