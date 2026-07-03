@@ -1097,37 +1097,26 @@ const data = await apiCall('addHand', {
                     const handData = handsToEdit.find(h => String(h.player_id) === String(player.player_id));
                     const score = handData ? handData.score : '';
                     const isLockout = (lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id));
-                    html += '<div class="player-hand-row">';
-                    html += '<label>' + player.username + '</label>';
-                    html += '<input type="number" id="edit_score_' + player.player_id + '" value="' + score + '" placeholder="Score">';
-                    html += '<div class="checkbox-group"><label><input type="checkbox" id="edit_lockout_' + player.player_id + '" onchange="handleEditLockoutChange(' + player.player_id + ')" ' + (isLockout ? 'checked' : '') + '> Locked Out</label></div>';
-                    html += '<div class="checkbox-group"><label><input type="checkbox" id="edit_false_' + player.player_id + '" ' + (isLockout ? '' : 'disabled') + ' ' + (isFalseLockout ? 'checked' : '') + '> False</label></div>';
-                    html += '</div>';
+html += '<div class="player-hand-row">';
+html += '<label>' + player.username + '</label>';
+html += '<input type="number" id="edit_score_' + player.player_id + '" value="' + score + '" placeholder="Lockout Score">';
+html += '<div class="checkbox-group">';
+if (isLockout) {
+    html += '<label><input type="radio" name="edit_lockout_type_' + player.player_id + '" id="edit_lockout_success_' + player.player_id + '" value="success" ' + (!isFalseLockout ? 'checked' : '') + '> Success</label>';
+    html += '<label><input type="radio" name="edit_lockout_type_' + player.player_id + '" id="edit_lockout_false_' + player.player_id + '" value="false" ' + (isFalseLockout ? 'checked' : '') + '> False</label>';
+} else {
+    html += '<label><input type="radio" name="edit_lockout_type_' + player.player_id + '" id="edit_lockout_success_' + player.player_id + '" value="success"> Success</label>';
+    html += '<label><input type="radio" name="edit_lockout_type_' + player.player_id + '" id="edit_lockout_false_' + player.player_id + '" value="false"> False</label>';
+}
+html += '</div>';
+html += '</div>';
+
                 }
             }
             
             document.getElementById('editHandInputs').innerHTML = html;
             document.getElementById('editHandComment').value = handComment;
             document.getElementById('editHandModal').classList.add('active');
-        }
-
-        function handleEditLockoutChange(playerId) {
-            const checkboxes = document.querySelectorAll('[id^="edit_lockout_"]');
-            for (let i = 0; i < checkboxes.length; i++) {
-                const cb = checkboxes[i];
-                const pId = cb.id.replace('edit_lockout_', '');
-                const falseCheckbox = document.getElementById('edit_false_' + pId);
-                if (cb.checked) {
-                    if (pId != playerId) {
-                        cb.checked = false;
-                    } else {
-                        falseCheckbox.disabled = false;
-                    }
-                } else {
-                    falseCheckbox.disabled = true;
-                    falseCheckbox.checked = false;
-                }
-            }
         }
 
         async function saveEditedHand() {
@@ -1149,11 +1138,12 @@ const data = await apiCall('addHand', {
                         return;
                     }
                     scores.push({ player_id: player.player_id, score: scoreVal });
-                    const isLockedOut = document.getElementById('edit_lockout_' + player.player_id).checked;
-                    if (isLockedOut) {
-                        lockoutPlayerId = player.player_id;
-                        falseLockout = document.getElementById('edit_false_' + player.player_id).checked;
-                    }
+const successRadio = document.getElementById('edit_lockout_success_' + player.player_id);
+const falseRadio = document.getElementById('edit_lockout_false_' + player.player_id);
+if (successRadio && (successRadio.checked || falseRadio.checked)) {
+    lockoutPlayerId = player.player_id;
+    falseLockout = falseRadio.checked;
+}
                 }
             }
             
@@ -1188,18 +1178,39 @@ const data = await apiCall('addHand', {
                 }
                 falseLockout = true;
             }
+// Get penalty and calculate actual scores
+let penalty = 10;
+if (currentSession.false_lockout_penalty) {
+    penalty = Number(currentSession.false_lockout_penalty);
+}
+
+const lockoutScoreValue = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+
+// Adjust lockout player's score
+for (let i = 0; i < scores.length; i++) {
+    if (String(scores[i].player_id) === String(lockoutPlayerId)) {
+        if (falseLockout) {
+            scores[i].score = lockoutScoreValue + penalty;
+        } else {
+            scores[i].score = 0;
+        }
+        break;
+    }
+}
             
             const comment = document.getElementById('editHandComment').value.trim();
             let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
-            const data = await apiCall('updateHand', {
-                session_id: currentSession.session_id,
-                hand_number: currentEditingHand,
-                scores: JSON.stringify(scores),
-                lockout_player_id: lockoutPlayerId,
-                false_lockout: falseLockout,
-                editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
-                comment: comment
-            });
+const data = await apiCall('updateHand', {
+    session_id: currentSession.session_id,
+    hand_number: currentEditingHand,
+    scores: JSON.stringify(scores),
+    lockout_player_id: lockoutPlayerId,
+    false_lockout: falseLockout,
+    editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
+    comment: comment,
+    lockout_score: lockoutScoreValue
+});
+
             
             if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
@@ -1674,7 +1685,26 @@ for (let i = 0; i < handNumbers.length; i++) {
     
     for (let j = 0; j < hands.length; j++) {
         const h = hands[j];
+if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
+    // This player locked out - show special format
+    if (h.lockout_score) {
+        if (h.false_lockout == 1 || h.false_lockout === true) {
+            // False lockout: show "15 (5 + 10 penalty)"
+            const penalty = h.score - h.lockout_score;
+            scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + penalty + ' penalty) | ';
+        } else {
+            // Successful lockout: show "0 (5)"
+            scoreText += getPlayerName(h.player_id) + ': 0 (' + h.lockout_score + ') | ';
+        }
+    } else {
+        // Old data without lockout_score - show normally
         scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
+    }
+} else {
+    // Regular player (not lockout) - show normally
+    scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
+}
+
         if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
             lockoutPlayer = getPlayerName(h.player_id);
             isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
