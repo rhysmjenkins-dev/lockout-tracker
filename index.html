@@ -960,38 +960,38 @@
         // SESSION MANAGEMENT
         // ============================================
         
-        async function checkActiveSessions() {
-            document.getElementById('activeSessionsSection').innerHTML = '<div class="loading">Loading active sessions...</div>';
-            const sessionsData = await apiCall('getSessions', {});
+async function checkActiveSessions() {
+    document.getElementById('activeSessionsSection').innerHTML = '<div class="loading">Loading active sessions...</div>';
+    const sessionsData = await apiCall('getSessions', {});
+    
+    if (sessionsData.error) {
+        document.getElementById('activeSessionsSection').innerHTML = '<p style="color: #c33;">Error loading sessions</p>';
+        return;
+    }
+    
+    // More lenient filter - check for null, undefined, empty string, or whitespace
+    const activeSessions = sessionsData.filter(s => {
+        return !s.date_ended || s.date_ended === null || s.date_ended === '' || String(s.date_ended).trim() === '';
+    });
+    
+    if (activeSessions.length > 0) {
+        let html = '<div class="active-session-box"><h3>Active Sessions</h3>';
+        for (let i = 0; i < activeSessions.length; i++) {
+            const session = activeSessions[i];
+            const handsData = await apiCall('getHands', { session_id: session.session_id });
+            const handCount = handsData.error ? 0 : (handsData.length > 0 ? Math.max(...handsData.map(h => h.hand_number)) : 0);
             
-            if (sessionsData.error) {
-                document.getElementById('activeSessionsSection').innerHTML = '<p style="color: #c33;">Error loading sessions</p>';
-                return;
-            }
-            
-            const activeSessions = sessionsData.filter(s => {
-                const dateEnded = s.date_ended;
-                return !dateEnded || dateEnded === '' || dateEnded.toString().trim() === '';
-            });
-            
-            if (activeSessions.length > 0) {
-                let html = '<div class="active-session-box"><h3>Active Sessions</h3>';
-                for (let i = 0; i < activeSessions.length; i++) {
-                    const session = activeSessions[i];
-                    const handsData = await apiCall('getHands', { session_id: session.session_id });
-                    const handCount = handsData.error ? 0 : (handsData.length > 0 ? Math.max(...handsData.map(h => h.hand_number)) : 0);
-                    
-                    html += '<div class="active-session-item">';
-                    html += '<div><strong>' + session.title + '</strong><br><small>' + handCount + ' hands played</small></div>';
-                    html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ', this)">Resume</button>';
-                    html += '</div>';
-                }
-                html += '</div>';
-                document.getElementById('activeSessionsSection').innerHTML = html;
-            } else {
-                document.getElementById('activeSessionsSection').innerHTML = '';
-            }
+            html += '<div class="active-session-item">';
+            html += '<div><strong>' + session.title + '</strong><br><small>' + handCount + ' hands played</small></div>';
+            html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ', this)">Resume</button>';
+            html += '</div>';
         }
+        html += '</div>';
+        document.getElementById('activeSessionsSection').innerHTML = html;
+    } else {
+        document.getElementById('activeSessionsSection').innerHTML = '';
+    }
+}
 
         async function createSession() {
             const title = document.getElementById('sessionTitle').value.trim();
