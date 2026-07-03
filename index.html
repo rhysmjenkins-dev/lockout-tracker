@@ -269,6 +269,9 @@
                     <option value="Competitive">⚔️ Competitive</option>
                 </select>
                 <small style="color: #666; display: block; margin-top: 5px;">Hold Ctrl (Cmd on Mac) to select multiple</small>
+                <label for="falseLockoutPenalty">False Lockout Penalty</label>
+                <input type="number" id="falseLockoutPenalty" placeholder="e.g. 10" value="10" min="0">
+                <small style="color: #666; display: block; margin-top: 5px;">Points added to score when a lockout attempt fails</small>
                 <label>Select Players</label>
                 <div id="playerSelectionList" class="loading">Loading players...</div>
                 <button class="btn btn-success" onclick="createSession()">Start Session</button>
@@ -285,6 +288,9 @@
                 <div id="activeSessionMetadata"></div>
                 <div class="hand-input-section">
                     <h4>Hand <span id="currentHandNumber"></span></h4>
+                    <p style="background: #fff3cd; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 0.9em;">
+                    <strong>ℹ️ Instructions:</strong> Enter the score you locked out on. Successful lockouts = 0 points. False lockouts = your score + penalty.
+                </p>
                     <div id="handInputs"></div>
                     <label for="handComment" style="margin-top: 15px;">Hand Note (Optional)</label>
                     <input type="text" id="handComment" placeholder="e.g. Epic comeback, close call...">
@@ -679,6 +685,7 @@ async function createSession() {
         }
     }
     const tags = selectedTags.join(',');
+    const penalty = document.getElementById('falseLockoutPenalty').value.trim();
     const messageDiv = document.getElementById('sessionMessage');
     const createBtn = event.target;
     
@@ -689,13 +696,14 @@ async function createSession() {
     
     setButtonLoading(createBtn, true);
     
-    const data = await apiCall('createSession', {
-        title: title,
-        host_player_id: hostId,
-        players_involved: selectedPlayers.join(','),
-        notes: notes,
-        tags: tags
-    });
+const data = await apiCall('createSession', {
+    title: title,
+    host_player_id: hostId,
+    players_involved: selectedPlayers.join(','),
+    notes: notes,
+    tags: tags,
+    false_lockout_penalty: penalty
+});
     
     if (data.error) {
         messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
@@ -735,15 +743,16 @@ async function createSession() {
                 const player = allPlayers.find(p => String(p.player_id) === String(playerIds[i]));
                 if (player) sessionPlayers.push(player);
             }
-            currentSession = {
-                session_id: sessionData.session_id,
-                title: sessionData.title,
-                host_player_id: sessionData.host_player_id,
-                notes: sessionData.notes || '',
-                tags: sessionData.tags || '',
-                player_join_info: sessionData.player_join_info || '{}',
-                players_involved: sessionData.players_involved
-            };
+currentSession = {
+    session_id: sessionData.session_id,
+    title: sessionData.title,
+    host_player_id: sessionData.host_player_id,
+    notes: sessionData.notes || '',
+    tags: sessionData.tags || '',
+    player_join_info: sessionData.player_join_info || '{}',
+    players_involved: sessionData.players_involved,
+    false_lockout_penalty: sessionData.false_lockout_penalty || 10
+};
             const handsData = await apiCall('getHands', { session_id: sessionId });
             if (handsData.error || handsData.length === 0) {
                 currentHandNumber = 1;
@@ -872,33 +881,16 @@ async function createSession() {
                 const joinHand = getPlayerJoinHand(player.player_id);
                 if (joinHand <= currentHandNumber) {
                     html += '<div class="player-hand-row">' +
-                        '<label>' + player.username + (joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '') + '</label>' +
-                        '<input type="number" id="score_' + player.player_id + '" placeholder="Score">' +
-                        '<div class="checkbox-group"><label><input type="checkbox" id="lockout_' + player.player_id + '" onchange="handleLockoutChange(' + player.player_id + ')"> Locked Out</label></div>' +
-                        '<div class="checkbox-group"><label><input type="checkbox" id="false_' + player.player_id + '" disabled> False</label></div>' +
-                        '</div>';
+                    '<label>' + player.username + (joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '') + '</label>' +
+                    '<input type="number" id="score_' + player.player_id + '" placeholder="Lockout Score">' +
+                    '<div class="checkbox-group">' +
+                    '<label><input type="radio" name="lockout_type_' + player.player_id + '" id="lockout_success_' + player.player_id + '" value="success"> Success</label>' +
+                    '<label><input type="radio" name="lockout_type_' + player.player_id + '" id="lockout_false_' + player.player_id + '" value="false"> False</label>' +
+                    '</div>' +
+                    '</div>';
                 }
             }
             handInputs.innerHTML = html;
-        }
-
-        function handleLockoutChange(playerId) {
-            const checkboxes = document.querySelectorAll('[id^="lockout_"]');
-            for (let i = 0; i < checkboxes.length; i++) {
-                const cb = checkboxes[i];
-                const pId = cb.id.replace('lockout_', '');
-                const falseCheckbox = document.getElementById('false_' + pId);
-                if (cb.checked) {
-                    if (pId != playerId) {
-                        cb.checked = false;
-                    } else {
-                        falseCheckbox.disabled = false;
-                    }
-                } else {
-                    falseCheckbox.disabled = true;
-                    falseCheckbox.checked = false;
-                }
-            }
         }
 
 async function submitHand() {
@@ -921,11 +913,12 @@ async function submitHand() {
                 return;
             }
             scores.push({ player_id: player.player_id, score: scoreVal });
-            const isLockedOut = document.getElementById('lockout_' + player.player_id).checked;
-            if (isLockedOut) {
-                lockoutPlayerId = player.player_id;
-                falseLockout = document.getElementById('false_' + player.player_id).checked;
-            }
+                const successRadio = document.getElementById('lockout_success_' + player.player_id);
+                const falseRadio = document.getElementById('lockout_false_' + player.player_id);
+                if (successRadio.checked || falseRadio.checked) {
+                    lockoutPlayerId = player.player_id;
+                    falseLockout = falseRadio.checked;
+                }
         }
     }
     
@@ -960,18 +953,40 @@ async function submitHand() {
         }
         falseLockout = true;
     }
+// Get penalty from session and calculate actual scores
+let penalty = 10; // default
+if (currentSession.false_lockout_penalty) {
+    penalty = Number(currentSession.false_lockout_penalty);
+}
+
+const lockoutScoreValue = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+
+// Adjust lockout player's score based on success/false
+for (let i = 0; i < scores.length; i++) {
+    if (String(scores[i].player_id) === String(lockoutPlayerId)) {
+        if (falseLockout) {
+            // False lockout: score = lockout score + penalty
+            scores[i].score = lockoutScoreValue + penalty;
+        } else {
+            // Successful lockout: score = 0
+            scores[i].score = 0;
+        }
+        break;
+    }
+}
     
     const comment = document.getElementById('handComment').value.trim();
     let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
-    const data = await apiCall('addHand', {
-        session_id: currentSession.session_id,
-        hand_number: currentHandNumber,
-        scores: JSON.stringify(scores),
-        lockout_player_id: lockoutPlayerId,
-        false_lockout: falseLockout,
-        editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
-        comment: comment
-    });
+const data = await apiCall('addHand', {
+    session_id: currentSession.session_id,
+    hand_number: currentHandNumber,
+    scores: JSON.stringify(scores),
+    lockout_player_id: lockoutPlayerId,
+    false_lockout: falseLockout,
+    editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
+    comment: comment,
+    lockout_score: lockoutScoreValue
+});
     
     if (data.error) {
         messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
@@ -1271,7 +1286,8 @@ async function submitHand() {
                             playerScores[hand.player_id].falseLockouts++;
                         } else {
                             playerScores[hand.player_id].lockouts++;
-                            playerScores[hand.player_id].lockoutScores.push(Number(hand.score));
+const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
                             totalLockoutScore += Number(hand.score);
                             totalLockouts++;
                         }
@@ -1604,7 +1620,8 @@ async function submitHand() {
                         playerStats[pid].falseLockouts++;
                     } else {
                         playerStats[pid].lockouts++;
-                        playerStats[pid].lockoutScores.push(Number(hand.score));
+const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+playerStats[pid].lockoutScores.push(lockoutScoreToUse);
                     }
                 }
             }
@@ -1916,7 +1933,8 @@ document.getElementById('sessionDetailContent').innerHTML = html;
                                 playerStats[hand.player_id].currentHandStreak = 0;
                             } else {
                                 playerStats[hand.player_id].handsWon++;
-                                playerStats[hand.player_id].lockoutScores.push(Number(hand.score));
+const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+playerStats[hand.player_id].lockoutScores.push(lockoutScoreToUse);
                                 playerStats[hand.player_id].currentHandStreak++;
                                 if (playerStats[hand.player_id].currentHandStreak > playerStats[hand.player_id].maxHandStreak) {
                                     playerStats[hand.player_id].maxHandStreak = playerStats[hand.player_id].currentHandStreak;
