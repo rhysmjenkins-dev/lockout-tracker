@@ -382,6 +382,24 @@
         let playersLoaded = false;
         let playerCache = {};
 
+// ============================================
+// BUTTON LOADING STATE HELPER
+// ============================================
+function setButtonLoading(buttonElement, isLoading, originalText) {
+    if (isLoading) {
+        buttonElement.disabled = true;
+        buttonElement.dataset.originalText = buttonElement.textContent;
+        buttonElement.textContent = '⏳ Loading...';
+        buttonElement.style.opacity = '0.6';
+        buttonElement.style.cursor = 'not-allowed';
+    } else {
+        buttonElement.disabled = false;
+        buttonElement.textContent = originalText || buttonElement.dataset.originalText || 'Submit';
+        buttonElement.style.opacity = '1';
+        buttonElement.style.cursor = 'pointer';
+    }
+}
+
         // ============================================
         // API & UTILITY FUNCTIONS
         // ============================================
@@ -499,23 +517,33 @@
             playerList.innerHTML = html;
         }
 
-        async function addPlayer() {
-            const username = document.getElementById('newPlayerName').value.trim();
-            const messageDiv = document.getElementById('addPlayerMessage');
-            if (!username) {
-                messageDiv.innerHTML = '<div class="error">Please enter a player name</div>';
-                return;
-            }
-            const data = await apiCall('addPlayer', { username: username, editor_name: username });
-            if (data.error) {
-                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-            } else {
-                messageDiv.innerHTML = '<div class="success">Player added!</div>';
-                document.getElementById('newPlayerName').value = '';
-                playersLoaded = false;
-                setTimeout(function() { showScreen('homeScreen'); }, 1500);
-            }
-        }
+async function addPlayer() {
+    const username = document.getElementById('newPlayerName').value.trim();
+    const messageDiv = document.getElementById('addPlayerMessage');
+    const addBtn = event.target;
+    
+    if (!username) {
+        messageDiv.innerHTML = '<div class="error">Please enter a player name</div>';
+        return;
+    }
+    
+    setButtonLoading(addBtn, true);
+    
+    const data = await apiCall('addPlayer', { username: username, editor_name: username });
+    
+    if (data.error) {
+        messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+        setButtonLoading(addBtn, false);
+    } else {
+        messageDiv.innerHTML = '<div class="success">Player added!</div>';
+        document.getElementById('newPlayerName').value = '';
+        playersLoaded = false;
+        setTimeout(function() { 
+            showScreen('homeScreen'); 
+            setButtonLoading(addBtn, false);
+        }, 1500);
+    }
+}
 
         // ============================================
         // ADD PLAYER TO ACTIVE SESSION
@@ -567,6 +595,7 @@
             });
             if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                setButtonLoading(saveBtn, false);
             } else {
                 const startingScore = data.starting_score || 0;
                 messageDiv.innerHTML = '<div class="success">Player added successfully!' + 
@@ -625,58 +654,66 @@
             }
         }
 
-        async function createSession() {
-            const title = document.getElementById('sessionTitle').value.trim();
-            const hostId = document.getElementById('sessionHost').value;
-            const checkboxes = document.querySelectorAll('.player-checkbox:checked');
-            const selectedPlayers = [];
-            for (let i = 0; i < checkboxes.length; i++) {
-                selectedPlayers.push(checkboxes[i].value);
-            }
-            const notes = document.getElementById('sessionNotes').value.trim();
-            const tagsSelect = document.getElementById('sessionTags');
-            const selectedTags = [];
-            for (let i = 0; i < tagsSelect.options.length; i++) {
-                if (tagsSelect.options[i].selected) {
-                    selectedTags.push(tagsSelect.options[i].value);
-                }
-            }
-            const tags = selectedTags.join(',');
-            const messageDiv = document.getElementById('sessionMessage');
-            if (!title || !hostId || selectedPlayers.length === 0) {
-                messageDiv.innerHTML = '<div class="error">Please fill all required fields</div>';
-                return;
-            }
-            const data = await apiCall('createSession', {
-                title: title,
-                host_player_id: hostId,
-                players_involved: selectedPlayers.join(','),
-                notes: notes,
-                tags: tags
-            });
-            if (data.error) {
-                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-            } else {
-                currentSession = { 
-                    session_id: data.session_id, 
-                    title: title, 
-                    host_player_id: hostId,
-                    notes: notes,
-                    tags: tags,
-                    player_join_info: '{}',
-                    players_involved: selectedPlayers.join(',')
-                };
-                sessionPlayers = [];
-                for (let i = 0; i < allPlayers.length; i++) {
-                    if (selectedPlayers.indexOf(String(allPlayers[i].player_id)) !== -1) {
-                        sessionPlayers.push(allPlayers[i]);
-                    }
-                }
-                currentHandNumber = 1;
-                showActiveSession();
+async function createSession() {
+    const title = document.getElementById('sessionTitle').value.trim();
+    const hostId = document.getElementById('sessionHost').value;
+    const checkboxes = document.querySelectorAll('.player-checkbox:checked');
+    const selectedPlayers = [];
+    for (let i = 0; i < checkboxes.length; i++) {
+        selectedPlayers.push(checkboxes[i].value);
+    }
+    const notes = document.getElementById('sessionNotes').value.trim();
+    const tagsSelect = document.getElementById('sessionTags');
+    const selectedTags = [];
+    for (let i = 0; i < tagsSelect.options.length; i++) {
+        if (tagsSelect.options[i].selected) {
+            selectedTags.push(tagsSelect.options[i].value);
+        }
+    }
+    const tags = selectedTags.join(',');
+    const messageDiv = document.getElementById('sessionMessage');
+    const createBtn = event.target;
+    
+    if (!title || !hostId || selectedPlayers.length === 0) {
+        messageDiv.innerHTML = '<div class="error">Please fill all required fields</div>';
+        return;
+    }
+    
+    setButtonLoading(createBtn, true);
+    
+    const data = await apiCall('createSession', {
+        title: title,
+        host_player_id: hostId,
+        players_involved: selectedPlayers.join(','),
+        notes: notes,
+        tags: tags
+    });
+    
+    if (data.error) {
+        messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+        setButtonLoading(createBtn, false);
+    } else {
+        currentSession = { 
+            session_id: data.session_id, 
+            title: title, 
+            host_player_id: hostId,
+            notes: notes,
+            tags: tags,
+            player_join_info: '{}',
+            players_involved: selectedPlayers.join(',')
+        };
+        sessionPlayers = [];
+        for (let i = 0; i < allPlayers.length; i++) {
+            if (selectedPlayers.indexOf(String(allPlayers[i].player_id)) !== -1) {
+                sessionPlayers.push(allPlayers[i]);
             }
         }
-
+        currentHandNumber = 1;
+        showActiveSession();
+        setButtonLoading(createBtn, false);
+    }
+}
+        
         async function resumeSession(sessionId) {
             const sessionData = await apiCall('getSession', { session_id: sessionId });
             if (sessionData.error) {
@@ -780,6 +817,7 @@
             const messageDiv = document.getElementById('editSessionMessage');
             if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                setButtonLoading(saveBtn, false);
             } else {
                 currentSession.notes = notes;
                 currentSession.tags = tags;
@@ -855,79 +893,88 @@
             }
         }
 
-        async function submitHand() {
-            const messageDiv = document.getElementById('handMessage');
-            const scores = [];
-            let lockoutPlayerId = null;
-            let falseLockout = false;
-            
-            for (let i = 0; i < sessionPlayers.length; i++) {
-                const player = sessionPlayers[i];
-                const joinHand = getPlayerJoinHand(player.player_id);
-                if (joinHand <= currentHandNumber) {
-                    const scoreVal = parseInt(document.getElementById('score_' + player.player_id).value);
-                    if (isNaN(scoreVal)) {
-                        messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
-                        return;
-                    }
-                    scores.push({ player_id: player.player_id, score: scoreVal });
-                    const isLockedOut = document.getElementById('lockout_' + player.player_id).checked;
-                    if (isLockedOut) {
-                        lockoutPlayerId = player.player_id;
-                        falseLockout = document.getElementById('false_' + player.player_id).checked;
-                    }
-                }
-            }
-            
-            if (lockoutPlayerId === null) {
-                messageDiv.innerHTML = '<div class="error">One player must lock out</div>';
+async function submitHand() {
+    const messageDiv = document.getElementById('handMessage');
+    const submitBtn = event.target;
+    setButtonLoading(submitBtn, true);
+    
+    const scores = [];
+    let lockoutPlayerId = null;
+    let falseLockout = false;
+    
+    for (let i = 0; i < sessionPlayers.length; i++) {
+        const player = sessionPlayers[i];
+        const joinHand = getPlayerJoinHand(player.player_id);
+        if (joinHand <= currentHandNumber) {
+            const scoreVal = parseInt(document.getElementById('score_' + player.player_id).value);
+            if (isNaN(scoreVal)) {
+                messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
+                setButtonLoading(submitBtn, false);
                 return;
             }
-            
-            const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
-            const lowestScore = Math.min(...scores.map(s => s.score));
-            const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
-            const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
-            
-            if (falseLockout && hasStrictlyLowestScore) {
-                messageDiv.innerHTML = '<div class="error">⚠️ Cannot mark as false lockout - this player has the ONLY lowest score! Uncheck "False" to continue.</div>';
-                return;
-            }
-            
-            if (!falseLockout && !hasStrictlyLowestScore) {
-                let warningMessage = '';
-                if (lockoutPlayerScore > lowestScore) {
-                    warningMessage = '⚠️ Warning: The lockout player does NOT have the lowest score.\n\n';
-                } else if (playersWithLowestScore.length > 1) {
-                    warningMessage = '⚠️ Warning: The lockout player is TIED for lowest score (not strictly lowest).\n\n';
-                }
-                warningMessage += 'This should be marked as a FALSE lockout.\n\nDo you want to mark this as a false lockout?';
-                if (!confirm(warningMessage)) {
-                    return;
-                }
-                falseLockout = true;
-            }
-            
-            const comment = document.getElementById('handComment').value.trim();
-            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
-            const data = await apiCall('addHand', {
-                session_id: currentSession.session_id,
-                hand_number: currentHandNumber,
-                scores: JSON.stringify(scores),
-                lockout_player_id: lockoutPlayerId,
-                false_lockout: falseLockout,
-                editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
-                comment: comment
-            });
-            
-            if (data.error) {
-                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-            } else {
-                currentHandNumber++;
-                setupHandInputs();
-                updateSessionScores();
+            scores.push({ player_id: player.player_id, score: scoreVal });
+            const isLockedOut = document.getElementById('lockout_' + player.player_id).checked;
+            if (isLockedOut) {
+                lockoutPlayerId = player.player_id;
+                falseLockout = document.getElementById('false_' + player.player_id).checked;
             }
         }
+    }
+    
+    if (lockoutPlayerId === null) {
+        messageDiv.innerHTML = '<div class="error">One player must lock out</div>';
+        setButtonLoading(submitBtn, false);
+        return;
+    }
+    
+    const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+    const lowestScore = Math.min(...scores.map(s => s.score));
+    const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
+    const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
+    
+    if (falseLockout && hasStrictlyLowestScore) {
+        messageDiv.innerHTML = '<div class="error">⚠️ Cannot mark as false lockout - this player has the ONLY lowest score! Uncheck "False" to continue.</div>';
+        setButtonLoading(submitBtn, false);
+        return;
+    }
+    
+    if (!falseLockout && !hasStrictlyLowestScore) {
+        let warningMessage = '';
+        if (lockoutPlayerScore > lowestScore) {
+            warningMessage = '⚠️ Warning: The lockout player does NOT have the lowest score.\n\n';
+        } else if (playersWithLowestScore.length > 1) {
+            warningMessage = '⚠️ Warning: The lockout player is TIED for lowest score (not strictly lowest).\n\n';
+        }
+        warningMessage += 'This should be marked as a FALSE lockout.\n\nDo you want to mark this as a false lockout?';
+        if (!confirm(warningMessage)) {
+            setButtonLoading(submitBtn, false);
+            return;
+        }
+        falseLockout = true;
+    }
+    
+    const comment = document.getElementById('handComment').value.trim();
+    let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+    const data = await apiCall('addHand', {
+        session_id: currentSession.session_id,
+        hand_number: currentHandNumber,
+        scores: JSON.stringify(scores),
+        lockout_player_id: lockoutPlayerId,
+        false_lockout: falseLockout,
+        editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
+        comment: comment
+    });
+    
+    if (data.error) {
+        messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+        setButtonLoading(submitBtn, false);
+    } else {
+        currentHandNumber++;
+        setupHandInputs();
+        updateSessionScores();
+        setButtonLoading(submitBtn, false);
+    }
+}
 
         // ============================================
         // HAND HISTORY & EDITING
@@ -1062,6 +1109,8 @@
 
         async function saveEditedHand() {
             const messageDiv = document.getElementById('editHandMessage');
+            const saveBtn = event.target;
+            setButtonLoading(saveBtn, true);
             const scores = [];
             let lockoutPlayerId = null;
             let falseLockout = false;
@@ -1073,6 +1122,7 @@
                     const scoreVal = parseInt(document.getElementById('edit_score_' + player.player_id).value);
                     if (isNaN(scoreVal)) {
                         messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
+                        setButtonLoading(saveBtn, false);
                         return;
                     }
                     scores.push({ player_id: player.player_id, score: scoreVal });
@@ -1086,6 +1136,7 @@
             
             if (lockoutPlayerId === null) {
                 messageDiv.innerHTML = '<div class="error">One player must lock out</div>';
+                setButtonLoading(saveBtn, false);
                 return;
             }
             
@@ -1096,6 +1147,7 @@
             
             if (falseLockout && hasStrictlyLowestScore) {
                 messageDiv.innerHTML = '<div class="error">⚠️ Cannot mark as false lockout - this player has the ONLY lowest score!</div>';
+                setButtonLoading(saveBtn, false);
                 return;
             }
             
@@ -1108,6 +1160,7 @@
                 }
                 warningMessage += 'This should be marked as a FALSE lockout.\n\nDo you want to mark this as a false lockout?';
                 if (!confirm(warningMessage)) {
+                    setButtonLoading(saveBtn, false);
                     return;
                 }
                 falseLockout = true;
@@ -1127,6 +1180,7 @@
             
             if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                setButtonLoading(saveBtn, false);
             } else {
                 messageDiv.innerHTML = '<div class="success">Hand updated!</div>';
                 setTimeout(function() {
