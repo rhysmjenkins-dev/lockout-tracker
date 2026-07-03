@@ -1263,7 +1263,8 @@ async function editHand(handNumber) {
             // Check validity after rendering
             setTimeout(checkEditLockoutValidity, 100);
         }
-
+    }
+        
 function checkEditLockoutValidity() {
     // Don't run if modal isn't open
     if (!document.getElementById('editHandModal').classList.contains('active')) {
