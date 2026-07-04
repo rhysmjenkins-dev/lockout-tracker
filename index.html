@@ -787,7 +787,6 @@ currentSession = {
         }
 
         function showActiveSession() {
-function showActiveSession() {
             document.getElementById('activeSessionTitle').textContent = currentSession.title;
             let playerNames = sessionPlayers.map(p => {
                 const joinHand = getPlayerJoinHand(p.player_id);
@@ -1158,7 +1157,7 @@ if (i === 0) {
             document.getElementById('handHistorySection').style.display = 'block';
         }
 
-                async function editHand(handNumber, event) {
+        async function editHand(handNumber, event) {
                             if (event && event.target) {
                                 setButtonLoading(event.target, true);
                             }
