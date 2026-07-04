@@ -1110,14 +1110,14 @@ currentSession = {
                     const h = hands[j];
                     if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
                         // This player locked out - show special format
-                        if (h.lockout_score) {
+if (h.lockout_score) {
                             if (h.false_lockout == 1 || h.false_lockout === true) {
                                 // False lockout: show "15 (5 + 10 penalty)"
                                 const penalty = h.score - h.lockout_score;
                                 scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + penalty + ' penalty) | ';
                             } else {
-                                // Successful lockout: show "0 (5)"
-                                scoreText += getPlayerName(h.player_id) + ': 0 (' + h.lockout_score + ') | ';
+                                // Successful lockout: show actual score (can be negative)
+                                scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ') | ';
                             }
                         } else {
                             // Old data without lockout_score - show normally
@@ -1843,15 +1843,16 @@ if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.pla
                     const h = hands[j];
                     if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
                         // This player locked out - show special format
-                        if (h.lockout_score) {
+if (h.lockout_score) {
                             if (h.false_lockout == 1 || h.false_lockout === true) {
                                 // False lockout: show "15 (5 + 10 penalty)"
                                 const penalty = h.score - h.lockout_score;
                                 scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + penalty + ' penalty) | ';
                             } else {
-                                // Successful lockout: show "0 (5)"
-                                scoreText += getPlayerName(h.player_id) + ': 0 (' + h.lockout_score + ') | ';
+                                // Successful lockout: show actual score (can be negative)
+                                scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ') | ';
                             }
+
                         } else {
                             // Old data without lockout_score - show normally
                             scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
