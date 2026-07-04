@@ -968,9 +968,13 @@ currentSession = {
             const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
             const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
             
-            if (!hasStrictlyLowestScore) {
+const isFalseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
+            
+            if (isFalseLockout) {
                 let warningMessage = '<strong>⚠️ Warning:</strong> ';
-                if (lockoutPlayerScore > lowestScore) {
+                if (lockoutPlayerScore > 5) {
+                    warningMessage += getPlayerName(lockoutPlayerId) + ' has a score of ' + lockoutPlayerScore + ' (max allowed: 5). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+                } else if (lockoutPlayerScore > lowestScore) {
                     const lowestPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
                     warningMessage += getPlayerName(lockoutPlayerId) + ' does NOT have the lowest score. ' + lowestPlayers + ' has the lowest (' + lowestScore + '). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
                 } else if (playersWithLowestScore.length > 1) {
@@ -1015,12 +1019,13 @@ currentSession = {
                 }
             }
             
-            const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
             const lowestScore = Math.min(...scores.map(s => s.score));
             const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
             const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
             
-            let falseLockout = !hasStrictlyLowestScore;
+            // False lockout if: score > 5 OR not strictly lowest
+            let falseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
             
             // Show confirmation if warning was displayed
             if (document.getElementById('lockoutWarning').style.display === 'block') {
@@ -1256,12 +1261,13 @@ const handData = handsToEdit.find(h => String(h.player_id) === String(player.pla
                 return;
             }
             
-            const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
             const lowestScore = Math.min(...scores.map(s => s.score));
             const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
             const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
             
-            if (!hasStrictlyLowestScore) {
+            // False lockout if: score > 5 OR not strictly lowest
+            let falseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
                 let warningMessage = '<strong>⚠️ Warning:</strong> ';
                 if (lockoutPlayerScore > lowestScore) {
                     const lowestPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
