@@ -178,6 +178,7 @@
                 <button class="btn" onclick="showScreen('startSessionScreen')">🎮 Start New Session</button>
                 <button class="btn btn-secondary" onclick="showScreen('previousSessionsScreen'); loadPreviousSessions();">📊 View Previous Sessions</button>
                 <button class="btn btn-secondary" onclick="showScreen('statsScreen'); loadStats();">📈 View Stats</button>
+                <button class="btn btn-secondary" onclick="showHeadToHead()">⚔️ Head-to-Head</button>
                 <button class="btn btn-secondary" onclick="showScreen('addPlayerScreen')">➕ Add New Player</button>
                 <button class="btn btn-info" onclick="showScreen('dictionaryScreen')">📖 Dictionary</button>
                 <button class="btn btn-info" onclick="showScreen('rulesScreen')">📜 Rules</button>
@@ -2301,6 +2302,87 @@ if (h.lockout_score) {
             html += '</table></div>';
             
             document.getElementById('statsContent').innerHTML = html;
+        }
+        
+        // ============================================
+        // HEAD-TO-HEAD STATS
+        // ============================================
+        
+        async function showHeadToHead() {
+            await ensurePlayersLoaded();
+            
+            const contentDiv = document.getElementById('statsContent');
+            contentDiv.innerHTML = '<div class="loading">Loading head-to-head records...</div>';
+            
+            const data = await apiCall('getHeadToHeadMatrix', {});
+            
+            if (data.error) {
+                contentDiv.innerHTML = '<div class="error">Error loading data: ' + data.error + '</div>';
+                return;
+            }
+            
+            if (data.length === 0) {
+                contentDiv.innerHTML = '<div class="placeholder-content"><h3>Not Enough Data</h3><p>Play more sessions to see head-to-head records!</p></div>';
+                return;
+            }
+            
+            // Sort by most sessions together (most relevant matchups first)
+            data.sort(function(a, b) {
+                return b.sessions_together - a.sessions_together;
+            });
+            
+            let html = '<div class="card">';
+            html += '<h2>⚔️ Head-to-Head Records</h2>';
+            html += '<p style="color: #666; margin-bottom: 20px;">Direct records when playing in the same session</p>';
+            
+            html += '<div style="display: grid; gap: 15px;">';
+            
+            for (let i = 0; i < data.length; i++) {
+                const m = data[i];
+                const p1Name = getPlayerName(m.p1);
+                const p2Name = getPlayerName(m.p2);
+                const total = m.p1_wins + m.p2_wins + m.ties;
+                
+                if (total === 0) continue; // Skip if they never finished a session together
+                
+                // Calculate win percentages
+                const p1Pct = total > 0 ? Math.round((m.p1_wins / total) * 100) : 50;
+                const p2Pct = 100 - p1Pct;
+                
+                html += '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">';
+                
+                // Player names and record
+                html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
+                html += '<strong style="color: #667eea;">' + p1Name + '</strong>';
+                html += '<span style="color: #333; font-weight: 600; font-size: 1.1em;">';
+                html += m.p1_wins + '-' + m.p2_wins;
+                if (m.ties > 0) html += '-' + m.ties;
+                html += '</span>';
+                html += '<strong style="color: #f5576c;">' + p2Name + '</strong>';
+                html += '</div>';
+                
+                // Visual percentage bar
+                html += '<div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">';
+                html += '<div style="width: ' + p1Pct + '%; background: #667eea;"></div>';
+                html += '<div style="width: ' + p2Pct + '%; background: #f5576c;"></div>';
+                html += '</div>';
+                
+                // Percentages and session count
+                html += '<div style="display: flex; justify-content: space-between; font-size: 0.85em; color: #666;">';
+                html += '<span>' + p1Pct + '%</span>';
+                html += '<span>' + m.sessions_together + ' session' + (m.sessions_together > 1 ? 's' : '') + ' together</span>';
+                html += '<span>' + p2Pct + '%</span>';
+                html += '</div>';
+                
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            html += '<button class="btn btn-secondary" onclick="showScreen(\'homeScreen\')">Back to Home</button>';
+            html += '</div>';
+            
+            contentDiv.innerHTML = html;
+            showScreen('statsScreen');
         }
 
         // ============================================
