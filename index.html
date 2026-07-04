@@ -1174,11 +1174,12 @@
                     }
                     const isLockout = (lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id));
                     
-                    html += '<div class="player-hand-row">';
-                    html += '<label>' + player.username + '</label>';
-                    html += '<input type="number" id="edit_score_' + player.player_id + '" value="' + displayScore + '" placeholder="Score" oninput="checkEditLockoutValidity()">';
-                    html += '<label style="display: flex; align-items: center; gap: 5px; margin: 0;"><input type="radio" name="edit_lockout_player" value="' + player.player_id + '" ' + (isLockout ? 'checked' : '') + ' onchange="checkEditLockoutValidity()"> Locked Out</label>';
-                    html += '</div>';
+html += '<div class="player-hand-row">';
+html += '<label>' + player.username + '</label>';
+html += '<input type="number" id="edit_score_' + player.player_id + '" value="' + (displayScore !== undefined ? displayScore : '') + '" placeholder="Score" oninput="checkEditLockoutValidity()">';
+html += '<label style="display: flex; align-items: center; gap: 5px; margin: 0;"><input type="radio" name="edit_lockout_player" value="' + player.player_id + '" ' + (isLockout ? 'checked' : '') + ' onchange="checkEditLockoutValidity()"> Locked Out</label>';
+html += '</div>';
+
                 }
             }
             
