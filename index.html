@@ -1223,6 +1223,7 @@ const handData = handsToEdit.find(h => String(h.player_id) === String(player.pla
             if (event && event.target) {
                 setButtonLoading(event.target, false);
             }
+        }
 
         function checkEditLockoutValidity() {
             const warningDiv = document.getElementById('editLockoutWarning');
