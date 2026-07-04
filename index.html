@@ -529,16 +529,16 @@
             playerList.innerHTML = html;
         }
 
-        async function addPlayer() {
+async function addPlayer() {
             const username = document.getElementById('newPlayerName').value.trim();
             const messageDiv = document.getElementById('addPlayerMessage');
-            const addBtn = event.target;
             
             if (!username) {
                 messageDiv.innerHTML = '<div class="error">Please enter a player name</div>';
                 return;
             }
             
+            const addBtn = event.target;
             setButtonLoading(addBtn, true);
             
             const data = await apiCall('addPlayer', { username: username, editor_name: username });
@@ -691,14 +691,14 @@
             }
             const tags = selectedTags.join(',');
             const penalty = document.getElementById('falseLockoutPenalty').value.trim();
-            const messageDiv = document.getElementById('sessionMessage');
-            const createBtn = event.target;
+        const messageDiv = document.getElementById('sessionMessage');
             
             if (!title || !hostId || selectedPlayers.length === 0) {
                 messageDiv.innerHTML = '<div class="error">Please fill all required fields</div>';
                 return;
             }
             
+            const createBtn = event.target;
             setButtonLoading(createBtn, true);
             
             const data = await apiCall('createSession', {
@@ -1173,12 +1173,12 @@
                 const player = sessionPlayers[i];
                 const joinHand = getPlayerJoinHand(player.player_id);
                 if (joinHand <= handNumber) {
-                    const handData = handsToEdit.find(h => String(h.player_id) === String(player.player_id));
+const handData = handsToEdit.find(h => String(h.player_id) === String(player.player_id));
                     let displayScore = '';
                     if (handData) {
-                        // If this is the lockout player, show their lockout_score (not the calculated score)
-                        if (lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id) && handData.lockout_score) {
-                            displayScore = handData.lockout_score;
+                        // If this is the lockout player, show their lockout_score (fallback to score if missing)
+                        if (lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id)) {
+                            displayScore = handData.lockout_score ? handData.lockout_score : handData.score;
                         } else {
                             displayScore = handData.score;
                         }
@@ -1415,7 +1415,7 @@
                         hand_number: hand.hand_number,
                         score: hand.score
                     });
-                    if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
                         playerScores[hand.player_id].totalLockouts++;
                         if (hand.false_lockout == 1 || hand.false_lockout === true) {
                             falseLockoutCount++;
@@ -2072,7 +2072,7 @@
                         playerStats[hand.player_id].totalScore += Number(hand.score);
                         playerUniqueHands[hand.player_id].add(Number(hand.hand_number));
                         
-                        if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+                if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
                             playerStats[hand.player_id].totalLockouts++;
                             if (hand.false_lockout == 1 || hand.false_lockout === true) {
                                 playerStats[hand.player_id].falseLockouts++;
