@@ -2408,47 +2408,51 @@ if (h.lockout_score) {
         // PLAYER COMPARISON
         // ============================================
         
-        async function showPlayerComparisonUI() {
-            await ensurePlayersLoaded();
-            
-            const contentDiv = document.getElementById('statsContent');
-            
-            let html = '<h3 style="margin-bottom: 20px;">⚔️ Compare Two Players</h3>';
-            
-            html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">';
-            
-            html += '<div>';
-            html += '<label style="display: block; margin-bottom: 8px; font-weight: 600; color: #667eea;">Player 1</label>';
-            html += '<select id="comparisonPlayer1" style="width: 100%; padding: 12px; border: 2px solid #667eea; border-radius: 8px; font-size: 1em;">';
-            html += '<option value="">Select player...</option>';
-            for (let i = 0; i < allPlayers.length; i++) {
-                html += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
-            }
-            html += '</select>';
-            html += '</div>';
-            
-            html += '<div>';
-            html += '<label style="display: block; margin-bottom: 8px; font-weight: 600; color: #f5576c;">Player 2</label>';
-            html += '<select id="comparisonPlayer2" style="width: 100%; padding: 12px; border: 2px solid #f5576c; border-radius: 8px; font-size: 1em;">';
-            html += '<option value="">Select player...</option>';
-            for (let i = 0; i < allPlayers.length; i++) {
-                html += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
-            }
-            html += '</select>';
-            html += '</div>';
-            
-            html += '</div>';
-            
-            html += '<button class="btn btn-success" onclick="showPlayerComparison()" style="width: 100%;">Compare Players</button>';
-            html += '<button class="btn btn-secondary" onclick="showScreen(\'homeScreen\')" style="width: 100%; margin-top: 10px;">Back to Home</button>';
-            
-            contentDiv.innerHTML = html;
+async function showPlayerComparisonUI() {
+    await ensurePlayersLoaded();
+    
+    const contentDiv = document.getElementById('statsContent');
+    
+    let html = '<h3 style="margin-bottom: 20px;">⚔️ Compare Two Players</h3>';
+    
+    html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">';
+    
+    html += '<div>';
+    html += '<label style="display: block; margin-bottom: 8px; font-weight: 600; color: #667eea;">Player 1</label>';
+    html += '<select id="comparisonPlayer1" style="width: 100%; padding: 12px; border: 2px solid #667eea; border-radius: 8px; font-size: 1em;">';
+    html += '<option value="">Select player...</option>';
+    for (let i = 0; i < allPlayers.length; i++) {
+        html += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
+    }
+    html += '</select>';
+    html += '</div>';
+    
+    html += '<div>';
+    html += '<label style="display: block; margin-bottom: 8px; font-weight: 600; color: #f5576c;">Player 2</label>';
+    html += '<select id="comparisonPlayer2" style="width: 100%; padding: 12px; border: 2px solid #f5576c; border-radius: 8px; font-size: 1em;">';
+    html += '<option value="">Select player...</option>';
+    for (let i = 0; i < allPlayers.length; i++) {
+        html += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
+    }
+    html += '</select>';
+    html += '</div>';
+    
+    html += '</div>';
+    
+    html += '<button class="btn btn-success" id="comparePlayersBtn" style="width: 100%;">Compare Players</button>';
+    html += '<button class="btn btn-secondary" onclick="showScreen(\'homeScreen\')" style="width: 100%; margin-top: 10px;">Back to Home</button>';
+    
+    contentDiv.innerHTML = html;
+    
+    // Add event listener after HTML is inserted
+    setTimeout(function() {
+        const btn = document.getElementById('comparePlayersBtn');
+        if (btn) {
+            btn.addEventListener('click', showPlayerComparison);
         }
+    }, 50);
+}
 
-                async function showPlayerComparisonUI() {
-            // ... existing code ...
-        }
-        
         async function showPlayerComparison() {
             await ensurePlayersLoaded();
             
