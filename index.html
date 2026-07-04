@@ -1420,12 +1420,16 @@ async function deleteHand(handNumber, event) {
         // ============================================
         // ACTIVE SESSION SCORING & CHARTS
         // ============================================
-        async function updateSessionScores() {
+async function updateSessionScores() {
             document.getElementById('sessionScores').innerHTML = '<div class="loading">Calculating scores...</div>';
+            document.getElementById('handHistorySection').style.display = 'block';
+            document.getElementById('handHistoryList').innerHTML = '<div class="loading">Loading hand history...</div>';
+            
             const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
             if (handsData.error) return;
             
             displayHandHistory();
+
             
             const playerScores = {};
             let totalLockoutScore = 0;
