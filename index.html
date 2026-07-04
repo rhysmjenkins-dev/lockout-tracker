@@ -1107,6 +1107,63 @@ let lockoutValidityTimeout;
             }, 300);
         }
         
+function performLockoutValidation(warningDivId, radioName, handNumber) {
+    const warningDiv = document.getElementById(warningDivId);
+    const lockoutRadio = document.querySelector('input[name="' + radioName + '"]:checked');
+    
+    if (!lockoutRadio) {
+        warningDiv.style.display = 'none';
+        return;
+    }
+    
+    const lockoutPlayerId = lockoutRadio.value;
+    const scores = [];
+    let allScoresEntered = true;
+    
+    for (let i = 0; i < sessionPlayers.length; i++) {
+        const player = sessionPlayers[i];
+        const joinHand = getPlayerJoinHand(player.player_id);
+        if (joinHand <= handNumber) {
+            const scoreInput = document.getElementById((warningDivId === 'editLockoutWarning' ? 'edit_' : '') + 'score_' + player.player_id);
+            const scoreVal = scoreInput.value.trim();
+            if (scoreVal === '') {
+                allScoresEntered = false;
+                break;
+            }
+            scores.push({ player_id: player.player_id, score: parseFloat(scoreVal) });
+        }
+    }
+    
+    if (!allScoresEntered) {
+        warningDiv.style.display = 'none';
+        return;
+    }
+    
+    const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+    const lowestScore = Math.min(...scores.map(s => s.score));
+    const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
+    const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
+    
+    const isFalseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
+    
+    if (isFalseLockout) {
+        let warningMessage = '<strong>⚠️ Warning:</strong> ';
+        if (lockoutPlayerScore > 5) {
+            warningMessage += getPlayerName(lockoutPlayerId) + ' has a score of ' + lockoutPlayerScore + ' (max allowed: 5). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+        } else if (lockoutPlayerScore > lowestScore) {
+            const lowestPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
+            warningMessage += getPlayerName(lockoutPlayerId) + ' does NOT have the lowest score. ' + lowestPlayers + ' has the lowest (' + lowestScore + '). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+        } else if (playersWithLowestScore.length > 1) {
+            const tiedPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
+            warningMessage += getPlayerName(lockoutPlayerId) + ' is TIED for lowest score with ' + tiedPlayers + '. This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+        }
+        warningDiv.innerHTML = warningMessage;
+        warningDiv.style.display = 'block';
+    } else {
+        warningDiv.style.display = 'none';
+    }
+}
+        
         function performLockoutValidation(warningDivId, radioName, handNumber) {
             const warningDiv = document.getElementById(warningDivId);
             const lockoutRadio = document.querySelector('input[name="' + radioName + '"]:checked');
