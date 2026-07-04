@@ -1266,10 +1266,13 @@ const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(locko
             const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
             const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
             
-            // False lockout if: score > 5 OR not strictly lowest
-            let falseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
+            const isFalseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
+            
+            if (isFalseLockout) {
                 let warningMessage = '<strong>⚠️ Warning:</strong> ';
-                if (lockoutPlayerScore > lowestScore) {
+                if (lockoutPlayerScore > 5) {
+                    warningMessage += getPlayerName(lockoutPlayerId) + ' has a score of ' + lockoutPlayerScore + ' (max allowed: 5). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+                } else if (lockoutPlayerScore > lowestScore) {
                     const lowestPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
                     warningMessage += getPlayerName(lockoutPlayerId) + ' does NOT have the lowest score. ' + lowestPlayers + ' has the lowest (' + lowestScore + '). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
                 } else if (playersWithLowestScore.length > 1) {
