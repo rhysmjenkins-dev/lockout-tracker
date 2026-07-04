@@ -1046,13 +1046,13 @@ currentSession = {
                         // False lockout: score = lockout score + penalty
                         scores[i].score = lockoutScoreValue + penalty;
                     } else {
-                        // Successful lockout: keep original score (can be negative)
-                        scores[i].score = lockoutScoreValue;
+                        // Successful lockout: 0 if positive, keep if negative
+                        scores[i].score = lockoutScoreValue < 0 ? lockoutScoreValue : 0;
                     }
                     break;
                 }
             }
-            
+
             const comment = document.getElementById('handComment').value.trim();
             let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
             const data = await apiCall('addHand', {
@@ -1332,18 +1332,18 @@ const handData = handsToEdit.find(h => String(h.player_id) === String(player.pla
             
             const lockoutScoreValue = lockoutPlayerScore;
             
-            // Adjust lockout player's score
+// Adjust lockout player's score
             for (let i = 0; i < scores.length; i++) {
                 if (String(scores[i].player_id) === String(lockoutPlayerId)) {
                     if (falseLockout) {
                         scores[i].score = lockoutScoreValue + penalty;
                     } else {
-                        scores[i].score = lockoutScoreValue;
+                        // Successful lockout: 0 if positive, keep if negative
+                        scores[i].score = lockoutScoreValue < 0 ? lockoutScoreValue : 0;
                     }
                     break;
                 }
             }
-            
             const comment = document.getElementById('editHandComment').value.trim();
             let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
             const data = await apiCall('updateHand', {
