@@ -714,7 +714,7 @@ async function addPlayer() {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
                 setButtonLoading(createBtn, false);
             } else {
-                currentSession = { 
+currentSession = { 
                     session_id: data.session_id, 
                     title: title, 
                     host_player_id: hostId,
@@ -731,6 +731,12 @@ async function addPlayer() {
                     }
                 }
                 currentHandNumber = 1;
+                
+                // Clear any previous session UI state
+                document.getElementById('sessionScores').innerHTML = '';
+                document.getElementById('handHistorySection').style.display = 'none';
+                document.getElementById('activeSessionCharts').innerHTML = '';
+                
                 showActiveSession();
                 setButtonLoading(createBtn, false);
             }
