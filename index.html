@@ -2309,11 +2309,15 @@ if (h.lockout_score) {
         // ============================================
         
         async function showHeadToHead() {
-            await ensurePlayersLoaded();
-            
+            // Show stats screen with loading placeholder immediately
             const contentDiv = document.getElementById('statsContent');
             contentDiv.innerHTML = '<div class="loading">Loading head-to-head records...</div>';
+            showScreen('statsScreen');
             
+            // Ensure players are loaded
+            await ensurePlayersLoaded();
+            
+            // Fetch data
             const data = await apiCall('getHeadToHeadMatrix', {});
             
             if (data.error) {
@@ -2322,7 +2326,7 @@ if (h.lockout_score) {
             }
             
             if (data.length === 0) {
-                contentDiv.innerHTML = '<div class="placeholder-content"><h3>Not Enough Data</h3><p>Play more sessions to see head-to-head records!</p></div>';
+                contentDiv.innerHTML = '<div class="placeholder-content"><h3>Not Enough Data</h3><p>Play more sessions to see head-to-head records!</p><button class="btn btn-secondary" onclick="showScreen(\'homeScreen\')">Back to Home</button></div>';
                 return;
             }
             
@@ -2331,11 +2335,10 @@ if (h.lockout_score) {
                 return b.sessions_together - a.sessions_together;
             });
             
-            let html = '<div class="card">';
-            html += '<h2>⚔️ Head-to-Head Records</h2>';
+            let html = '<h2>⚔️ Head-to-Head Records</h2>';
             html += '<p style="color: #666; margin-bottom: 20px;">Direct records when playing in the same session</p>';
             
-            html += '<div style="display: grid; gap: 15px;">';
+            html += '<div style="display: grid; gap: 15px; margin-bottom: 20px;">';
             
             for (let i = 0; i < data.length; i++) {
                 const m = data[i];
@@ -2379,10 +2382,8 @@ if (h.lockout_score) {
             
             html += '</div>';
             html += '<button class="btn btn-secondary" onclick="showScreen(\'homeScreen\')">Back to Home</button>';
-            html += '</div>';
             
             contentDiv.innerHTML = html;
-            showScreen('statsScreen');
         }
 
         // ============================================
