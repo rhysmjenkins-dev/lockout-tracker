@@ -2393,588 +2393,6 @@ if (h.lockout_score) {
             contentDiv.innerHTML = html;
         }
 
-                async function showPlayerComparison() {
-            await ensurePlayersLoaded();
-            
-            const contentDiv = document.getElementById('statsContent');
-            contentDiv.innerHTML = '<div class="loading">Loading comparison...</div>';
-            showScreen('statsScreen');
-            
-            // Get selected players
-            const p1Select = document.getElementById('comparisonPlayer1');
-            const p2Select = document.getElementById('comparisonPlayer2');
-            
-            if (!p1Select || !p2Select) {
-                contentDiv.innerHTML = '<div class="error">Error: Dropdowns not found. Please try again.</div>';
-                return;
-            }
-            
-            const p1Id = p1Select.value;
-            const p2Id = p2Select.value;
-            
-            if (!p1Id || !p2Id) {
-                contentDiv.innerHTML = '<div class="error">Please select two players</div>';
-                return;
-            }
-            
-            if (p1Id === p2Id) {
-                contentDiv.innerHTML = '<div class="error">Please select two different players</div>';
-                return;
-            }
-            
-            const data = await apiCall('getPlayerComparison', {
-                player1_id: p1Id,
-                player2_id: p2Id
-            });
-            
-            if (data.error) {
-                contentDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-                return;
-            }
-            
-            const p1Name = getPlayerName(p1Id);
-            const p2Name = getPlayerName(p2Id);
-            
-            let html = '';
-            
-            // ============================================
-            // DROPDOWNS AT TOP
-            // ============================================
-            html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px;">';
-            
-            html += '<div>';
-            html += '<label style="display: block; margin-bottom: 8px; font-weight: 600; color: #667eea;">Player 1</label>';
-            html += '<select id="comparisonPlayer1" style="width: 100%; padding: 12px; border: 2px solid #667eea; border-radius: 8px; font-size: 1em;">';
-            html += '<option value="">Select player...</option>';
-            for (let i = 0; i < allPlayers.length; i++) {
-                const selected = String(allPlayers[i].player_id) === String(p1Id) ? ' selected' : '';
-                html += '<option value="' + allPlayers[i].player_id + '"' + selected + '>' + allPlayers[i].username + '</option>';
-            }
-            html += '</select>';
-            html += '</div>';
-            
-            html += '<div>';
-            html += '<label style="display: block; margin-bottom: 8px; font-weight: 600; color: #f5576c;">Player 2</label>';
-            html += '<select id="comparisonPlayer2" style="width: 100%; padding: 12px; border: 2px solid #f5576c; border-radius: 8px; font-size: 1em;">';
-            html += '<option value="">Select player...</option>';
-            for (let i = 0; i < allPlayers.length; i++) {
-                const selected = String(allPlayers[i].player_id) === String(p2Id) ? ' selected' : '';
-                html += '<option value="' + allPlayers[i].player_id + '"' + selected + '>' + allPlayers[i].username + '</option>';
-            }
-            html += '</select>';
-            html += '</div>';
-            
-            html += '</div>';
-            
-            html += '<button class="btn btn-success" onclick="showPlayerComparison()" style="margin-bottom: 30px; width: 100%;">Compare</button>';
-            
-            // ============================================
-            // SESSIONS TOGETHER SECTION
-            // ============================================
-            html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #667eea;">';
-            
-            html += '<h3 style="color: #667eea; margin-bottom: 20px;">📊 Sessions Together</h3>';
-            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">Direct record when both players participated in the same session</p>';
-            
-            const ts = data.sessions_together_stats;
-            
-            if (ts.total_sessions === 0) {
-                html += '<div style="background: white; padding: 15px; border-radius: 6px; color: #666; text-align: center;">';
-                html += 'These players have never played together';
-                html += '</div>';
-            } else {
-                // Record and win rates
-                html += '<div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">';
-                
-                html += '<div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: center; margin-bottom: 20px;">';
-                
-                // Player 1 stats
-                html += '<div style="text-align: center;">';
-                html += '<div style="font-size: 2em; font-weight: bold; color: #667eea; margin-bottom: 5px;">' + ts.p1_wins + '</div>';
-                html += '<div style="color: #666; font-size: 0.9em;">Wins</div>';
-                html += '<div style="color: #667eea; font-weight: 600; font-size: 1.1em; margin-top: 8px;">' + ts.p1_win_rate + '%</div>';
-                html += '</div>';
-                
-                // Record in middle
-                html += '<div style="text-align: center;">';
-                html += '<div style="font-size: 1.8em; font-weight: bold; color: #333;">' + ts.p1_wins + '-' + ts.p2_wins;
-                if (ts.ties > 0) html += '-' + ts.ties;
-                html += '</div>';
-                html += '<div style="color: #666; font-size: 0.85em; margin-top: 5px;">' + ts.total_sessions + ' session' + (ts.total_sessions > 1 ? 's' : '') + '</div>';
-                html += '</div>';
-                
-                // Player 2 stats
-                html += '<div style="text-align: center;">';
-                html += '<div style="font-size: 2em; font-weight: bold; color: #f5576c; margin-bottom: 5px;">' + ts.p2_wins + '</div>';
-                html += '<div style="color: #666; font-size: 0.9em;">Wins</div>';
-                html += '<div style="color: #f5576c; font-weight: 600; font-size: 1.1em; margin-top: 8px;">' + ts.p2_win_rate + '%</div>';
-                html += '</div>';
-                
-                html += '</div>';
-                
-                // Performance metrics
-                html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">';
-                
-                html += '<div style="background: #f0f4ff; padding: 12px; border-radius: 6px;">';
-                html += '<div style="font-size: 0.85em; color: #667eea; font-weight: 600; margin-bottom: 5px;">Avg Score</div>';
-                html += '<div style="font-size: 1.2em; font-weight: bold; color: #667eea;">' + ts.p1_avg_score + '</div>';
-                html += '</div>';
-                
-                html += '<div style="background: #ffe8ec; padding: 12px; border-radius: 6px;">';
-                html += '<div style="font-size: 0.85em; color: #f5576c; font-weight: 600; margin-bottom: 5px;">Avg Score</div>';
-                html += '<div style="font-size: 1.2em; font-weight: bold; color: #f5576c;">' + ts.p2_avg_score + '</div>';
-                html += '</div>';
-                
-                html += '</div>';
-                
-                // Context - best/worst with
-                if (ts.best_with || ts.worst_with) {
-                    html += '<div style="background: white; padding: 15px; border-radius: 6px; border-top: 1px solid #ddd; margin-bottom: 20px;">';
-                    
-                    if (ts.best_with) {
-                        html += '<div style="margin-bottom: 10px;">';
-                        html += '<div style="font-size: 0.85em; color: #4caf50; font-weight: 600; margin-bottom: 3px;">✅ Best with</div>';
-                        html += '<div style="color: #333;">' + getPlayerName(ts.best_with.player_id) + ' (' + ts.best_with.wins + '-' + (ts.best_with.total - ts.best_with.wins) + ')</div>';
-                        html += '</div>';
-                    }
-                    
-                    if (ts.worst_with) {
-                        html += '<div>';
-                        html += '<div style="font-size: 0.85em; color: #f44336; font-weight: 600; margin-bottom: 3px;">❌ Worst with</div>';
-                        html += '<div style="color: #333;">' + getPlayerName(ts.worst_with.player_id) + ' (' + ts.worst_with.wins + '-' + (ts.worst_with.total - ts.worst_with.wins) + ')</div>';
-                        html += '</div>';
-                    }
-                    
-                    html += '</div>';
-                }
-                
-                // Session-by-session breakdown
-                html += '<div style="background: white; padding: 15px; border-radius: 6px; border-top: 1px solid #ddd;">';
-                html += '<h4 style="color: #667eea; margin-bottom: 12px; font-size: 0.95em;">Session-by-Session</h4>';
-                
-                for (let i = data.sessions_together.length - 1; i >= 0; i--) {
-                    const s = data.sessions_together[i];
-                    const winner = s.p1_won ? p1Name : s.p2_won ? p2Name : 'Tie';
-                    const winnerColor = s.p1_won ? '#667eea' : s.p2_won ? '#f5576c' : '#ff9800';
-                    
-                    html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f8f9fa; border-radius: 4px; margin-bottom: 8px;">';
-                    html += '<div style="flex: 1;">';
-                    html += '<div style="font-weight: 600; color: #333;">' + s.title + '</div>';
-                    html += '<div style="font-size: 0.85em; color: #666;">' + s.date.split(' ')[0] + '</div>';
-                    html += '</div>';
-                    html += '<div style="text-align: right;">';
-                    html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1.1em;">' + winner + '</div>';
-                    html += '<div style="font-size: 0.85em; color: #666;">' + p1Name + ' ' + s.p1_score + ' | ' + p2Name + ' ' + s.p2_score + '</div>';
-                    html += '</div>';
-                    html += '</div>';
-                }
-                
-                html += '</div>';
-            }
-            
-            html += '</div>';
-            
-            // ============================================
-            // ALL SESSIONS SECTION
-            // ============================================
-            html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #f5576c;">';
-            
-            html += '<h3 style="color: #f5576c; margin-bottom: 20px;">📊 All Sessions</h3>';
-            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">Overall record across all sessions each player participated in</p>';
-            
-            const as1 = data.all_sessions_stats.player1;
-            const as2 = data.all_sessions_stats.player2;
-            
-            // Player 1 stats
-            html += '<div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">';
-            
-            html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">';
-            html += '<div>';
-            html += '<div style="font-size: 1.3em; font-weight: bold; color: #667eea; margin-bottom: 5px;">' + p1Name + '</div>';
-            html += '<div style="font-size: 2em; font-weight: bold; color: #333; margin-bottom: 5px;">' + as1.wins + '-' + as1.losses;
-            if (as1.ties > 0) html += '-' + as1.ties;
-            html += '</div>';
-            html += '<div style="color: #666; font-size: 0.9em;">Record (' + as1.total_sessions + ' sessions)</div>';
-            html += '</div>';
-            html += '<div style="text-align: right;">';
-            html += '<div style="font-size: 1.8em; font-weight: bold; color: #667eea;">' + as1.win_rate + '%</div>';
-            html += '<div style="color: #666; font-size: 0.9em;">Win Rate</div>';
-            html += '</div>';
-            html += '</div>';
-            
-            html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">';
-            
-            html += '<div style="background: #f0f4ff; padding: 12px; border-radius: 6px;">';
-            html += '<div style="font-size: 0.85em; color: #667eea; font-weight: 600; margin-bottom: 5px;">Avg Score</div>';
-            html += '<div style="font-size: 1.2em; font-weight: bold; color: #667eea;">' + as1.avg_score + '</div>';
-            html += '</div>';
-            
-            html += '</div>';
-            
-            html += '</div>';
-            
-            // Player 2 stats
-            html += '<div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">';
-            
-            html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">';
-            html += '<div>';
-            html += '<div style="font-size: 1.3em; font-weight: bold; color: #f5576c; margin-bottom: 5px;">' + p2Name + '</div>';
-            html += '<div style="font-size: 2em; font-weight: bold; color: #333; margin-bottom: 5px;">' + as2.wins + '-' + as2.losses;
-            if (as2.ties > 0) html += '-' + as2.ties;
-            html += '</div>';
-            html += '<div style="color: #666; font-size: 0.9em;">Record (' + as2.total_sessions + ' sessions)</div>';
-            html += '</div>';
-            html += '<div style="text-align: right;">';
-            html += '<div style="font-size: 1.8em; font-weight: bold; color: #f5576c;">' + as2.win_rate + '%</div>';
-            html += '<div style="color: #666; font-size: 0.9em;">Win Rate</div>';
-            html += '</div>';
-            html += '</div>';
-            
-            html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">';
-            
-            html += '<div style="background: #ffe8ec; padding: 12px; border-radius: 6px;">';
-            html += '<div style="font-size: 0.85em; color: #f5576c; font-weight: 600; margin-bottom: 5px;">Avg Score</div>';
-            html += '<div style="font-size: 1.2em; font-weight: bold; color: #f5576c;">' + as2.avg_score + '</div>';
-            html += '</div>';
-            
-            html += '</div>';
-            
-            html += '</div>';
-            
-            // All sessions breakdown
-            html += '<div style="background: white; padding: 15px; border-radius: 6px; border-top: 1px solid #ddd;">';
-            html += '<h4 style="color: #f5576c; margin-bottom: 12px; font-size: 0.95em;">Session-by-Session</h4>';
-            
-            // Merge and sort all sessions by date
-            const allSessions = [];
-            for (let i = 0; i < data.all_sessions_player1.length; i++) {
-                allSessions.push({
-                    ...data.all_sessions_player1[i],
-                    player: 'p1'
-                });
-            }
-            for (let i = 0; i < data.all_sessions_player2.length; i++) {
-                allSessions.push({
-                    ...data.all_sessions_player2[i],
-                    player: 'p2'
-                });
-            }
-            
-            allSessions.sort(function(a, b) {
-                return new Date(b.date) - new Date(a.date);
-            });
-            
-            for (let i = 0; i < allSessions.length; i++) {
-                const s = allSessions[i];
-                const isP1 = s.player === 'p1';
-                const playerName = isP1 ? p1Name : p2Name;
-                const playerColor = isP1 ? '#667eea' : '#f5576c';
-                const winner = isP1 ? (s.p1_won ? 'Won' : 'Lost') : (s.p2_won ? 'Won' : 'Lost');
-                const winnerColor = (isP1 && s.p1_won) || (!isP1 && s.p2_won) ? '#4caf50' : '#f44336';
-                const score = isP1 ? s.p1_score : s.p2_score;
-                
-                html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f8f9fa; border-radius: 4px; margin-bottom: 8px; border-left: 3px solid ' + playerColor + ';">';
-                html += '<div style="flex: 1;">';
-                html += '<div style="font-weight: 600; color: #333;">' + s.title + '</div>';
-                html += '<div style="font-size: 0.85em; color: #666;">' + s.date.split(' ')[0] + '</div>';
-                html += '</div>';
-                html += '<div style="text-align: right;">';
-                html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1.1em;">' + winner + '</div>';
-                html += '<div style="font-size: 0.85em; color: #666;">Score: ' + score + '</div>';
-                html += '</div>';
-                html += '</div>';
-            }
-            
-            html += '</div>';
-            
-            html += '</div>';
-            
-            html += '<button class="btn btn-secondary" onclick="showScreen(\'homeScreen\')">Back to Home</button>';
-            
-            contentDiv.innerHTML = html;
-        }
-
-        async function showPlayerComparison() {
-            await ensurePlayersLoaded();
-            
-            const contentDiv = document.getElementById('statsContent');
-            
-            // Get selected players BEFORE clearing the screen
-            const p1Select = document.getElementById('comparisonPlayer1');
-            const p2Select = document.getElementById('comparisonPlayer2');
-            
-            if (!p1Select || !p2Select) {
-                contentDiv.innerHTML = '<div class="error">Error: Please select players from the dropdowns above.</div>';
-                return;
-            }
-            
-            const p1Id = p1Select.value;
-            const p2Id = p2Select.value;
-            
-            if (!p1Id || !p2Id) {
-                contentDiv.innerHTML = '<div class="error">Please select two players</div>';
-                return;
-            }
-            
-            if (p1Id === p2Id) {
-                contentDiv.innerHTML = '<div class="error">Please select two different players</div>';
-                return;
-            }
-            
-            // Show loading AFTER getting values
-            contentDiv.innerHTML = '<div class="loading">Loading comparison...</div>';
-            showScreen('statsScreen');
-            
-            const data = await apiCall('getPlayerComparison', {
-                player1_id: p1Id,
-                player2_id: p2Id
-            });
-            
-            if (data.error) {
-                contentDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-                return;
-            }
-            
-            const p1Name = getPlayerName(p1Id);
-            const p2Name = getPlayerName(p2Id);
-            
-            let html = '';
-            
-            // ============================================
-            // COMPARISON HEADER
-            // ============================================
-            html += '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center;">';
-            html += '<h2 style="color: white; margin: 0; font-size: 1.8em;">' + p1Name + ' vs ' + p2Name + '</h2>';
-            html += '</div>';
-            
-            html += '<button class="btn btn-info" onclick="showPlayerComparisonUI()" style="margin-bottom: 30px; width: 100%;">← Change Players</button>';
-            
-            // ============================================
-            // SESSIONS TOGETHER SECTION
-            // ============================================
-            html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #667eea;">';
-            
-            html += '<h3 style="color: #667eea; margin-bottom: 20px;">📊 Sessions Together</h3>';
-            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">Direct record when both players participated in the same session</p>';
-            
-            const ts = data.sessions_together_stats;
-            
-            if (ts.total_sessions === 0) {
-                html += '<div style="background: white; padding: 15px; border-radius: 6px; color: #666; text-align: center;">';
-                html += 'These players have never played together';
-                html += '</div>';
-            } else {
-                // Record and win rates
-                html += '<div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">';
-                
-                html += '<div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: center; margin-bottom: 20px;">';
-                
-                // Player 1 stats
-                html += '<div style="text-align: center;">';
-                html += '<div style="font-size: 2em; font-weight: bold; color: #667eea; margin-bottom: 5px;">' + ts.p1_wins + '</div>';
-                html += '<div style="color: #666; font-size: 0.9em;">Wins</div>';
-                html += '<div style="color: #667eea; font-weight: 600; font-size: 1.1em; margin-top: 8px;">' + ts.p1_win_rate + '%</div>';
-                html += '</div>';
-                
-                // Record in middle
-                html += '<div style="text-align: center;">';
-                html += '<div style="font-size: 1.8em; font-weight: bold; color: #333;">' + ts.p1_wins + '-' + ts.p2_wins;
-                if (ts.ties > 0) html += '-' + ts.ties;
-                html += '</div>';
-                html += '<div style="color: #666; font-size: 0.85em; margin-top: 5px;">' + ts.total_sessions + ' session' + (ts.total_sessions > 1 ? 's' : '') + '</div>';
-                html += '</div>';
-                
-                // Player 2 stats
-                html += '<div style="text-align: center;">';
-                html += '<div style="font-size: 2em; font-weight: bold; color: #f5576c; margin-bottom: 5px;">' + ts.p2_wins + '</div>';
-                html += '<div style="color: #666; font-size: 0.9em;">Wins</div>';
-                html += '<div style="color: #f5576c; font-weight: 600; font-size: 1.1em; margin-top: 8px;">' + ts.p2_win_rate + '%</div>';
-                html += '</div>';
-                
-                html += '</div>';
-                
-                // Performance metrics
-                html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">';
-                
-                html += '<div style="background: #f0f4ff; padding: 12px; border-radius: 6px;">';
-                html += '<div style="font-size: 0.85em; color: #667eea; font-weight: 600; margin-bottom: 5px;">Avg Score</div>';
-                html += '<div style="font-size: 1.2em; font-weight: bold; color: #667eea;">' + ts.p1_avg_score + '</div>';
-                html += '</div>';
-                
-                html += '<div style="background: #ffe8ec; padding: 12px; border-radius: 6px;">';
-                html += '<div style="font-size: 0.85em; color: #f5576c; font-weight: 600; margin-bottom: 5px;">Avg Score</div>';
-                html += '<div style="font-size: 1.2em; font-weight: bold; color: #f5576c;">' + ts.p2_avg_score + '</div>';
-                html += '</div>';
-                
-                html += '</div>';
-                
-                // Context - best/worst with
-                if (ts.best_with || ts.worst_with) {
-                    html += '<div style="background: white; padding: 15px; border-radius: 6px; border-top: 1px solid #ddd; margin-bottom: 20px;">';
-                    
-                    if (ts.best_with) {
-                        html += '<div style="margin-bottom: 10px;">';
-                        html += '<div style="font-size: 0.85em; color: #4caf50; font-weight: 600; margin-bottom: 3px;">✅ Best with</div>';
-                        html += '<div style="color: #333;">' + getPlayerName(ts.best_with.player_id) + ' (' + ts.best_with.wins + '-' + (ts.best_with.total - ts.best_with.wins) + ')</div>';
-                        html += '</div>';
-                    }
-                    
-                    if (ts.worst_with) {
-                        html += '<div>';
-                        html += '<div style="font-size: 0.85em; color: #f44336; font-weight: 600; margin-bottom: 3px;">❌ Worst with</div>';
-                        html += '<div style="color: #333;">' + getPlayerName(ts.worst_with.player_id) + ' (' + ts.worst_with.wins + '-' + (ts.worst_with.total - ts.worst_with.wins) + ')</div>';
-                        html += '</div>';
-                    }
-                    
-                    html += '</div>';
-                }
-                
-                // Session-by-session breakdown
-                html += '<div style="background: white; padding: 15px; border-radius: 6px; border-top: 1px solid #ddd;">';
-                html += '<h4 style="color: #667eea; margin-bottom: 12px; font-size: 0.95em;">Session-by-Session</h4>';
-                
-                for (let i = data.sessions_together.length - 1; i >= 0; i--) {
-                    const s = data.sessions_together[i];
-                    const winner = s.p1_won ? p1Name : s.p2_won ? p2Name : 'Tie';
-                    const winnerColor = s.p1_won ? '#667eea' : s.p2_won ? '#f5576c' : '#ff9800';
-                    
-                    html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f8f9fa; border-radius: 4px; margin-bottom: 8px;">';
-                    html += '<div style="flex: 1;">';
-                    html += '<div style="font-weight: 600; color: #333;">' + s.title + '</div>';
-                    html += '<div style="font-size: 0.85em; color: #666;">' + s.date.split(' ')[0] + '</div>';
-                    html += '</div>';
-                    html += '<div style="text-align: right;">';
-                    html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1.1em;">' + winner + '</div>';
-                    html += '<div style="font-size: 0.85em; color: #666;">' + p1Name + ' ' + s.p1_score + ' | ' + p2Name + ' ' + s.p2_score + '</div>';
-                    html += '</div>';
-                    html += '</div>';
-                }
-                
-                html += '</div>';
-            }
-            
-            html += '</div>';
-            
-            // ============================================
-            // ALL SESSIONS SECTION
-            // ============================================
-            html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #f5576c;">';
-            
-            html += '<h3 style="color: #f5576c; margin-bottom: 20px;">📊 All Sessions</h3>';
-            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">Overall record across all sessions each player participated in</p>';
-            
-            const as1 = data.all_sessions_stats.player1;
-            const as2 = data.all_sessions_stats.player2;
-            
-            // Player 1 stats
-            html += '<div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">';
-            
-            html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">';
-            html += '<div>';
-            html += '<div style="font-size: 1.3em; font-weight: bold; color: #667eea; margin-bottom: 5px;">' + p1Name + '</div>';
-            html += '<div style="font-size: 2em; font-weight: bold; color: #333; margin-bottom: 5px;">' + as1.wins + '-' + as1.losses;
-            if (as1.ties > 0) html += '-' + as1.ties;
-            html += '</div>';
-            html += '<div style="color: #666; font-size: 0.9em;">Record (' + as1.total_sessions + ' sessions)</div>';
-            html += '</div>';
-            html += '<div style="text-align: right;">';
-            html += '<div style="font-size: 1.8em; font-weight: bold; color: #667eea;">' + as1.win_rate + '%</div>';
-            html += '<div style="color: #666; font-size: 0.9em;">Win Rate</div>';
-            html += '</div>';
-            html += '</div>';
-            
-            html += '<div style="display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 20px;">';
-            
-            html += '<div style="background: #f0f4ff; padding: 12px; border-radius: 6px;">';
-            html += '<div style="font-size: 0.85em; color: #667eea; font-weight: 600; margin-bottom: 5px;">Avg Score</div>';
-            html += '<div style="font-size: 1.2em; font-weight: bold; color: #667eea;">' + as1.avg_score + '</div>';
-            html += '</div>';
-            
-            html += '</div>';
-            
-            html += '</div>';
-            
-            // Player 2 stats
-            html += '<div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">';
-            
-            html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">';
-            html += '<div>';
-            html += '<div style="font-size: 1.3em; font-weight: bold; color: #f5576c; margin-bottom: 5px;">' + p2Name + '</div>';
-            html += '<div style="font-size: 2em; font-weight: bold; color: #333; margin-bottom: 5px;">' + as2.wins + '-' + as2.losses;
-            if (as2.ties > 0) html += '-' + as2.ties;
-            html += '</div>';
-            html += '<div style="color: #666; font-size: 0.9em;">Record (' + as2.total_sessions + ' sessions)</div>';
-            html += '</div>';
-            html += '<div style="text-align: right;">';
-            html += '<div style="font-size: 1.8em; font-weight: bold; color: #f5576c;">' + as2.win_rate + '%</div>';
-            html += '<div style="color: #666; font-size: 0.9em;">Win Rate</div>';
-            html += '</div>';
-            html += '</div>';
-            
-            html += '<div style="display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 20px;">';
-            
-            html += '<div style="background: #ffe8ec; padding: 12px; border-radius: 6px;">';
-            html += '<div style="font-size: 0.85em; color: #f5576c; font-weight: 600; margin-bottom: 5px;">Avg Score</div>';
-            html += '<div style="font-size: 1.2em; font-weight: bold; color: #f5576c;">' + as2.avg_score + '</div>';
-            html += '</div>';
-            
-            html += '</div>';
-            
-            html += '</div>';
-            
-            // All sessions breakdown
-            html += '<div style="background: white; padding: 15px; border-radius: 6px; border-top: 1px solid #ddd;">';
-            html += '<h4 style="color: #f5576c; margin-bottom: 12px; font-size: 0.95em;">Session-by-Session</h4>';
-            
-            // Merge and sort all sessions by date
-            const allSessions = [];
-            for (let i = 0; i < data.all_sessions_player1.length; i++) {
-                allSessions.push({
-                    ...data.all_sessions_player1[i],
-                    player: 'p1'
-                });
-            }
-            for (let i = 0; i < data.all_sessions_player2.length; i++) {
-                allSessions.push({
-                    ...data.all_sessions_player2[i],
-                    player: 'p2'
-                });
-            }
-            
-            allSessions.sort(function(a, b) {
-                return new Date(b.date) - new Date(a.date);
-            });
-            
-            for (let i = 0; i < allSessions.length; i++) {
-                const s = allSessions[i];
-                const isP1 = s.player === 'p1';
-                const playerName = isP1 ? p1Name : p2Name;
-                const playerColor = isP1 ? '#667eea' : '#f5576c';
-                const winner = isP1 ? (s.p1_won ? 'Won' : 'Lost') : (s.p2_won ? 'Won' : 'Lost');
-                const winnerColor = (isP1 && s.p1_won) || (!isP1 && s.p2_won) ? '#4caf50' : '#f44336';
-                const score = isP1 ? s.p1_score : s.p2_score;
-                
-                html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f8f9fa; border-radius: 4px; margin-bottom: 8px; border-left: 3px solid ' + playerColor + ';">';
-                html += '<div style="flex: 1;">';
-                html += '<div style="font-weight: 600; color: #333;">' + s.title + '</div>';
-                html += '<div style="font-size: 0.85em; color: #666;">' + s.date.split(' ')[0] + '</div>';
-                html += '</div>';
-                html += '<div style="text-align: right;">';
-                html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1.1em;">' + winner + '</div>';
-                html += '<div style="font-size: 0.85em; color: #666;">Score: ' + score + '</div>';
-                html += '</div>';
-                html += '</div>';
-            }
-            
-            html += '</div>';
-            
-            html += '</div>';
-            
-            html += '<button class="btn btn-secondary" onclick="showScreen(\'homeScreen\')">Back to Home</button>';
-            
-            contentDiv.innerHTML = html;
-        }
-
                 async function showOverallStats() {
             const contentDiv = document.getElementById('statsContent');
             contentDiv.innerHTML = '<div class="loading">Loading overall stats...</div>';
@@ -3026,6 +2444,195 @@ if (h.lockout_score) {
             
             contentDiv.innerHTML = html;
         }
+
+                async function showPlayerComparisonUI() {
+            // ... existing code ...
+        }
+        
+        async function showPlayerComparison() {
+            await ensurePlayersLoaded();
+            
+            const contentDiv = document.getElementById('statsContent');
+            
+            // Get selected players BEFORE clearing the screen
+            const p1Select = document.getElementById('comparisonPlayer1');
+            const p2Select = document.getElementById('comparisonPlayer2');
+            
+            if (!p1Select || !p2Select) {
+                contentDiv.innerHTML = '<div class="error">Error: Please select players from the dropdowns above.</div>';
+                return;
+            }
+            
+            const p1Id = p1Select.value;
+            const p2Id = p2Select.value;
+            
+            if (!p1Id || !p2Id) {
+                contentDiv.innerHTML = '<div class="error">Please select two players</div>';
+                return;
+            }
+            
+            if (p1Id === p2Id) {
+                contentDiv.innerHTML = '<div class="error">Please select two different players</div>';
+                return;
+            }
+            
+            // Show loading AFTER getting values
+            contentDiv.innerHTML = '<div class="loading">Loading comparison...</div>';
+            showScreen('statsScreen');
+            
+            const data = await apiCall('getPlayerComparisonDetailed', {
+                player1_id: p1Id,
+                player2_id: p2Id
+            });
+            
+            if (data.error) {
+                contentDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                return;
+            }
+            
+            const p1Name = getPlayerName(p1Id);
+            const p2Name = getPlayerName(p2Id);
+            
+            let html = '';
+            
+            // ============================================
+            // COMPARISON HEADER
+            // ============================================
+            html += '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center;">';
+            html += '<h2 style="color: white; margin: 0; font-size: 1.8em;">' + p1Name + ' vs ' + p2Name + '</h2>';
+            html += '</div>';
+            
+            html += '<button class="btn btn-info" onclick="showPlayerComparisonUI()" style="margin-bottom: 30px; width: 100%;">← Change Players</button>';
+            
+            // ============================================
+            // SESSIONS TOGETHER SECTION
+            // ============================================
+            const ts = data.sessions_together_stats;
+            
+            html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #667eea;">';
+            
+            html += '<h3 style="color: #667eea; margin-bottom: 20px;">📊 Sessions Together</h3>';
+            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">Direct record when both players participated in the same session</p>';
+            
+            if (ts.total_sessions === 0) {
+                html += '<div style="background: white; padding: 15px; border-radius: 6px; color: #666; text-align: center;">';
+                html += 'These players have never played together';
+                html += '</div>';
+            } else {
+                // Side-by-side stats table
+                html += '<div style="overflow-x: auto;"><table class="scores-table">';
+                html += '<tr><th>Stat</th><th style="color: #667eea;">' + p1Name + '</th><th style="color: #f5576c;">' + p2Name + '</th></tr>';
+                
+                html += '<tr><td><strong>Wins</strong></td><td>' + ts.p1_wins + '</td><td>' + ts.p2_wins + '</td></tr>';
+                html += '<tr><td><strong>Win Rate</strong></td><td>' + ts.p1_win_rate + '%</td><td>' + ts.p2_win_rate + '%</td></tr>';
+                html += '<tr><td><strong>Total Score</strong></td><td>' + ts.p1_total_score + '</td><td>' + ts.p2_total_score + '</td></tr>';
+                html += '<tr><td><strong>Hands Played</strong></td><td>' + ts.p1_total_hands + '</td><td>' + ts.p2_total_hands + '</td></tr>';
+                html += '<tr><td><strong>Avg Hand</strong></td><td>' + ts.p1_avg_hand + '</td><td>' + ts.p2_avg_hand + '</td></tr>';
+                html += '<tr><td><strong>Lockouts</strong></td><td>' + ts.p1_lockouts + '</td><td>' + ts.p2_lockouts + '</td></tr>';
+                html += '<tr><td><strong>Lockout Rate</strong></td><td>' + ts.p1_lockout_rate + '%</td><td>' + ts.p2_lockout_rate + '%</td></tr>';
+                html += '<tr><td><strong>Avg Lockout Score</strong></td><td>' + (ts.p1_lockouts > 0 ? ts.p1_avg_lockout : 'N/A') + '</td><td>' + (ts.p2_lockouts > 0 ? ts.p2_avg_lockout : 'N/A') + '</td></tr>';
+                html += '<tr><td><strong>False Lockouts</strong></td><td>' + ts.p1_false_lockouts + '</td><td>' + ts.p2_false_lockouts + '</td></tr>';
+                html += '<tr><td><strong>False Lockout Rate</strong></td><td>' + (ts.p1_false_lockouts + ts.p1_lockouts > 0 ? ts.p1_false_lockout_rate + '%' : 'N/A') + '</td><td>' + (ts.p2_false_lockouts + ts.p2_lockouts > 0 ? ts.p2_false_lockout_rate + '%' : 'N/A') + '</td></tr>';
+                
+                html += '</table></div>';
+                
+                // Context - best/worst with (with explanation)
+                if (ts.best_with || ts.worst_with) {
+                    html += '<div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #ffc107;">';
+                    html += '<h4 style="color: #856404; margin-bottom: 10px; font-size: 0.95em;">📊 Performance Context</h4>';
+                    html += '<p style="font-size: 0.85em; color: #666; margin-bottom: 10px;">When ' + p1Name + ' plays against ' + p2Name + ', their performance varies depending on who else is playing:</p>';
+                    
+                    if (ts.best_with) {
+                        html += '<div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">';
+                        html += '<div style="font-size: 0.85em; color: #4caf50; font-weight: 600; margin-bottom: 3px;">✅ Best with ' + getPlayerName(ts.best_with.player_id) + '</div>';
+                        html += '<div style="color: #333; font-size: 0.85em;">' + p1Name + ' wins ' + ts.best_with.wins + ' out of ' + ts.best_with.total + ' sessions when ' + getPlayerName(ts.best_with.player_id) + ' is also playing</div>';
+                        html += '</div>';
+                    }
+                    
+                    if (ts.worst_with) {
+                        html += '<div style="background: white; padding: 10px; border-radius: 6px;">';
+                        html += '<div style="font-size: 0.85em; color: #f44336; font-weight: 600; margin-bottom: 3px;">❌ Worst with ' + getPlayerName(ts.worst_with.player_id) + '</div>';
+                        html += '<div style="color: #333; font-size: 0.85em;">' + p1Name + ' wins ' + ts.worst_with.wins + ' out of ' + ts.worst_with.total + ' sessions when ' + getPlayerName(ts.worst_with.player_id) + ' is also playing</div>';
+                        html += '</div>';
+                    }
+                    
+                    html += '</div>';
+                }
+            }
+            
+            html += '</div>';
+            
+            // ============================================
+            // ALL SESSIONS SECTION
+            // ============================================
+            const as1 = data.all_sessions_stats.player1;
+            const as2 = data.all_sessions_stats.player2;
+            
+            html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #f5576c;">';
+            
+            html += '<h3 style="color: #f5576c; margin-bottom: 20px;">📊 All Sessions</h3>';
+            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">Overall record across all sessions each player participated in</p>';
+            
+            // Side-by-side stats table
+            html += '<div style="overflow-x: auto;"><table class="scores-table">';
+            html += '<tr><th>Stat</th><th style="color: #667eea;">' + p1Name + '</th><th style="color: #f5576c;">' + p2Name + '</th></tr>';
+            
+            html += '<tr><td><strong>Wins</strong></td><td>' + as1.wins + '</td><td>' + as2.wins + '</td></tr>';
+            html += '<tr><td><strong>Losses</strong></td><td>' + as1.losses + '</td><td>' + as2.losses + '</td></tr>';
+            if (as1.ties > 0 || as2.ties > 0) {
+                html += '<tr><td><strong>Ties</strong></td><td>' + as1.ties + '</td><td>' + as2.ties + '</td></tr>';
+            }
+            html += '<tr><td><strong>Win Rate</strong></td><td>' + as1.win_rate + '%</td><td>' + as2.win_rate + '%</td></tr>';
+            html += '<tr><td><strong>Total Score</strong></td><td>' + as1.total_score + '</td><td>' + as2.total_score + '</td></tr>';
+            html += '<tr><td><strong>Hands Played</strong></td><td>' + as1.total_hands + '</td><td>' + as2.total_hands + '</td></tr>';
+            html += '<tr><td><strong>Avg Hand</strong></td><td>' + as1.avg_hand + '</td><td>' + as2.avg_hand + '</td></tr>';
+            html += '<tr><td><strong>Lockouts</strong></td><td>' + as1.lockouts + '</td><td>' + as2.lockouts + '</td></tr>';
+            html += '<tr><td><strong>Lockout Rate</strong></td><td>' + as1.lockout_rate + '%</td><td>' + as2.lockout_rate + '%</td></tr>';
+            html += '<tr><td><strong>Avg Lockout Score</strong></td><td>' + (as1.lockouts > 0 ? as1.avg_lockout : 'N/A') + '</td><td>' + (as2.lockouts > 0 ? as2.avg_lockout : 'N/A') + '</td></tr>';
+            html += '<tr><td><strong>False Lockouts</strong></td><td>' + as1.false_lockouts + '</td><td>' + as2.false_lockouts + '</td></tr>';
+            html += '<tr><td><strong>False Lockout Rate</strong></td><td>' + (as1.false_lockouts + as1.lockouts > 0 ? as1.false_lockout_rate + '%' : 'N/A') + '</td><td>' + (as2.false_lockouts + as2.lockouts > 0 ? as2.false_lockout_rate + '%' : 'N/A') + '</td></tr>';
+            
+            html += '</table></div>';
+            
+            html += '</div>';
+            
+            // ============================================
+            // SESSION HISTORY (ONLY SESSIONS TOGETHER)
+            // ============================================
+            if (data.sessions_together.length > 0) {
+                html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #9c27b0;">';
+                
+                html += '<h3 style="color: #9c27b0; margin-bottom: 20px;">📅 Session History</h3>';
+                html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">Sessions where both players competed</p>';
+                
+                for (let i = data.sessions_together.length - 1; i >= 0; i--) {
+                    const s = data.sessions_together[i];
+                    const winner = s.p1_won && !s.p2_won ? p1Name : s.p2_won && !s.p1_won ? p2Name : 'Tie';
+                    const winnerColor = s.p1_won && !s.p2_won ? '#667eea' : s.p2_won && !s.p1_won ? '#f5576c' : '#ff9800';
+                    
+                    html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px; margin-bottom: 10px;">';
+                    html += '<div style="flex: 1;">';
+                    html += '<div style="font-weight: 600; color: #333;">' + s.title + '</div>';
+                    html += '<div style="font-size: 0.85em; color: #666;">' + s.date.split(' ')[0] + ' • ' + s.player_count + ' players</div>';
+                    html += '</div>';
+                    html += '<div style="text-align: right;">';
+                    html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1.1em;">' + winner + '</div>';
+                    html += '<div style="font-size: 0.85em; color: #666;">' + p1Name + ' ' + s.p1_score + ' | ' + p2Name + ' ' + s.p2_score + '</div>';
+                    html += '</div>';
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+            }
+            
+            html += '<button class="btn btn-secondary" onclick="showScreen(\'homeScreen\')">Back to Home</button>';
+            
+            contentDiv.innerHTML = html;
+        }
+        
+        // ============================================
+        // INITIALIZATION
+        // ============================================
 
         // ============================================
         // INITIALIZATION
