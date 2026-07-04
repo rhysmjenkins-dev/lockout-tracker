@@ -2491,6 +2491,7 @@ const data = await apiCall('getPlayerComparisonDetailed', {
 
 // TEMPORARY DEBUG
 console.log('Data received:', data);
+console.log('Data contents:', JSON.stringify(data, null, 2));
 console.log('sessions_together:', data.sessions_together);
 console.log('sessions_together_stats:', data.sessions_together_stats);
 
