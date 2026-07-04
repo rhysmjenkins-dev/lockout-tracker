@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lockout Tracker v2.8</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -69,7 +71,22 @@
         .game-summary h3 { margin-bottom: 10px; color: #667eea; }
         .scores-table { width: 100%; border-collapse: collapse; margin-top: 15px; overflow-x: auto; display: block; }
         .scores-table th, .scores-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e0e0e0; white-space: nowrap; }
-        .scores-table th { background: #667eea; color: white; font-weight: 600; position: sticky; top: 0; z-index: 10; }
+        .scores-table th { 
+    background: #667eea; 
+    color: white; 
+    font-weight: 600; 
+    position: sticky; 
+    top: 0; 
+    z-index: 10;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.scores-table th:hover { 
+    background: #5568d3; 
+}
+
         .scores-table tr:hover { background: #f8f9fa; }
         .session-list { list-style: none; padding: 0; }
         .session-item { 
@@ -159,6 +176,151 @@
             input, select, textarea { min-height: 48px; font-size: 16px; }
             .session-item { min-height: 72px; }
         }
+        /* Smooth transitions for all screens */
+.screen {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Button press animation */
+.btn {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+/* Card hover effect */
+.card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 35px rgba(0,0,0,0.25);
+}
+
+/* Session item animation */
+.session-item {
+    transition: all 0.2s ease;
+}
+
+.session-item:hover {
+    transform: translateX(5px);
+}
+
+/* Hand item animation */
+.hand-item {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Modal animation */
+.modal.active {
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.modal.active .modal-content {
+    animation: modalSlideUp 0.3s ease-out;
+}
+
+@keyframes modalSlideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Loading spinner animation */
+.loading {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Success/Error message animation */
+.success, .error {
+    animation: slideInDown 0.3s ease-out;
+}
+
+@keyframes slideInDown {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Stats card animation */
+.stat-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+}
+
+/* Chart container animation */
+.chart-container {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
     </style>
 </head>
 <body>
@@ -900,8 +1062,13 @@ currentSession = {
             if (data.error) {
                 alert('Error: ' + data.error);
                 setButtonLoading(endBtn, false);
-            } else {
-                alert('Session ended!');
+} else {
+                // Calculate winner before clearing session
+                const sessionId = currentSession.session_id;
+                
+                // Show confetti for winner
+                showWinnerConfetti(sessionId);
+                
                 currentSession = null;
                 showScreen('homeScreen');
                 checkActiveSessions();
@@ -931,8 +1098,71 @@ currentSession = {
             handInputs.innerHTML = html;
         }
 
+let lockoutValidityTimeout;
         function checkLockoutValidity() {
-            const warningDiv = document.getElementById('lockoutWarning');
+            // Debounce - wait 300ms after user stops typing
+            clearTimeout(lockoutValidityTimeout);
+            lockoutValidityTimeout = setTimeout(function() {
+                performLockoutValidation('lockoutWarning', 'lockout_player', currentHandNumber);
+            }, 300);
+        }
+        
+        function performLockoutValidation(warningDivId, radioName, handNumber) {
+            const warningDiv = document.getElementById(warningDivId);
+            const lockoutRadio = document.querySelector('input[name="' + radioName + '"]:checked');
+            
+            if (!lockoutRadio) {
+                warningDiv.style.display = 'none';
+                return;
+            }
+            
+            const lockoutPlayerId = lockoutRadio.value;
+            const scores = [];
+            let allScoresEntered = true;
+            
+            for (let i = 0; i < sessionPlayers.length; i++) {
+                const player = sessionPlayers[i];
+                const joinHand = getPlayerJoinHand(player.player_id);
+                if (joinHand <= handNumber) {
+                    const scoreInput = document.getElementById((warningDivId === 'editLockoutWarning' ? 'edit_' : '') + 'score_' + player.player_id);
+                    const scoreVal = scoreInput.value.trim();
+                    if (scoreVal === '') {
+                        allScoresEntered = false;
+                        break;
+                    }
+                    scores.push({ player_id: player.player_id, score: parseFloat(scoreVal) });
+                }
+            }
+            
+            if (!allScoresEntered) {
+                warningDiv.style.display = 'none';
+                return;
+            }
+            
+            const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+            const lowestScore = Math.min(...scores.map(s => s.score));
+            const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
+            const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
+            
+            const isFalseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
+            
+            if (isFalseLockout) {
+                let warningMessage = '<strong>⚠️ Warning:</strong> ';
+                if (lockoutPlayerScore > 5) {
+                    warningMessage += getPlayerName(lockoutPlayerId) + ' has a score of ' + lockoutPlayerScore + ' (max allowed: 5). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+                } else if (lockoutPlayerScore > lowestScore) {
+                    const lowestPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
+                    warningMessage += getPlayerName(lockoutPlayerId) + ' does NOT have the lowest score. ' + lowestPlayers + ' has the lowest (' + lowestScore + '). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+                } else if (playersWithLowestScore.length > 1) {
+                    const tiedPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
+                    warningMessage += getPlayerName(lockoutPlayerId) + ' is TIED for lowest score with ' + tiedPlayers + '. This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+                }
+                warningDiv.innerHTML = warningMessage;
+                warningDiv.style.display = 'block';
+            } else {
+                warningDiv.style.display = 'none';
+            }
+        }
             const lockoutRadio = document.querySelector('input[name="lockout_player"]:checked');
             
             if (!lockoutRadio) {
@@ -1229,62 +1459,14 @@ const handData = handsToEdit.find(h => String(h.player_id) === String(player.pla
             }
         }
 
-        function checkEditLockoutValidity() {
-            const warningDiv = document.getElementById('editLockoutWarning');
-            const lockoutRadio = document.querySelector('input[name="edit_lockout_player"]:checked');
-            
-            if (!lockoutRadio) {
-                warningDiv.style.display = 'none';
-                return;
-            }
-            
-            const lockoutPlayerId = lockoutRadio.value;
-            const scores = [];
-            let allScoresEntered = true;
-            
-            for (let i = 0; i < sessionPlayers.length; i++) {
-                const player = sessionPlayers[i];
-                const joinHand = getPlayerJoinHand(player.player_id);
-                if (joinHand <= currentEditingHand) {
-                    const scoreInput = document.getElementById('edit_score_' + player.player_id);
-                    const scoreVal = scoreInput.value.trim();
-                    if (scoreVal === '') {
-                        allScoresEntered = false;
-                        break;
-                    }
-                    scores.push({ player_id: player.player_id, score: parseFloat(scoreVal) });
-                }
-            }
-            
-            if (!allScoresEntered) {
-                warningDiv.style.display = 'none';
-                return;
-            }
-            
-const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
-            const lowestScore = Math.min(...scores.map(s => s.score));
-            const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
-            const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
-            
-            const isFalseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
-            
-            if (isFalseLockout) {
-                let warningMessage = '<strong>⚠️ Warning:</strong> ';
-                if (lockoutPlayerScore > 5) {
-                    warningMessage += getPlayerName(lockoutPlayerId) + ' has a score of ' + lockoutPlayerScore + ' (max allowed: 5). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
-                } else if (lockoutPlayerScore > lowestScore) {
-                    const lowestPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
-                    warningMessage += getPlayerName(lockoutPlayerId) + ' does NOT have the lowest score. ' + lowestPlayers + ' has the lowest (' + lowestScore + '). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
-                } else if (playersWithLowestScore.length > 1) {
-                    const tiedPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
-                    warningMessage += getPlayerName(lockoutPlayerId) + ' is TIED for lowest score with ' + tiedPlayers + '. This will be marked as a <strong>FALSE LOCKOUT</strong>.';
-                }
-                warningDiv.innerHTML = warningMessage;
-                warningDiv.style.display = 'block';
-            } else {
-                warningDiv.style.display = 'none';
-            }
-        }
+let editLockoutValidityTimeout;
+function checkEditLockoutValidity() {
+    // Debounce - wait 300ms after user stops typing
+    clearTimeout(editLockoutValidityTimeout);
+    editLockoutValidityTimeout = setTimeout(function() {
+        performLockoutValidation('editLockoutWarning', 'edit_lockout_player', currentEditingHand);
+    }, 300);
+}
 
         async function saveEditedHand() {
             const messageDiv = document.getElementById('editHandMessage');
@@ -2284,10 +2466,23 @@ if (h.lockout_score) {
             html += '<strong>ℹ️ Note:</strong> Hand-level stats include active sessions. Session-level stats only include completed sessions.';
             html += '</div>';
             
-            html += '<h3 style="margin-top: 30px;">Player Breakdown</h3>';
-            html += '<div style="overflow-x: auto;"><table class="scores-table">';
-            html += '<tr><th>Player</th><th>Sessions</th><th>Wins</th><th>Win Rate</th><th>Hands</th><th>Avg Hand</th><th>Lockouts</th><th>LO Rate</th><th>Avg LO Score</th><th>False Lockouts</th><th>False LO Rate</th></tr>';
-            
+ html += '<h3 style="margin-top: 30px;">Player Breakdown</h3>';
+            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 10px;">💡 Click column headers to sort</p>';
+            html += '<div style="overflow-x: auto;"><table class="scores-table" id="statsTable">';
+            html += '<tr>';
+            html += '<th onclick="sortStatsTable(0)">Player ↕️</th>';
+            html += '<th onclick="sortStatsTable(1)">Sessions ↕️</th>';
+            html += '<th onclick="sortStatsTable(2)">Wins ↕️</th>';
+            html += '<th onclick="sortStatsTable(3)">Win Rate ↕️</th>';
+            html += '<th onclick="sortStatsTable(4)">Hands ↕️</th>';
+            html += '<th onclick="sortStatsTable(5)">Avg Hand ↕️</th>';
+            html += '<th onclick="sortStatsTable(6)">Lockouts ↕️</th>';
+            html += '<th onclick="sortStatsTable(7)">LO Rate ↕️</th>';
+            html += '<th onclick="sortStatsTable(8)">Avg LO Score ↕️</th>';
+            html += '<th onclick="sortStatsTable(9)">False Lockouts ↕️</th>';
+            html += '<th onclick="sortStatsTable(10)">False LO Rate ↕️</th>';
+            html += '</tr>';
+
             for (let playerId in stats) {
                 const ps = stats[playerId];
                 const sessionWinRate = ps.sessionsPlayed > 0 ? ((ps.sessionsWon / ps.sessionsPlayed) * 100).toFixed(1) : '0';
@@ -2311,6 +2506,133 @@ if (h.lockout_score) {
             ensurePlayersLoaded();
             checkActiveSessions();
         });
+        // ============================================
+// CONFETTI ANIMATION
+// ============================================
+async function showWinnerConfetti(sessionId) {
+    const handsData = await apiCall('getHands', { session_id: sessionId });
+    if (handsData.error || handsData.length === 0) {
+        alert('Session ended!');
+        return;
+    }
+    
+    // Calculate final scores
+    const playerTotals = {};
+    for (let i = 0; i < handsData.length; i++) {
+        const hand = handsData[i];
+        if (!playerTotals[hand.player_id]) {
+            playerTotals[hand.player_id] = 0;
+        }
+        playerTotals[hand.player_id] += Number(hand.score);
+    }
+    
+    // Find winner (lowest score)
+    let lowestScore = Infinity;
+    let winners = [];
+    for (let playerId in playerTotals) {
+        const score = playerTotals[playerId];
+        if (score < lowestScore) {
+            lowestScore = score;
+            winners = [playerId];
+        } else if (score === lowestScore) {
+            winners.push(playerId);
+        }
+    }
+    
+    // Get winner names
+    const winnerNames = winners.map(id => getPlayerName(id)).join(' & ');
+    
+    // Create confetti
+    const duration = 3000;
+    const end = Date.now() + duration;
+    
+    const colors = ['#667eea', '#764ba2', '#f5576c', '#4facfe', '#00f2fe'];
+    
+    (function frame() {
+        confetti({
+            particleCount: 3,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 },
+            colors: colors
+        });
+        confetti({
+            particleCount: 3,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 },
+            colors: colors
+        });
+        
+        if (Date.now() < end) {
+            requestAnimationFrame(frame);
+        }
+    }());
+    
+    // Show winner message
+    setTimeout(function() {
+        alert('🎉 ' + winnerNames + ' won with ' + lowestScore + ' points! 🎉');
+    }, 500);
+}
+   // ============================================
+// SORTABLE STATS TABLE
+// ============================================
+let currentSortColumn = -1;
+let currentSortDirection = 'asc';
+
+function sortStatsTable(columnIndex) {
+    const table = document.getElementById('statsTable');
+    if (!table) return;
+    
+    const tbody = table.querySelector('tbody') || table;
+    const rows = Array.from(tbody.querySelectorAll('tr')).slice(1); // Skip header
+    
+    // Toggle direction if same column
+    if (currentSortColumn === columnIndex) {
+        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSortDirection = 'asc';
+        currentSortColumn = columnIndex;
+    }
+    
+    rows.sort(function(a, b) {
+        let aValue = a.cells[columnIndex].textContent.trim();
+        let bValue = b.cells[columnIndex].textContent.trim();
+        
+        // Remove % signs and convert to numbers
+        aValue = aValue.replace('%', '');
+        bValue = bValue.replace('%', '');
+        
+        // Try to parse as numbers
+        const aNum = parseFloat(aValue);
+        const bNum = parseFloat(bValue);
+        
+        let comparison = 0;
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+            comparison = aNum - bNum;
+        } else {
+            comparison = aValue.localeCompare(bValue);
+        }
+        
+        return currentSortDirection === 'asc' ? comparison : -comparison;
+    });
+    
+    // Re-append sorted rows
+    rows.forEach(function(row) {
+        tbody.appendChild(row);
+    });
+    
+    // Update header to show sort direction
+    const headers = table.querySelectorAll('th');
+    headers.forEach(function(header, index) {
+        if (index === columnIndex) {
+            const arrow = currentSortDirection === 'asc' ? '↑' : '↓';
+            header.textContent = header.textContent.replace(/[↕️↑↓]/g, '') + ' ' + arrow;
+        } else {
+            header.textContent = header.textContent.replace(/[↕️↑↓]/g, '') + ' ↕️';
+        }
+    });
+}
     </script>
 </body>
 </html>
