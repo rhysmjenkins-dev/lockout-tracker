@@ -2484,16 +2484,21 @@ async function showPlayerComparisonUI() {
             contentDiv.innerHTML = '<div class="loading">Loading comparison...</div>';
             showScreen('statsScreen');
             
-            const data = await apiCall('getPlayerComparisonDetailed', {
-                player1_id: p1Id,
-                player2_id: p2Id
-            });
-            
-            if (data.error) {
-                contentDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-                return;
-            }
-            
+const data = await apiCall('getPlayerComparisonDetailed', {
+    player1_id: p1Id,
+    player2_id: p2Id
+});
+
+// TEMPORARY DEBUG
+console.log('Data received:', data);
+console.log('sessions_together:', data.sessions_together);
+console.log('sessions_together_stats:', data.sessions_together_stats);
+
+if (data.error) {
+    contentDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+    return;
+}
+
             const p1Name = getPlayerName(p1Id);
             const p2Name = getPlayerName(p2Id);
             
