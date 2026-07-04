@@ -781,6 +781,7 @@ async function addPlayer() {
         }
 
         function showActiveSession() {
+function showActiveSession() {
             document.getElementById('activeSessionTitle').textContent = currentSession.title;
             let playerNames = sessionPlayers.map(p => {
                 const joinHand = getPlayerJoinHand(p.player_id);
@@ -794,6 +795,15 @@ async function addPlayer() {
                 '<p><strong>Players:</strong> ' + playerNames + '</p>';
             displaySessionMetadata('activeSessionMetadata');
             setupHandInputs();
+            
+            // Clear previous session data
+            document.getElementById('sessionScores').innerHTML = '';
+            document.getElementById('handHistorySection').style.display = 'none';
+            document.getElementById('activeSessionCharts').innerHTML = '';
+            
+            // Load current session data
+            updateSessionScores();
+            
             showScreen('activeSessionScreen');
         }
 
@@ -1024,15 +1034,15 @@ async function addPlayer() {
             
             const lockoutScoreValue = lockoutPlayerScore;
             
-            // Adjust lockout player's score based on success/false
+// Adjust lockout player's score based on success/false
             for (let i = 0; i < scores.length; i++) {
                 if (String(scores[i].player_id) === String(lockoutPlayerId)) {
                     if (falseLockout) {
                         // False lockout: score = lockout score + penalty
                         scores[i].score = lockoutScoreValue + penalty;
                     } else {
-                        // Successful lockout: score = 0
-                        scores[i].score = 0;
+                        // Successful lockout: keep original score (can be negative)
+                        scores[i].score = lockoutScoreValue;
                     }
                     break;
                 }
@@ -1130,9 +1140,9 @@ async function addPlayer() {
                 }
                 html += '</div>';
                 html += '<div class="hand-item-actions">';
-                html += '<button class="btn btn-warning btn-small" onclick="editHand(' + handNum + ')">Edit</button>';
-                if (i === 0) {
-                    html += '<button class="btn btn-danger btn-small" onclick="deleteHand(' + handNum + ')">Delete</button>';
+                html += '<button class="btn btn-warning btn-small" onclick="editHand(' + handNum + ', event)">Edit</button>';
+if (i === 0) {
+                    html += '<button class="btn btn-danger btn-small" onclick="deleteHand(' + handNum + ', event)">Delete</button>';
                 }
                 html += '</div>';
                 html += '</div>';
@@ -1142,7 +1152,11 @@ async function addPlayer() {
             document.getElementById('handHistorySection').style.display = 'block';
         }
 
-        async function editHand(handNumber) {
+                async function editHand(handNumber, event) {
+                            if (event && event.target) {
+                                setButtonLoading(event.target, true);
+                            }
+
             const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
             const handsToEdit = handsData.filter(h => h.hand_number == handNumber);
             if (handsToEdit.length === 0) {
@@ -1199,7 +1213,10 @@ const handData = handsToEdit.find(h => String(h.player_id) === String(player.pla
             
             // Check validity after rendering
             setTimeout(checkEditLockoutValidity, 100);
-        }
+            
+            if (event && event.target) {
+                setButtonLoading(event.target, false);
+            }
 
         function checkEditLockoutValidity() {
             const warningDiv = document.getElementById('editLockoutWarning');
@@ -1315,7 +1332,7 @@ const handData = handsToEdit.find(h => String(h.player_id) === String(player.pla
                     if (falseLockout) {
                         scores[i].score = lockoutScoreValue + penalty;
                     } else {
-                        scores[i].score = 0;
+                        scores[i].score = lockoutScoreValue;
                     }
                     break;
                 }
@@ -1334,7 +1351,7 @@ const handData = handsToEdit.find(h => String(h.player_id) === String(player.pla
                 lockout_score: lockoutScoreValue
             });
             
-            if (data.error) {
+if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
                 setButtonLoading(saveBtn, false);
             } else {
@@ -1342,6 +1359,7 @@ const handData = handsToEdit.find(h => String(h.player_id) === String(player.pla
                 setTimeout(function() {
                     closeEditModal();
                     updateSessionScores();
+                    setButtonLoading(saveBtn, false);
                 }, 1000);
             }
         }
@@ -1352,12 +1370,14 @@ const handData = handsToEdit.find(h => String(h.player_id) === String(player.pla
             currentEditingHand = null;
         }
 
-        async function deleteHand(handNumber) {
+async function deleteHand(handNumber, event) {
             if (!confirm('Delete Hand ' + handNumber + '? This cannot be undone.')) {
                 return;
             }
-            const deleteBtn = event.target;
-            setButtonLoading(deleteBtn, true);
+            if (event && event.target) {
+                const deleteBtn = event.target;
+                setButtonLoading(deleteBtn, true);
+            }
             
             let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
             const data = await apiCall('deleteHand', {
@@ -1365,16 +1385,22 @@ const handData = handsToEdit.find(h => String(h.player_id) === String(player.pla
                 hand_number: handNumber,
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
-            if (data.error) {
+ if (data.error) {
                 alert('Error: ' + data.error);
-                setButtonLoading(deleteBtn, false);
+                if (event && event.target) {
+                    setButtonLoading(event.target, false);
+                }
             } else {
                 if (handNumber == currentHandNumber - 1) {
                     currentHandNumber--;
                     setupHandInputs();
                 }
                 updateSessionScores();
+                if (event && event.target) {
+                    setButtonLoading(event.target, false);
+                }
             }
+
         }
         // ============================================
         // ACTIVE SESSION SCORING & CHARTS
