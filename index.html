@@ -243,14 +243,13 @@
             </div>
         </div>
 
-        <!-- STATS SCREEN -->
-        <div id="statsScreen" class="screen">
-            <div class="card">
-                <h2>Overall Stats</h2>
-                <div id="statsContent" class="loading">Loading...</div>
-                <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
-            </div>
-        </div>
+<!-- STATS SCREEN -->
+<div id="statsScreen" class="screen">
+    <div class="card">
+        <h2>Overall Stats</h2>
+        <div id="statsContent" class="loading">Loading...</div>
+    </div>
+</div>
 
         <!-- START SESSION SCREEN -->
         <div id="startSessionScreen" class="screen">
@@ -2300,7 +2299,7 @@ if (h.lockout_score) {
                 html += '<tr><td>' + ps.username + '</td><td>' + ps.sessionsPlayed + '</td><td>' + ps.sessionsWon.toFixed(1) + '</td><td>' + sessionWinRate + '%</td><td>' + ps.handsPlayed + '</td><td>' + avgScore + '</td><td>' + ps.handsWon + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + ps.falseLockouts + '</td><td>' + falseLockoutRate + '%</td></tr>';
             }
             html += '</table></div>';
-            
+            html += '<button class="btn btn-secondary" onclick="showScreen(\'homeScreen\')">Back to Home</button>';         
             document.getElementById('statsContent').innerHTML = html;
         }
         
