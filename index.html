@@ -2521,9 +2521,9 @@ if (data.error) {
             
             html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #667eea;">';
             
-            html += '<h3 style="color: #667eea; margin-bottom: 20px;">📊 Sessions Together</h3>';
-            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">Direct record when both players participated in the same session</p>';
-            
+html += '<h3 style="color: #667eea; margin-bottom: 20px;">📊 Sessions Together</h3>';
+html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;"><strong>Head-to-head record:</strong> Who finished with a lower score when both players competed in the same session (regardless of who won overall)</p>';
+      
             if (ts.total_sessions === 0) {
                 html += '<div style="background: white; padding: 15px; border-radius: 6px; color: #666; text-align: center;">';
                 html += 'These players have never played together';
@@ -2547,27 +2547,23 @@ if (data.error) {
                 html += '</table></div>';
                 
                 // Context - best/worst with (with explanation)
-                if (ts.best_with || ts.worst_with) {
-                    html += '<div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #ffc107;">';
-                    html += '<h4 style="color: #856404; margin-bottom: 10px; font-size: 0.95em;">📊 Performance Context</h4>';
-                    html += '<p style="font-size: 0.85em; color: #666; margin-bottom: 10px;">When ' + p1Name + ' plays against ' + p2Name + ', their performance varies depending on who else is playing:</p>';
-                    
-                    if (ts.best_with) {
-                        html += '<div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">';
-                        html += '<div style="font-size: 0.85em; color: #4caf50; font-weight: 600; margin-bottom: 3px;">✅ Best with ' + getPlayerName(ts.best_with.player_id) + '</div>';
-                        html += '<div style="color: #333; font-size: 0.85em;">' + p1Name + ' wins ' + ts.best_with.wins + ' out of ' + ts.best_with.total + ' sessions when ' + getPlayerName(ts.best_with.player_id) + ' is also playing</div>';
-                        html += '</div>';
-                    }
-                    
-                    if (ts.worst_with) {
-                        html += '<div style="background: white; padding: 10px; border-radius: 6px;">';
-                        html += '<div style="font-size: 0.85em; color: #f44336; font-weight: 600; margin-bottom: 3px;">❌ Worst with ' + getPlayerName(ts.worst_with.player_id) + '</div>';
-                        html += '<div style="color: #333; font-size: 0.85em;">' + p1Name + ' wins ' + ts.worst_with.wins + ' out of ' + ts.worst_with.total + ' sessions when ' + getPlayerName(ts.worst_with.player_id) + ' is also playing</div>';
-                        html += '</div>';
-                    }
-                    
-                    html += '</div>';
-                }
+if (ts.best_with && ts.worst_with && ts.best_with.player_id !== ts.worst_with.player_id) {
+  html += '<div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #ffc107;">';
+  html += '<h4 style="color: #856404; margin-bottom: 10px; font-size: 0.95em;">📊 Performance Context</h4>';
+  html += '<p style="font-size: 0.85em; color: #666; margin-bottom: 10px;">When ' + p1Name + ' plays against ' + p2Name + ' <strong>head-to-head</strong>, ' + p1Name + '\'s win rate varies depending on who else is playing:</p>';
+  
+  html += '<div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">';
+  html += '<div style="font-size: 0.85em; color: #4caf50; font-weight: 600; margin-bottom: 3px;">✅ Best with ' + getPlayerName(ts.best_with.player_id) + '</div>';
+  html += '<div style="color: #333; font-size: 0.85em;">' + p1Name + ' beats ' + p2Name + ' in ' + ts.best_with.wins + ' out of ' + ts.best_with.total + ' sessions when ' + getPlayerName(ts.best_with.player_id) + ' is also playing</div>';
+  html += '</div>';
+  
+  html += '<div style="background: white; padding: 10px; border-radius: 6px;">';
+  html += '<div style="font-size: 0.85em; color: #f44336; font-weight: 600; margin-bottom: 3px;">❌ Worst with ' + getPlayerName(ts.worst_with.player_id) + '</div>';
+  html += '<div style="color: #333; font-size: 0.85em;">' + p1Name + ' beats ' + p2Name + ' in ' + ts.worst_with.wins + ' out of ' + ts.worst_with.total + ' sessions when ' + getPlayerName(ts.worst_with.player_id) + ' is also playing</div>';
+  html += '</div>';
+  
+  html += '</div>';
+}
             }
             
             html += '</div>';
@@ -2580,9 +2576,9 @@ if (data.error) {
             
             html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #f5576c;">';
             
-            html += '<h3 style="color: #f5576c; margin-bottom: 20px;">📊 All Sessions</h3>';
-            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">Overall record across all sessions each player participated in</p>';
-            
+html += '<h3 style="color: #f5576c; margin-bottom: 20px;">📊 All Sessions</h3>';
+html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;"><strong>Overall wins:</strong> Sessions where each player had the lowest score and won outright (across all sessions they participated in)</p>';
+
             // Side-by-side stats table
             html += '<div style="overflow-x: auto;"><table class="scores-table">';
             html += '<tr><th>Stat</th><th style="color: #667eea;">' + p1Name + '</th><th style="color: #f5576c;">' + p2Name + '</th></tr>';
