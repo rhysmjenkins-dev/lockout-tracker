@@ -177,9 +177,10 @@
                 <button class="btn" onclick="showScreen('startSessionScreen')">🎮 Start New Session</button>
                 <button class="btn btn-secondary" onclick="showScreen('previousSessionsScreen'); loadPreviousSessions();">📊 View Previous Sessions</button>
                 <button class="btn btn-secondary" onclick="showScreen('statsScreen'); loadStats();">📈 View Stats</button>
-                <button class="btn btn-secondary" onclick="showScreen('addPlayerScreen')">➕ Add New Player</button>
-                <button class="btn btn-info" onclick="showScreen('dictionaryScreen')">📖 Dictionary</button>
-                <button class="btn btn-info" onclick="showScreen('rulesScreen')">📜 Rules</button>
+<button class="btn btn-secondary" onclick="showScreen('addPlayerScreen')">➕ Add New Player</button>
+<button class="btn btn-info" onclick="showScreen('appInstructionsScreen')">📱 How to Use App</button>
+<button class="btn btn-info" onclick="showScreen('dictionaryScreen')">📖 Dictionary</button>
+<button class="btn btn-info" onclick="showScreen('rulesScreen')">📜 Rules</button>
             </div>
         </div>
 
@@ -208,6 +209,357 @@
             </div>
         </div>
 
+<!-- APP INSTRUCTIONS SCREEN -->
+<div id="appInstructionsScreen" class="screen">
+    <div class="card">
+        <h2>📱 How to Use the Lockout Tracker</h2>
+        
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white; text-align: center;">
+            <h3 style="margin: 0; font-size: 1.3em;">📊 OVERVIEW</h3>
+            <p style="margin: 10px 0 0 0; font-size: 0.95em;">This app tracks your Lockout game sessions, records hand-by-hand scores, and generates detailed statistics. Players only input <strong>lockout scores</strong> and the app handles all calculations automatically.</p>
+        </div>
+
+        <div style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
+            
+            <!-- GETTING STARTED -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #4caf50;">
+                <h3 style="color: #4caf50; margin-bottom: 15px;">🚀 GETTING STARTED</h3>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #4caf50; margin-bottom: 10px;">1. Add Players (One-Time Setup)</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>Tap <strong>"➕ Add New Player"</strong> from the home screen</li>
+                        <li>Enter player name and tap <strong>"Add Player"</strong></li>
+                        <li>Repeat for all regular players</li>
+                        <li>Players only need to be added once (they're saved permanently)</li>
+                    </ul>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px;">
+                    <h4 style="color: #4caf50; margin-bottom: 10px;">2. Start a New Session</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>Tap <strong>"🎮 Start New Session"</strong> from the home screen</li>
+                        <li>Fill in:
+                            <ul style="margin-left: 20px; margin-top: 5px;">
+                                <li><strong>Session Title</strong> (e.g., "Magaluf 2024", "Friday Night")</li>
+                                <li><strong>Host</strong> (who's organizing/tracking)</li>
+                                <li><strong>Session Notes</strong> (optional - e.g., "Playing at John's house")</li>
+                                <li><strong>Session Type</strong> (optional tags - Casual, Holiday, Pub, etc.)</li>
+                                <li><strong>False Lockout Penalty</strong> (default: 10 points)</li>
+                                <li><strong>Select Players</strong> (check all players participating)</li>
+                            </ul>
+                        </li>
+                        <li>Tap <strong>"Start Session"</strong></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- DURING A SESSION -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #667eea;">
+                <h3 style="color: #667eea; margin-bottom: 15px;">🎮 DURING A SESSION</h3>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #667eea; margin-bottom: 10px;">Recording Hands</h4>
+                    <p style="margin-bottom: 10px;"><strong>For each hand:</strong></p>
+                    
+                    <ol style="margin-left: 20px; line-height: 1.8;">
+                        <li><strong>Enter Lockout Scores</strong>
+                            <ul style="margin-left: 20px; margin-top: 5px;">
+                                <li>Input the <strong>lockout score</strong> for each player (the score they called lockout with)</li>
+                                <li>Example: If a player locked out with 3 points, enter <strong>3</strong></li>
+                            </ul>
+                        </li>
+                        <li><strong>Select Who Locked Out</strong>
+                            <ul style="margin-left: 20px; margin-top: 5px;">
+                                <li>Tap the radio button next to the player who declared lockout</li>
+                            </ul>
+                        </li>
+                        <li><strong>False Lockout Detection</strong>
+                            <ul style="margin-left: 20px; margin-top: 5px;">
+                                <li>The app automatically checks if the lockout is valid:
+                                    <ul style="margin-left: 20px;">
+                                        <li>✅ Valid: Score ≤ 5 AND strictly lowest</li>
+                                        <li>❌ False: Score > 5 OR tied/higher than another player</li>
+                                    </ul>
+                                </li>
+                                <li>A <strong>warning</strong> appears if it's a false lockout</li>
+                                <li>Confirm to proceed (penalty is applied automatically)</li>
+                            </ul>
+                        </li>
+                        <li><strong>Add Hand Note</strong> (Optional)
+                            <ul style="margin-left: 20px; margin-top: 5px;">
+                                <li>Add comments like "Epic comeback" or "Close call"</li>
+                            </ul>
+                        </li>
+                        <li><strong>Tap "Submit Hand"</strong>
+                            <ul style="margin-left: 20px; margin-top: 5px;">
+                                <li>Scores are calculated automatically:
+                                    <ul style="margin-left: 20px;">
+                                        <li><strong>Successful lockout:</strong> Player scores 0 (or keeps negative score)</li>
+                                        <li><strong>False lockout:</strong> Player scores lockout score + penalty</li>
+                                        <li><strong>Other players:</strong> Keep their lockout scores</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                    </ol>
+                </div>
+                
+                <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 3px solid #4caf50;">
+                    <h4 style="color: #2e7d32; margin-bottom: 10px;">What the App Calculates</h4>
+                    <p style="margin-bottom: 10px;">The app automatically handles:</p>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>✅ Successful lockout → 0 points (negative scores preserved)</li>
+                        <li>✅ False lockout → lockout score + penalty</li>
+                        <li>✅ Cumulative session scores</li>
+                        <li>✅ Hand-by-hand history</li>
+                        <li>✅ Live statistics (avg hand, lockout rate, etc.)</li>
+                        <li>✅ Real-time graphs (Worm chart, Manhattan chart)</li>
+                    </ul>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #667eea; margin-bottom: 10px;">Adding a Late Joiner</h4>
+                    <p style="margin-bottom: 10px;">If a player joins mid-session:</p>
+                    <ol style="margin-left: 20px; line-height: 1.8;">
+                        <li>Tap <strong>"➕ Add Player"</strong> button (in active session)</li>
+                        <li>Select the player from the list</li>
+                        <li>Confirm — they'll join from the <strong>current hand</strong> onwards</li>
+                        <li>The app calculates their <strong>starting score</strong> automatically (average of all current players' totals)</li>
+                        <li>Late joiners are marked with a <strong>"Joined H#"</strong> badge</li>
+                    </ol>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #667eea; margin-bottom: 10px;">Editing/Deleting Hands</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li><strong>Edit a hand:</strong> Tap <strong>"Edit"</strong> next to any hand in the history
+                            <ul style="margin-left: 20px; margin-top: 5px;">
+                                <li>Modify scores, change who locked out, update notes</li>
+                                <li>False lockout detection runs again</li>
+                            </ul>
+                        </li>
+                        <li><strong>Delete the most recent hand:</strong> Tap <strong>"Delete"</strong> (only available for the last hand)</li>
+                    </ul>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #667eea; margin-bottom: 10px;">Editing Session Details</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>Tap <strong>"✏️ Edit Session"</strong> to update:
+                            <ul style="margin-left: 20px; margin-top: 5px;">
+                                <li>Session notes</li>
+                                <li>Session tags/type</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #667eea; margin-bottom: 10px;">Viewing Live Stats</h4>
+                    <p style="margin-bottom: 10px;">During an active session, scroll down to see:</p>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li><strong>Current Scores Table</strong> (total, avg hand, lockout rate, etc.)</li>
+                        <li><strong>Session Statistics</strong> (total hands, avg score/hand, leader, biggest gap)</li>
+                        <li><strong>Lockout Performance</strong> (who has the best avg lockout score)</li>
+                        <li><strong>Graphs</strong> (Worm chart shows cumulative scores, Manhattan shows hand-by-hand)</li>
+                    </ul>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px;">
+                    <h4 style="color: #667eea; margin-bottom: 10px;">Ending a Session</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>Tap <strong>"End Session"</strong> when finished</li>
+                        <li>Session is marked as complete and moves to <strong>Previous Sessions</strong></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- VIEWING PAST SESSIONS -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #f5576c;">
+                <h3 style="color: #f5576c; margin-bottom: 15px;">📊 VIEWING PAST SESSIONS</h3>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px;">
+                    <h4 style="color: #f5576c; margin-bottom: 10px;">Browse Previous Sessions</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>Tap <strong>"📊 View Previous Sessions"</strong> from home screen</li>
+                        <li>Tap any session to view full details:
+                            <ul style="margin-left: 20px; margin-top: 5px;">
+                                <li>Final scores table</li>
+                                <li>Hand-by-hand breakdown</li>
+                                <li>Graphs (Worm, Manhattan)</li>
+                                <li>Session notes/tags</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- STATISTICS -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #9c27b0;">
+                <h3 style="color: #9c27b0; margin-bottom: 15px;">📈 STATISTICS & COMPARISONS</h3>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #9c27b0; margin-bottom: 10px;">Overall Stats</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>Tap <strong>"📈 View Stats"</strong> → <strong>"Overall Stats"</strong></li>
+                        <li>See:
+                            <ul style="margin-left: 20px; margin-top: 5px;">
+                                <li>Total sessions/hands played</li>
+                                <li>Most sessions/hands won</li>
+                                <li>Best win rates (session & hand level)</li>
+                                <li>Lowest avg score/hand</li>
+                                <li>Best avg lockout score</li>
+                                <li>Longest hand streak</li>
+                                <li>Most false lockouts</li>
+                                <li><strong>Player Breakdown Table</strong> (all stats per player)</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #9c27b0; margin-bottom: 10px;">Head-to-Head Records</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>Tap <strong>"📈 View Stats"</strong> → <strong>"Head-to-Head Records"</strong></li>
+                        <li>See direct records when two players compete in the same session</li>
+                        <li>Shows win/loss records (who finished with lower score)</li>
+                        <li>Tap <strong>"View Detailed Comparison"</strong> for any matchup</li>
+                    </ul>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px;">
+                    <h4 style="color: #9c27b0; margin-bottom: 10px;">Detailed Player Comparison</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>Tap <strong>"📈 View Stats"</strong> → <strong>"Detailed Comparison"</strong></li>
+                        <li>Select two players to compare</li>
+                        <li>See:
+                            <ul style="margin-left: 20px; margin-top: 5px;">
+                                <li><strong>Sessions Together:</strong> Head-to-head record when both played</li>
+                                <li><strong>All Sessions:</strong> Individual performance across all sessions</li>
+                                <li><strong>Performance Context:</strong> How Player 1 performs vs Player 2 depending on who else is playing</li>
+                                <li><strong>Session History:</strong> Clickable list of all sessions they played together</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- KEY FEATURES -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #00bcd4;">
+                <h3 style="color: #00bcd4; margin-bottom: 15px;">⭐ KEY FEATURES</h3>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #00bcd4; margin-bottom: 10px;">Late Joiner Support</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>Players can join mid-session</li>
+                        <li>Starting score = average of all current players' totals at join hand</li>
+                        <li>Marked with <strong>"Joined H#"</strong> badges throughout the app</li>
+                        <li>Graphs show nulls for hands before they joined</li>
+                    </ul>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #00bcd4; margin-bottom: 10px;">Lockout Score Tracking</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>The app records <strong>lockout scores</strong> separately for stats purposes</li>
+                        <li>Even if a successful lockout scores 0, the lockout score (e.g., 3) is saved</li>
+                        <li>Used to calculate <strong>Avg Lockout Score</strong> statistics</li>
+                    </ul>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #00bcd4; margin-bottom: 10px;">False Lockout Penalties</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>Customizable per session (set during session creation)</li>
+                        <li>Default: 10 points</li>
+                        <li>Applied automatically when detected</li>
+                    </ul>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #00bcd4; margin-bottom: 10px;">Graphs</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li><strong>Worm Chart</strong> (Cricket Worm): Cumulative scores over time</li>
+                        <li><strong>Manhattan Chart:</strong> Hand-by-hand scores (bar chart)</li>
+                        <li>Both handle late joiners (show nulls before join)</li>
+                    </ul>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px;">
+                    <h4 style="color: #00bcd4; margin-bottom: 10px;">Session Metadata</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li><strong>Notes:</strong> Add context (e.g., "Playing at John's house")</li>
+                        <li><strong>Tags:</strong> Categorize sessions (Casual, Holiday, Pub, Tournament, etc.)</li>
+                        <li><strong>Clickable Session Links:</strong> In comparisons, tap session names to view details</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- TIPS -->
+            <div style="background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                <h3 style="margin-bottom: 15px;">💡 TIPS FOR BEST EXPERIENCE</h3>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li>✅ <strong>Add all regular players once</strong> — saves time when starting sessions</li>
+                    <li>✅ <strong>Use descriptive session titles</strong> — easier to find later (e.g., "Magaluf Day 3")</li>
+                    <li>✅ <strong>Add hand notes</strong> — capture memorable moments ("Dave's epic false lockout")</li>
+                    <li>✅ <strong>Review stats regularly</strong> — see who's improving, who's struggling</li>
+                    <li>✅ <strong>Use tags</strong> — filter sessions by type (e.g., all Holiday sessions)</li>
+                    <li>✅ <strong>Check graphs during play</strong> — see who's pulling ahead in real-time</li>
+                </ul>
+            </div>
+
+            <!-- TROUBLESHOOTING -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                <h3 style="color: #ffc107; margin-bottom: 15px;">❓ TROUBLESHOOTING</h3>
+                
+                <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+                    <p style="font-weight: 600; margin-bottom: 5px;">Q: Can I edit a hand after submitting?</p>
+                    <p style="margin: 0;">A: Yes! Tap "Edit" next to any hand in the history. Only the most recent hand can be deleted.</p>
+                </div>
+                
+                <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+                    <p style="font-weight: 600; margin-bottom: 5px;">Q: What if I accidentally end a session?</p>
+                    <p style="margin: 0;">A: Ended sessions cannot be reopened. Start a new session if needed.</p>
+                </div>
+                
+                <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+                    <p style="font-weight: 600; margin-bottom: 5px;">Q: Can I remove a player from a session?</p>
+                    <p style="margin: 0;">A: No, once a player is added (either at start or mid-session), they cannot be removed. Plan carefully!</p>
+                </div>
+                
+                <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+                    <p style="font-weight: 600; margin-bottom: 5px;">Q: What if two players tie for lowest after a lockout?</p>
+                    <p style="margin: 0;">A: The locked-out player gets a false lockout penalty. The other tied player keeps their original score (not reset to 0).</p>
+                </div>
+                
+                <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+                    <p style="font-weight: 600; margin-bottom: 5px;">Q: How are late joiner starting scores calculated?</p>
+                    <p style="margin: 0;">A: Average of all current players' cumulative totals at the hand they join.</p>
+                </div>
+                
+                <div style="background: white; padding: 12px; border-radius: 8px;">
+                    <p style="font-weight: 600; margin-bottom: 5px;">Q: Why does the app ask for lockout scores, not final scores?</p>
+                    <p style="margin: 0;">A: The app calculates final scores automatically based on lockout validity. You only input the score the player called lockout with.</p>
+                </div>
+            </div>
+
+            <!-- DATA & PRIVACY -->
+            <div style="background: #e8f5e9; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #4caf50;">
+                <h3 style="color: #2e7d32; margin-bottom: 15px;">🔒 DATA & PRIVACY</h3>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li>All data is stored in <strong>Google Sheets</strong> (your own spreadsheet)</li>
+                    <li>No data is shared with third parties</li>
+                    <li>Edit history tracks all changes (who edited what and when)</li>
+                </ul>
+            </div>
+
+        </div>
+
+        <button class="btn btn-secondary" onclick="showScreen('homeScreen')" style="margin-top: 20px;">Back to Home</button>
+    </div>
+</div>
+        
 <!-- RULES SCREEN -->
 <div id="rulesScreen" class="screen">
     <div class="card">
