@@ -178,7 +178,6 @@
                 <button class="btn" onclick="showScreen('startSessionScreen')">🎮 Start New Session</button>
                 <button class="btn btn-secondary" onclick="showScreen('previousSessionsScreen'); loadPreviousSessions();">📊 View Previous Sessions</button>
                 <button class="btn btn-secondary" onclick="showScreen('statsScreen'); loadStats();">📈 View Stats</button>
-                <button class="btn btn-secondary" onclick="showHeadToHead()">⚔️ Head-to-Head</button>
                 <button class="btn btn-secondary" onclick="showScreen('addPlayerScreen')">➕ Add New Player</button>
                 <button class="btn btn-info" onclick="showScreen('dictionaryScreen')">📖 Dictionary</button>
                 <button class="btn btn-info" onclick="showScreen('rulesScreen')">📜 Rules</button>
@@ -2217,6 +2216,23 @@ if (h.lockout_score) {
             return playerStats;
         }
 
+        async function viewSessionDetailFromComparison(sessionId) {
+    // Load all sessions if not already loaded
+    if (allSessions.length === 0) {
+        await loadPreviousSessions();
+    }
+    
+    // Find the session index
+    const sessionIndex = allSessions.findIndex(s => String(s.session_id) === String(sessionId));
+    
+    if (sessionIndex !== -1) {
+        viewSessionDetail(sessionIndex);
+    } else {
+        alert('Session not found');
+    }
+}
+
+
         function displayOverallStats(stats, totalSessions) {
             let mostSessionsWon = { player: 'N/A', wins: 0 };
             let mostHandsWon = { player: 'N/A', hands: 0 };
@@ -2530,9 +2546,9 @@ html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;"><strong>
                 html += '</div>';
             } else {
                 // Side-by-side stats table
-                html += '<div style="overflow-x: auto;"><table class="scores-table">';
-                html += '<tr><th>Stat</th><th style="color: #667eea;">' + p1Name + '</th><th style="color: #f5576c;">' + p2Name + '</th></tr>';
-                
+   html += '<div style="overflow-x: auto;"><table class="scores-table">';
+html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + p1Name + '</th><th style="color: white; background: #f5576c;">' + p2Name + '</th></tr>';
+           
                 html += '<tr><td><strong>Wins</strong></td><td>' + ts.p1_wins + '</td><td>' + ts.p2_wins + '</td></tr>';
                 html += '<tr><td><strong>Win Rate</strong></td><td>' + ts.p1_win_rate + '%</td><td>' + ts.p2_win_rate + '%</td></tr>';
                 html += '<tr><td><strong>Total Score</strong></td><td>' + ts.p1_total_score + '</td><td>' + ts.p2_total_score + '</td></tr>';
@@ -2611,22 +2627,23 @@ html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;"><strong>
                 html += '<h3 style="color: #9c27b0; margin-bottom: 20px;">📅 Session History</h3>';
                 html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">Sessions where both players competed</p>';
                 
-                for (let i = data.sessions_together.length - 1; i >= 0; i--) {
-                    const s = data.sessions_together[i];
-                    const winner = s.p1_won && !s.p2_won ? p1Name : s.p2_won && !s.p1_won ? p2Name : 'Tie';
-                    const winnerColor = s.p1_won && !s.p2_won ? '#667eea' : s.p2_won && !s.p1_won ? '#f5576c' : '#ff9800';
-                    
-                    html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px; margin-bottom: 10px;">';
-                    html += '<div style="flex: 1;">';
-                    html += '<div style="font-weight: 600; color: #333;">' + s.title + '</div>';
-                    html += '<div style="font-size: 0.85em; color: #666;">' + s.date.split(' ')[0] + ' • ' + s.player_count + ' players</div>';
-                    html += '</div>';
-                    html += '<div style="text-align: right;">';
-                    html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1.1em;">' + winner + '</div>';
-                    html += '<div style="font-size: 0.85em; color: #666;">' + p1Name + ' ' + s.p1_score + ' | ' + p2Name + ' ' + s.p2_score + '</div>';
-                    html += '</div>';
-                    html += '</div>';
-                }
+// Replace the session history rendering with this:
+for (let i = data.sessions_together.length - 1; i >= 0; i--) {
+    const s = data.sessions_together[i];
+    const winner = s.p1_won && !s.p2_won ? p1Name : s.p2_won && !s.p1_won ? p2Name : 'Tie';
+    const winnerColor = s.p1_won && !s.p2_won ? '#667eea' : s.p2_won && !s.p1_won ? '#f5576c' : '#ff9800';
+    
+    html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px; margin-bottom: 10px; cursor: pointer; transition: background 0.2s;" onclick="viewSessionDetailFromComparison(' + s.session_id + ')" onmouseover="this.style.background=\'#f8f9fa\'" onmouseout="this.style.background=\'white\'">';
+    html += '<div style="flex: 1;">';
+    html += '<div style="font-weight: 600; color: #333;">' + s.title + ' 🔗</div>';
+    html += '<div style="font-size: 0.85em; color: #666;">' + s.date.split(' ')[0] + ' • ' + s.player_count + ' players</div>';
+    html += '</div>';
+    html += '<div style="text-align: right;">';
+    html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1.1em;">' + winner + '</div>';
+    html += '<div style="font-size: 0.85em; color: #666;">' + p1Name + ' ' + s.p1_score + ' | ' + p2Name + ' ' + s.p2_score + '</div>';
+    html += '</div>';
+    html += '</div>';
+}
                 
                 html += '</div>';
             }
