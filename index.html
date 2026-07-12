@@ -208,18 +208,288 @@
             </div>
         </div>
 
-        <!-- RULES SCREEN -->
-        <div id="rulesScreen" class="screen">
-            <div class="card">
-                <h2>📜 Rules</h2>
-                <div class="placeholder-content">
-                    <h3>Coming Soon!</h3>
-                    <p>Complete game rules and instructions will be added here.</p>
-                    <p style="font-size: 3em;">📋</p>
-                </div>
-                <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
-            </div>
+<!-- RULES SCREEN -->
+<div id="rulesScreen" class="screen">
+    <div class="card">
+        <h2>📜 Lockout - Official Rules</h2>
+        
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white; text-align: center;">
+            <h3 style="margin: 0; font-size: 1.3em;">🎯 OBJECTIVE</h3>
+            <p style="margin: 10px 0 0 0; font-size: 0.95em;">Be the player with the <strong>lowest cumulative score</strong> at the end of the session by winning hands through successful lockouts.</p>
         </div>
+
+        <div style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
+            
+            <!-- SETUP -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #667eea;">
+                <h3 style="color: #667eea; margin-bottom: 15px;">🎴 SETUP</h3>
+                
+                <p><strong>Players:</strong> 2 or more</p>
+                <p><strong>Deck:</strong> Standard 52-card deck</p>
+                
+                <p style="margin-top: 15px;"><strong>Deal:</strong></p>
+                <ol style="margin-left: 20px; line-height: 1.8;">
+                    <li>Choose a dealer (rotates clockwise each hand)</li>
+                    <li>Deal 4 cards <strong>face down</strong> to each player</li>
+                    <li>Players arrange their 4 cards in a formation in front of them (common: 2×2 grid or 1×4 row)</li>
+                    <li>Each player may <strong>secretly look at any 2</strong> of their 4 cards, then place them back face down</li>
+                    <li>Place remaining deck face down in the center (draw pile)</li>
+                    <li>Player to the dealer's left goes first</li>
+                </ol>
+                
+                <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin-top: 15px; border-left: 3px solid #ffc107;">
+                    <strong>⚠️ Important:</strong> Cards must stay in their original positions throughout the hand. Players rely on memory to track card locations.
+                </div>
+            </div>
+
+            <!-- CARD VALUES -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #4facfe;">
+                <h3 style="color: #4facfe; margin-bottom: 15px;">💎 CARD VALUES</h3>
+                
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                    <tr style="background: #4facfe; color: white;">
+                        <th style="padding: 10px; text-align: left; border-radius: 5px 0 0 0;">Card</th>
+                        <th style="padding: 10px; text-align: left; border-radius: 0 5px 0 0;">Value</th>
+                    </tr>
+                    <tr style="background: white;">
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">Ace</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">1</td>
+                    </tr>
+                    <tr style="background: #f8f9fa;">
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">2-10</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">Face value</td>
+                    </tr>
+                    <tr style="background: white;">
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">Jack, Queen, King</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">10</td>
+                    </tr>
+                    <tr style="background: #ffe8e8;">
+                        <td style="padding: 10px; font-weight: bold;">Red King ♥️ ♦️</td>
+                        <td style="padding: 10px; font-weight: bold;">-1</td>
+                    </tr>
+                </table>
+                
+                <p style="font-weight: 600; color: #333;">Your score = sum of all cards in your hand</p>
+            </div>
+
+            <!-- TURN SEQUENCE -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #f5576c;">
+                <h3 style="color: #f5576c; margin-bottom: 15px;">🔄 TURN SEQUENCE</h3>
+                
+                <p style="margin-bottom: 10px;"><strong>On your turn:</strong></p>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <p style="font-weight: 600; margin-bottom: 10px;">1. DRAW one card from either:</p>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>The face-down draw pile, OR</li>
+                        <li>The top card of the face-up discard pile</li>
+                    </ul>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <p style="font-weight: 600; margin-bottom: 10px;">2. CHOOSE one of the following:</p>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li><strong>Swap</strong> the drawn card with one of your face-down cards (place the old card face up on discard pile)</li>
+                        <li><strong>Discard</strong> the drawn card face up onto the discard pile (keep your hand unchanged)</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #2196f3;">
+                    <strong>ℹ️ First Turn Exception:</strong> The first player must draw from the draw pile (no discard pile exists yet).
+                </div>
+                
+                <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; border-left: 3px solid #2196f3;">
+                    <strong>ℹ️ When Draw Pile Runs Out:</strong> Shuffle the discard pile face down to create a new draw pile, leaving only the current top card as the discard pile.
+                </div>
+            </div>
+
+            <!-- MAGIC CARDS -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #9c27b0;">
+                <h3 style="color: #9c27b0; margin-bottom: 15px;">✨ MAGIC CARDS</h3>
+                
+                <p style="margin-bottom: 15px;">When you <strong>draw</strong> these cards from the <strong>draw pile</strong> (not discard), you may use their special ability before deciding to swap or discard:</p>
+                
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                    <tr style="background: #9c27b0; color: white;">
+                        <th style="padding: 10px; text-align: left; border-radius: 5px 0 0 0; width: 80px;">Card</th>
+                        <th style="padding: 10px; text-align: left; border-radius: 0 5px 0 0;">Ability</th>
+                    </tr>
+                    <tr style="background: white;">
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: bold;">7</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">Look at one of your own face-down cards</td>
+                    </tr>
+                    <tr style="background: #f8f9fa;">
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: bold;">8</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">Look at one of another player's face-down cards</td>
+                    </tr>
+                    <tr style="background: white;">
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: bold;">9</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;"><strong>Blind Swap</strong> - Swap one of your cards with another player's card (neither card is looked at)</td>
+                    </tr>
+                    <tr style="background: #f8f9fa;">
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: bold;">10</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;"><strong>Open Swap</strong> - Pick up one of your cards and one of another player's cards, look at both, then either swap them or return them to their original positions</td>
+                    </tr>
+                    <tr style="background: #fff3e0;">
+                        <td style="padding: 10px; font-weight: bold;">Red Jack<br><span style="font-size: 0.85em;">(Optional)</span></td>
+                        <td style="padding: 10px;">Swap one card between any two other players (not yourself). Cards remain face down and stay in their original positions</td>
+                    </tr>
+                </table>
+                
+                <div style="background: #fff3cd; padding: 12px; border-radius: 8px; border-left: 3px solid #ffc107;">
+                    <strong>⚠️ Note:</strong> Cards must stay in their original table positions after swaps. Magic abilities only work when drawn from the draw pile, not when picked from the discard pile.
+                </div>
+            </div>
+
+            <!-- SLAMS -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #ff5722;">
+                <h3 style="color: #ff5722; margin-bottom: 15px;">👊 SLAMS</h3>
+                
+                <div style="background: #ffebee; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 3px solid #f44336;">
+                    <strong>⚡ Slams can happen at any time, out of turn!</strong>
+                </div>
+                
+                <p style="margin-bottom: 15px;">When a player discards a card (e.g., a 5), you may <strong>slam</strong> if you believe a matching card exists:</p>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #ff5722; margin-bottom: 10px;">Slamming Your Own Card</h4>
+                    <ol style="margin-left: 20px; line-height: 1.8;">
+                        <li>Quickly turn over the matching card from your hand</li>
+                        <li><strong>If correct:</strong> Place it on the discard pile (you now have one fewer card = lower score!)</li>
+                        <li><strong>If incorrect:</strong> Take a 1-card penalty from the draw pile (place face down in your hand without looking)</li>
+                    </ol>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #ff5722; margin-bottom: 10px;">Slamming Another Player's Card</h4>
+                    <ol style="margin-left: 20px; line-height: 1.8;">
+                        <li>Quickly place your finger on their card</li>
+                        <li>Turn it over to reveal</li>
+                        <li><strong>If correct:</strong> They take a 1-card penalty from the draw pile (placed face down without looking)</li>
+                        <li><strong>If incorrect:</strong> You take a 1-card penalty</li>
+                    </ol>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #ff5722; margin-bottom: 10px;">Slam Rules</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li><strong>Suits don't matter</strong> (only card values)</li>
+                        <li><strong>Red Kings cannot be slammed</strong></li>
+                        <li><strong>You cannot slam on a card you just discarded</strong> — BUT if another player slams before the next discard, the top card becomes "fresh" and you may slam</li>
+                        <li><strong>Once the next player discards</strong>, the card below is no longer slammable</li>
+                        <li><strong>Multiple players can slam simultaneously</strong> (4 of each card type exist in the deck)</li>
+                        <li><strong>Defense:</strong> You may protect your card by placing your finger on it first when you see someone approaching to slam</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; border-left: 3px solid #2196f3;">
+                    <strong>ℹ️ Penalty Cards:</strong> Drawn from the draw pile, placed face down in your hand without looking. Added to your formation (formations can grow beyond 4 cards). Cannot be rearranged or moved (unless removed via slam).
+                </div>
+            </div>
+
+            <!-- LOCKOUT -->
+            <div style="background: linear-gradient(135deg, #4caf50 0%, #8bc34a 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                <h3 style="margin-bottom: 15px; font-size: 1.4em;">🔒 LOCKOUT</h3>
+                
+                <p style="font-size: 1.1em; font-weight: 600; margin-bottom: 15px;">Lockout is how you win a hand!</p>
+                
+                <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="margin-bottom: 10px;">When to Lockout</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li><strong>Only at the start of your turn</strong> (before drawing)</li>
+                        <li>Your hand total must be <strong>5 or less</strong> (minimum: -2 with two Red Kings)</li>
+                        <li><strong>Only one player can lockout per hand</strong></li>
+                    </ul>
+                </div>
+                
+                <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="margin-bottom: 10px;">What Happens After Lockout</h4>
+                    <ol style="margin-left: 20px; line-height: 1.8;">
+                        <li>You announce "Lockout!" (<strong>do not reveal your hand yet</strong>)</li>
+                        <li>Your hand is <strong>frozen</strong> (no swaps, slams, or other interference)</li>
+                        <li>Play continues clockwise — every other player gets <strong>one final turn</strong></li>
+                        <li>When play returns to you, <strong>all players reveal their cards simultaneously</strong></li>
+                    </ol>
+                </div>
+                
+                <div style="background: rgba(255,255,255,0.95); padding: 15px; border-radius: 8px; margin-bottom: 15px; color: #333;">
+                    <h4 style="color: #4caf50; margin-bottom: 10px;">✅ Successful Lockout</h4>
+                    <p style="margin-bottom: 10px;">You score <strong>0 for the hand</strong> if:</p>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>Your hand total is <strong>5 or less</strong>, AND</li>
+                        <li>Your total is <strong>strictly lower</strong> than all other players (no ties!)</li>
+                    </ul>
+                    <p style="margin-top: 10px; font-style: italic;"><strong>Exception:</strong> If your total is negative, you keep the negative score (it's a benefit!)</p>
+                </div>
+                
+                <div style="background: rgba(255,255,255,0.95); padding: 15px; border-radius: 8px; margin-bottom: 15px; color: #333;">
+                    <h4 style="color: #f44336; margin-bottom: 10px;">❌ False Lockout</h4>
+                    <p style="margin-bottom: 10px;">You score <strong>your hand total + penalty</strong> if:</p>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>Your hand total is <strong>greater than 5</strong>, OR</li>
+                        <li>Your total is <strong>tied with or higher</strong> than another player</li>
+                    </ul>
+                    <p style="margin-top: 10px; font-style: italic;"><strong>Penalty amount is decided at the start of the session (typically 10 points).</strong></p>
+                </div>
+                
+                <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px;">
+                    <h4 style="margin-bottom: 10px;">Other Players</h4>
+                    <p>All other players score their final hand totals (no change to 0, even if they have the lowest score after a false lockout).</p>
+                </div>
+            </div>
+
+            <!-- WINNING -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                <h3 style="color: #ffc107; margin-bottom: 15px;">🏆 WINNING THE GAME</h3>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li><strong>Lowest cumulative score</strong> across all hands wins the session</li>
+                    <li>Sessions end when players decide (fixed number of hands, score target, end of event, etc.)</li>
+                </ul>
+            </div>
+
+            <!-- ADDITIONAL RULES -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #00bcd4;">
+                <h3 style="color: #00bcd4; margin-bottom: 15px;">📋 ADDITIONAL RULES</h3>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #00bcd4; margin-bottom: 10px;">Communication</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li><strong>Bluffing and conferring</strong> about cards (truthful or not) is allowed</li>
+                        <li>Share information strategically to influence other players' decisions</li>
+                    </ul>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px;">
+                    <h4 style="color: #00bcd4; margin-bottom: 10px;">Memory is Key</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>Cards never move positions (except when removed via slam)</li>
+                        <li>Track what you've seen through magic cards and discards</li>
+                        <li>Remember what other players know about your hand</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- STRATEGY TIPS -->
+            <div style="background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                <h3 style="margin-bottom: 15px;">💡 STRATEGY TIPS</h3>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li>✅ <strong>Use magic cards wisely</strong> — knowing card locations is powerful</li>
+                    <li>✅ <strong>Slam aggressively</strong> — reducing your hand size lowers your score</li>
+                    <li>✅ <strong>Defend your cards</strong> — be ready to protect when you see opponents approaching</li>
+                    <li>✅ <strong>Bluff strategically</strong> — mislead opponents about what you know</li>
+                    <li>✅ <strong>Time your lockout</strong> — ensure you're strictly lowest before declaring</li>
+                </ul>
+            </div>
+
+            <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; color: white; font-size: 1.2em; font-weight: 600;">
+                Good luck, and may the lowest score win! 🎴
+            </div>
+
+        </div>
+
+        <button class="btn btn-secondary" onclick="showScreen('homeScreen')" style="margin-top: 20px;">Back to Home</button>
+    </div>
+</div>
         <!-- PREVIOUS SESSIONS SCREEN -->
         <div id="previousSessionsScreen" class="screen">
             <div class="card">
