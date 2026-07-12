@@ -167,7 +167,6 @@
             <h1>🎴 Lockout Tracker</h1>
             <p>Track your games, dominate the leaderboard</p>
         </div>
-
         <!-- HOME SCREEN -->
         <div id="homeScreen" class="screen active">
             <div class="card">
@@ -221,7 +220,6 @@
                 <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
             </div>
         </div>
-
         <!-- PREVIOUS SESSIONS SCREEN -->
         <div id="previousSessionsScreen" class="screen">
             <div class="card">
@@ -242,22 +240,21 @@
             </div>
         </div>
 
-<!-- STATS SCREEN -->
-<!-- STATS SCREEN -->
-<div id="statsScreen" class="screen">
-    <div class="card">
-        <h2>📊 Statistics</h2>
-        
-        <div id="statsNav" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-            <button class="btn btn-small btn-info" onclick="showOverallStats()">Overall Stats</button>
-            <button class="btn btn-small btn-info" onclick="showHeadToHeadList()">All Matchups</button>
-            <button class="btn btn-small btn-info" onclick="showPlayerComparisonUI()">Compare Players</button>
+        <!-- STATS SCREEN -->
+        <div id="statsScreen" class="screen">
+            <div class="card">
+                <h2>📊 Statistics</h2>
+                
+                <div id="statsNav" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="btn btn-small btn-info" onclick="showOverallStats()">Overall Stats</button>
+                    <button class="btn btn-small btn-info" onclick="showHeadToHeadList()">Head-to-Head Records</button>
+                    <button class="btn btn-small btn-info" onclick="showPlayerComparisonUI()">Detailed Comparison</button>
+                </div>
+                
+                <div id="statsContent" class="loading">Loading...</div>
+                <button class="btn btn-secondary" onclick="showScreen('homeScreen')" style="margin-top: 20px;">Back to Home</button>
+            </div>
         </div>
-        
-        <div id="statsContent" class="loading">Loading...</div>
-    </div>
-</div>
-
         <!-- START SESSION SCREEN -->
         <div id="startSessionScreen" class="screen">
             <div class="card">
@@ -271,7 +268,7 @@
                 <label for="sessionNotes">Session Notes (Optional)</label>
                 <textarea id="sessionNotes" placeholder="e.g. Playing at John's house, bring snacks"></textarea>
                 <label for="sessionTags">Session Type (Optional)</label>
-<select id="sessionTags" multiple size="4" style="min-height: 120px;">
+                <select id="sessionTags" multiple size="4" style="min-height: 120px;">
                     <option value="Testing">🧪 Testing</option>
                     <option value="Casual">😎 Casual</option>
                     <option value="Holiday">🏖️ Holiday</option>
@@ -351,7 +348,7 @@
             <label for="editSessionNotes">Session Notes</label>
             <textarea id="editSessionNotes" placeholder="e.g. Playing at John's house"></textarea>
             <label for="editSessionTags">Session Type</label>
-<select id="editSessionTags" multiple size="4" style="min-height: 120px;">
+            <select id="editSessionTags" multiple size="4" style="min-height: 120px;">
                 <option value="Testing">🧪 Testing</option>
                 <option value="Casual">😎 Casual</option>
                 <option value="Holiday">🏖️ Holiday</option>
@@ -400,7 +397,6 @@
         let selectedPlayerToAdd = null;
         let playersLoaded = false;
         let playerCache = {};
-
         // ============================================
         // BUTTON LOADING STATE HELPER
         // ============================================
@@ -536,7 +532,7 @@
             playerList.innerHTML = html;
         }
 
-async function addPlayer() {
+        async function addPlayer() {
             const username = document.getElementById('newPlayerName').value.trim();
             const messageDiv = document.getElementById('addPlayerMessage');
             
@@ -698,7 +694,7 @@ async function addPlayer() {
             }
             const tags = selectedTags.join(',');
             const penalty = document.getElementById('falseLockoutPenalty').value.trim();
-        const messageDiv = document.getElementById('sessionMessage');
+            const messageDiv = document.getElementById('sessionMessage');
             
             if (!title || !hostId || selectedPlayers.length === 0) {
                 messageDiv.innerHTML = '<div class="error">Please fill all required fields</div>';
@@ -721,7 +717,7 @@ async function addPlayer() {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
                 setButtonLoading(createBtn, false);
             } else {
-currentSession = { 
+                currentSession = { 
                     session_id: data.session_id, 
                     title: title, 
                     host_player_id: hostId,
@@ -739,7 +735,6 @@ currentSession = {
                 }
                 currentHandNumber = 1;
                 
-                // Clear any previous session UI state
                 document.getElementById('sessionScores').innerHTML = '';
                 document.getElementById('handHistorySection').style.display = 'none';
                 document.getElementById('activeSessionCharts').innerHTML = '';
@@ -808,12 +803,10 @@ currentSession = {
             displaySessionMetadata('activeSessionMetadata');
             setupHandInputs();
             
-            // Clear previous session data
             document.getElementById('sessionScores').innerHTML = '';
             document.getElementById('handHistorySection').style.display = 'none';
             document.getElementById('activeSessionCharts').innerHTML = '';
             
-            // Load current session data
             updateSessionScores();
             
             showScreen('activeSessionScreen');
@@ -975,7 +968,7 @@ currentSession = {
             const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
             const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
             
-const isFalseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
+            const isFalseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
             
             if (isFalseLockout) {
                 let warningMessage = '<strong>⚠️ Warning:</strong> ';
@@ -1026,15 +1019,13 @@ const isFalseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
                 }
             }
             
-const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+            const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
             const lowestScore = Math.min(...scores.map(s => s.score));
             const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
             const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
             
-            // False lockout if: score > 5 OR not strictly lowest
             let falseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
             
-            // Show confirmation if warning was displayed
             if (document.getElementById('lockoutWarning').style.display === 'block') {
                 const confirmMsg = 'This will be marked as a FALSE LOCKOUT. Continue?';
                 if (!confirm(confirmMsg)) {
@@ -1043,7 +1034,6 @@ const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(locko
                 }
             }
             
-            // Get penalty from session
             let penalty = 10;
             if (currentSession.false_lockout_penalty) {
                 penalty = Number(currentSession.false_lockout_penalty);
@@ -1051,14 +1041,11 @@ const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(locko
             
             const lockoutScoreValue = lockoutPlayerScore;
             
-// Adjust lockout player's score based on success/false
             for (let i = 0; i < scores.length; i++) {
                 if (String(scores[i].player_id) === String(lockoutPlayerId)) {
                     if (falseLockout) {
-                        // False lockout: score = lockout score + penalty
                         scores[i].score = lockoutScoreValue + penalty;
                     } else {
-                        // Successful lockout: 0 if positive, keep if negative
                         scores[i].score = lockoutScoreValue < 0 ? lockoutScoreValue : 0;
                     }
                     break;
@@ -1121,24 +1108,19 @@ const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(locko
                 for (let j = 0; j < hands.length; j++) {
                     const h = hands[j];
                     if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
-                        // This player locked out - show special format
-if (h.lockout_score) {
+                        if (h.lockout_score) {
                             if (h.false_lockout == 1 || h.false_lockout === true) {
-                                // False lockout: show "15 (5 + 10 penalty)"
                                 const penalty = h.score - h.lockout_score;
                                 scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + penalty + ' penalty) | ';
                             } else {
-                                // Successful lockout: show actual score (can be negative)
                                 scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ') | ';
                             }
                         } else {
-                            // Old data without lockout_score - show normally
                             scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
                         }
                         lockoutPlayer = getPlayerName(h.player_id);
                         isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
                     } else {
-                        // Regular player (not lockout) - show normally
                         scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
                     }
                     if (h.comment && !handComment) {
@@ -1158,7 +1140,7 @@ if (h.lockout_score) {
                 html += '</div>';
                 html += '<div class="hand-item-actions">';
                 html += '<button class="btn btn-warning btn-small" onclick="editHand(' + handNum + ', event)">Edit</button>';
-if (i === 0) {
+                if (i === 0) {
                     html += '<button class="btn btn-danger btn-small" onclick="deleteHand(' + handNum + ', event)">Delete</button>';
                 }
                 html += '</div>';
@@ -1170,9 +1152,9 @@ if (i === 0) {
         }
 
         async function editHand(handNumber, event) {
-                            if (event && event.target) {
-                                setButtonLoading(event.target, true);
-                            }
+            if (event && event.target) {
+                setButtonLoading(event.target, true);
+            }
 
             const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
             const handsToEdit = handsData.filter(h => h.hand_number == handNumber);
@@ -1204,10 +1186,9 @@ if (i === 0) {
                 const player = sessionPlayers[i];
                 const joinHand = getPlayerJoinHand(player.player_id);
                 if (joinHand <= handNumber) {
-const handData = handsToEdit.find(h => String(h.player_id) === String(player.player_id));
+                    const handData = handsToEdit.find(h => String(h.player_id) === String(player.player_id));
                     let displayScore = '';
                     if (handData) {
-                        // If this is the lockout player, show their lockout_score (fallback to score if missing)
                         if (lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id)) {
                             displayScore = handData.lockout_score ? handData.lockout_score : handData.score;
                         } else {
@@ -1228,7 +1209,6 @@ const handData = handsToEdit.find(h => String(h.player_id) === String(player.pla
             document.getElementById('editHandComment').value = handComment;
             document.getElementById('editHandModal').classList.add('active');
             
-            // Check validity after rendering
             setTimeout(checkEditLockoutValidity, 100);
             
             if (event && event.target) {
@@ -1268,7 +1248,7 @@ const handData = handsToEdit.find(h => String(h.player_id) === String(player.pla
                 return;
             }
             
-const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+            const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
             const lowestScore = Math.min(...scores.map(s => s.score));
             const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
             const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
@@ -1331,7 +1311,6 @@ const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(locko
             
             let falseLockout = !hasStrictlyLowestScore;
             
-            // Show confirmation if warning was displayed
             if (document.getElementById('editLockoutWarning').style.display === 'block') {
                 const confirmMsg = 'This will be marked as a FALSE LOCKOUT. Continue?';
                 if (!confirm(confirmMsg)) {
@@ -1340,7 +1319,6 @@ const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(locko
                 }
             }
             
-            // Get penalty and calculate actual scores
             let penalty = 10;
             if (currentSession.false_lockout_penalty) {
                 penalty = Number(currentSession.false_lockout_penalty);
@@ -1348,13 +1326,11 @@ const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(locko
             
             const lockoutScoreValue = lockoutPlayerScore;
             
-// Adjust lockout player's score
             for (let i = 0; i < scores.length; i++) {
                 if (String(scores[i].player_id) === String(lockoutPlayerId)) {
                     if (falseLockout) {
                         scores[i].score = lockoutScoreValue + penalty;
                     } else {
-                        // Successful lockout: 0 if positive, keep if negative
                         scores[i].score = lockoutScoreValue < 0 ? lockoutScoreValue : 0;
                     }
                     break;
@@ -1373,7 +1349,7 @@ const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(locko
                 lockout_score: lockoutScoreValue
             });
             
-if (data.error) {
+            if (data.error) {
                 messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
                 setButtonLoading(saveBtn, false);
             } else {
@@ -1392,7 +1368,7 @@ if (data.error) {
             currentEditingHand = null;
         }
 
-async function deleteHand(handNumber, event) {
+        async function deleteHand(handNumber, event) {
             if (!confirm('Delete Hand ' + handNumber + '? This cannot be undone.')) {
                 return;
             }
@@ -1407,7 +1383,8 @@ async function deleteHand(handNumber, event) {
                 hand_number: handNumber,
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
- if (data.error) {
+            
+            if (data.error) {
                 alert('Error: ' + data.error);
                 if (event && event.target) {
                     setButtonLoading(event.target, false);
@@ -1422,12 +1399,11 @@ async function deleteHand(handNumber, event) {
                     setButtonLoading(event.target, false);
                 }
             }
-
         }
         // ============================================
         // ACTIVE SESSION SCORING & CHARTS
         // ============================================
-async function updateSessionScores() {
+        async function updateSessionScores() {
             document.getElementById('sessionScores').innerHTML = '<div class="loading">Calculating scores...</div>';
             document.getElementById('handHistorySection').style.display = 'block';
             document.getElementById('handHistoryList').innerHTML = '<div class="loading">Loading hand history...</div>';
@@ -1436,7 +1412,6 @@ async function updateSessionScores() {
             if (handsData.error) return;
             
             displayHandHistory();
-
             
             const playerScores = {};
             let totalLockoutScore = 0;
@@ -1467,19 +1442,21 @@ async function updateSessionScores() {
                         hand_number: hand.hand_number,
                         score: hand.score
                     });
-if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
-    playerScores[hand.player_id].totalLockouts++;
-    if (hand.false_lockout == 1 || hand.false_lockout === true) {
-        falseLockoutCount++;
-        playerScores[hand.player_id].falseLockouts++;
-    } else {
-        playerScores[hand.player_id].lockouts++;
-        var lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
-        playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
-        totalLockoutScore += lockoutScoreToUse;
-        totalLockouts++;
-    }
-}
+                    
+                    // ✅ FIX: Only count lockout scores when this player actually locked out
+                    if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+                        playerScores[hand.player_id].totalLockouts++;
+                        if (hand.false_lockout == 1 || hand.false_lockout === true) {
+                            falseLockoutCount++;
+                            playerScores[hand.player_id].falseLockouts++;
+                        } else {
+                            playerScores[hand.player_id].lockouts++;
+                            const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+                            playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
+                            totalLockoutScore += lockoutScoreToUse;
+                            totalLockouts++;
+                        }
+                    }
                 }
             }
             
@@ -1577,7 +1554,7 @@ if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.pla
         }
 
         // ============================================
-        // ACTIVE SESSION CHARTS
+        // ACTIVE SESSION CHARTS - FIXED
         // ============================================
         function drawActiveWormChart(playerHands, playerIds) {
             const ctx = document.getElementById('activeWormChart');
@@ -1595,10 +1572,12 @@ if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.pla
                 let cumulative = startingScore;
                 const cumulativeScores = [];
                 
+                // Add nulls for hands before joining
                 for (let h = 1; h < joinHand; h++) {
                     cumulativeScores.push(null);
                 }
                 
+                // Add cumulative scores for hands played
                 for (let j = 0; j < hands.length; j++) {
                     cumulative += hands[j];
                     cumulativeScores.push(cumulative);
@@ -1651,10 +1630,12 @@ if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.pla
                 const joinHand = getPlayerJoinHand(playerId);
                 const dataArray = [];
                 
+                // Add nulls for hands before joining
                 for (let h = 1; h < joinHand; h++) {
                     dataArray.push(null);
                 }
                 
+                // Add actual scores for hands played
                 for (let j = 0; j < hands.length; j++) {
                     dataArray.push(hands[j]);
                 }
@@ -1801,6 +1782,8 @@ if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.pla
                 }
                 playerTotals[pid] += Number(hand.score);
                 playerHandScores[pid].push({ handNum: Number(hand.hand_number), score: Number(hand.score) });
+                
+                // ✅ FIX: Only count lockout scores when this player actually locked out
                 if (hand.lockout_player_id && String(hand.lockout_player_id) === String(pid)) {
                     playerStats[pid].totalLockouts++;
                     if (hand.false_lockout == 1 || hand.false_lockout === true) {
@@ -1836,7 +1819,6 @@ if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.pla
             }
             html += '</table></div>';
 
-            // ADD HAND-BY-HAND BREAKDOWN
             html += '<h3 style="margin-top: 30px;">Hand-by-Hand Breakdown</h3>';
             html += '<div class="hand-history">';
 
@@ -1862,25 +1844,19 @@ if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.pla
                 for (let j = 0; j < hands.length; j++) {
                     const h = hands[j];
                     if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
-                        // This player locked out - show special format
-if (h.lockout_score) {
+                        if (h.lockout_score) {
                             if (h.false_lockout == 1 || h.false_lockout === true) {
-                                // False lockout: show "15 (5 + 10 penalty)"
                                 const penalty = h.score - h.lockout_score;
                                 scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + penalty + ' penalty) | ';
                             } else {
-                                // Successful lockout: show actual score (can be negative)
                                 scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ') | ';
                             }
-
                         } else {
-                            // Old data without lockout_score - show normally
                             scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
                         }
                         lockoutPlayer = getPlayerName(h.player_id);
                         isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
                     } else {
-                        // Regular player (not lockout) - show normally
                         scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
                     }
                     if (h.comment && !handComment) {
@@ -2125,7 +2101,8 @@ if (h.lockout_score) {
                         playerStats[hand.player_id].totalScore += Number(hand.score);
                         playerUniqueHands[hand.player_id].add(Number(hand.hand_number));
                         
-                if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+                        // ✅ FIX: Only count lockout scores when this player actually locked out
+                        if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
                             playerStats[hand.player_id].totalLockouts++;
                             if (hand.false_lockout == 1 || hand.false_lockout === true) {
                                 playerStats[hand.player_id].falseLockouts++;
@@ -2215,23 +2192,6 @@ if (h.lockout_score) {
             
             return playerStats;
         }
-
-        async function viewSessionDetailFromComparison(sessionId) {
-    // Load all sessions if not already loaded
-    if (allSessions.length === 0) {
-        await loadPreviousSessions();
-    }
-    
-    // Find the session index
-    const sessionIndex = allSessions.findIndex(s => String(s.session_id) === String(sessionId));
-    
-    if (sessionIndex !== -1) {
-        viewSessionDetail(sessionIndex);
-    } else {
-        alert('Session not found');
-    }
-}
-
 
         function displayOverallStats(stats, totalSessions) {
             let mostSessionsWon = { player: 'N/A', wins: 0 };
@@ -2323,24 +2283,25 @@ if (h.lockout_score) {
                 html += '<tr><td>' + ps.username + '</td><td>' + ps.sessionsPlayed + '</td><td>' + ps.sessionsWon.toFixed(1) + '</td><td>' + sessionWinRate + '%</td><td>' + ps.handsPlayed + '</td><td>' + avgScore + '</td><td>' + ps.handsWon + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + ps.falseLockouts + '</td><td>' + falseLockoutRate + '%</td></tr>';
             }
             html += '</table></div>';
-            html += '<button class="btn btn-secondary" onclick="showScreen(\'homeScreen\')">Back to Home</button>';         
+            
             document.getElementById('statsContent').innerHTML = html;
         }
         
+        async function showOverallStats() {
+            const contentDiv = document.getElementById('statsContent');
+            contentDiv.innerHTML = '<div class="loading">Loading overall stats...</div>';
+            await loadStats();
+        }
         // ============================================
         // HEAD-TO-HEAD STATS
         // ============================================
         
-        async function showHeadToHead() {
-            // Show stats screen with loading placeholder immediately
+        async function showHeadToHeadList() {
             const contentDiv = document.getElementById('statsContent');
             contentDiv.innerHTML = '<div class="loading">Loading head-to-head records...</div>';
-            showScreen('statsScreen');
             
-            // Ensure players are loaded
             await ensurePlayersLoaded();
             
-            // Fetch data
             const data = await apiCall('getHeadToHeadMatrix', {});
             
             if (data.error) {
@@ -2349,17 +2310,16 @@ if (h.lockout_score) {
             }
             
             if (data.length === 0) {
-                contentDiv.innerHTML = '<div class="placeholder-content"><h3>Not Enough Data</h3><p>Play more sessions to see head-to-head records!</p><button class="btn btn-secondary" onclick="showScreen(\'homeScreen\')">Back to Home</button></div>';
+                contentDiv.innerHTML = '<div class="placeholder-content"><h3>Not Enough Data</h3><p>Play more sessions to see head-to-head records!</p></div>';
                 return;
             }
             
-            // Sort by most sessions together (most relevant matchups first)
             data.sort(function(a, b) {
                 return b.sessions_together - a.sessions_together;
             });
             
             let html = '<h2>⚔️ Head-to-Head Records</h2>';
-            html += '<p style="color: #666; margin-bottom: 20px;">Direct records when playing in the same session</p>';
+            html += '<p style="color: #666; margin-bottom: 20px;">Direct records when playing in the same session (who finished with a lower score)</p>';
             
             html += '<div style="display: grid; gap: 15px; margin-bottom: 20px;">';
             
@@ -2369,15 +2329,13 @@ if (h.lockout_score) {
                 const p2Name = getPlayerName(m.p2);
                 const total = m.p1_wins + m.p2_wins + m.ties;
                 
-                if (total === 0) continue; // Skip if they never finished a session together
+                if (total === 0) continue;
                 
-                // Calculate win percentages
                 const p1Pct = total > 0 ? Math.round((m.p1_wins / total) * 100) : 50;
                 const p2Pct = 100 - p1Pct;
                 
                 html += '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">';
                 
-                // Player names and record
                 html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
                 html += '<strong style="color: #667eea;">' + p1Name + '</strong>';
                 html += '<span style="color: #333; font-weight: 600; font-size: 1.1em;">';
@@ -2387,94 +2345,87 @@ if (h.lockout_score) {
                 html += '<strong style="color: #f5576c;">' + p2Name + '</strong>';
                 html += '</div>';
                 
-                // Visual percentage bar
                 html += '<div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">';
                 html += '<div style="width: ' + p1Pct + '%; background: #667eea;"></div>';
                 html += '<div style="width: ' + p2Pct + '%; background: #f5576c;"></div>';
                 html += '</div>';
                 
-                // Percentages and session count
-                html += '<div style="display: flex; justify-content: space-between; font-size: 0.85em; color: #666;">';
+                html += '<div style="display: flex; justify-content: space-between; font-size: 0.85em; color: #666; margin-bottom: 10px;">';
                 html += '<span>' + p1Pct + '%</span>';
                 html += '<span>' + m.sessions_together + ' session' + (m.sessions_together > 1 ? 's' : '') + ' together</span>';
                 html += '<span>' + p2Pct + '%</span>';
                 html += '</div>';
                 
+                html += '<button class="btn btn-small btn-info" onclick="quickCompare(' + m.p1 + ', ' + m.p2 + ')" style="width: 100%;">View Detailed Comparison</button>';
+                
                 html += '</div>';
             }
             
             html += '</div>';
-            html += '<button class="btn btn-secondary" onclick="showScreen(\'homeScreen\')">Back to Home</button>';
             
             contentDiv.innerHTML = html;
         }
 
-                async function showOverallStats() {
-            const contentDiv = document.getElementById('statsContent');
-            contentDiv.innerHTML = '<div class="loading">Loading overall stats...</div>';
-            await loadStats();
-        }
-
-        async function showHeadToHeadList() {
-            const contentDiv = document.getElementById('statsContent');
-            contentDiv.innerHTML = '<div class="loading">Loading matchups...</div>';
-            await showHeadToHead();
+        function quickCompare(p1Id, p2Id) {
+            showPlayerComparisonUI();
+            setTimeout(function() {
+                document.getElementById('comparisonPlayer1').value = p1Id;
+                document.getElementById('comparisonPlayer2').value = p2Id;
+                showPlayerComparison();
+            }, 100);
         }
         // ============================================
         // PLAYER COMPARISON
         // ============================================
         
-async function showPlayerComparisonUI() {
-    await ensurePlayersLoaded();
-    
-    const contentDiv = document.getElementById('statsContent');
-    
-    let html = '<h3 style="margin-bottom: 20px;">⚔️ Compare Two Players</h3>';
-    
-    html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">';
-    
-    html += '<div>';
-    html += '<label style="display: block; margin-bottom: 8px; font-weight: 600; color: #667eea;">Player 1</label>';
-    html += '<select id="comparisonPlayer1" style="width: 100%; padding: 12px; border: 2px solid #667eea; border-radius: 8px; font-size: 1em;">';
-    html += '<option value="">Select player...</option>';
-    for (let i = 0; i < allPlayers.length; i++) {
-        html += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
-    }
-    html += '</select>';
-    html += '</div>';
-    
-    html += '<div>';
-    html += '<label style="display: block; margin-bottom: 8px; font-weight: 600; color: #f5576c;">Player 2</label>';
-    html += '<select id="comparisonPlayer2" style="width: 100%; padding: 12px; border: 2px solid #f5576c; border-radius: 8px; font-size: 1em;">';
-    html += '<option value="">Select player...</option>';
-    for (let i = 0; i < allPlayers.length; i++) {
-        html += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
-    }
-    html += '</select>';
-    html += '</div>';
-    
-    html += '</div>';
-    
-    html += '<button class="btn btn-success" id="comparePlayersBtn" style="width: 100%;">Compare Players</button>';
-    html += '<button class="btn btn-secondary" onclick="showScreen(\'homeScreen\')" style="width: 100%; margin-top: 10px;">Back to Home</button>';
-    
-    contentDiv.innerHTML = html;
-    
-    // Add event listener after HTML is inserted
-    setTimeout(function() {
-        const btn = document.getElementById('comparePlayersBtn');
-        if (btn) {
-            btn.addEventListener('click', showPlayerComparison);
+        async function showPlayerComparisonUI() {
+            await ensurePlayersLoaded();
+            
+            const contentDiv = document.getElementById('statsContent');
+            
+            let html = '<h3 style="margin-bottom: 20px;">⚔️ Compare Two Players</h3>';
+            
+            html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">';
+            
+            html += '<div>';
+            html += '<label style="display: block; margin-bottom: 8px; font-weight: 600; color: #667eea;">Player 1</label>';
+            html += '<select id="comparisonPlayer1" style="width: 100%; padding: 12px; border: 2px solid #667eea; border-radius: 8px; font-size: 1em;">';
+            html += '<option value="">Select player...</option>';
+            for (let i = 0; i < allPlayers.length; i++) {
+                html += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
+            }
+            html += '</select>';
+            html += '</div>';
+            
+            html += '<div>';
+            html += '<label style="display: block; margin-bottom: 8px; font-weight: 600; color: #f5576c;">Player 2</label>';
+            html += '<select id="comparisonPlayer2" style="width: 100%; padding: 12px; border: 2px solid #f5576c; border-radius: 8px; font-size: 1em;">';
+            html += '<option value="">Select player...</option>';
+            for (let i = 0; i < allPlayers.length; i++) {
+                html += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
+            }
+            html += '</select>';
+            html += '</div>';
+            
+            html += '</div>';
+            
+            html += '<button class="btn btn-success" id="comparePlayersBtn" style="width: 100%;">Compare Players</button>';
+            
+            contentDiv.innerHTML = html;
+            
+            setTimeout(function() {
+                const btn = document.getElementById('comparePlayersBtn');
+                if (btn) {
+                    btn.addEventListener('click', showPlayerComparison);
+                }
+            }, 50);
         }
-    }, 50);
-}
 
         async function showPlayerComparison() {
             await ensurePlayersLoaded();
             
             const contentDiv = document.getElementById('statsContent');
             
-            // Get selected players BEFORE clearing the screen
             const p1Select = document.getElementById('comparisonPlayer1');
             const p2Select = document.getElementById('comparisonPlayer2');
             
@@ -2496,59 +2447,45 @@ async function showPlayerComparisonUI() {
                 return;
             }
             
-            // Show loading AFTER getting values
             contentDiv.innerHTML = '<div class="loading">Loading comparison...</div>';
             showScreen('statsScreen');
             
-const data = await apiCall('getPlayerComparisonDetailed', {
-    player1_id: p1Id,
-    player2_id: p2Id
-});
+            const data = await apiCall('getPlayerComparisonDetailed', {
+                player1_id: p1Id,
+                player2_id: p2Id
+            });
 
-// TEMPORARY DEBUG
-console.log('Data received:', data);
-console.log('Data contents:', JSON.stringify(data, null, 2));
-console.log('sessions_together:', data.sessions_together);
-console.log('sessions_together_stats:', data.sessions_together_stats);
-
-if (data.error) {
-    contentDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-    return;
-}
-
+            if (data.error) {
+                contentDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                return;
+            }
+            
             const p1Name = getPlayerName(p1Id);
             const p2Name = getPlayerName(p2Id);
             
             let html = '';
             
-            // ============================================
-            // COMPARISON HEADER
-            // ============================================
             html += '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center;">';
             html += '<h2 style="color: white; margin: 0; font-size: 1.8em;">' + p1Name + ' vs ' + p2Name + '</h2>';
             html += '</div>';
             
             html += '<button class="btn btn-info" onclick="showPlayerComparisonUI()" style="margin-bottom: 30px; width: 100%;">← Change Players</button>';
             
-            // ============================================
-            // SESSIONS TOGETHER SECTION
-            // ============================================
             const ts = data.sessions_together_stats;
             
             html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #667eea;">';
             
-html += '<h3 style="color: #667eea; margin-bottom: 20px;">📊 Sessions Together</h3>';
-html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;"><strong>Head-to-head record:</strong> Who finished with a lower score when both players competed in the same session (regardless of who won overall)</p>';
-      
+            html += '<h3 style="color: #667eea; margin-bottom: 20px;">📊 Sessions Together</h3>';
+            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;"><strong>Head-to-head record:</strong> Who finished with a lower score when both players competed in the same session (regardless of who won overall)</p>';
+            
             if (ts.total_sessions === 0) {
                 html += '<div style="background: white; padding: 15px; border-radius: 6px; color: #666; text-align: center;">';
                 html += 'These players have never played together';
                 html += '</div>';
             } else {
-                // Side-by-side stats table
-   html += '<div style="overflow-x: auto;"><table class="scores-table">';
-html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + p1Name + '</th><th style="color: white; background: #f5576c;">' + p2Name + '</th></tr>';
-           
+                html += '<div style="overflow-x: auto;"><table class="scores-table">';
+                html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + p1Name + '</th><th style="color: white; background: #f5576c;">' + p2Name + '</th></tr>';
+                
                 html += '<tr><td><strong>Wins</strong></td><td>' + ts.p1_wins + '</td><td>' + ts.p2_wins + '</td></tr>';
                 html += '<tr><td><strong>Win Rate</strong></td><td>' + ts.p1_win_rate + '%</td><td>' + ts.p2_win_rate + '%</td></tr>';
                 html += '<tr><td><strong>Total Score</strong></td><td>' + ts.p1_total_score + '</td><td>' + ts.p2_total_score + '</td></tr>';
@@ -2562,42 +2499,38 @@ html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + p1N
                 
                 html += '</table></div>';
                 
-                // Context - best/worst with (with explanation)
-if (ts.best_with && ts.worst_with && ts.best_with.player_id !== ts.worst_with.player_id) {
-  html += '<div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #ffc107;">';
-  html += '<h4 style="color: #856404; margin-bottom: 10px; font-size: 0.95em;">📊 Performance Context</h4>';
-  html += '<p style="font-size: 0.85em; color: #666; margin-bottom: 10px;">When ' + p1Name + ' plays against ' + p2Name + ' <strong>head-to-head</strong>, ' + p1Name + '\'s win rate varies depending on who else is playing:</p>';
-  
-  html += '<div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">';
-  html += '<div style="font-size: 0.85em; color: #4caf50; font-weight: 600; margin-bottom: 3px;">✅ Best with ' + getPlayerName(ts.best_with.player_id) + '</div>';
-  html += '<div style="color: #333; font-size: 0.85em;">' + p1Name + ' beats ' + p2Name + ' in ' + ts.best_with.wins + ' out of ' + ts.best_with.total + ' sessions when ' + getPlayerName(ts.best_with.player_id) + ' is also playing</div>';
-  html += '</div>';
-  
-  html += '<div style="background: white; padding: 10px; border-radius: 6px;">';
-  html += '<div style="font-size: 0.85em; color: #f44336; font-weight: 600; margin-bottom: 3px;">❌ Worst with ' + getPlayerName(ts.worst_with.player_id) + '</div>';
-  html += '<div style="color: #333; font-size: 0.85em;">' + p1Name + ' beats ' + p2Name + ' in ' + ts.worst_with.wins + ' out of ' + ts.worst_with.total + ' sessions when ' + getPlayerName(ts.worst_with.player_id) + ' is also playing</div>';
-  html += '</div>';
-  
-  html += '</div>';
-}
+                // ✅ FIX: Only show Performance Context if there are at least 2 different other players
+                if (ts.best_with && ts.worst_with && ts.best_with.player_id !== ts.worst_with.player_id) {
+                    html += '<div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #ffc107;">';
+                    html += '<h4 style="color: #856404; margin-bottom: 10px; font-size: 0.95em;">📊 Performance Context</h4>';
+                    html += '<p style="font-size: 0.85em; color: #666; margin-bottom: 10px;">When ' + p1Name + ' plays against ' + p2Name + ' <strong>head-to-head</strong>, ' + p1Name + '\'s win rate varies depending on who else is playing:</p>';
+                    
+                    html += '<div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">';
+                    html += '<div style="font-size: 0.85em; color: #4caf50; font-weight: 600; margin-bottom: 3px;">✅ Best with ' + getPlayerName(ts.best_with.player_id) + '</div>';
+                    html += '<div style="color: #333; font-size: 0.85em;">' + p1Name + ' beats ' + p2Name + ' in ' + ts.best_with.wins + ' out of ' + ts.best_with.total + ' sessions when ' + getPlayerName(ts.best_with.player_id) + ' is also playing</div>';
+                    html += '</div>';
+                    
+                    html += '<div style="background: white; padding: 10px; border-radius: 6px;">';
+                    html += '<div style="font-size: 0.85em; color: #f44336; font-weight: 600; margin-bottom: 3px;">❌ Worst with ' + getPlayerName(ts.worst_with.player_id) + '</div>';
+                    html += '<div style="color: #333; font-size: 0.85em;">' + p1Name + ' beats ' + p2Name + ' in ' + ts.worst_with.wins + ' out of ' + ts.worst_with.total + ' sessions when ' + getPlayerName(ts.worst_with.player_id) + ' is also playing</div>';
+                    html += '</div>';
+                    
+                    html += '</div>';
+                }
             }
             
             html += '</div>';
             
-            // ============================================
-            // ALL SESSIONS SECTION
-            // ============================================
             const as1 = data.all_sessions_stats.player1;
             const as2 = data.all_sessions_stats.player2;
             
             html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #f5576c;">';
             
-html += '<h3 style="color: #f5576c; margin-bottom: 20px;">📊 All Sessions</h3>';
-html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;"><strong>Overall wins:</strong> Sessions where each player had the lowest score and won outright (across all sessions they participated in)</p>';
-
-            // Side-by-side stats table
+            html += '<h3 style="color: #f5576c; margin-bottom: 20px;">📊 All Sessions</h3>';
+            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;"><strong>Overall wins:</strong> Sessions where each player had the lowest score and won outright (across all sessions they participated in)</p>';
+            
             html += '<div style="overflow-x: auto;"><table class="scores-table">';
-            html += '<tr><th>Stat</th><th style="color: #667eea;">' + p1Name + '</th><th style="color: #f5576c;">' + p2Name + '</th></tr>';
+            html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + p1Name + '</th><th style="color: white; background: #f5576c;">' + p2Name + '</th></tr>';
             
             html += '<tr><td><strong>Wins</strong></td><td>' + as1.wins + '</td><td>' + as2.wins + '</td></tr>';
             html += '<tr><td><strong>Losses</strong></td><td>' + as1.losses + '</td><td>' + as2.losses + '</td></tr>';
@@ -2618,50 +2551,55 @@ html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;"><strong>
             
             html += '</div>';
             
-            // ============================================
-            // SESSION HISTORY (ONLY SESSIONS TOGETHER)
-            // ============================================
+            // ✅ FIX: Add clickable session history with hyperlinks
             if (data.sessions_together.length > 0) {
                 html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #9c27b0;">';
                 
                 html += '<h3 style="color: #9c27b0; margin-bottom: 20px;">📅 Session History</h3>';
-                html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">Sessions where both players competed</p>';
+                html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">Sessions where both players competed (click to view details)</p>';
                 
-// Replace the session history rendering with this:
-for (let i = data.sessions_together.length - 1; i >= 0; i--) {
-    const s = data.sessions_together[i];
-    const winner = s.p1_won && !s.p2_won ? p1Name : s.p2_won && !s.p1_won ? p2Name : 'Tie';
-    const winnerColor = s.p1_won && !s.p2_won ? '#667eea' : s.p2_won && !s.p1_won ? '#f5576c' : '#ff9800';
-    
-    html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px; margin-bottom: 10px; cursor: pointer; transition: background 0.2s;" onclick="viewSessionDetailFromComparison(' + s.session_id + ')" onmouseover="this.style.background=\'#f8f9fa\'" onmouseout="this.style.background=\'white\'">';
-    html += '<div style="flex: 1;">';
-    html += '<div style="font-weight: 600; color: #333;">' + s.title + ' 🔗</div>';
-    html += '<div style="font-size: 0.85em; color: #666;">' + s.date.split(' ')[0] + ' • ' + s.player_count + ' players</div>';
-    html += '</div>';
-    html += '<div style="text-align: right;">';
-    html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1.1em;">' + winner + '</div>';
-    html += '<div style="font-size: 0.85em; color: #666;">' + p1Name + ' ' + s.p1_score + ' | ' + p2Name + ' ' + s.p2_score + '</div>';
-    html += '</div>';
-    html += '</div>';
-}
+                for (let i = data.sessions_together.length - 1; i >= 0; i--) {
+                    const s = data.sessions_together[i];
+                    const winner = s.p1_won && !s.p2_won ? p1Name : s.p2_won && !s.p1_won ? p2Name : 'Tie';
+                    const winnerColor = s.p1_won && !s.p2_won ? '#667eea' : s.p2_won && !s.p1_won ? '#f5576c' : '#ff9800';
+                    
+                    html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px; margin-bottom: 10px; cursor: pointer; transition: background 0.2s;" onclick="viewSessionDetailFromComparison(' + s.session_id + ')" onmouseover="this.style.background=\'#f8f9fa\'" onmouseout="this.style.background=\'white\'">';
+                    html += '<div style="flex: 1;">';
+                    html += '<div style="font-weight: 600; color: #333;">' + s.title + ' 🔗</div>';
+                    html += '<div style="font-size: 0.85em; color: #666;">' + s.date.split(' ')[0] + ' • ' + s.player_count + ' players</div>';
+                    html += '</div>';
+                    html += '<div style="text-align: right;">';
+                    html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1.1em;">' + winner + '</div>';
+                    html += '<div style="font-size: 0.85em; color: #666;">' + p1Name + ' ' + s.p1_score + ' | ' + p2Name + ' ' + s.p2_score + '</div>';
+                    html += '</div>';
+                    html += '</div>';
+                }
                 
                 html += '</div>';
             }
             
-            html += '<button class="btn btn-secondary" onclick="showScreen(\'homeScreen\')">Back to Home</button>';
-            
             contentDiv.innerHTML = html;
         }
         
-        // ============================================
-        // INITIALIZATION
-        // ============================================
-
+        // ✅ NEW: Helper function to navigate from comparison to session detail
+        async function viewSessionDetailFromComparison(sessionId) {
+            if (allSessions.length === 0) {
+                await loadPreviousSessions();
+            }
+            
+            const sessionIndex = allSessions.findIndex(s => String(s.session_id) === String(sessionId));
+            
+            if (sessionIndex !== -1) {
+                viewSessionDetail(sessionIndex);
+            } else {
+                alert('Session not found');
+            }
+        }
         // ============================================
         // INITIALIZATION
         // ============================================
         window.addEventListener('DOMContentLoaded', function() {
-            console.log('Lockout Tracker v2.8 - Auto Lockout Detection! 🚀');
+            console.log('Lockout Tracker v3.0 - Optimized & Bug-Free! 🚀');
             ensurePlayersLoaded();
             checkActiveSessions();
         });
