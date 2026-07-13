@@ -2972,35 +2972,6 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
 function calculateOverallStats(completedSessionsData, allSessionsData, playersData) {
     const playerStats = {};
     
-    // ✅ FIX: Pre-initialize with string-converted player IDs
-    for (let i = 0; i < playersData.length; i++) {
-        const player = playersData[i];
-        playerStats[String(player.player_id)] = {
-            username: player.username,
-            sessionsWon: 0,
-            sessionsPlayed: 0,
-            handsWon: 0,
-            handsPlayed: 0,
-            totalScore: 0,
-            lockoutScores: [],
-            falseLockouts: 0,
-            totalLockouts: 0,
-            currentHandStreak: 0,
-            maxHandStreak: 0,
-            bestMargin: 0,
-            worstMargin: 0
-        };
-    }
-    
-    for (let s = 0; s < allSessionsData.length; s++) {
-        const session = allSessionsData[s];
-        const playerUniqueHands = {};
-        
-        // ✅ FIX: Initialize with string-converted IDs
-        for (let i = 0; i < playersData.length; i++) {
-            playerUniqueHands[String(playersData[i].player_id)] = new Set();
-        }
-        
         for (let h = 0; h < session.hands.length; h++) {
             const hand = session.hands[h];
             const pid = String(hand.player_id);
