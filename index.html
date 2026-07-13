@@ -2969,65 +2969,75 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
             displayOverallStats(stats, completedSessionsData.length);
         }
 
-        function calculateOverallStats(completedSessionsData, allSessionsData, playersData) {
-            const playerStats = {};
-            
-            for (let i = 0; i < playersData.length; i++) {
-                const player = playersData[i];
-                playerStats[player.player_id] = {
-                    username: player.username,
-                    sessionsWon: 0,
-                    sessionsPlayed: 0,
-                    handsWon: 0,
-                    handsPlayed: 0,
-                    totalScore: 0,
-                    lockoutScores: [],
-                    falseLockouts: 0,
-                    totalLockouts: 0,
-                    currentHandStreak: 0,
-                    maxHandStreak: 0,
-                    bestMargin: 0,
-                    worstMargin: 0
-                };
-            }
-            
-            for (let s = 0; s < allSessionsData.length; s++) {
-                const session = allSessionsData[s];
-                const playerUniqueHands = {};
-                
-                for (let i = 0; i < playersData.length; i++) {
-                    playerUniqueHands[playersData[i].player_id] = new Set();
-                }
-                
-// ✅ FIX: Pre-initialize with string-converted player IDs
-for (let i = 0; i < playersData.length; i++) {
-    const player = playersData[i];
-    playerStats[String(player.player_id)] = {
-        username: player.username,
-        sessionsWon: 0,
-        sessionsPlayed: 0,
-        handsWon: 0,
-        handsPlayed: 0,
-        totalScore: 0,
-        lockoutScores: [],
-        falseLockouts: 0,
-        totalLockouts: 0,
-        currentHandStreak: 0,
-        maxHandStreak: 0,
-        bestMargin: 0,
-        worstMargin: 0
-    };
-}
-
-for (let s = 0; s < allSessionsData.length; s++) {
-    const session = allSessionsData[s];
-    const playerUniqueHands = {};
+function calculateOverallStats(completedSessionsData, allSessionsData, playersData) {
+    const playerStats = {};
     
-    // ✅ FIX: Initialize with string-converted IDs
+    // ✅ FIX: Pre-initialize with string-converted player IDs
     for (let i = 0; i < playersData.length; i++) {
-        playerUniqueHands[String(playersData[i].player_id)] = new Set();
+        const player = playersData[i];
+        playerStats[String(player.player_id)] = {
+            username: player.username,
+            sessionsWon: 0,
+            sessionsPlayed: 0,
+            handsWon: 0,
+            handsPlayed: 0,
+            totalScore: 0,
+            lockoutScores: [],
+            falseLockouts: 0,
+            totalLockouts: 0,
+            currentHandStreak: 0,
+            maxHandStreak: 0,
+            bestMargin: 0,
+            worstMargin: 0
+        };
     }
     
+    for (let s = 0; s < allSessionsData.length; s++) {
+        const session = allSessionsData[s];
+        const playerUniqueHands = {};
+        
+        // ✅ FIX: Initialize with string-converted IDs
+        for (let i = 0; i < playersData.length; i++) {
+            playerUniqueHands[String(playersData[i].player_id)] = new Set();
+        }
+        
+        for (let h = 0; h < session.hands.length; h++) {
+            const hand = session.hands[h];
+            const pid = String(hand.player_id);
+            
+            if (playerStats[pid]) {
+                playerStats[pid].totalScore += Number(hand.score);
+                playerUniqueHands[pid].add(Number(hand.hand_number));
+                
+                // ✅ FIX: Only count lockout scores when this player actually locked out
+                if (hand.lockout_player_id && String(hand.lockout_player_id) === pid) {
+                    playerStats[pid].totalLockouts++;
+                    if (hand.false_lockout == 1 || hand.false_lockout === true) {
+                        playerStats[pid].falseLockouts++;
+                        playerStats[pid].currentHandStreak = 0;
+                    } else {
+                        playerStats[pid].handsWon++;
+                        const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+                        playerStats[pid].lockoutScores.push(lockoutScoreToUse);
+                        playerStats[pid].currentHandStreak++;
+                        if (playerStats[pid].currentHandStreak > playerStats[pid].maxHandStreak) {
+                            playerStats[pid].maxHandStreak = playerStats[pid].currentHandStreak;
+                        }
+                    }
+                } else {
+                    playerStats[pid].currentHandStreak = 0;
+                }
+            }
+        }
+        
+        for (let playerId in playerUniqueHands) {
+            const uniqueHandCount = playerUniqueHands[playerId].size;
+            if (uniqueHandCount > 0 && playerStats[playerId]) {
+                playerStats[playerId].handsPlayed += uniqueHandCount;
+            }
+        }
+    }
+
     for (let h = 0; h < session.hands.length; h++) {
         const hand = session.hands[h];
         const pid = String(hand.player_id);
