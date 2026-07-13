@@ -2608,16 +2608,12 @@
             const session = allSessions[sessionIndex];
             let handsData;
             
-            if (window.sessionsHandsCache && window.sessionsHandsCache[session.session_id]) {
-                handsData = window.sessionsHandsCache[session.session_id];
-            } else {
-                handsData = await apiCall('getHands', { session_id: session.session_id });
-                if (handsData.error) {
-                    alert('Error loading session details');
-                    return;
-                }
+            handsData = await apiCall('getHands', { session_id: session.session_id });
+            if (handsData.error) {
+                alert('Error loading session details');
+                return;
             }
-            
+
             for (let i = 0; i < handsData.length; i++) {
                 if (!handsData[i].comment) handsData[i].comment = '';
             }
@@ -2943,7 +2939,8 @@
                     session_id: item.session.session_id,
                     title: item.session.title,
                     hands: item.hands,
-                    is_completed: isCompleted
+                    is_completed: isCompleted,
+                    player_join_info: item.session.player_join_info || '{}'
                 };
                 allSessionsData.push(sessionData);
                 if (isCompleted) {
@@ -3025,9 +3022,18 @@
                 const playerTotals = {};
                 const playersInSession = new Set();
                 
+                try {
+                    const ji = JSON.parse(session.player_join_info || '{}');
+                    for (let pid in ji) {
+                        if (ji[pid] && ji[pid].starting_score !== undefined) {
+                            playerTotals[pid] = Number(ji[pid].starting_score);
+                        }
+                    }
+                } catch(e) {}
+                
                 for (let h = 0; h < session.hands.length; h++) {
                     const hand = session.hands[h];
-                    if (!playerTotals[hand.player_id]) {
+                    if (playerTotals[hand.player_id] === undefined) {
                         playerTotals[hand.player_id] = 0;
                     }
                     playerTotals[hand.player_id] += Number(hand.score);
@@ -3222,8 +3228,8 @@
                 if (total === 0) continue;
                 
                 const p1Pct = total > 0 ? Math.round((m.p1_wins / total) * 100) : 50;
-                const p2Pct = 100 - p1Pct;
-                
+                const p2Pct = total > 0 ? Math.round((m.p2_wins / total) * 100) : 50;
+
                 html += '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">';
                 
                 html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
@@ -3456,8 +3462,9 @@
                     html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px; margin-bottom: 10px; cursor: pointer; transition: background 0.2s;" onclick="viewSessionDetailFromComparison(' + s.session_id + ')" onmouseover="this.style.background=\'#f8f9fa\'" onmouseout="this.style.background=\'white\'">';
                     html += '<div style="flex: 1;">';
                     html += '<div style="font-weight: 600; color: #333;">' + s.title + ' 🔗</div>';
-                    html += '<div style="font-size: 0.85em; color: #666;">' + s.date.split(' ')[0] + ' • ' + s.player_count + ' players</div>';
-                    html += '</div>';
+                    var dateObj = new Date(s.date);
+                    var cleanDate = (dateObj.getMonth() + 1) + '/' + dateObj.getDate() + '/' + dateObj.getFullYear();
+                    html += '<div style="font-size: 0.85em; color: #666;">' + cleanDate + ' • ' + s.player_count + ' players</div>';
                     html += '<div style="text-align: right;">';
                     html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1.1em;">' + winner + '</div>';
                     html += '<div style="font-size: 0.85em; color: #666;">' + p1Name + ' ' + s.p1_score + ' | ' + p2Name + ' ' + s.p2_score + '</div>';
