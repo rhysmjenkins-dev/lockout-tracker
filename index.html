@@ -3274,8 +3274,7 @@ if (joinHand > 1 && session && session.player_join_info) {
                 html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
                 html += '<strong style="color: #667eea;">' + p1Name + '</strong>';
                 html += '<span style="color: #333; font-weight: 600; font-size: 1.1em;">';
-                html += m.p1_wins + '-' + m.p2_wins;
-                if (m.ties > 0) html += '-' + m.ties;
+html += m.p1_wins + '-' + m.p2_wins + '-' + m.ties;
                 html += '</span>';
                 html += '<strong style="color: #f5576c;">' + p2Name + '</strong>';
                 html += '</div>';
