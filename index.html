@@ -2670,7 +2670,18 @@ for (let i = 0; i < handsData.length; i++) {
 }
 
 for (let pid of allPlayerIds) {
-    playerTotals[pid] = 0;
+    // Initialize with starting score for late joiners
+    let startingScore = 0;
+    if (session.player_join_info) {
+        try {
+            const fullInfo = JSON.parse(session.player_join_info);
+            if (fullInfo[pid] && fullInfo[pid].starting_score !== undefined) {
+                startingScore = fullInfo[pid].starting_score;
+            }
+        } catch(e) {}
+    }
+    
+    playerTotals[pid] = startingScore;
     playerHandScores[pid] = [];
     playerStats[pid] = { lockouts: 0, lockoutScores: [], falseLockouts: 0, totalLockouts: 0 };
 }
