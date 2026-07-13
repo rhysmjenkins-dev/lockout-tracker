@@ -2719,21 +2719,13 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
                 const playerName = getPlayerName(playerId);
                 const total = playerTotals[playerId];
                 const handsPlayed = playerHandScores[playerId].length;
-const joinHand = playerJoinHands[playerId] || 1;
-const startingScore = joinHand > 1 && session && session.player_join_info ? (() => {
-    try {
-        const fullInfo = JSON.parse(session.player_join_info);
-        const info = fullInfo[playerId];
-        return (info && typeof info === 'object' && info.starting_score !== undefined) ? info.starting_score : 0;
-    } catch(e) { return 0; }
-})() : 0;
-const avgHand = handsPlayed > 0 ? ((total - startingScore) / handsPlayed).toFixed(2) : '0';
+                const avgHand = handsPlayed > 0 ? (total / handsPlayed).toFixed(2) : '0';
                 const stats = playerStats[playerId];
                 const lockoutRate = handsPlayed > 0 ? ((stats.lockouts / handsPlayed) * 100).toFixed(1) : '0';
                 const avgLockoutScore = stats.lockoutScores.length > 0 ? (stats.lockoutScores.reduce((sum, s) => sum + s, 0) / stats.lockoutScores.length).toFixed(2) : 'N/A';
                 const falseLockoutRate = stats.totalLockouts > 0 ? ((stats.falseLockouts / stats.totalLockouts) * 100).toFixed(1) : '0';
                 
-const joinBadge = joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '';
+                html += '<tr><td><strong>' + playerName + '</strong></td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td></tr>';
             }
             html += '</table></div>';
 
@@ -2845,17 +2837,13 @@ const joinBadge = joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand +
                     } catch(e) {}
                 }
                 
-let startingScore = 0;
-if (joinHand > 1 && session && session.player_join_info) {
-    try {
-        const fullInfo = JSON.parse(session.player_join_info);
-        const info = fullInfo[playerId];
-        if (info && typeof info === 'object' && info.starting_score !== undefined) {
-            startingScore = info.starting_score;
-        }
-    } catch(e) {}
-}
-
+                let cumulative = startingScore;
+                const dataPoints = [];
+                
+                for (let h = 1; h < joinHand; h++) {
+                    dataPoints.push(null);
+                }
+                
                 for (let j = 0; j < hands.length; j++) {
                     cumulative += hands[j].score;
                     dataPoints.push(cumulative);
@@ -3271,7 +3259,8 @@ if (joinHand > 1 && session && session.player_join_info) {
                 html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
                 html += '<strong style="color: #667eea;">' + p1Name + '</strong>';
                 html += '<span style="color: #333; font-weight: 600; font-size: 1.1em;">';
-html += m.p1_wins + '-' + m.p2_wins + '-' + m.ties;
+                html += m.p1_wins + '-' + m.p2_wins;
+                if (m.ties > 0) html += '-' + m.ties;
                 html += '</span>';
                 html += '<strong style="color: #f5576c;">' + p2Name + '</strong>';
                 html += '</div>';
