@@ -2654,43 +2654,51 @@
             }
             document.getElementById('sessionDetailMetadata').innerHTML = metadataHtml;
             
-            const playerTotals = {};
-            const playerHandScores = {};
-            const playerStats = {};
-            const playerJoinHands = {};
-            
-            for (let playerId in joinInfo) {
-                playerJoinHands[playerId] = joinInfo[playerId];
-            }
-            
-            for (let i = 0; i < handsData.length; i++) {
-                const hand = handsData[i];
-                const pid = hand.player_id;
-                if (!playerTotals[pid]) {
-                    playerTotals[pid] = 0;
-                    playerHandScores[pid] = [];
-                    playerStats[pid] = { lockouts: 0, lockoutScores: [], falseLockouts: 0, totalLockouts: 0 };
-                }
-                playerTotals[pid] += Number(hand.score);
-                playerHandScores[pid].push({ handNum: Number(hand.hand_number), score: Number(hand.score) });
-                
-                // ✅ FIX: Only count lockout scores when this player actually locked out
-                if (hand.lockout_player_id && String(hand.lockout_player_id) === String(pid)) {
-                    playerStats[pid].totalLockouts++;
-                    if (hand.false_lockout == 1 || hand.false_lockout === true) {
-                        playerStats[pid].falseLockouts++;
-                    } else {
-                        playerStats[pid].lockouts++;
-                        const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
-                        playerStats[pid].lockoutScores.push(lockoutScoreToUse);
-                    }
-                }
-            }
-            
-            const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
-                return playerTotals[a] - playerTotals[b];
-            });
-            
+const playerTotals = {};
+const playerHandScores = {};
+const playerStats = {};
+const playerJoinHands = {};
+
+for (let playerId in joinInfo) {
+    playerJoinHands[playerId] = joinInfo[playerId];
+}
+
+// ✅ FIX: Pre-initialize all players who appear in handsData
+const allPlayerIds = new Set();
+for (let i = 0; i < handsData.length; i++) {
+    allPlayerIds.add(String(handsData[i].player_id));
+}
+
+for (let pid of allPlayerIds) {
+    playerTotals[pid] = 0;
+    playerHandScores[pid] = [];
+    playerStats[pid] = { lockouts: 0, lockoutScores: [], falseLockouts: 0, totalLockouts: 0 };
+}
+
+for (let i = 0; i < handsData.length; i++) {
+    const hand = handsData[i];
+    const pid = String(hand.player_id);
+    
+    playerTotals[pid] += Number(hand.score);
+    playerHandScores[pid].push({ handNum: Number(hand.hand_number), score: Number(hand.score) });
+    
+    // ✅ FIX: Only count lockout scores when this player actually locked out
+    if (hand.lockout_player_id && String(hand.lockout_player_id) === String(pid)) {
+        playerStats[pid].totalLockouts++;
+        if (hand.false_lockout == 1 || hand.false_lockout === true) {
+            playerStats[pid].falseLockouts++;
+        } else {
+            playerStats[pid].lockouts++;
+            const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+            playerStats[pid].lockoutScores.push(lockoutScoreToUse);
+        }
+    }
+}
+
+const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
+    return playerTotals[a] - playerTotals[b];
+});
+
             let html = '<h3>Final Scores</h3>';
             html += '<div style="overflow-x: auto;"><table class="scores-table">';
             html += '<tr><th>Player</th><th>Total</th><th>Hands</th><th>Avg Hand</th><th>Lockouts</th><th>LO Rate</th><th>Avg LO Score</th><th>False LO</th><th>False LO Rate</th></tr>';
