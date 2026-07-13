@@ -50,8 +50,9 @@
             padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 8px; 
             display: flex; justify-content: space-between; align-items: center; min-height: 56px;
         }
-        .player-item input[type="checkbox"] { width: auto; margin: 0; min-width: 24px; min-height: 24px; }
-        .player-item input[type="radio"] { width: auto; margin: 0; min-width: 24px; min-height: 24px; }
+        .player-item input[type="checkbox"], .player-item input[type="radio"] { 
+            width: auto; margin: 0; min-width: 24px; min-height: 24px; 
+        }
         .hand-input-section { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
         .player-hand-row { 
             display: grid; grid-template-columns: 1fr 100px 80px; gap: 10px; 
@@ -85,8 +86,8 @@
         .stat-card h4 { color: #667eea; margin-bottom: 10px; font-size: 0.9em; }
         .stat-value { font-size: 2em; font-weight: bold; color: #333; }
         .loading { text-align: center; padding: 20px; color: #667eea; }
-        .error { background: #fee; color: #c33; padding: 15px; border-radius: 8px; margin: 15px 0; }
-        .success { background: #efe; color: #3c3; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .error { background: #fee; color: #c33; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #c33; }
+        .success { background: #efe; color: #3c3; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #3c3; }
         .nav-buttons { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
         .nav-buttons .btn { flex: 1; min-width: 140px; }
         .active-session-box { background: #e8f5e9; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #4caf50; }
@@ -167,6 +168,7 @@
             <h1>🎴 Lockout Tracker</h1>
             <p>Track your games, dominate the leaderboard</p>
         </div>
+
         <!-- HOME SCREEN -->
         <div id="homeScreen" class="screen active">
             <div class="card">
@@ -177,10 +179,10 @@
                 <button class="btn" onclick="showScreen('startSessionScreen')">🎮 Start New Session</button>
                 <button class="btn btn-secondary" onclick="showScreen('previousSessionsScreen'); loadPreviousSessions();">📊 View Previous Sessions</button>
                 <button class="btn btn-secondary" onclick="showScreen('statsScreen'); loadStats();">📈 View Stats</button>
-<button class="btn btn-secondary" onclick="showScreen('addPlayerScreen')">➕ Add New Player</button>
-<button class="btn btn-info" onclick="showScreen('appInstructionsScreen')">📱 How to Use App</button>
-<button class="btn btn-info" onclick="showScreen('dictionaryScreen')">📖 Dictionary</button>
-<button class="btn btn-info" onclick="showScreen('rulesScreen')">📜 Rules</button>
+                <button class="btn btn-secondary" onclick="showScreen('addPlayerScreen')">➕ Add New Player</button>
+                <button class="btn btn-info" onclick="showScreen('appInstructionsScreen')">📱 How to Use App</button>
+                <button class="btn btn-info" onclick="showScreen('dictionaryScreen')">📖 Dictionary</button>
+                <button class="btn btn-info" onclick="showScreen('rulesScreen')">📜 Rules</button>
             </div>
         </div>
 
@@ -196,920 +198,124 @@
             </div>
         </div>
 
-<!-- DICTIONARY SCREEN -->
-<div id="dictionaryScreen" class="screen">
-    <div class="card">
-        <h2>📖 Dictionary</h2>
-        
-        <div id="dictionaryNav" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-            <button class="btn btn-small btn-info" onclick="showDictionarySection('lingo')">🎭 Lockout Lingo</button>
-            <button class="btn btn-small btn-info" onclick="showDictionarySection('glossary')">📚 Glossary</button>
-        </div>
-        
-        <!-- LINGO SECTION -->
-        <div id="lingoSection" style="display: none;">
-            <div style="background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
-                <h3 style="margin: 0 0 10px 0; font-size: 1.3em;">🎭 LOCKOUT LINGO</h3>
-                <p style="margin: 0; font-size: 0.85em; font-style: italic;">Nicknames with 3+ cards refer to the first two cards you turn at the start, then the next card drawn/revealed.</p>
-            </div>
-
-            <div style="max-height: 65vh; overflow-y: auto; padding-right: 10px;">
-                
-                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #667eea;">
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">👔 Desmond (2-2)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">Desmond Tutu. When you turn over two 2s at the start.</span></p>
-                    </div>
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">⚽ Sven (4-4 turned, then draw a 2)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">Sven-Göran Eriksson's 4-4-2 formation. Tactical genius.</span></p>
-                    </div>
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">🇪🇺 The Brexit (5-2)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">52% voted leave. Controversial hand.</span></p>
-                    </div>
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">🤚 67 (6-7)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">Hand emoji vibes.</span></p>
-                    </div>
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">😈 The Omen (6-6 turned, then 6)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">Three 6s. Biblically cursed. Probably going to false lockout.</span></p>
-                    </div>
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">⛪ Pocket Peters / Pocket Ps (7-7)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">7s → Heaven → St. Peter at the gates.</span></p>
-                    </div>
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">🏛️ Caesar / A Wilde (8-8)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">Roman salute → HH → 88. Oscar Wilde also works.</span></p>
-                    </div>
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">💼 Dolly (9-5)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">Dolly Parton's 9 to 5. Classic.</span></p>
-                    </div>
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">🇩🇪 The German (9-9)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">"Nein, nein!" Refusing that lockout.</span></p>
-                    </div>
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">💋 Half Margot (10-10)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">Margot Robbie is all 10s... you've got half of them. Four 10s would be a Full Margot.</span></p>
-                    </div>
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">💅 Drag Race (Queen-Queen)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">Two queens. Sashay away if you false lockout.</span></p>
-                    </div>
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">🌹 Diana / Lady Di (Queen-Jack)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">Queen and Jack together. The People's Princess.</span></p>
-                    </div>
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">⚓ Nelson (1-1 turned, then 1)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">Three 1s. One eye, one arm, one... you get it. Cricket's cursed number.</span></p>
-                    </div>
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">⚽ Pep (Red King-9)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">Fluid football. Guardiola's philosophy in card form.</span></p>
-                    </div>
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">🤴 Charlie (Red King turned)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">Because of his fingers. RIP.</span></p>
-                    </div>
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">🎺 National Anthem (Red King - Red King)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">Two red kings? Stand up and sing. House rules.</span></p>
-                    </div>
-                    
-                    <div style="background: white; padding: 10px; border-radius: 6px;">
-                        <p style="margin: 0;"><strong style="color: #667eea;">🕵️ Bond (Red King - Red King turned, then 7)</strong><br>
-                        <span style="font-size: 0.9em; color: #555;">0-0-7. Licensed to lockout.</span></p>
-                    </div>
-                    
+        <!-- DICTIONARY SCREEN -->
+        <div id="dictionaryScreen" class="screen">
+            <div class="card">
+                <h2>📖 Dictionary</h2>
+                <div id="dictionaryNav" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="btn btn-small btn-info" onclick="showDictionarySection('lingo')">🎭 Lockout Lingo</button>
+                    <button class="btn btn-small btn-info" onclick="showDictionarySection('glossary')">📚 Glossary</button>
                 </div>
-            </div>
-        </div>
-        
-        <!-- GLOSSARY SECTION -->
-        <div id="glossarySection" style="display: none;">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
-                <h3 style="margin: 0 0 10px 0; font-size: 1.3em;">📚 GLOSSARY OF TERMS</h3>
-                <p style="margin: 0; font-size: 0.9em;">Game rules and app features explained</p>
-            </div>
-
-            <div style="max-height: 65vh; overflow-y: auto; padding-right: 10px;">
-                
-                <!-- Game Terms -->
-                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #4caf50;">
-                    <h3 style="color: #4caf50; margin-bottom: 15px;">🎴 Game Terms</h3>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Lockout</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">Declaring that you have 5 points or less at the start of your turn. If successful (strictly lowest score), you score 0 for the hand.</p>
+                <div id="lingoSection" style="display: none; max-height: 65vh; overflow-y: auto; padding-right: 10px;">
+                    <div style="background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 1.3em;">🎭 LOCKOUT LINGO</h3>
+                        <p style="margin: 0; font-size: 0.85em; font-style: italic;">Nicknames with 3+ cards refer to the first two cards you turn at the start, then the next card drawn/revealed.</p>
                     </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">False Lockout</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">A failed lockout attempt where either your score is greater than 5, or you're tied/higher than another player. Results in your lockout score + penalty.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Lockout Score</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">The actual hand total you had when you declared lockout (e.g., 3 points). Recorded separately for statistics even if you score 0.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Hand</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">A single round of play, from deal to lockout reveal. Multiple hands make up a session.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Session</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">A complete game consisting of multiple hands. Ends when players decide (fixed hands, score target, or event end).</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Formation</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">The arrangement of your face-down cards (typically 2×2 or 1×4). Cards must stay in their original positions for memory tracking.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Magic Cards</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">Cards with special abilities when drawn from the deck: 7 (look at own card), 8 (look at opponent's card), 9 (blind swap), 10 (open swap), Red Jack (swap between two opponents).</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Slam</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">An out-of-turn action where you match a discarded card with one in your hand or an opponent's hand. Reduces hand size or penalizes opponents.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Penalty Card</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">A face-down card added to your hand (without looking) as punishment for incorrect slams or being correctly slammed by an opponent.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Defense</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">Protecting your card from being slammed by placing your finger on it first when you see an opponent approaching.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Late Joiner</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">A player who joins mid-session. Their starting score equals the average of all current players' totals at the hand they join.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Cumulative Score</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">Your total score across all hands in a session. Lowest cumulative score wins.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Red King</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">The only card worth -1 points (King of Hearts or Diamonds). Cannot be slammed.</p>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
+                        <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;"><p style="margin: 0;"><strong style="color: #667eea;">👔 Desmond (2-2)</strong><br><span style="font-size: 0.9em; color: #555;">Desmond Tutu. When you turn over two 2s at the start.</span></p></div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;"><p style="margin: 0;"><strong style="color: #667eea;">⚽ Sven (4-4 turned, then draw a 2)</strong><br><span style="font-size: 0.9em; color: #555;">Sven-Göran Eriksson's 4-4-2 formation. Tactical genius.</span></p></div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;"><p style="margin: 0;"><strong style="color: #667eea;">🇪🇺 The Brexit (5-2)</strong><br><span style="font-size: 0.9em; color: #555;">52% voted leave. Controversial hand.</span></p></div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;"><p style="margin: 0;"><strong style="color: #667eea;">🤚 67 (6-7)</strong><br><span style="font-size: 0.9em; color: #555;">Hand emoji vibes.</span></p></div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;"><p style="margin: 0;"><strong style="color: #667eea;">😈 The Omen (6-6 turned, then 6)</strong><br><span style="font-size: 0.9em; color: #555;">Three 6s. Biblically cursed. Probably going to false lockout.</span></p></div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;"><p style="margin: 0;"><strong style="color: #667eea;">⛪ Pocket Peters / Pocket Ps (7-7)</strong><br><span style="font-size: 0.9em; color: #555;">7s → Heaven → St. Peter at the gates.</span></p></div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;"><p style="margin: 0;"><strong style="color: #667eea;">🏛️ Caesar / A Wilde (8-8)</strong><br><span style="font-size: 0.9em; color: #555;">Roman salute → HH → 88. Oscar Wilde also works.</span></p></div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;"><p style="margin: 0;"><strong style="color: #667eea;">💼 Dolly (9-5)</strong><br><span style="font-size: 0.9em; color: #555;">Dolly Parton's 9 to 5. Classic.</span></p></div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;"><p style="margin: 0;"><strong style="color: #667eea;">🇩🇪 The German (9-9)</strong><br><span style="font-size: 0.9em; color: #555;">"Nein, nein!" Refusing that lockout.</span></p></div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;"><p style="margin: 0;"><strong style="color: #667eea;">💋 Half Margot (10-10)</strong><br><span style="font-size: 0.9em; color: #555;">Margot Robbie is all 10s... you've got half of them. Four 10s would be a Full Margot.</span></p></div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;"><p style="margin: 0;"><strong style="color: #667eea;">💅 Drag Race (Queen-Queen)</strong><br><span style="font-size: 0.9em; color: #555;">Two queens. Sashay away if you false lockout.</span></p></div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;"><p style="margin: 0;"><strong style="color: #667eea;">🌹 Diana / Lady Di (Queen-Jack)</strong><br><span style="font-size: 0.9em; color: #555;">Queen and Jack together. The People's Princess.</span></p></div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;"><p style="margin: 0;"><strong style="color: #667eea;">⚓ Nelson (1-1 turned, then 1)</strong><br><span style="font-size: 0.9em; color: #555;">Three 1s. One eye, one arm, one... you get it. Cricket's cursed number.</span></p></div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;"><p style="margin: 0;"><strong style="color: #667eea;">⚽ Pep (Red King-9)</strong><br><span style="font-size: 0.9em; color: #555;">Fluid football. Guardiola's philosophy in card form.</span></p></div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;"><p style="margin: 0;"><strong style="color: #667eea;">🤴 Charlie (Red King turned)</strong><br><span style="font-size: 0.9em; color: #555;">Because of his fingers. RIP.</span></p></div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px;"><p style="margin: 0;"><strong style="color: #667eea;">🎺 National Anthem (Red King - Red King)</strong><br><span style="font-size: 0.9em; color: #555;">Two red kings? Stand up and sing. House rules.</span></p></div>
+                        <div style="background: white; padding: 10px; border-radius: 6px;"><p style="margin: 0;"><strong style="color: #667eea;">🕵️ Bond (Red King - Red King turned, then 7)</strong><br><span style="font-size: 0.9em; color: #555;">0-0-7. Licensed to lockout.</span></p></div>
                     </div>
                 </div>
-
-                <!-- App Terms -->
-                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #9c27b0;">
-                    <h3 style="color: #9c27b0; margin-bottom: 15px;">📱 App-Specific Terms</h3>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Active Session</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">A session currently in progress (not yet ended). Can be resumed from the home screen.</p>
+                <div id="glossarySection" style="display: none; max-height: 65vh; overflow-y: auto; padding-right: 10px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 1.3em;">📚 GLOSSARY OF TERMS</h3>
+                        <p style="margin: 0; font-size: 0.9em;">Game rules and app features explained</p>
                     </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Previous Sessions</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">Completed sessions that have been ended. Viewable with full stats and graphs.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Worm Chart (Cricket Worm)</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">A line graph showing cumulative scores over time for all players in a session.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Manhattan Chart</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">A bar chart showing hand-by-hand scores for all players in a session.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Head-to-Head Record</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">Direct win/loss record between two players when they compete in the same session (who finished with lower score).</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Sessions Together</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">Statistics for two players when they both participated in the same session.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">All Sessions</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">Individual statistics for a player across every session they've played (regardless of opponents).</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Performance Context</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">How a player's head-to-head record against another player varies depending on who else is playing.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Lockout Rate</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">Percentage of hands where a player successfully locked out (successful lockouts ÷ total hands played).</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">False Lockout Rate</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">Percentage of lockout attempts that were false (false lockouts ÷ total lockout attempts).</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Average Lockout Score</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">The mean score of all successful lockouts by a player. Lower is better (indicates locking out with minimal points).</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Average Hand</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">Mean score per hand played (total score ÷ hands played). Excludes starting scores for late joiners.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Hand Streak</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">Consecutive hands won (successful lockouts). Resets on false lockout or non-lockout hand.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Win Rate</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">Percentage of sessions won (sessions won ÷ sessions played).</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Session Tags</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">Categories applied to sessions (e.g., Casual, Holiday, Pub, Tournament) for filtering and organization.</p>
-                    </div>
-                    
-                    <div style="background: white; padding: 12px; border-radius: 8px;">
-                        <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Edit History</h4>
-                        <p style="margin: 0; font-size: 0.9em; color: #555;">A log of all changes made to sessions and hands, tracking who edited what and when.</p>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
+                        <h4 style="color: #667eea; margin-bottom: 10px;">🎴 Game Terms</h4>
+                        <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;"><h5 style="color: #667eea; margin: 0 0 5px 0;">Lockout</h5><p style="margin: 0; font-size: 0.9em; color: #555;">Declaring that you have 5 points or less at the start of your turn. If successful (strictly lowest score), you score 0 for the hand.</p></div>
+                        <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;"><h5 style="color: #667eea; margin: 0 0 5px 0;">False Lockout</h5><p style="margin: 0; font-size: 0.9em; color: #555;">A failed lockout attempt where either your score is greater than 5, or you're tied/higher than another player. Results in your lockout score + penalty.</p></div>
+                        <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;"><h5 style="color: #667eea; margin: 0 0 5px 0;">Red King</h5><p style="margin: 0; font-size: 0.9em; color: #555;">The only card worth -1 points (King of Hearts or Diamonds). Cannot be slammed.</p></div>
+                        <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;"><h5 style="color: #667eea; margin: 0 0 5px 0;">Late Joiner</h5><p style="margin: 0; font-size: 0.9em; color: #555;">A player who joins mid-session. Their starting score equals the average of all current players' totals at the hand they join.</p></div>
+                        <div style="background: white; padding: 12px; border-radius: 8px;"><h5 style="color: #667eea; margin: 0 0 5px 0;">Cumulative Score</h5><p style="margin: 0; font-size: 0.9em; color: #555;">Your total score across all hands in a session. Lowest cumulative score wins.</p></div>
                     </div>
                 </div>
-                
+                <button class="btn btn-secondary" onclick="showScreen('homeScreen')" style="margin-top: 20px;">Back to Home</button>
             </div>
         </div>
 
-        <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
-    </div>
-</div>
-
-<!-- APP INSTRUCTIONS SCREEN -->
-<div id="appInstructionsScreen" class="screen">
-    <div class="card">
-        <h2>📱 How to Use the Lockout Tracker</h2>
-        
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white; text-align: center;">
-            <h3 style="margin: 0; font-size: 1.3em;">📊 OVERVIEW</h3>
-            <p style="margin: 10px 0 0 0; font-size: 0.95em;">This app tracks your Lockout game sessions, records hand-by-hand scores, and generates detailed statistics. Players only input <strong>lockout scores</strong> and the app handles all calculations automatically.</p>
+        <!-- APP INSTRUCTIONS SCREEN (ABBREVIATED) -->
+        <div id="appInstructionsScreen" class="screen">
+            <div class="card">
+                <h2>📱 How to Use the Lockout Tracker</h2>
+                <div style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white; text-align: center;">
+                        <h3 style="margin: 0; font-size: 1.3em;">📊 OVERVIEW</h3>
+                        <p style="margin: 10px 0 0 0; font-size: 0.95em;">This app tracks your Lockout game sessions. Players only input <strong>lockout scores</strong> and the app handles all calculations automatically.</p>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #4caf50;">
+                        <h3 style="color: #4caf50; margin-bottom: 15px;">🚀 GETTING STARTED</h3>
+                        <p><strong>1. Add Players:</strong> Tap "➕ Add New Player" (one-time setup)</p>
+                        <p><strong>2. Start Session:</strong> Tap "🎮 Start New Session", select players, set penalty</p>
+                        <p><strong>3. Record Hands:</strong> Enter lockout scores, select who locked out, submit</p>
+                        <p><strong>4. View Stats:</strong> See live scores, graphs, and comparisons</p>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #667eea;">
+                        <h3 style="color: #667eea; margin-bottom: 15px;">🎮 DURING A SESSION</h3>
+                        <p><strong>Enter Lockout Scores:</strong> Input the score each player called lockout with</p>
+                        <p><strong>Select Lockout Player:</strong> Tap radio button next to who declared lockout</p>
+                        <p><strong>Auto-Detection:</strong> App checks if lockout is valid (≤5 AND strictly lowest)</p>
+                        <p><strong>Submit Hand:</strong> Scores calculated automatically</p>
+                        <p style="margin-top: 15px; background: #e8f5e9; padding: 12px; border-radius: 8px; border-left: 3px solid #4caf50;"><strong>✅ Successful lockout:</strong> Score = 0 (or keeps negative)<br><strong>❌ False lockout:</strong> Score = lockout score + penalty</p>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #9c27b0;">
+                        <h3 style="color: #9c27b0; margin-bottom: 15px;">📈 STATISTICS</h3>
+                        <p><strong>Overall Stats:</strong> Total sessions/hands, win rates, best performers</p>
+                        <p><strong>Head-to-Head:</strong> Direct records when two players compete</p>
+                        <p><strong>Detailed Comparison:</strong> Sessions together, all sessions, performance context</p>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" onclick="showScreen('homeScreen')" style="margin-top: 20px;">Back to Home</button>
+            </div>
         </div>
 
-        <div style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
-            
-            <!-- GETTING STARTED -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #4caf50;">
-                <h3 style="color: #4caf50; margin-bottom: 15px;">🚀 GETTING STARTED</h3>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #4caf50; margin-bottom: 10px;">1. Add Players (One-Time Setup)</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li>Tap <strong>"➕ Add New Player"</strong> from the home screen</li>
-                        <li>Enter player name and tap <strong>"Add Player"</strong></li>
-                        <li>Repeat for all regular players</li>
-                        <li>Players only need to be added once (they're saved permanently)</li>
-                    </ul>
+        <!-- RULES SCREEN (ABBREVIATED) -->
+        <div id="rulesScreen" class="screen">
+            <div class="card">
+                <h2>📜 Lockout - Official Rules</h2>
+                <div style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white; text-align: center;">
+                        <h3 style="margin: 0; font-size: 1.3em;">🎯 OBJECTIVE</h3>
+                        <p style="margin: 10px 0 0 0; font-size: 0.95em;">Be the player with the <strong>lowest cumulative score</strong> by winning hands through successful lockouts.</p>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #667eea;">
+                        <h3 style="color: #667eea; margin-bottom: 15px;">💎 CARD VALUES</h3>
+                        <p>Ace=1, 2-10=Face Value, J/Q/K=10, <strong style="color: #f44336;">Red King=-1</strong></p>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #f5576c;">
+                        <h3 style="color: #f5576c; margin-bottom: 15px;">🔒 LOCKOUT</h3>
+                        <p><strong>When:</strong> At the start of your turn (before drawing)</p>
+                        <p><strong>Requirement:</strong> Hand total ≤ 5 points</p>
+                        <p><strong>✅ Successful:</strong> Score ≤ 5 AND strictly lowest → You score 0</p>
+                        <p><strong>❌ False:</strong> Score > 5 OR tied/higher than another → You score lockout_score + penalty</p>
+                        <p><strong>Other players:</strong> Keep their lockout scores (no reset to 0)</p>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); padding: 20px; border-radius: 10px; color: white;">
+                        <h3 style="margin-bottom: 15px;">💡 KEY RULES</h3>
+                        <p>• Red Kings cannot be slammed</p>
+                        <p>• Late joiners start with average of current players' totals</p>
+                        <p>• Lowest cumulative score wins the session</p>
+                    </div>
                 </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px;">
-                    <h4 style="color: #4caf50; margin-bottom: 10px;">2. Start a New Session</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li>Tap <strong>"🎮 Start New Session"</strong> from the home screen</li>
-                        <li>Fill in:
-                            <ul style="margin-left: 20px; margin-top: 5px;">
-                                <li><strong>Session Title</strong> (e.g., "Magaluf 2024", "Friday Night")</li>
-                                <li><strong>Host</strong> (who's organizing/tracking)</li>
-                                <li><strong>Session Notes</strong> (optional - e.g., "Playing at John's house")</li>
-                                <li><strong>Session Type</strong> (optional tags - Casual, Holiday, Pub, etc.)</li>
-                                <li><strong>False Lockout Penalty</strong> (default: 10 points)</li>
-                                <li><strong>Select Players</strong> (check all players participating)</li>
-                            </ul>
-                        </li>
-                        <li>Tap <strong>"Start Session"</strong></li>
-                    </ul>
-                </div>
+                <button class="btn btn-secondary" onclick="showScreen('homeScreen')" style="margin-top: 20px;">Back to Home</button>
             </div>
-
-            <!-- DURING A SESSION -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #667eea;">
-                <h3 style="color: #667eea; margin-bottom: 15px;">🎮 DURING A SESSION</h3>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #667eea; margin-bottom: 10px;">Recording Hands</h4>
-                    <p style="margin-bottom: 10px;"><strong>For each hand:</strong></p>
-                    
-                    <ol style="margin-left: 20px; line-height: 1.8;">
-                        <li><strong>Enter Lockout Scores</strong>
-                            <ul style="margin-left: 20px; margin-top: 5px;">
-                                <li>Input the <strong>lockout score</strong> for each player (the score they called lockout with)</li>
-                                <li>Example: If a player locked out with 3 points, enter <strong>3</strong></li>
-                            </ul>
-                        </li>
-                        <li><strong>Select Who Locked Out</strong>
-                            <ul style="margin-left: 20px; margin-top: 5px;">
-                                <li>Tap the radio button next to the player who declared lockout</li>
-                            </ul>
-                        </li>
-                        <li><strong>False Lockout Detection</strong>
-                            <ul style="margin-left: 20px; margin-top: 5px;">
-                                <li>The app automatically checks if the lockout is valid:
-                                    <ul style="margin-left: 20px;">
-                                        <li>✅ Valid: Score ≤ 5 AND strictly lowest</li>
-                                        <li>❌ False: Score > 5 OR tied/higher than another player</li>
-                                    </ul>
-                                </li>
-                                <li>A <strong>warning</strong> appears if it's a false lockout</li>
-                                <li>Confirm to proceed (penalty is applied automatically)</li>
-                            </ul>
-                        </li>
-                        <li><strong>Add Hand Note</strong> (Optional)
-                            <ul style="margin-left: 20px; margin-top: 5px;">
-                                <li>Add comments like "Epic comeback" or "Close call"</li>
-                            </ul>
-                        </li>
-                        <li><strong>Tap "Submit Hand"</strong>
-                            <ul style="margin-left: 20px; margin-top: 5px;">
-                                <li>Scores are calculated automatically:
-                                    <ul style="margin-left: 20px;">
-                                        <li><strong>Successful lockout:</strong> Player scores 0 (or keeps negative score)</li>
-                                        <li><strong>False lockout:</strong> Player scores lockout score + penalty</li>
-                                        <li><strong>Other players:</strong> Keep their lockout scores</li>
-                                    </ul>
-                                </li>
-                            </ul>
-                        </li>
-                    </ol>
-                </div>
-                
-                <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 3px solid #4caf50;">
-                    <h4 style="color: #2e7d32; margin-bottom: 10px;">What the App Calculates</h4>
-                    <p style="margin-bottom: 10px;">The app automatically handles:</p>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li>✅ Successful lockout → 0 points (negative scores preserved)</li>
-                        <li>✅ False lockout → lockout score + penalty</li>
-                        <li>✅ Cumulative session scores</li>
-                        <li>✅ Hand-by-hand history</li>
-                        <li>✅ Live statistics (avg hand, lockout rate, etc.)</li>
-                        <li>✅ Real-time graphs (Worm chart, Manhattan chart)</li>
-                    </ul>
-                </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #667eea; margin-bottom: 10px;">Adding a Late Joiner</h4>
-                    <p style="margin-bottom: 10px;">If a player joins mid-session:</p>
-                    <ol style="margin-left: 20px; line-height: 1.8;">
-                        <li>Tap <strong>"➕ Add Player"</strong> button (in active session)</li>
-                        <li>Select the player from the list</li>
-                        <li>Confirm — they'll join from the <strong>current hand</strong> onwards</li>
-                        <li>The app calculates their <strong>starting score</strong> automatically (average of all current players' totals)</li>
-                        <li>Late joiners are marked with a <strong>"Joined H#"</strong> badge</li>
-                    </ol>
-                </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #667eea; margin-bottom: 10px;">Editing/Deleting Hands</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li><strong>Edit a hand:</strong> Tap <strong>"Edit"</strong> next to any hand in the history
-                            <ul style="margin-left: 20px; margin-top: 5px;">
-                                <li>Modify scores, change who locked out, update notes</li>
-                                <li>False lockout detection runs again</li>
-                            </ul>
-                        </li>
-                        <li><strong>Delete the most recent hand:</strong> Tap <strong>"Delete"</strong> (only available for the last hand)</li>
-                    </ul>
-                </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #667eea; margin-bottom: 10px;">Editing Session Details</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li>Tap <strong>"✏️ Edit Session"</strong> to update:
-                            <ul style="margin-left: 20px; margin-top: 5px;">
-                                <li>Session notes</li>
-                                <li>Session tags/type</li>
-                            </ul>
-                        </li>
-                    </ul>
-                </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #667eea; margin-bottom: 10px;">Viewing Live Stats</h4>
-                    <p style="margin-bottom: 10px;">During an active session, scroll down to see:</p>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li><strong>Current Scores Table</strong> (total, avg hand, lockout rate, etc.)</li>
-                        <li><strong>Session Statistics</strong> (total hands, avg score/hand, leader, biggest gap)</li>
-                        <li><strong>Lockout Performance</strong> (who has the best avg lockout score)</li>
-                        <li><strong>Graphs</strong> (Worm chart shows cumulative scores, Manhattan shows hand-by-hand)</li>
-                    </ul>
-                </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px;">
-                    <h4 style="color: #667eea; margin-bottom: 10px;">Ending a Session</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li>Tap <strong>"End Session"</strong> when finished</li>
-                        <li>Session is marked as complete and moves to <strong>Previous Sessions</strong></li>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- VIEWING PAST SESSIONS -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #f5576c;">
-                <h3 style="color: #f5576c; margin-bottom: 15px;">📊 VIEWING PAST SESSIONS</h3>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px;">
-                    <h4 style="color: #f5576c; margin-bottom: 10px;">Browse Previous Sessions</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li>Tap <strong>"📊 View Previous Sessions"</strong> from home screen</li>
-                        <li>Tap any session to view full details:
-                            <ul style="margin-left: 20px; margin-top: 5px;">
-                                <li>Final scores table</li>
-                                <li>Hand-by-hand breakdown</li>
-                                <li>Graphs (Worm, Manhattan)</li>
-                                <li>Session notes/tags</li>
-                            </ul>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- STATISTICS -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #9c27b0;">
-                <h3 style="color: #9c27b0; margin-bottom: 15px;">📈 STATISTICS & COMPARISONS</h3>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #9c27b0; margin-bottom: 10px;">Overall Stats</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li>Tap <strong>"📈 View Stats"</strong> → <strong>"Overall Stats"</strong></li>
-                        <li>See:
-                            <ul style="margin-left: 20px; margin-top: 5px;">
-                                <li>Total sessions/hands played</li>
-                                <li>Most sessions/hands won</li>
-                                <li>Best win rates (session & hand level)</li>
-                                <li>Lowest avg score/hand</li>
-                                <li>Best avg lockout score</li>
-                                <li>Longest hand streak</li>
-                                <li>Most false lockouts</li>
-                                <li><strong>Player Breakdown Table</strong> (all stats per player)</li>
-                            </ul>
-                        </li>
-                    </ul>
-                </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #9c27b0; margin-bottom: 10px;">Head-to-Head Records</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li>Tap <strong>"📈 View Stats"</strong> → <strong>"Head-to-Head Records"</strong></li>
-                        <li>See direct records when two players compete in the same session</li>
-                        <li>Shows win/loss records (who finished with lower score)</li>
-                        <li>Tap <strong>"View Detailed Comparison"</strong> for any matchup</li>
-                    </ul>
-                </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px;">
-                    <h4 style="color: #9c27b0; margin-bottom: 10px;">Detailed Player Comparison</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li>Tap <strong>"📈 View Stats"</strong> → <strong>"Detailed Comparison"</strong></li>
-                        <li>Select two players to compare</li>
-                        <li>See:
-                            <ul style="margin-left: 20px; margin-top: 5px;">
-                                <li><strong>Sessions Together:</strong> Head-to-head record when both played</li>
-                                <li><strong>All Sessions:</strong> Individual performance across all sessions</li>
-                                <li><strong>Performance Context:</strong> How Player 1 performs vs Player 2 depending on who else is playing</li>
-                                <li><strong>Session History:</strong> Clickable list of all sessions they played together</li>
-                            </ul>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- KEY FEATURES -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #00bcd4;">
-                <h3 style="color: #00bcd4; margin-bottom: 15px;">⭐ KEY FEATURES</h3>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #00bcd4; margin-bottom: 10px;">Late Joiner Support</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li>Players can join mid-session</li>
-                        <li>Starting score = average of all current players' totals at join hand</li>
-                        <li>Marked with <strong>"Joined H#"</strong> badges throughout the app</li>
-                        <li>Graphs show nulls for hands before they joined</li>
-                    </ul>
-                </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #00bcd4; margin-bottom: 10px;">Lockout Score Tracking</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li>The app records <strong>lockout scores</strong> separately for stats purposes</li>
-                        <li>Even if a successful lockout scores 0, the lockout score (e.g., 3) is saved</li>
-                        <li>Used to calculate <strong>Avg Lockout Score</strong> statistics</li>
-                    </ul>
-                </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #00bcd4; margin-bottom: 10px;">False Lockout Penalties</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li>Customizable per session (set during session creation)</li>
-                        <li>Default: 10 points</li>
-                        <li>Applied automatically when detected</li>
-                    </ul>
-                </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #00bcd4; margin-bottom: 10px;">Graphs</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li><strong>Worm Chart</strong> (Cricket Worm): Cumulative scores over time</li>
-                        <li><strong>Manhattan Chart:</strong> Hand-by-hand scores (bar chart)</li>
-                        <li>Both handle late joiners (show nulls before join)</li>
-                    </ul>
-                </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px;">
-                    <h4 style="color: #00bcd4; margin-bottom: 10px;">Session Metadata</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li><strong>Notes:</strong> Add context (e.g., "Playing at John's house")</li>
-                        <li><strong>Tags:</strong> Categorize sessions (Casual, Holiday, Pub, Tournament, etc.)</li>
-                        <li><strong>Clickable Session Links:</strong> In comparisons, tap session names to view details</li>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- TIPS -->
-            <div style="background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
-                <h3 style="margin-bottom: 15px;">💡 TIPS FOR BEST EXPERIENCE</h3>
-                <ul style="margin-left: 20px; line-height: 1.8;">
-                    <li>✅ <strong>Add all regular players once</strong> — saves time when starting sessions</li>
-                    <li>✅ <strong>Use descriptive session titles</strong> — easier to find later (e.g., "Magaluf Day 3")</li>
-                    <li>✅ <strong>Add hand notes</strong> — capture memorable moments ("Dave's epic false lockout")</li>
-                    <li>✅ <strong>Review stats regularly</strong> — see who's improving, who's struggling</li>
-                    <li>✅ <strong>Use tags</strong> — filter sessions by type (e.g., all Holiday sessions)</li>
-                    <li>✅ <strong>Check graphs during play</strong> — see who's pulling ahead in real-time</li>
-                </ul>
-            </div>
-
-            <!-- TROUBLESHOOTING -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
-                <h3 style="color: #ffc107; margin-bottom: 15px;">❓ TROUBLESHOOTING</h3>
-                
-                <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                    <p style="font-weight: 600; margin-bottom: 5px;">Q: Can I edit a hand after submitting?</p>
-                    <p style="margin: 0;">A: Yes! Tap "Edit" next to any hand in the history. Only the most recent hand can be deleted.</p>
-                </div>
-                
-                <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                    <p style="font-weight: 600; margin-bottom: 5px;">Q: What if I accidentally end a session?</p>
-                    <p style="margin: 0;">A: Ended sessions cannot be reopened. Start a new session if needed.</p>
-                </div>
-                
-                <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                    <p style="font-weight: 600; margin-bottom: 5px;">Q: Can I remove a player from a session?</p>
-                    <p style="margin: 0;">A: No, once a player is added (either at start or mid-session), they cannot be removed. Plan carefully!</p>
-                </div>
-                
-                <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                    <p style="font-weight: 600; margin-bottom: 5px;">Q: What if two players tie for lowest after a lockout?</p>
-                    <p style="margin: 0;">A: The locked-out player gets a false lockout penalty. The other tied player keeps their original score (not reset to 0).</p>
-                </div>
-                
-                <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-                    <p style="font-weight: 600; margin-bottom: 5px;">Q: How are late joiner starting scores calculated?</p>
-                    <p style="margin: 0;">A: Average of all current players' cumulative totals at the hand they join.</p>
-                </div>
-                
-                <div style="background: white; padding: 12px; border-radius: 8px;">
-                    <p style="font-weight: 600; margin-bottom: 5px;">Q: Why does the app ask for lockout scores, not final scores?</p>
-                    <p style="margin: 0;">A: The app calculates final scores automatically based on lockout validity. You only input the score the player called lockout with.</p>
-                </div>
-            </div>
-
-            <!-- DATA & PRIVACY -->
-            <div style="background: #e8f5e9; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #4caf50;">
-                <h3 style="color: #2e7d32; margin-bottom: 15px;">🔒 DATA & PRIVACY</h3>
-                <ul style="margin-left: 20px; line-height: 1.8;">
-                    <li>All data is stored in <strong>Google Sheets</strong> (your own spreadsheet)</li>
-                    <li>No data is shared with third parties</li>
-                    <li>Edit history tracks all changes (who edited what and when)</li>
-                </ul>
-            </div>
-
         </div>
 
-        <button class="btn btn-secondary" onclick="showScreen('homeScreen')" style="margin-top: 20px;">Back to Home</button>
-    </div>
-</div>
-        
-<!-- RULES SCREEN -->
-<div id="rulesScreen" class="screen">
-    <div class="card">
-        <h2>📜 Lockout - Official Rules</h2>
-        
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white; text-align: center;">
-            <h3 style="margin: 0; font-size: 1.3em;">🎯 OBJECTIVE</h3>
-            <p style="margin: 10px 0 0 0; font-size: 0.95em;">Be the player with the <strong>lowest cumulative score</strong> at the end of the session by winning hands through successful lockouts.</p>
-        </div>
-
-        <div style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
-            
-            <!-- SETUP -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #667eea;">
-                <h3 style="color: #667eea; margin-bottom: 15px;">🎴 SETUP</h3>
-                
-                <p><strong>Players:</strong> 2 or more</p>
-                <p><strong>Deck:</strong> Standard 52-card deck</p>
-                
-                <p style="margin-top: 15px;"><strong>Deal:</strong></p>
-                <ol style="margin-left: 20px; line-height: 1.8;">
-                    <li>Choose a dealer (rotates clockwise each hand)</li>
-                    <li>Deal 4 cards <strong>face down</strong> to each player</li>
-                    <li>Players arrange their 4 cards in a formation in front of them (common: 2×2 grid or 1×4 row)</li>
-                    <li>Each player may <strong>secretly look at any 2</strong> of their 4 cards, then place them back face down</li>
-                    <li>Place remaining deck face down in the center (draw pile)</li>
-                    <li>Player to the dealer's left goes first</li>
-                </ol>
-                
-                <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin-top: 15px; border-left: 3px solid #ffc107;">
-                    <strong>⚠️ Important:</strong> Cards must stay in their original positions throughout the hand. Players rely on memory to track card locations.
-                </div>
-            </div>
-
-            <!-- CARD VALUES -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #4facfe;">
-                <h3 style="color: #4facfe; margin-bottom: 15px;">💎 CARD VALUES</h3>
-                
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
-                    <tr style="background: #4facfe; color: white;">
-                        <th style="padding: 10px; text-align: left; border-radius: 5px 0 0 0;">Card</th>
-                        <th style="padding: 10px; text-align: left; border-radius: 0 5px 0 0;">Value</th>
-                    </tr>
-                    <tr style="background: white;">
-                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">Ace</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">1</td>
-                    </tr>
-                    <tr style="background: #f8f9fa;">
-                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">2-10</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">Face value</td>
-                    </tr>
-                    <tr style="background: white;">
-                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">Jack, Queen, King</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">10</td>
-                    </tr>
-                    <tr style="background: #ffe8e8;">
-                        <td style="padding: 10px; font-weight: bold;">Red King ♥️ ♦️</td>
-                        <td style="padding: 10px; font-weight: bold;">-1</td>
-                    </tr>
-                </table>
-                
-                <p style="font-weight: 600; color: #333;">Your score = sum of all cards in your hand</p>
-            </div>
-
-            <!-- TURN SEQUENCE -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #f5576c;">
-                <h3 style="color: #f5576c; margin-bottom: 15px;">🔄 TURN SEQUENCE</h3>
-                
-                <p style="margin-bottom: 10px;"><strong>On your turn:</strong></p>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <p style="font-weight: 600; margin-bottom: 10px;">1. DRAW one card from either:</p>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li>The face-down draw pile, OR</li>
-                        <li>The top card of the face-up discard pile</li>
-                    </ul>
-                </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <p style="font-weight: 600; margin-bottom: 10px;">2. CHOOSE one of the following:</p>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li><strong>Swap</strong> the drawn card with one of your face-down cards (place the old card face up on discard pile)</li>
-                        <li><strong>Discard</strong> the drawn card face up onto the discard pile (keep your hand unchanged)</li>
-                    </ul>
-                </div>
-                
-                <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #2196f3;">
-                    <strong>ℹ️ First Turn Exception:</strong> The first player must draw from the draw pile (no discard pile exists yet).
-                </div>
-                
-                <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; border-left: 3px solid #2196f3;">
-                    <strong>ℹ️ When Draw Pile Runs Out:</strong> Shuffle the discard pile face down to create a new draw pile, leaving only the current top card as the discard pile.
-                </div>
-            </div>
-
-            <!-- MAGIC CARDS -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #9c27b0;">
-                <h3 style="color: #9c27b0; margin-bottom: 15px;">✨ MAGIC CARDS</h3>
-                
-                <p style="margin-bottom: 15px;">When you <strong>draw</strong> these cards from the <strong>draw pile</strong> (not discard), you may use their special ability before deciding to swap or discard:</p>
-                
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
-                    <tr style="background: #9c27b0; color: white;">
-                        <th style="padding: 10px; text-align: left; border-radius: 5px 0 0 0; width: 80px;">Card</th>
-                        <th style="padding: 10px; text-align: left; border-radius: 0 5px 0 0;">Ability</th>
-                    </tr>
-                    <tr style="background: white;">
-                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: bold;">7</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">Look at one of your own face-down cards</td>
-                    </tr>
-                    <tr style="background: #f8f9fa;">
-                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: bold;">8</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">Look at one of another player's face-down cards</td>
-                    </tr>
-                    <tr style="background: white;">
-                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: bold;">9</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;"><strong>Blind Swap</strong> - Swap one of your cards with another player's card (neither card is looked at)</td>
-                    </tr>
-                    <tr style="background: #f8f9fa;">
-                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: bold;">10</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;"><strong>Open Swap</strong> - Pick up one of your cards and one of another player's cards, look at both, then either swap them or return them to their original positions</td>
-                    </tr>
-                    <tr style="background: #fff3e0;">
-                        <td style="padding: 10px; font-weight: bold;">Red Jack<br><span style="font-size: 0.85em;">(Optional)</span></td>
-                        <td style="padding: 10px;">Swap one card between any two other players (not yourself). Cards remain face down and stay in their original positions</td>
-                    </tr>
-                </table>
-                
-                <div style="background: #fff3cd; padding: 12px; border-radius: 8px; border-left: 3px solid #ffc107;">
-                    <strong>⚠️ Note:</strong> Cards must stay in their original table positions after swaps. Magic abilities only work when drawn from the draw pile, not when picked from the discard pile.
-                </div>
-            </div>
-
-            <!-- SLAMS -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #ff5722;">
-                <h3 style="color: #ff5722; margin-bottom: 15px;">👊 SLAMS</h3>
-                
-                <div style="background: #ffebee; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 3px solid #f44336;">
-                    <strong>⚡ Slams can happen at any time, out of turn!</strong>
-                </div>
-                
-                <p style="margin-bottom: 15px;">When a player discards a card (e.g., a 5), you may <strong>slam</strong> if you believe a matching card exists:</p>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #ff5722; margin-bottom: 10px;">Slamming Your Own Card</h4>
-                    <ol style="margin-left: 20px; line-height: 1.8;">
-                        <li>Quickly turn over the matching card from your hand</li>
-                        <li><strong>If correct:</strong> Place it on the discard pile (you now have one fewer card = lower score!)</li>
-                        <li><strong>If incorrect:</strong> Take a 1-card penalty from the draw pile (place face down in your hand without looking)</li>
-                    </ol>
-                </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #ff5722; margin-bottom: 10px;">Slamming Another Player's Card</h4>
-                    <ol style="margin-left: 20px; line-height: 1.8;">
-                        <li>Quickly place your finger on their card</li>
-                        <li>Turn it over to reveal</li>
-                        <li><strong>If correct:</strong> They take a 1-card penalty from the draw pile (placed face down without looking)</li>
-                        <li><strong>If incorrect:</strong> You take a 1-card penalty</li>
-                    </ol>
-                </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #ff5722; margin-bottom: 10px;">Slam Rules</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li><strong>Suits don't matter</strong> (only card values)</li>
-                        <li><strong>Red Kings cannot be slammed</strong></li>
-                        <li><strong>You cannot slam on a card you just discarded</strong> — BUT if another player slams before the next discard, the top card becomes "fresh" and you may slam</li>
-                        <li><strong>Once the next player discards</strong>, the card below is no longer slammable</li>
-                        <li><strong>Multiple players can slam simultaneously</strong> (4 of each card type exist in the deck)</li>
-                        <li><strong>Defense:</strong> You may protect your card by placing your finger on it first when you see someone approaching to slam</li>
-                    </ul>
-                </div>
-                
-                <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; border-left: 3px solid #2196f3;">
-                    <strong>ℹ️ Penalty Cards:</strong> Drawn from the draw pile, placed face down in your hand without looking. Added to your formation (formations can grow beyond 4 cards). Cannot be rearranged or moved (unless removed via slam).
-                </div>
-            </div>
-
-            <!-- LOCKOUT -->
-            <div style="background: linear-gradient(135deg, #4caf50 0%, #8bc34a 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
-                <h3 style="margin-bottom: 15px; font-size: 1.4em;">🔒 LOCKOUT</h3>
-                
-                <p style="font-size: 1.1em; font-weight: 600; margin-bottom: 15px;">Lockout is how you win a hand!</p>
-                
-                <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="margin-bottom: 10px;">When to Lockout</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li><strong>Only at the start of your turn</strong> (before drawing)</li>
-                        <li>Your hand total must be <strong>5 or less</strong> (minimum: -2 with two Red Kings)</li>
-                        <li><strong>Only one player can lockout per hand</strong></li>
-                    </ul>
-                </div>
-                
-                <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="margin-bottom: 10px;">What Happens After Lockout</h4>
-                    <ol style="margin-left: 20px; line-height: 1.8;">
-                        <li>You announce "Lockout!" (<strong>do not reveal your hand yet</strong>)</li>
-                        <li>Your hand is <strong>frozen</strong> (no swaps, slams, or other interference)</li>
-                        <li>Play continues clockwise — every other player gets <strong>one final turn</strong></li>
-                        <li>When play returns to you, <strong>all players reveal their cards simultaneously</strong></li>
-                    </ol>
-                </div>
-                
-                <div style="background: rgba(255,255,255,0.95); padding: 15px; border-radius: 8px; margin-bottom: 15px; color: #333;">
-                    <h4 style="color: #4caf50; margin-bottom: 10px;">✅ Successful Lockout</h4>
-                    <p style="margin-bottom: 10px;">You score <strong>0 for the hand</strong> if:</p>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li>Your hand total is <strong>5 or less</strong>, AND</li>
-                        <li>Your total is <strong>strictly lower</strong> than all other players (no ties!)</li>
-                    </ul>
-                    <p style="margin-top: 10px; font-style: italic;"><strong>Exception:</strong> If your total is negative, you keep the negative score (it's a benefit!)</p>
-                </div>
-                
-                <div style="background: rgba(255,255,255,0.95); padding: 15px; border-radius: 8px; margin-bottom: 15px; color: #333;">
-                    <h4 style="color: #f44336; margin-bottom: 10px;">❌ False Lockout</h4>
-                    <p style="margin-bottom: 10px;">You score <strong>your hand total + penalty</strong> if:</p>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li>Your hand total is <strong>greater than 5</strong>, OR</li>
-                        <li>Your total is <strong>tied with or higher</strong> than another player</li>
-                    </ul>
-                    <p style="margin-top: 10px; font-style: italic;"><strong>Penalty amount is decided at the start of the session (typically 10 points).</strong></p>
-                </div>
-                
-                <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px;">
-                    <h4 style="margin-bottom: 10px;">Other Players</h4>
-                    <p>All other players score their final hand totals (no change to 0, even if they have the lowest score after a false lockout).</p>
-                </div>
-            </div>
-
-            <!-- WINNING -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
-                <h3 style="color: #ffc107; margin-bottom: 15px;">🏆 WINNING THE GAME</h3>
-                <ul style="margin-left: 20px; line-height: 1.8;">
-                    <li><strong>Lowest cumulative score</strong> across all hands wins the session</li>
-                    <li>Sessions end when players decide (fixed number of hands, score target, end of event, etc.)</li>
-                </ul>
-            </div>
-
-            <!-- ADDITIONAL RULES -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #00bcd4;">
-                <h3 style="color: #00bcd4; margin-bottom: 15px;">📋 ADDITIONAL RULES</h3>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #00bcd4; margin-bottom: 10px;">Communication</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li><strong>Bluffing and conferring</strong> about cards (truthful or not) is allowed</li>
-                        <li>Share information strategically to influence other players' decisions</li>
-                    </ul>
-                </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px;">
-                    <h4 style="color: #00bcd4; margin-bottom: 10px;">Memory is Key</h4>
-                    <ul style="margin-left: 20px; line-height: 1.8;">
-                        <li>Cards never move positions (except when removed via slam)</li>
-                        <li>Track what you've seen through magic cards and discards</li>
-                        <li>Remember what other players know about your hand</li>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- STRATEGY TIPS -->
-            <div style="background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
-                <h3 style="margin-bottom: 15px;">💡 STRATEGY TIPS</h3>
-                <ul style="margin-left: 20px; line-height: 1.8;">
-                    <li>✅ <strong>Use magic cards wisely</strong> — knowing card locations is powerful</li>
-                    <li>✅ <strong>Slam aggressively</strong> — reducing your hand size lowers your score</li>
-                    <li>✅ <strong>Defend your cards</strong> — be ready to protect when you see opponents approaching</li>
-                    <li>✅ <strong>Bluff strategically</strong> — mislead opponents about what you know</li>
-                    <li>✅ <strong>Time your lockout</strong> — ensure you're strictly lowest before declaring</li>
-                </ul>
-            </div>
-
-            <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; color: white; font-size: 1.2em; font-weight: 600;">
-                Good luck, and may the lowest score win! 🎴
-            </div>
-
-        </div>
-
-        <button class="btn btn-secondary" onclick="showScreen('homeScreen')" style="margin-top: 20px;">Back to Home</button>
-    </div>
-</div>
         <!-- PREVIOUS SESSIONS SCREEN -->
         <div id="previousSessionsScreen" class="screen">
             <div class="card">
@@ -1134,17 +340,16 @@
         <div id="statsScreen" class="screen">
             <div class="card">
                 <h2>📊 Statistics</h2>
-                
                 <div id="statsNav" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
                     <button class="btn btn-small btn-info" onclick="showOverallStats()">Overall Stats</button>
                     <button class="btn btn-small btn-info" onclick="showHeadToHeadList()">Head-to-Head Records</button>
                     <button class="btn btn-small btn-info" onclick="showPlayerComparisonUI()">Detailed Comparison</button>
                 </div>
-                
                 <div id="statsContent" class="loading">Loading...</div>
                 <button class="btn btn-secondary" onclick="showScreen('homeScreen')" style="margin-top: 20px;">Back to Home</button>
             </div>
         </div>
+
         <!-- START SESSION SCREEN -->
         <div id="startSessionScreen" class="screen">
             <div class="card">
@@ -1156,7 +361,7 @@
                     <option value="">Select host...</option>
                 </select>
                 <label for="sessionNotes">Session Notes (Optional)</label>
-                <textarea id="sessionNotes" placeholder="e.g. Playing at John's house, bring snacks"></textarea>
+                <textarea id="sessionNotes" placeholder="e.g. Playing at John's house"></textarea>
                 <label for="sessionTags">Session Type (Optional)</label>
                 <select id="sessionTags" multiple size="4" style="min-height: 120px;">
                     <option value="Testing">🧪 Testing</option>
@@ -1166,10 +371,8 @@
                     <option value="Late Night">🌙 Late Night</option>
                     <option value="Tournament">🏆 Tournament</option>
                 </select>
-                <small style="color: #666; display: block; margin-top: 5px;">Hold Ctrl (Cmd on Mac) to select multiple</small>
                 <label for="falseLockoutPenalty">False Lockout Penalty</label>
                 <input type="number" id="falseLockoutPenalty" placeholder="e.g. 10" value="10" min="0">
-                <small style="color: #666; display: block; margin-top: 5px;">Points added to score when a lockout attempt fails</small>
                 <label>Select Players</label>
                 <div id="playerSelectionList" class="loading">Loading players...</div>
                 <button class="btn btn-success" onclick="createSession()">Start Session</button>
@@ -1211,6 +414,7 @@
             </div>
         </div>
     </div>
+
     <!-- EDIT HAND MODAL -->
     <div id="editHandModal" class="modal">
         <div class="modal-content">
@@ -1246,7 +450,6 @@
                 <option value="Late Night">🌙 Late Night</option>
                 <option value="Tournament">🏆 Tournament</option>
             </select>
-            <small style="color: #666; display: block; margin-top: 5px;">Hold Ctrl (Cmd on Mac) to select multiple</small>
             <button class="btn btn-success" onclick="saveEditedSession()">Save Changes</button>
             <button class="btn btn-secondary" onclick="closeEditSessionModal()">Cancel</button>
             <div id="editSessionMessage"></div>
@@ -1287,10 +490,26 @@
         let selectedPlayerToAdd = null;
         let playersLoaded = false;
         let playerCache = {};
+
         // ============================================
-        // BUTTON LOADING STATE HELPER
+        // ERROR HANDLING & NOTIFICATIONS
         // ============================================
+        function showError(message, containerId) {
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.innerHTML = '<div class="error">' + message + '</div>';
+            }
+        }
+
+        function showSuccess(message, containerId) {
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.innerHTML = '<div class="success">' + message + '</div>';
+            }
+        }
+
         function setButtonLoading(buttonElement, isLoading, originalText) {
+            if (!buttonElement) return;
             if (isLoading) {
                 buttonElement.disabled = true;
                 buttonElement.dataset.originalText = buttonElement.textContent;
@@ -1306,21 +525,28 @@
         }
 
         // ============================================
-        // API & UTILITY FUNCTIONS
+        // API CALLS WITH ERROR HANDLING
         // ============================================
         async function apiCall(action, params) {
-            const url = new URL(API_URL);
-            url.searchParams.append('action', action);
-            for (let key in params) {
-                url.searchParams.append(key, params[key]);
-            }
             try {
+                const url = new URL(API_URL);
+                url.searchParams.append('action', action);
+                for (let key in params) {
+                    url.searchParams.append(key, params[key]);
+                }
                 const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('Network error: ' + response.status);
+                }
                 const data = await response.json();
+                if (data.error) {
+                    console.error('API Error:', data.error);
+                    return { error: data.error };
+                }
                 return data;
             } catch (error) {
-                console.error('API Error:', error);
-                return { error: error.message };
+                console.error('API Call Failed:', error);
+                return { error: 'Failed to connect to server. Please check your connection.' };
             }
         }
 
@@ -1397,12 +623,24 @@
             for (let i = 0; i < screens.length; i++) {
                 screens[i].classList.remove('active');
             }
-            document.getElementById(screenId).classList.add('active');
+            const screen = document.getElementById(screenId);
+            if (screen) {
+                screen.classList.add('active');
+            }
             if (screenId === 'startSessionScreen') {
                 loadPlayersForSession();
             }
         }
 
+        function showDictionarySection(section) {
+            if (section === 'lingo') {
+                document.getElementById('lingoSection').style.display = 'block';
+                document.getElementById('glossarySection').style.display = 'none';
+            } else {
+                document.getElementById('lingoSection').style.display = 'none';
+                document.getElementById('glossarySection').style.display = 'block';
+            }
+        }
         // ============================================
         // PLAYER MANAGEMENT
         // ============================================
@@ -1427,7 +665,7 @@
             const messageDiv = document.getElementById('addPlayerMessage');
             
             if (!username) {
-                messageDiv.innerHTML = '<div class="error">Please enter a player name</div>';
+                showError('Please enter a player name', 'addPlayerMessage');
                 return;
             }
             
@@ -1437,10 +675,10 @@
             const data = await apiCall('addPlayer', { username: username, editor_name: username });
             
             if (data.error) {
-                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                showError('Error: ' + data.error, 'addPlayerMessage');
                 setButtonLoading(addBtn, false);
             } else {
-                messageDiv.innerHTML = '<div class="success">Player added!</div>';
+                showSuccess('Player added!', 'addPlayerMessage');
                 document.getElementById('newPlayerName').value = '';
                 playersLoaded = false;
                 setTimeout(function() { 
@@ -1448,89 +686,6 @@
                     setButtonLoading(addBtn, false);
                 }, 1500);
             }
-        }
-        // ============================================
-        // ADD PLAYER TO ACTIVE SESSION
-        // ============================================
-        async function showAddPlayerModal() {
-            await ensurePlayersLoaded();
-            const currentPlayerIds = sessionPlayers.map(p => String(p.player_id));
-            const availablePlayers = allPlayers.filter(p => currentPlayerIds.indexOf(String(p.player_id)) === -1);
-            if (availablePlayers.length === 0) {
-                alert('All players are already in this session!');
-                return;
-            }
-            const playerList = document.getElementById('addPlayerList');
-            let html = '<ul class="player-list">';
-            for (let i = 0; i < availablePlayers.length; i++) {
-                const player = availablePlayers[i];
-                html += '<li class="player-item">';
-                html += '<label><input type="radio" name="addPlayerRadio" value="' + player.player_id + '" onchange="selectPlayerToAdd(' + player.player_id + ', \'' + player.username + '\')"> ' + player.username + '</label>';
-                html += '</li>';
-            }
-            html += '</ul>';
-            playerList.innerHTML = html;
-            selectedPlayerToAdd = null;
-            document.getElementById('confirmAddPlayerBtn').disabled = true;
-            document.getElementById('addPlayerConfirm').style.display = 'none';
-            document.getElementById('addPlayerMessage').innerHTML = '';
-            document.getElementById('addPlayerModal').classList.add('active');
-        }
-
-        function selectPlayerToAdd(playerId, playerName) {
-            selectedPlayerToAdd = playerId;
-            document.getElementById('confirmAddPlayerBtn').disabled = false;
-            const confirmDiv = document.getElementById('addPlayerConfirm');
-            const confirmText = document.getElementById('addPlayerConfirmText');
-            confirmText.innerHTML = '<strong>' + playerName + '</strong> will join from <strong>Hand ' + currentHandNumber + '</strong> onwards.';
-            confirmDiv.style.display = 'block';
-        }
-
-        async function confirmAddPlayer() {
-            if (!selectedPlayerToAdd) return;
-            const messageDiv = document.getElementById('addPlayerMessage');
-            const addBtn = document.getElementById('confirmAddPlayerBtn');
-            
-            if (addBtn) {
-                setButtonLoading(addBtn, true);
-            }
-            
-            messageDiv.innerHTML = '<div class="loading">Adding player...</div>';
-            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
-            const data = await apiCall('addPlayerToSession', {
-                session_id: currentSession.session_id,
-                player_id: selectedPlayerToAdd,
-                join_hand_number: currentHandNumber,
-                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
-            });
-            
-            if (data.error) {
-                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-                if (addBtn) setButtonLoading(addBtn, false);
-            } else {
-                const startingScore = data.starting_score || 0;
-                messageDiv.innerHTML = '<div class="success">Player added successfully!' + 
-                    (startingScore > 0 ? ' (Starting with ' + startingScore + ' points)' : '') + 
-                    '</div>';
-                currentSession.players_involved = data.players_involved;
-                currentSession.player_join_info = data.player_join_info;
-                const newPlayer = allPlayers.find(p => String(p.player_id) === String(selectedPlayerToAdd));
-                if (newPlayer) {
-                    sessionPlayers.push(newPlayer);
-                }
-                setTimeout(function() {
-                    closeAddPlayerModal();
-                    showActiveSession();
-                    updateSessionScores();
-                    if (addBtn) setButtonLoading(addBtn, false);
-                }, 1500);
-            }
-        }
-        
-        function closeAddPlayerModal() {
-            document.getElementById('addPlayerModal').classList.remove('active');
-            document.getElementById('addPlayerMessage').innerHTML = '';
-            selectedPlayerToAdd = null;
         }
 
         // ============================================
@@ -1587,7 +742,7 @@
             const messageDiv = document.getElementById('sessionMessage');
             
             if (!title || !hostId || selectedPlayers.length === 0) {
-                messageDiv.innerHTML = '<div class="error">Please fill all required fields</div>';
+                showError('Please fill all required fields', 'sessionMessage');
                 return;
             }
             
@@ -1604,7 +759,7 @@
             });
             
             if (data.error) {
-                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                showError('Error: ' + data.error, 'sessionMessage');
                 setButtonLoading(createBtn, false);
             } else {
                 currentSession = { 
@@ -1624,11 +779,6 @@
                     }
                 }
                 currentHandNumber = 1;
-                
-                document.getElementById('sessionScores').innerHTML = '';
-                document.getElementById('handHistorySection').style.display = 'none';
-                document.getElementById('activeSessionCharts').innerHTML = '';
-                
                 showActiveSession();
                 setButtonLoading(createBtn, false);
             }
@@ -1641,7 +791,7 @@
             
             const sessionData = await apiCall('getSession', { session_id: sessionId });
             if (sessionData.error) {
-                alert('Error loading session: ' + sessionData.error);
+                showError('Error loading session: ' + sessionData.error, 'activeSessionsSection');
                 if (buttonElement) setButtonLoading(buttonElement, false);
                 return;
             }
@@ -1692,13 +842,7 @@
                 '<p><strong>Players:</strong> ' + playerNames + '</p>';
             displaySessionMetadata('activeSessionMetadata');
             setupHandInputs();
-            
-            document.getElementById('sessionScores').innerHTML = '';
-            document.getElementById('handHistorySection').style.display = 'none';
-            document.getElementById('activeSessionCharts').innerHTML = '';
-            
             updateSessionScores();
-            
             showScreen('activeSessionScreen');
         }
 
@@ -1756,14 +900,14 @@
                 tags: tags,
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
-            const messageDiv = document.getElementById('editSessionMessage');
+            
             if (data.error) {
-                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                showError('Error: ' + data.error, 'editSessionMessage');
                 setButtonLoading(saveBtn, false);
             } else {
                 currentSession.notes = notes;
                 currentSession.tags = tags;
-                messageDiv.innerHTML = '<div class="success">Session updated!</div>';
+                showSuccess('Session updated!', 'editSessionMessage');
                 displaySessionMetadata('activeSessionMetadata');
                 setTimeout(function() {
                     closeEditSessionModal();
@@ -1796,6 +940,89 @@
                 showScreen('homeScreen');
                 checkActiveSessions();
             }
+        }
+
+        // ============================================
+        // ADD PLAYER TO ACTIVE SESSION
+        // ============================================
+        async function showAddPlayerModal() {
+            await ensurePlayersLoaded();
+            const currentPlayerIds = sessionPlayers.map(p => String(p.player_id));
+            const availablePlayers = allPlayers.filter(p => currentPlayerIds.indexOf(String(p.player_id)) === -1);
+            if (availablePlayers.length === 0) {
+                alert('All players are already in this session!');
+                return;
+            }
+            const playerList = document.getElementById('addPlayerList');
+            let html = '<ul class="player-list">';
+            for (let i = 0; i < availablePlayers.length; i++) {
+                const player = availablePlayers[i];
+                html += '<li class="player-item">';
+                html += '<label><input type="radio" name="addPlayerRadio" value="' + player.player_id + '" onchange="selectPlayerToAdd(' + player.player_id + ', \'' + player.username + '\')"> ' + player.username + '</label>';
+                html += '</li>';
+            }
+            html += '</ul>';
+            playerList.innerHTML = html;
+            selectedPlayerToAdd = null;
+            document.getElementById('confirmAddPlayerBtn').disabled = true;
+            document.getElementById('addPlayerConfirm').style.display = 'none';
+            document.getElementById('addPlayerMessage').innerHTML = '';
+            document.getElementById('addPlayerModal').classList.add('active');
+        }
+
+        function selectPlayerToAdd(playerId, playerName) {
+            selectedPlayerToAdd = playerId;
+            document.getElementById('confirmAddPlayerBtn').disabled = false;
+            const confirmDiv = document.getElementById('addPlayerConfirm');
+            const confirmText = document.getElementById('addPlayerConfirmText');
+            confirmText.innerHTML = '<strong>' + playerName + '</strong> will join from <strong>Hand ' + currentHandNumber + '</strong> onwards.';
+            confirmDiv.style.display = 'block';
+        }
+
+        async function confirmAddPlayer() {
+            if (!selectedPlayerToAdd) return;
+            const messageDiv = document.getElementById('addPlayerMessage');
+            const addBtn = document.getElementById('confirmAddPlayerBtn');
+            
+            if (addBtn) {
+                setButtonLoading(addBtn, true);
+            }
+            
+            messageDiv.innerHTML = '<div class="loading">Adding player...</div>';
+            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+            const data = await apiCall('addPlayerToSession', {
+                session_id: currentSession.session_id,
+                player_id: selectedPlayerToAdd,
+                join_hand_number: currentHandNumber,
+                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+            });
+            
+            if (data.error) {
+                showError('Error: ' + data.error, 'addPlayerMessage');
+                if (addBtn) setButtonLoading(addBtn, false);
+            } else {
+                const startingScore = data.starting_score || 0;
+                showSuccess('Player added successfully!' + 
+                    (startingScore > 0 ? ' (Starting with ' + startingScore + ' points)' : ''), 'addPlayerMessage');
+                currentSession.players_involved = data.players_involved;
+                currentSession.player_join_info = data.player_join_info;
+                const newPlayer = allPlayers.find(p => String(p.player_id) === String(selectedPlayerToAdd));
+                if (newPlayer) {
+                    sessionPlayers.push(newPlayer);
+                }
+                setTimeout(function() {
+                    closeAddPlayerModal();
+                    showActiveSession();
+                    updateSessionScores();
+                    if (addBtn) setButtonLoading(addBtn, false);
+                }, 1500);
+            }
+        }
+        
+        function closeAddPlayerModal() {
+            document.getElementById('addPlayerModal').classList.remove('active');
+            document.getElementById('addPlayerMessage').innerHTML = '';
+            selectedPlayerToAdd = null;
         }
         // ============================================
         // HAND INPUT & SUBMISSION
@@ -1887,7 +1114,7 @@
             const lockoutRadio = document.querySelector('input[name="lockout_player"]:checked');
             
             if (!lockoutRadio) {
-                messageDiv.innerHTML = '<div class="error">Please select who locked out</div>';
+                showError('Please select who locked out', 'handMessage');
                 setButtonLoading(submitBtn, false);
                 return;
             }
@@ -1901,7 +1128,7 @@
                     const scoreInput = document.getElementById('score_' + player.player_id);
                     const scoreVal = scoreInput.value.trim();
                     if (scoreVal === '') {
-                        messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
+                        showError('Please enter all scores', 'handMessage');
                         setButtonLoading(submitBtn, false);
                         return;
                     }
@@ -1956,7 +1183,7 @@
             });
             
             if (data.error) {
-                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                showError('Error: ' + data.error, 'handMessage');
                 setButtonLoading(submitBtn, false);
             } else {
                 currentHandNumber++;
@@ -1965,10 +1192,12 @@
                 setButtonLoading(submitBtn, false);
             }
         }
+
         // ============================================
-        // HAND HISTORY & EDITING
+        // HAND HISTORY & EDITING (WITH CACHE INVALIDATION)
         // ============================================
         async function displayHandHistory() {
+            // ✅ FIX: Always fetch fresh data (cache invalidation)
             const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
             if (handsData.error || handsData.length === 0) {
                 document.getElementById('handHistorySection').style.display = 'none';
@@ -2046,6 +1275,7 @@
                 setButtonLoading(event.target, true);
             }
 
+            // ✅ FIX: Always fetch fresh data (cache invalidation)
             const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
             const handsToEdit = handsData.filter(h => h.hand_number == handNumber);
             if (handsToEdit.length === 0) {
@@ -2172,7 +1402,7 @@
             const lockoutRadio = document.querySelector('input[name="edit_lockout_player"]:checked');
             
             if (!lockoutRadio) {
-                messageDiv.innerHTML = '<div class="error">Please select who locked out</div>';
+                showError('Please select who locked out', 'editHandMessage');
                 setButtonLoading(saveBtn, false);
                 return;
             }
@@ -2186,7 +1416,7 @@
                     const scoreInput = document.getElementById('edit_score_' + player.player_id);
                     const scoreVal = scoreInput.value.trim();
                     if (scoreVal === '') {
-                        messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
+                        showError('Please enter all scores', 'editHandMessage');
                         setButtonLoading(saveBtn, false);
                         return;
                     }
@@ -2240,10 +1470,10 @@
             });
             
             if (data.error) {
-                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                showError('Error: ' + data.error, 'editHandMessage');
                 setButtonLoading(saveBtn, false);
             } else {
-                messageDiv.innerHTML = '<div class="success">Hand updated!</div>';
+                showSuccess('Hand updated!', 'editHandMessage');
                 setTimeout(function() {
                     closeEditModal();
                     updateSessionScores();
@@ -2298,6 +1528,7 @@
             document.getElementById('handHistorySection').style.display = 'block';
             document.getElementById('handHistoryList').innerHTML = '<div class="loading">Loading hand history...</div>';
             
+            // ✅ FIX: Always fetch fresh data (cache invalidation)
             const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
             if (handsData.error) return;
             
@@ -2444,7 +1675,7 @@
         }
 
         // ============================================
-        // ACTIVE SESSION CHARTS - FIXED
+        // ACTIVE SESSION CHARTS - WITH LATE JOINER SUPPORT
         // ============================================
         function drawActiveWormChart(playerHands, playerIds) {
             const ctx = document.getElementById('activeWormChart');
@@ -2462,7 +1693,7 @@
                 let cumulative = startingScore;
                 const cumulativeScores = [];
                 
-                // Add nulls for hands before joining
+                // Add nulls for hands before joining (✅ FIX: Shows dashed line)
                 for (let h = 1; h < joinHand; h++) {
                     cumulativeScores.push(null);
                 }
@@ -2556,6 +1787,7 @@
                 }
             });
         }
+
         // ============================================
         // PREVIOUS SESSIONS & SESSION DETAIL
         // ============================================
@@ -2566,7 +1798,7 @@
             
             const sessionsWithHands = await apiCall('getSessionsWithHands', {});
             if (sessionsWithHands.error) {
-                contentDiv.innerHTML = '<div class="error">Error loading sessions: ' + sessionsWithHands.error + '</div>';
+                showError('Error loading sessions: ' + sessionsWithHands.error, 'previousSessionsContent');
                 return;
             }
             
@@ -2595,15 +1827,13 @@
             let html = '<ul class="session-list">';
             for (let i = 0; i < completedSessions.length; i++) {
                 const session = completedSessions[i].session;
-                    var dateObj = new Date(session.date_started);
-                    var month = String(dateObj.getMonth() + 1).padStart(2, '0');
-                    var day = String(dateObj.getDate()).padStart(2, '0');
-                    var year = dateObj.getFullYear();
-                    var cleanDate = month + '/' + day + '/' + year;
-                    html += '<li class="session-item" onclick="viewSessionDetail(' + i + ')">';
-                    html += '<div class="session-item-header">' + session.title + '</div>';
-                    html += '<div class="session-item-info">Date: ' + cleanDate + '</div>';
-                    html += '</li>';
+                const dateStr = session.date_started.substring(0, 10);
+                const parts = dateStr.split('-');
+                const cleanDate = parts[1] + '/' + parts[2] + '/' + parts[0];
+                html += '<li class="session-item" onclick="viewSessionDetail(' + i + ')">';
+                html += '<div class="session-item-header">' + session.title + '</div>';
+                html += '<div class="session-item-info">Date: ' + cleanDate + '</div>';
+                html += '</li>';
             }
             html += '</ul>';
             contentDiv.innerHTML = html;
@@ -2705,8 +1935,9 @@
                 const lockoutRate = handsPlayed > 0 ? ((stats.lockouts / handsPlayed) * 100).toFixed(1) : '0';
                 const avgLockoutScore = stats.lockoutScores.length > 0 ? (stats.lockoutScores.reduce((sum, s) => sum + s, 0) / stats.lockoutScores.length).toFixed(2) : 'N/A';
                 const falseLockoutRate = stats.totalLockouts > 0 ? ((stats.falseLockouts / stats.totalLockouts) * 100).toFixed(1) : '0';
+                const joinHand = playerJoinHands[playerId];
                 
-                html += '<tr><td><strong>' + playerName + '</strong></td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td></tr>';
+                html += '<tr><td><strong>' + playerName + '</strong>' + (joinHand ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '') + '</td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td></tr>';
             }
             html += '</table></div>';
 
@@ -2783,6 +2014,7 @@
                 drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
             }, 100);
         }
+
         // ============================================
         // COMPLETED SESSION CHARTS (WITH LATE JOINER SUPPORT)
         // ============================================
@@ -2921,7 +2153,7 @@
             });
         }
         // ============================================
-        // OVERALL STATS
+        // OVERALL STATS (WITH LATE-JOINER FIX)
         // ============================================
         async function loadStats() {
             const contentDiv = document.getElementById('statsContent');
@@ -2930,7 +2162,7 @@
             
             const sessionsWithHands = await apiCall('getSessionsWithHands', {});
             if (sessionsWithHands.error) {
-                contentDiv.innerHTML = '<div class="error">Error loading stats</div>';
+                showError('Error loading stats', 'statsContent');
                 return;
             }
             
@@ -3027,6 +2259,7 @@
                 const playerTotals = {};
                 const playersInSession = new Set();
                 
+                // ✅ FIX: Parse player_join_info and add starting scores
                 try {
                     const ji = JSON.parse(session.player_join_info || '{}');
                     for (let pid in ji) {
@@ -3193,10 +2426,10 @@
             contentDiv.innerHTML = '<div class="loading">Loading overall stats...</div>';
             await loadStats();
         }
+
         // ============================================
-        // HEAD-TO-HEAD STATS
+        // HEAD-TO-HEAD STATS (WITH H2H % FIX)
         // ============================================
-        
         async function showHeadToHeadList() {
             const contentDiv = document.getElementById('statsContent');
             contentDiv.innerHTML = '<div class="loading">Loading head-to-head records...</div>';
@@ -3206,7 +2439,7 @@
             const data = await apiCall('getHeadToHeadMatrix', {});
             
             if (data.error) {
-                contentDiv.innerHTML = '<div class="error">Error loading data: ' + data.error + '</div>';
+                showError('Error loading data: ' + data.error, 'statsContent');
                 return;
             }
             
@@ -3228,7 +2461,9 @@
                 const m = data[i];
                 const p1Name = getPlayerName(m.p1);
                 const p2Name = getPlayerName(m.p2);
-                const total = m.p1_wins + m.p2_wins + m.ties;
+                
+                // ✅ FIX: Denominator = p1_wins + p2_wins (exclude ties)
+                const total = m.p1_wins + m.p2_wins;
                 
                 if (total === 0) continue;
                 
@@ -3275,10 +2510,10 @@
                 showPlayerComparison();
             }, 100);
         }
+
         // ============================================
         // PLAYER COMPARISON
         // ============================================
-        
         async function showPlayerComparisonUI() {
             await ensurePlayersLoaded();
             
@@ -3331,7 +2566,7 @@
             const p2Select = document.getElementById('comparisonPlayer2');
             
             if (!p1Select || !p2Select) {
-                contentDiv.innerHTML = '<div class="error">Error: Please select players from the dropdowns above.</div>';
+                showError('Error: Please select players from the dropdowns above.', 'statsContent');
                 return;
             }
             
@@ -3339,12 +2574,12 @@
             const p2Id = p2Select.value;
             
             if (!p1Id || !p2Id) {
-                contentDiv.innerHTML = '<div class="error">Please select two players</div>';
+                showError('Please select two players', 'statsContent');
                 return;
             }
             
             if (p1Id === p2Id) {
-                contentDiv.innerHTML = '<div class="error">Please select two different players</div>';
+                showError('Please select two different players', 'statsContent');
                 return;
             }
             
@@ -3357,7 +2592,7 @@
             });
 
             if (data.error) {
-                contentDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                showError('Error: ' + data.error, 'statsContent');
                 return;
             }
             
@@ -3377,7 +2612,7 @@
             html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #667eea;">';
             
             html += '<h3 style="color: #667eea; margin-bottom: 20px;">📊 Sessions Together</h3>';
-            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;"><strong>Head-to-head record:</strong> Who finished with a lower score when both players competed in the same session (regardless of who won overall)</p>';
+            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;"><strong>Head-to-head record:</strong> Who finished with a lower score when both players competed in the same session</p>';
             
             if (ts.total_sessions === 0) {
                 html += '<div style="background: white; padding: 15px; border-radius: 6px; color: #666; text-align: center;">';
@@ -3400,7 +2635,6 @@
                 
                 html += '</table></div>';
                 
-                // ✅ FIX: Only show Performance Context if there are at least 2 different other players
                 if (ts.best_with && ts.worst_with && ts.best_with.player_id !== ts.worst_with.player_id) {
                     html += '<div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #ffc107;">';
                     html += '<h4 style="color: #856404; margin-bottom: 10px; font-size: 0.95em;">📊 Performance Context</h4>';
@@ -3428,7 +2662,7 @@
             html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #f5576c;">';
             
             html += '<h3 style="color: #f5576c; margin-bottom: 20px;">📊 All Sessions</h3>';
-            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;"><strong>Overall wins:</strong> Sessions where each player had the lowest score and won outright (across all sessions they participated in)</p>';
+            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;"><strong>Overall wins:</strong> Sessions where each player had the lowest score and won outright</p>';
             
             html += '<div style="overflow-x: auto;"><table class="scores-table">';
             html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + p1Name + '</th><th style="color: white; background: #f5576c;">' + p2Name + '</th></tr>';
@@ -3452,7 +2686,6 @@
             
             html += '</div>';
             
-            // ✅ FIX: Add clickable session history with hyperlinks
             if (data.sessions_together.length > 0) {
                 html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #9c27b0;">';
                 
@@ -3464,16 +2697,13 @@
                     const winner = s.p1_won && !s.p2_won ? p1Name : s.p2_won && !s.p1_won ? p2Name : 'Tie';
                     const winnerColor = s.p1_won && !s.p2_won ? '#667eea' : s.p2_won && !s.p1_won ? '#f5576c' : '#ff9800';
                     
+                    const dateStr = s.date.substring(0, 10);
+                    const parts = dateStr.split('-');
+                    const cleanDate = parts[1] + '/' + parts[2] + '/' + parts[0];
+                    
                     html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px; margin-bottom: 10px; cursor: pointer; transition: background 0.2s;" onclick="viewSessionDetailFromComparison(' + s.session_id + ')" onmouseover="this.style.background=\'#f8f9fa\'" onmouseout="this.style.background=\'white\'">';
                     html += '<div style="flex: 1;">';
                     html += '<div style="font-weight: 600; color: #333;">' + s.title + ' 🔗</div>';
-                    var dateObj = new Date(s.date);
-                    var cleanDate = (dateObj.getMonth() + 1) + '/' + dateObj.getDate() + '/' + dateObj.getFullYear();
-                    var dateObj = new Date(s.date);
-                    var month = String(dateObj.getMonth() + 1).padStart(2, '0');
-                    var day = String(dateObj.getDate()).padStart(2, '0');
-                    var year = dateObj.getFullYear();
-                    var cleanDate = month + '/' + day + '/' + year;
                     html += '<div style="font-size: 0.85em; color: #666;">' + cleanDate + ' • ' + s.player_count + ' players</div>';
                     html += '<div style="text-align: right;">';
                     html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1.1em;">' + winner + '</div>';
@@ -3488,25 +2718,6 @@
             contentDiv.innerHTML = html;
         }
 
-// ============================================
-// DICTIONARY SECTION TOGGLE
-// ============================================
-function showDictionarySection(section) {
-    if (section === 'lingo') {
-        document.getElementById('lingoSection').style.display = 'block';
-        document.getElementById('glossarySection').style.display = 'none';
-    } else {
-        document.getElementById('lingoSection').style.display = 'none';
-        document.getElementById('glossarySection').style.display = 'block';
-    }
-}
-
-// Show lingo by default when dictionary screen loads
-window.addEventListener('DOMContentLoaded', function() {
-    showDictionarySection('lingo');
-});
-        
-        // ✅ NEW: Helper function to navigate from comparison to session detail
         async function viewSessionDetailFromComparison(sessionId) {
             if (allSessions.length === 0) {
                 await loadPreviousSessions();
@@ -3520,11 +2731,12 @@ window.addEventListener('DOMContentLoaded', function() {
                 alert('Session not found');
             }
         }
+
         // ============================================
         // INITIALIZATION
         // ============================================
         window.addEventListener('DOMContentLoaded', function() {
-            console.log('Lockout Tracker v3.0 - Optimized & Bug-Free! 🚀');
+            console.log('🎴 Lockout Tracker v3.0 - Optimized & Bug-Free!');
             ensurePlayersLoaded();
             checkActiveSessions();
         });
