@@ -2595,10 +2595,15 @@
             let html = '<ul class="session-list">';
             for (let i = 0; i < completedSessions.length; i++) {
                 const session = completedSessions[i].session;
-                html += '<li class="session-item" onclick="viewSessionDetail(' + i + ')">';
-                html += '<div class="session-item-header">' + session.title + '</div>';
-                html += '<div class="session-item-info">Date: ' + session.date_started + '</div>';
-                html += '</li>';
+                    var dateObj = new Date(session.date_started);
+                    var month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    var day = String(dateObj.getDate()).padStart(2, '0');
+                    var year = dateObj.getFullYear();
+                    var cleanDate = month + '/' + day + '/' + year;
+                    html += '<li class="session-item" onclick="viewSessionDetail(' + i + ')">';
+                    html += '<div class="session-item-header">' + session.title + '</div>';
+                    html += '<div class="session-item-info">Date: ' + cleanDate + '</div>';
+                    html += '</li>';
             }
             html += '</ul>';
             contentDiv.innerHTML = html;
@@ -3464,6 +3469,11 @@
                     html += '<div style="font-weight: 600; color: #333;">' + s.title + ' 🔗</div>';
                     var dateObj = new Date(s.date);
                     var cleanDate = (dateObj.getMonth() + 1) + '/' + dateObj.getDate() + '/' + dateObj.getFullYear();
+                    var dateObj = new Date(s.date);
+                    var month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    var day = String(dateObj.getDate()).padStart(2, '0');
+                    var year = dateObj.getFullYear();
+                    var cleanDate = month + '/' + day + '/' + year;
                     html += '<div style="font-size: 0.85em; color: #666;">' + cleanDate + ' • ' + s.player_count + ' players</div>';
                     html += '<div style="text-align: right;">';
                     html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1.1em;">' + winner + '</div>';
