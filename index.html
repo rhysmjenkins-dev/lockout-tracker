@@ -43,7 +43,7 @@
         input:focus, select:focus, textarea:focus { outline: none; border-color: #667eea; }
         label { display: block; margin-top: 15px; font-weight: 600; color: #555; }
         .hidden { display: none; }
-        .screen { display: none; }
+        .screen {      display: none;      animation: fadeIn 0.3s ease-in-out;     transition: opacity 0.15s ease-out, transform 0.15s ease-out; }  @keyframes fadeIn {     from {          opacity: 0;          transform: translateY(10px);     }     to {          opacity: 1;          transform: translateY(0);     } }
         .screen.active { display: block; }
         .player-list { list-style: none; padding: 0; }
         .player-item { 
