@@ -1426,18 +1426,36 @@ function hapticFeedback(style) {
         // ============================================
 function showScreen(screenId, skipHistory) {
     const screens = document.querySelectorAll('.screen');
-    for (let i = 0; i < screens.length; i++) {
-        screens[i].classList.remove('active');
-    }
-    document.getElementById(screenId).classList.add('active');
     
-    // Push to browser history (unless we're navigating via back button)
+    // Fade out current screen
+    const currentScreen = document.querySelector('.screen.active');
+    if (currentScreen) {
+        currentScreen.style.opacity = '0';
+        currentScreen.style.transform = 'translateY(-10px)';
+    }
+    
+    // Wait for fade out, then switch screens
+    setTimeout(function() {
+        for (let i = 0; i < screens.length; i++) {
+            screens[i].classList.remove('active');
+            screens[i].style.opacity = '';
+            screens[i].style.transform = '';
+        }
+        document.getElementById(screenId).classList.add('active');
+        
+        // Scroll to top of new screen
+        window.scrollTo(0, 0);
+    }, 150);
+    
+    // Push to browser history
     if (!skipHistory) {
         history.pushState({ screen: screenId }, '', '#' + screenId);
     }
     
     if (screenId === 'startSessionScreen') {
-        loadPlayersForSession();
+        setTimeout(function() {
+            loadPlayersForSession();
+        }, 150);
     }
 }
 
