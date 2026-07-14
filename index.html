@@ -1946,13 +1946,10 @@ function setupHandInputs() {
     
     handInputs.innerHTML = html;
 }
-            }
-            handInputs.innerHTML = html;
-        }
 
-        function checkLockoutValidity() {
-            const warningDiv = document.getElementById('lockoutWarning');
-            const lockoutRadio = document.querySelector('input[name="lockout_player"]:checked');
+function checkLockoutValidity() {
+    const warningDiv = document.getElementById('lockoutWarning');
+    const lockoutRadio = document.querySelector('input[name="lockout_player"]:checked');
             
             if (!lockoutRadio) {
                 warningDiv.style.display = 'none';
