@@ -2019,21 +2019,27 @@ async function endSession() {
             
             const lockoutPlayerId = lockoutRadio.value;
             
-            for (let i = 0; i < sessionPlayers.length; i++) {
-                const player = sessionPlayers[i];
-                const joinHand = getPlayerJoinHand(player.player_id);
-                if (joinHand <= currentHandNumber) {
-                    const scoreInput = document.getElementById('score_' + player.player_id);
-                    const scoreVal = scoreInput.value.trim();
-                    if (scoreVal === '') {
-                        messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
-                        setButtonLoading(submitBtn, false);
-                        return;
-                    }
-                    scores.push({ player_id: player.player_id, score: parseFloat(scoreVal) });
-                }
-            }
-            
+for (let i = 0; i < sessionPlayers.length; i++) {
+    const player = sessionPlayers[i];
+    const joinHand = getPlayerJoinHand(player.player_id);
+    if (joinHand <= currentHandNumber) {
+        const scoreInput = document.getElementById('score_' + player.player_id);
+        const scoreVal = scoreInput.value.trim();
+        if (scoreVal === '') {
+            messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
+            setButtonLoading(submitBtn, false);
+            return;
+        }
+        const scoreNum = parseFloat(scoreVal);
+        if (scoreNum < -2) {
+            messageDiv.innerHTML = '<div class="error">Minimum score is -2 (two Red Kings)</div>';
+            setButtonLoading(submitBtn, false);
+            return;
+        }
+        scores.push({ player_id: player.player_id, score: scoreNum });
+    }
+}
+
             const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
             const lowestScore = Math.min(...scores.map(s => s.score));
             const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
