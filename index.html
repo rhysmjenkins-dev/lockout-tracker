@@ -6,6 +6,78 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lockout Tracker v3</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    /* ============================================
+   LOADING SHIMMERS / SKELETONS
+   ============================================ */
+.shimmer-wrapper {
+    animation: shimmer 1.5s infinite;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.skeleton-text {
+    height: 16px;
+    border-radius: 4px;
+    margin: 8px 0;
+}
+
+.skeleton-text.large { height: 24px; }
+.skeleton-text.small { height: 12px; }
+
+.skeleton-card {
+    background: #f8f9fa;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px;
+}
+
+.skeleton-session-item {
+    padding: 15px;
+    margin: 10px 0;
+    background: #f8f9fa;
+    border-radius: 8px;
+    min-height: 64px;
+}
+
+.skeleton-table-row {
+    display: flex;
+    gap: 10px;
+    padding: 12px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.skeleton-table-cell {
+    height: 20px;
+    border-radius: 4px;
+    flex: 1;
+}
+
+.skeleton-button {
+    height: 48px;
+    border-radius: 10px;
+    margin: 10px 0;
+}
+
+.skeleton-stat-card {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #e0e0e0;
+}
+
+.skeleton-stat-value {
+    height: 40px;
+    width: 60%;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -1495,62 +1567,83 @@ function showScreen(screenId, skipHistory) {
         // ============================================
         // PLAYER MANAGEMENT
         // ============================================
-        async function loadPlayersForSession() {
-            await ensurePlayersLoaded();
-            const hostSelect = document.getElementById('sessionHost');
-            hostSelect.innerHTML = '<option value="">Select host...</option>';
-            for (let i = 0; i < allPlayers.length; i++) {
-                hostSelect.innerHTML += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
-            }
-            const playerList = document.getElementById('playerSelectionList');
-            let html = '<ul class="player-list">';
-            for (let i = 0; i < allPlayers.length; i++) {
-                html += '<li class="player-item"><label><input type="checkbox" value="' + allPlayers[i].player_id + '" class="player-checkbox"> ' + allPlayers[i].username + '</label></li>';
-            }
-            html += '</ul>';
-            playerList.innerHTML = html;
-        }
+async function loadPlayersForSession() {
+    const playerList = document.getElementById('playerSelectionList');
+    
+    // Show loading shimmer FIRST
+    playerList.innerHTML = `
+        <div class="skeleton-card" style="padding: 15px;">
+            ${[1,2,3,4].map(() => `
+                <div class="player-item" style="background: #f8f9fa;">
+                    <div class="shimmer-wrapper skeleton-text" style="width: 60%;"></div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    await ensurePlayersLoaded();
+    
+    const hostSelect = document.getElementById('sessionHost');
+    hostSelect.innerHTML = '<option value="">Select host...</option>';
+    for (let i = 0; i < allPlayers.length; i++) {
+        hostSelect.innerHTML += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
+    }
+    
+    // Now show actual players
+    let html = '<ul class="player-list">';
+    for (let i = 0; i < allPlayers.length; i++) {
+        html += '<li class="player-item"><label><input type="checkbox" value="' + allPlayers[i].player_id + '" class="player-checkbox"> ' + allPlayers[i].username + '</label></li>';
+    }
+    html += '</ul>';
+    playerList.innerHTML = html;
+}
 
-        async function addPlayer() {
-            const username = document.getElementById('newPlayerName').value.trim();
-            const messageDiv = document.getElementById('addPlayerMessage');
-            
-            if (!username) {
-                messageDiv.innerHTML = '<div class="error">Please enter a player name</div>';
-                return;
-            }
-            
-            const addBtn = event.target;
-            setButtonLoading(addBtn, true);
-            
-            const data = await apiCall('addPlayer', { username: username, editor_name: username });
-            
-            if (data.error) {
-                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
-                setButtonLoading(addBtn, false);
-            } else {
-                messageDiv.innerHTML = '<div class="success">Player added!</div>';
-                document.getElementById('newPlayerName').value = '';
-                playersLoaded = false;
-                setTimeout(function() { 
-                    showScreen('homeScreen'); 
-                    setButtonLoading(addBtn, false);
-                }, 1500);
-            }
-        }
         // ============================================
         // ADD PLAYER TO ACTIVE SESSION
         // ============================================
-        async function showAddPlayerModal() {
-            await ensurePlayersLoaded();
-            const currentPlayerIds = sessionPlayers.map(p => String(p.player_id));
-            const availablePlayers = allPlayers.filter(p => currentPlayerIds.indexOf(String(p.player_id)) === -1);
-            if (availablePlayers.length === 0) {
-                alert('All players are already in this session!');
-                return;
-            }
-            const playerList = document.getElementById('addPlayerList');
-            let html = '<ul class="player-list">';
+async function showAddPlayerModal() {
+    const playerList = document.getElementById('addPlayerList');
+    
+    // Show loading shimmer FIRST
+    playerList.innerHTML = `
+        <div class="skeleton-card" style="padding: 15px;">
+            ${[1,2,3].map(() => `
+                <div class="player-item" style="background: #f8f9fa;">
+                    <div class="shimmer-wrapper skeleton-text" style="width: 60%;"></div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    // Open modal immediately so user sees loading state
+    document.getElementById('addPlayerModal').classList.add('active');
+    
+    await ensurePlayersLoaded();
+    const currentPlayerIds = sessionPlayers.map(p => String(p.player_id));
+    const availablePlayers = allPlayers.filter(p => currentPlayerIds.indexOf(String(p.player_id)) === -1);
+    
+    if (availablePlayers.length === 0) {
+        document.getElementById('addPlayerModal').classList.remove('active');
+        alert('All players are already in this session!');
+        return;
+    }
+    
+    // Now show actual players
+    let html = '<ul class="player-list">';
+    for (let i = 0; i < availablePlayers.length; i++) {
+        const player = availablePlayers[i];
+        html += '<li class="player-item">';
+        html += '<label><input type="radio" name="addPlayerRadio" value="' + player.player_id + '" onchange="selectPlayerToAdd(' + player.player_id + ', \'' + player.username + '\')"> ' + player.username + '</label>';
+        html += '</li>';
+    }
+    html += '</ul>';
+    playerList.innerHTML = html;
+    
+    selectedPlayerToAdd = null;
+    document.getElementById('confirmAddPlayerBtn').disabled = true;
+    document.getElementById('addPlayerConfirm').style.display = 'none';
+    document.getElementById('addPlayerMessage').innerHTML = '';
+}
             for (let i = 0; i < availablePlayers.length; i++) {
                 const player = availablePlayers[i];
                 html += '<li class="player-item">';
@@ -2511,9 +2604,32 @@ async function saveEditedHand() {
         // ACTIVE SESSION SCORING & CHARTS
         // ============================================
         async function updateSessionScores() {
-            document.getElementById('sessionScores').innerHTML = '<div class="loading">Calculating scores...</div>';
+document.getElementById('sessionScores').innerHTML = `
+    <div class="skeleton-card">
+        <div class="shimmer-wrapper skeleton-text large" style="width: 50%; margin-bottom: 20px;"></div>
+        <div style="overflow-x: auto;">
+            ${[1,2,3].map(() => `
+                <div class="skeleton-table-row">
+                    ${[1,2,3,4,5].map(() => `
+                        <div class="shimmer-wrapper skeleton-table-cell"></div>
+                    `).join('')}
+                </div>
+            `).join('')}
+        </div>
+    </div>
+`;
             document.getElementById('handHistorySection').style.display = 'block';
-            document.getElementById('handHistoryList').innerHTML = '<div class="loading">Loading hand history...</div>';
+document.getElementById('handHistoryList').innerHTML = `
+    ${[1,2,3].map(() => `
+        <div class="hand-item" style="background: #f8f9fa;">
+            <div class="hand-item-info" style="flex: 1;">
+                <div class="shimmer-wrapper skeleton-text" style="width: 30%; margin-bottom: 8px;"></div>
+                <div class="shimmer-wrapper skeleton-text small" style="width: 80%;"></div>
+            </div>
+            <div class="shimmer-wrapper skeleton-button" style="width: 80px; height: 40px;"></div>
+        </div>
+    `).join('')}
+`;
             
             const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
             if (handsData.error) return;
@@ -2778,7 +2894,17 @@ async function saveEditedHand() {
         // ============================================
         async function loadPreviousSessions() {
             const contentDiv = document.getElementById('previousSessionsContent');
-            contentDiv.innerHTML = '<div class="loading">Loading sessions...</div>';
+            contentDiv.innerHTML = `
+    <div class="skeleton-card">
+        <div class="shimmer-wrapper skeleton-text large" style="width: 50%; margin-bottom: 20px;"></div>
+        ${[1,2,3].map(() => `
+            <div class="skeleton-session-item">
+                <div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 8px;"></div>
+                <div class="shimmer-wrapper skeleton-text small" style="width: 50%;"></div>
+            </div>
+        `).join('')}
+    </div>
+`;
             await ensurePlayersLoaded();
             
             const sessionsWithHands = await apiCall('getSessionsWithHands', {});
@@ -2832,8 +2958,24 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
         setButtonLoading(buttonElement, true);
     }
     
-    const session = allSessions[sessionIndex];
-    let handsData;
+const session = allSessions[sessionIndex];
+
+document.getElementById('sessionDetailContent').innerHTML = `
+    <div class="skeleton-card">
+        <div class="shimmer-wrapper skeleton-text large" style="width: 60%; margin-bottom: 20px;"></div>
+        <div style="overflow-x: auto;">
+            ${[1,2,3,4].map(() => `
+                <div class="skeleton-table-row">
+                    <div class="shimmer-wrapper skeleton-table-cell"></div>
+                    <div class="shimmer-wrapper skeleton-table-cell"></div>
+                    <div class="shimmer-wrapper skeleton-table-cell"></div>
+                </div>
+            `).join('')}
+        </div>
+    </div>
+`;
+
+let handsData;
 
 handsData = await apiCall('getHands', { session_id: session.session_id });
 if (handsData.error) {
@@ -3169,7 +3311,19 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
         // ============================================
         async function loadStats() {
             const contentDiv = document.getElementById('statsContent');
-            contentDiv.innerHTML = '<div class="loading">Loading stats...</div>';
+contentDiv.innerHTML = `
+    <div class="skeleton-card">
+        <div class="shimmer-wrapper skeleton-text large" style="width: 40%; margin-bottom: 30px;"></div>
+        <div class="stats-grid">
+            ${[1,2,3,4,5,6].map(() => `
+                <div class="skeleton-stat-card">
+                    <div class="shimmer-wrapper skeleton-text small" style="width: 70%; margin-bottom: 10px;"></div>
+                    <div class="shimmer-wrapper skeleton-stat-value"></div>
+                </div>
+            `).join('')}
+        </div>
+    </div>
+`;
             await ensurePlayersLoaded();
             
             const sessionsWithHands = await apiCall('getSessionsWithHands', {});
@@ -3443,7 +3597,18 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
         
         async function showHeadToHeadList() {
             const contentDiv = document.getElementById('statsContent');
-            contentDiv.innerHTML = '<div class="loading">Loading head-to-head records...</div>';
+contentDiv.innerHTML = `
+    <div class="skeleton-card">
+        <div class="shimmer-wrapper skeleton-text large" style="width: 50%; margin-bottom: 20px;"></div>
+        ${[1,2,3].map(() => `
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 10px;"></div>
+                <div class="shimmer-wrapper skeleton-text" style="width: 100%; height: 8px; margin-bottom: 8px;"></div>
+                <div class="shimmer-wrapper skeleton-button" style="height: 40px;"></div>
+            </div>
+        `).join('')}
+    </div>
+`;
             
             await ensurePlayersLoaded();
             
@@ -3592,7 +3757,20 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
                 return;
             }
             
-            contentDiv.innerHTML = '<div class="loading">Loading comparison...</div>';
+contentDiv.innerHTML = `
+    <div class="skeleton-card">
+        <div class="shimmer-wrapper skeleton-text large" style="width: 60%; margin: 0 auto 30px; text-align: center;"></div>
+        <div style="overflow-x: auto;">
+            ${[1,2,3,4,5].map(() => `
+                <div class="skeleton-table-row">
+                    ${[1,2,3].map(() => `
+                        <div class="shimmer-wrapper skeleton-table-cell"></div>
+                    `).join('')}
+                </div>
+            `).join('')}
+        </div>
+    </div>
+`;
             showScreen('statsScreen');
             
             const data = await apiCall('getPlayerComparisonDetailed', {
