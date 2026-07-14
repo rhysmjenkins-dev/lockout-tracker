@@ -1937,7 +1937,7 @@ async function endSession() {
                 if (joinHand <= currentHandNumber) {
                     html += '<div class="player-hand-row">' +
                     '<label>' + player.username + (joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '') + '</label>' +
-                    '<input type="number" id="score_' + player.player_id + '" placeholder="Score" oninput="checkLockoutValidity()">' +
+    '<input type="number" id="score_' + player.player_id + '" placeholder="Score" min="-2" oninput="checkLockoutValidity()">'
                     '<label style="display: flex; align-items: center; gap: 5px; margin: 0;"><input type="radio" name="lockout_player" value="' + player.player_id + '" onchange="checkLockoutValidity()"> Locked Out</label>' +
                     '</div>';
                 }
@@ -2221,7 +2221,7 @@ for (let i = 0; i < sessionPlayers.length; i++) {
                     
                     html += '<div class="player-hand-row">';
                     html += '<label>' + player.username + '</label>';
-                    html += '<input type="number" id="edit_score_' + player.player_id + '" value="' + displayScore + '" placeholder="Score" oninput="checkEditLockoutValidity()">';
+                    html += '<input type="number" id="edit_score_' + player.player_id + '" value="' + displayScore + '" placeholder="Score" min="-2" oninput="checkEditLockoutValidity()">';
                     html += '<label style="display: flex; align-items: center; gap: 5px; margin: 0;"><input type="radio" name="edit_lockout_player" value="' + player.player_id + '" ' + (isLockout ? 'checked' : '') + ' onchange="checkEditLockoutValidity()"> Locked Out</label>';
                     html += '</div>';
                 }
@@ -2312,21 +2312,26 @@ for (let i = 0; i < sessionPlayers.length; i++) {
             
             const lockoutPlayerId = lockoutRadio.value;
             
-            for (let i = 0; i < sessionPlayers.length; i++) {
-                const player = sessionPlayers[i];
-                const joinHand = getPlayerJoinHand(player.player_id);
-                if (joinHand <= currentEditingHand) {
-                    const scoreInput = document.getElementById('edit_score_' + player.player_id);
-                    const scoreVal = scoreInput.value.trim();
-                    if (scoreVal === '') {
-                        messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
-                        setButtonLoading(saveBtn, false);
-                        return;
-                    }
-                    scores.push({ player_id: player.player_id, score: parseFloat(scoreVal) });
-                }
-            }
-            
+for (let i = 0; i < sessionPlayers.length; i++) {
+    const player = sessionPlayers[i];
+    const joinHand = getPlayerJoinHand(player.player_id);
+    if (joinHand <= currentEditingHand) {
+        const scoreInput = document.getElementById('edit_score_' + player.player_id);
+        const scoreVal = scoreInput.value.trim();
+        if (scoreVal === '') {
+            messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
+            setButtonLoading(saveBtn, false);
+            return;
+        }
+        const scoreNum = parseFloat(scoreVal);
+        if (scoreNum < -2) {
+            messageDiv.innerHTML = '<div class="error">Minimum score is -2 (two Red Kings)</div>';
+            setButtonLoading(saveBtn, false);
+            return;
+        }
+        scores.push({ player_id: player.player_id, score: scoreNum });
+    }
+}
             const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
             const lowestScore = Math.min(...scores.map(s => s.score));
             const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
