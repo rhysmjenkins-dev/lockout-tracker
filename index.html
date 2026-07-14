@@ -1932,17 +1932,15 @@ async function endSession() {
             const handInputs = document.getElementById('handInputs');
             let html = '';
             for (let i = 0; i < sessionPlayers.length; i++) {
-                const player = sessionPlayers[i];
-                const joinHand = getPlayerJoinHand(player.player_id);
-                if (joinHand <= currentHandNumber) {
-                    html += '<div class="player-hand-row">' +
-                    '<label>' + player.username + (joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '') + '</label>' +
- html += '<div class="player-hand-row">' +
-    '<label>' + player.username + (joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '') + '</label>' +
-    '<input type="number" id="score_' + player.player_id + '" placeholder="Score" min="-2" oninput="checkLockoutValidity()">' +
-    '<label style="display: flex; align-items: center; gap: 5px; margin: 0;"><input type="radio" name="lockout_player" value="' + player.player_id + '" onchange="checkLockoutValidity()"> Locked Out</label>' +
-    '</div>';
-                    '<label style="display: flex; align-items: center; gap: 5px; margin: 0;"><input type="radio" name="lockout_player" value="' + player.player_id + '" onchange="checkLockoutValidity()"> Locked Out</label>' +
+const player = sessionPlayers[i];
+const joinHand = getPlayerJoinHand(player.player_id);
+if (joinHand <= currentHandNumber) {
+    html += '<div class="player-hand-row">' +
+        '<label>' + player.username + (joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '') + '</label>' +
+        '<input type="number" id="score_' + player.player_id + '" placeholder="Score" min="-2" oninput="checkLockoutValidity()">' +
+        '<label style="display: flex; align-items: center; gap: 5px; margin: 0;"><input type="radio" name="lockout_player" value="' + player.player_id + '" onchange="checkLockoutValidity()"> Locked Out</label>' +
+        '</div>';
+}
                     '</div>';
                 }
             }
