@@ -1693,12 +1693,11 @@ async function checkActiveSessions() {
             const minutes = Math.floor((elapsed % 3600000) / 60000);
             const timeStr = hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'm';
             
-            html += '<div class="active-session-item" style="background: linear-gradient(135deg, #f8f9fa 0%, #e8e9ff 100%); padding: 15px; border-radius: 10px; margin: 10px 0; border-left: 4px solid #667eea;">';
-            html += '<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">';
-            html += '<div><strong style="font-size: 1.1em; color: #667eea;">🎮 ' + session.title + '</strong></div>';
-            html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ', this)" style="margin: 0;">Resume</button>';
-            html += '</div>';
-            
+html += '<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; gap: 15px;">';
+html += '<div><strong style="font-size: 1.1em; color: #667eea;">🎮 ' + session.title + '</strong></div>';
+html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ', this)" style="margin: 0; flex-shrink: 0;">Resume</button>';
+html += '</div>';
+
             html += '<div style="font-size: 0.9em; color: #666; margin-bottom: 8px;">⏱️ ' + timeStr + ' • Hand ' + handCount + ' • ' + playerIds.length + ' players</div>';
             
             if (leaderId) {
