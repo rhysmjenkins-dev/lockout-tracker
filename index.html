@@ -1866,56 +1866,61 @@ function showScreen(screenId, skipHistory) {
             document.getElementById('editSessionMessage').innerHTML = '';
         }
 
-        async function endSession() {
-            if (!confirm('End this session?')) return;
-            const endBtn = event.target;
-            setButtonLoading(endBtn, true);
-            
-            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
-            const data = await apiCall('closeSession', {
-                session_id: currentSession.session_id,
-                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
-            });
-} else {
-    // Calculate winner before ending
-    const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
-    const playerTotals = {};
+async function endSession() {
+    if (!confirm('End this session?')) return;
+    const endBtn = event.target;
+    setButtonLoading(endBtn, true);
     
-    for (let i = 0; i < sessionPlayers.length; i++) {
-        const player = sessionPlayers[i];
-        const startingScore = getPlayerStartingScore(player.player_id);
-        playerTotals[player.player_id] = {
-            username: player.username,
-            total: startingScore
-        };
-    }
+    let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+    const data = await apiCall('closeSession', {
+        session_id: currentSession.session_id,
+        editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+    });
     
-    for (let i = 0; i < handsData.length; i++) {
-        const hand = handsData[i];
-        if (playerTotals[hand.player_id]) {
-            playerTotals[hand.player_id].total += Number(hand.score);
+    if (data.error) {
+        alert('Error: ' + data.error);
+        setButtonLoading(endBtn, false);
+    } else {
+        // Calculate winner before ending
+        const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
+        const playerTotals = {};
+        
+        for (let i = 0; i < sessionPlayers.length; i++) {
+            const player = sessionPlayers[i];
+            const startingScore = getPlayerStartingScore(player.player_id);
+            playerTotals[player.player_id] = {
+                username: player.username,
+                total: startingScore
+            };
         }
+        
+        for (let i = 0; i < handsData.length; i++) {
+            const hand = handsData[i];
+            if (playerTotals[hand.player_id]) {
+                playerTotals[hand.player_id].total += Number(hand.score);
+            }
+        }
+        
+        const scores = Object.values(playerTotals).sort((a, b) => a.total - b.total);
+        const winner = scores[0];
+        const isTie = scores.length > 1 && scores[1].total === winner.total;
+        
+        const winnerText = isTie ? 'Tie game!' : winner.username + ' wins!';
+        
+        alert('Session ended!\n\n🏆 ' + winnerText + ' (' + winner.total + ' pts)');
+        hapticFeedback('success');
+        
+        // Celebrate!
+        if (!isTie) {
+            celebrateWinner(winner.username);
+        }
+        
+        currentSession = null;
+        showScreen('homeScreen');
+        checkActiveSessions();
     }
-    
-    const scores = Object.values(playerTotals).sort((a, b) => a.total - b.total);
-    const winner = scores[0];
-    const isTie = scores.length > 1 && scores[1].total === winner.total;
-    
-    const winnerText = isTie ? 'Tie game!' : winner.username + ' wins!';
-    
-    alert('Session ended!\n\n🏆 ' + winnerText + ' (' + winner.total + ' pts)');
-    hapticFeedback('success');
-    
-    // Celebrate!
-    if (!isTie) {
-        celebrateWinner(winner.username);
-    }
-    
-    currentSession = null;
-    showScreen('homeScreen');
-    checkActiveSessions();
 }
-        }
+
         // ============================================
         // HAND INPUT & SUBMISSION
         // ============================================
