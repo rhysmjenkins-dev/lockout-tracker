@@ -165,8 +165,8 @@
 <body>
     <div class="container">
 <div class="header">
-<h1 style="cursor: pointer; transition: opacity 0.2s;" 
-    onclick="handleHeaderClick()" 
+<h1 style="cursor: pointer; transition: opacity 0.2s; user-select: none;" 
+    onclick="handleHeaderClick(event)" 
     onmouseover="this.style.opacity='0.8'" 
     onmouseout="this.style.opacity='1'">
     🎴 Lockout Tracker
@@ -3745,7 +3745,7 @@ document.addEventListener('click', function(e) {
 let headerTapCount = 0;
 let headerTapTimeout;
 
-function handleHeaderClick() {
+function handleHeaderClick(event) {
     headerTapCount++;
     
     clearTimeout(headerTapTimeout);
@@ -3755,11 +3755,14 @@ function handleHeaderClick() {
         triggerEasterEgg();
     } else {
         headerTapTimeout = setTimeout(function() {
+            if (headerTapCount < 7) {
+                showScreen('homeScreen');
+            }
             headerTapCount = 0;
-            showScreen('homeScreen');
-        }, 2000);
+        }, 800);
     }
 }
+
 let easterEggCode = '';
 let easterEggTimeout;
 
