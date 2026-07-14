@@ -1625,35 +1625,107 @@ function showScreen(screenId, skipHistory) {
         // ============================================
         // SESSION MANAGEMENT
         // ============================================
-        async function checkActiveSessions() {
-            document.getElementById('activeSessionsSection').innerHTML = '<div class="loading">Loading active sessions...</div>';
-            const sessionsData = await apiCall('getSessions', {});
-            if (sessionsData.error) {
-                document.getElementById('activeSessionsSection').innerHTML = '<p style="color: #c33;">Error loading sessions</p>';
-                return;
+async function checkActiveSessions() {
+    document.getElementById('activeSessionsSection').innerHTML = '<div class="loading">Loading active sessions...</div>';
+    const sessionsData = await apiCall('getSessions', {});
+    if (sessionsData.error) {
+        document.getElementById('activeSessionsSection').innerHTML = '<p style="color: #c33;">Error loading sessions</p>';
+        return;
+    }
+    const activeSessions = sessionsData.filter(s => {
+        const dateEnded = s.date_ended;
+        return !dateEnded || dateEnded === '' || dateEnded.toString().trim() === '';
+    });
+    
+    if (activeSessions.length > 0) {
+        let html = '<div class="active-session-box">';
+        html += '<h3>Active Sessions</h3>';
+        
+        for (let i = 0; i < activeSessions.length; i++) {
+            const session = activeSessions[i];
+            const handsData = await apiCall('getHands', { session_id: session.session_id });
+            const handCount = handsData.error ? 0 : (handsData.length > 0 ? Math.max(...handsData.map(h => h.hand_number)) : 0);
+            
+            // Calculate stats
+            const playerIds = session.players_involved.split(',');
+            const playerScores = {};
+            const playerLockouts = {};
+            const playerFalseLockouts = {};
+            
+            for (let p = 0; p < playerIds.length; p++) {
+                const pid = playerIds[p];
+                playerScores[pid] = 0;
+                playerLockouts[pid] = 0;
+                playerFalseLockouts[pid] = 0;
             }
-            const activeSessions = sessionsData.filter(s => {
-                const dateEnded = s.date_ended;
-                return !dateEnded || dateEnded === '' || dateEnded.toString().trim() === '';
-            });
-            if (activeSessions.length > 0) {
-                let html = '<div class="active-session-box">';
-                html += '<h3>Active Sessions</h3>';
-                for (let i = 0; i < activeSessions.length; i++) {
-                    const session = activeSessions[i];
-                    const handsData = await apiCall('getHands', { session_id: session.session_id });
-                    const handCount = handsData.error ? 0 : (handsData.length > 0 ? Math.max(...handsData.map(h => h.hand_number)) : 0);
-                    html += '<div class="active-session-item">';
-                    html += '<div><strong>' + session.title + '</strong><br><small>' + handCount + ' hands played</small></div>';
-                    html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ', this)">Resume</button>';
-                    html += '</div>';
+            
+            if (!handsData.error) {
+                for (let h = 0; h < handsData.length; h++) {
+                    const hand = handsData[h];
+                    if (playerScores[hand.player_id] !== undefined) {
+                        playerScores[hand.player_id] += Number(hand.score);
+                    }
+                    if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+                        if (hand.false_lockout == 1 || hand.false_lockout === true) {
+                            playerFalseLockouts[hand.player_id]++;
+                        } else {
+                            playerLockouts[hand.player_id]++;
+                        }
+                    }
                 }
-                html += '</div>';
-                document.getElementById('activeSessionsSection').innerHTML = html;
-            } else {
-                document.getElementById('activeSessionsSection').innerHTML = '';
             }
+            
+            // Find leader
+            let leaderId = null;
+            let lowestScore = Infinity;
+            for (let pid in playerScores) {
+                if (playerScores[pid] < lowestScore) {
+                    lowestScore = playerScores[pid];
+                    leaderId = pid;
+                }
+            }
+            
+            // Calculate elapsed time
+            const startTime = new Date(session.date_started);
+            const now = new Date();
+            const elapsed = now - startTime;
+            const hours = Math.floor(elapsed / 3600000);
+            const minutes = Math.floor((elapsed % 3600000) / 60000);
+            const timeStr = hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'm';
+            
+            html += '<div class="active-session-item" style="background: linear-gradient(135deg, #f8f9fa 0%, #e8e9ff 100%); padding: 15px; border-radius: 10px; margin: 10px 0; border-left: 4px solid #667eea;">';
+            html += '<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">';
+            html += '<div><strong style="font-size: 1.1em; color: #667eea;">🎮 ' + session.title + '</strong></div>';
+            html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ', this)" style="margin: 0;">Resume</button>';
+            html += '</div>';
+            
+            html += '<div style="font-size: 0.9em; color: #666; margin-bottom: 8px;">⏱️ ' + timeStr + ' • Hand ' + handCount + ' • ' + playerIds.length + ' players</div>';
+            
+            if (leaderId) {
+                html += '<div style="font-size: 0.9em; margin-bottom: 5px;">🏆 <strong>' + getPlayerName(leaderId) + '</strong> leading (' + playerScores[leaderId] + ' pts)</div>';
+            }
+            
+            // Show interesting stats
+            for (let pid in playerFalseLockouts) {
+                if (playerFalseLockouts[pid] > 0) {
+                    html += '<div style="font-size: 0.9em; color: #f5576c;">📊 ' + getPlayerName(pid) + ': ' + playerFalseLockouts[pid] + ' false lockout' + (playerFalseLockouts[pid] > 1 ? 's' : '') + '</div>';
+                }
+            }
+            
+            for (let pid in playerLockouts) {
+                if (playerLockouts[pid] >= 2) {
+                    html += '<div style="font-size: 0.9em; color: #4caf50;">🔥 ' + getPlayerName(pid) + ': ' + playerLockouts[pid] + ' lockout streak</div>';
+                }
+            }
+            
+            html += '</div>';
         }
+        html += '</div>';
+        document.getElementById('activeSessionsSection').innerHTML = html;
+    } else {
+        document.getElementById('activeSessionsSection').innerHTML = '';
+    }
+}
 
         async function createSession() {
             const title = document.getElementById('sessionTitle').value.trim();
