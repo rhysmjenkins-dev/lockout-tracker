@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1371,6 +1372,38 @@ function hapticFeedback(style) {
     }
 }
 
+// ============================================
+// CONFETTI CELEBRATION
+// ============================================
+function celebrateWinner(winnerName) {
+    // Confetti burst from center
+    confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+    });
+    
+    // Second burst after delay
+    setTimeout(function() {
+        confetti({
+            particleCount: 50,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 }
+        });
+    }, 250);
+    
+    // Third burst from right
+    setTimeout(function() {
+        confetti({
+            particleCount: 50,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 }
+        });
+    }, 400);
+}
+
         function getPlayerName(playerId) {
             if (playerCache[playerId]) {
                 return playerCache[playerId];
@@ -1843,16 +1876,45 @@ function showScreen(screenId, skipHistory) {
                 session_id: currentSession.session_id,
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
-            if (data.error) {
-                alert('Error: ' + data.error);
-                setButtonLoading(endBtn, false);
-            } else {
-                alert('Session ended!');
-                hapticFeedback('success');
-                currentSession = null;
-                showScreen('homeScreen');
-                checkActiveSessions();
-            }
+} else {
+    // Calculate winner before ending
+    const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
+    const playerTotals = {};
+    
+    for (let i = 0; i < sessionPlayers.length; i++) {
+        const player = sessionPlayers[i];
+        const startingScore = getPlayerStartingScore(player.player_id);
+        playerTotals[player.player_id] = {
+            username: player.username,
+            total: startingScore
+        };
+    }
+    
+    for (let i = 0; i < handsData.length; i++) {
+        const hand = handsData[i];
+        if (playerTotals[hand.player_id]) {
+            playerTotals[hand.player_id].total += Number(hand.score);
+        }
+    }
+    
+    const scores = Object.values(playerTotals).sort((a, b) => a.total - b.total);
+    const winner = scores[0];
+    const isTie = scores.length > 1 && scores[1].total === winner.total;
+    
+    const winnerText = isTie ? 'Tie game!' : winner.username + ' wins!';
+    
+    alert('Session ended!\n\n🏆 ' + winnerText + ' (' + winner.total + ' pts)');
+    hapticFeedback('success');
+    
+    // Celebrate!
+    if (!isTie) {
+        celebrateWinner(winner.username);
+    }
+    
+    currentSession = null;
+    showScreen('homeScreen');
+    checkActiveSessions();
+}
         }
         // ============================================
         // HAND INPUT & SUBMISSION
@@ -3652,6 +3714,71 @@ document.addEventListener('click', function(e) {
         hapticFeedback('light');
     }
 });
+        // ============================================
+// EASTER EGG
+// ============================================
+let easterEggCode = '';
+let easterEggTimeout;
+
+document.addEventListener('keypress', function(e) {
+    clearTimeout(easterEggTimeout);
+    easterEggCode += e.key.toLowerCase();
+    
+    // Check for secret code
+    if (easterEggCode.includes('lockout')) {
+        easterEggCode = '';
+        triggerEasterEgg();
+    }
+    
+    // Reset after 2 seconds of no typing
+    easterEggTimeout = setTimeout(function() {
+        easterEggCode = '';
+    }, 2000);
+});
+
+function triggerEasterEgg() {
+    // Epic confetti
+    const duration = 3000;
+    const end = Date.now() + duration;
+    
+    (function frame() {
+        confetti({
+            particleCount: 3,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 },
+            colors: ['#667eea', '#764ba2', '#f5576c']
+        });
+        confetti({
+            particleCount: 3,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 },
+            colors: ['#667eea', '#764ba2', '#f5576c']
+        });
+        
+        if (Date.now() < end) {
+            requestAnimationFrame(frame);
+        }
+    }());
+    
+    // Show message
+    const message = document.createElement('div');
+    message.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 50px; border-radius: 20px; font-size: 2em; font-weight: bold; z-index: 10000; box-shadow: 0 10px 40px rgba(0,0,0,0.3); animation: fadeIn 0.5s ease-in-out;';
+    message.textContent = '🎉 YOU FOUND THE SECRET! 🎉';
+    document.body.appendChild(message);
+    
+    hapticFeedback('success');
+    
+    setTimeout(function() {
+        message.style.opacity = '0';
+        message.style.transform = 'translate(-50%, -50%) scale(0.8)';
+        message.style.transition = 'all 0.5s ease-out';
+        setTimeout(function() {
+            document.body.removeChild(message);
+        }, 500);
+    }, 3000);
+}
     </script>
 </body>
 </html>
