@@ -1830,6 +1830,7 @@ function showScreen(screenId, skipHistory) {
                 setButtonLoading(endBtn, false);
             } else {
                 alert('Session ended!');
+                hapticFeedback('success');
                 currentSession = null;
                 showScreen('homeScreen');
                 checkActiveSessions();
@@ -1911,6 +1912,7 @@ function showScreen(screenId, skipHistory) {
                 }
                 warningDiv.innerHTML = warningMessage;
                 warningDiv.style.display = 'block';
+                hapticFeedback('error');
             } else {
                 warningDiv.style.display = 'none';
             }
@@ -1998,6 +2000,7 @@ function showScreen(screenId, skipHistory) {
                 setButtonLoading(submitBtn, false);
             } else {
                 currentHandNumber++;
+                hapticFeedback('success');
                 setupHandInputs();
                 updateSessionScores();
                 setButtonLoading(submitBtn, false);
@@ -2196,6 +2199,7 @@ function showScreen(screenId, skipHistory) {
                 }
                 warningDiv.innerHTML = warningMessage;
                 warningDiv.style.display = 'block';
+                hapticFeedback('error');
             } else {
                 warningDiv.style.display = 'none';
             }
@@ -3622,7 +3626,14 @@ document.addEventListener('click', function(e) {
         hapticFeedback('light');
     }
 });
-
+// ============================================
+// HAPTIC FEEDBACK EVENT LISTENER
+// ============================================
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('btn')) {
+        hapticFeedback('light');
+    }
+});
     </script>
 </body>
 </html>
