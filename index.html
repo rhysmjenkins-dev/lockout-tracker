@@ -2600,7 +2600,7 @@
                     var day = String(dateObj.getDate()).padStart(2, '0');
                     var year = dateObj.getFullYear();
                     var cleanDate = month + '/' + day + '/' + year;
-                    html += '<li class="session-item" onclick="viewSessionDetail(' + i + ')">';
+                    html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
                     html += '<div class="session-item-header">' + session.title + '</div>';
                     html += '<div class="session-item-info">Date: ' + cleanDate + '</div>';
                     html += '</li>';
@@ -2609,15 +2609,23 @@
             contentDiv.innerHTML = html;
         }
 
-        async function viewSessionDetail(sessionIndex) {
-            const session = allSessions[sessionIndex];
-            let handsData;
-            
-            handsData = await apiCall('getHands', { session_id: session.session_id });
-            if (handsData.error) {
-                alert('Error loading session details');
-                return;
-            }
+async function viewSessionDetail(sessionIndex, buttonElement) {
+    // Show loading state
+    if (buttonElement) {
+        setButtonLoading(buttonElement, true);
+    }
+    
+    const session = allSessions[sessionIndex];
+    let handsData;
+
+handsData = await apiCall('getHands', { session_id: session.session_id });
+if (handsData.error) {
+    alert('Error loading session details');
+    if (buttonElement) {
+        setButtonLoading(buttonElement, false);
+    }
+    return;
+}
 
             for (let i = 0; i < handsData.length; i++) {
                 if (!handsData[i].comment) handsData[i].comment = '';
@@ -3483,7 +3491,7 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
                     const winner = s.p1_won && !s.p2_won ? p1Name : s.p2_won && !s.p1_won ? p2Name : 'Tie';
                     const winnerColor = s.p1_won && !s.p2_won ? '#667eea' : s.p2_won && !s.p1_won ? '#f5576c' : '#ff9800';
                     
-                    html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px; margin-bottom: 10px; cursor: pointer; transition: background 0.2s;" onclick="viewSessionDetailFromComparison(' + s.session_id + ')" onmouseover="this.style.background=\'#f8f9fa\'" onmouseout="this.style.background=\'white\'">';
+                    html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px; margin-bottom: 10px; cursor: pointer; transition: background 0.2s;" onclick="viewSessionDetailFromComparison(' + s.session_id + ', this)" onmouseover="this.style.background=\'#f8f9fa\'" onmouseout="this.style.background=\'white\'">';
                     html += '<div style="flex: 1;">';
                     html += '<div style="font-weight: 600; color: #333;">' + s.title + ' 🔗</div>';
                     var dateObj = new Date(s.date);
@@ -3526,18 +3534,21 @@ window.addEventListener('DOMContentLoaded', function() {
 });
         
         // ✅ NEW: Helper function to navigate from comparison to session detail
-        async function viewSessionDetailFromComparison(sessionId) {
+        async function viewSessionDetailFromComparison(sessionId, buttonElement) {     if (buttonElement) {         setButtonLoading(buttonElement, true);     }
             if (allSessions.length === 0) {
                 await loadPreviousSessions();
             }
             
             const sessionIndex = allSessions.findIndex(s => String(s.session_id) === String(sessionId));
             
-            if (sessionIndex !== -1) {
-                viewSessionDetail(sessionIndex);
-            } else {
-                alert('Session not found');
-            }
+if (sessionIndex !== -1) {
+    viewSessionDetail(sessionIndex, buttonElement);
+} else {
+    alert('Session not found');
+    if (buttonElement) {
+        setButtonLoading(buttonElement, false);
+    }
+}
         }
         // ============================================
         // INITIALIZATION
