@@ -165,12 +165,12 @@
 <body>
     <div class="container">
 <div class="header">
-    <h1 style="cursor: pointer; transition: opacity 0.2s;" 
-        onclick="showScreen('homeScreen')" 
-        onmouseover="this.style.opacity='0.8'" 
-        onmouseout="this.style.opacity='1'">
-        🎴 Lockout Tracker
-    </h1>
+<h1 style="cursor: pointer; transition: opacity 0.2s;" 
+    onclick="handleHeaderClick()" 
+    onmouseover="this.style.opacity='0.8'" 
+    onmouseout="this.style.opacity='1'">
+    🎴 Lockout Tracker
+</h1>
     <p>Track your games, dominate the leaderboard</p>
 </div>
         <!-- HOME SCREEN -->
@@ -3737,9 +3737,29 @@ document.addEventListener('click', function(e) {
         hapticFeedback('light');
     }
 });
-        // ============================================
+        
+// ============================================
 // EASTER EGG
 // ============================================
+// Mobile easter egg
+let headerTapCount = 0;
+let headerTapTimeout;
+
+function handleHeaderClick() {
+    headerTapCount++;
+    
+    clearTimeout(headerTapTimeout);
+    
+    if (headerTapCount >= 7) {
+        headerTapCount = 0;
+        triggerEasterEgg();
+    } else {
+        headerTapTimeout = setTimeout(function() {
+            headerTapCount = 0;
+            showScreen('homeScreen');
+        }, 2000);
+    }
+}
 let easterEggCode = '';
 let easterEggTimeout;
 
