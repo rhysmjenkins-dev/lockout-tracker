@@ -1392,16 +1392,22 @@
         // ============================================
         // SCREEN NAVIGATION
         // ============================================
-        function showScreen(screenId) {
-            const screens = document.querySelectorAll('.screen');
-            for (let i = 0; i < screens.length; i++) {
-                screens[i].classList.remove('active');
-            }
-            document.getElementById(screenId).classList.add('active');
-            if (screenId === 'startSessionScreen') {
-                loadPlayersForSession();
-            }
-        }
+function showScreen(screenId, skipHistory) {
+    const screens = document.querySelectorAll('.screen');
+    for (let i = 0; i < screens.length; i++) {
+        screens[i].classList.remove('active');
+    }
+    document.getElementById(screenId).classList.add('active');
+    
+    // Push to browser history (unless we're navigating via back button)
+    if (!skipHistory) {
+        history.pushState({ screen: screenId }, '', '#' + screenId);
+    }
+    
+    if (screenId === 'startSessionScreen') {
+        loadPlayersForSession();
+    }
+}
 
         // ============================================
         // PLAYER MANAGEMENT
@@ -3558,6 +3564,23 @@ if (sessionIndex !== -1) {
             ensurePlayersLoaded();
             checkActiveSessions();
         });
+// ============================================
+// BROWSER BACK BUTTON HANDLING
+// ============================================
+window.addEventListener('popstate', function(event) {
+    if (event.state && event.state.screen) {
+        // Navigate to the screen from history without adding another history entry
+        showScreen(event.state.screen, true);
+    } else {
+        // If no state, go to home screen
+        showScreen('homeScreen', true);
+    }
+});
+
+// Set initial history state
+window.addEventListener('DOMContentLoaded', function() {
+    history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
+});
     </script>
 </body>
 </html>
