@@ -9,6 +9,7 @@
     <!-- Favicon & PWA -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎴</text></svg>">
     <meta name="theme-color" content="#667eea">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Lockout Tracker">
@@ -2924,131 +2925,142 @@ document.getElementById('handHistoryList').innerHTML =
         // ============================================
         // PREVIOUS SESSIONS & SESSION DETAIL
         // ============================================
-        async function loadPreviousSessions() {
-            const contentDiv = document.getElementById('previousSessionsContent');
-contentDiv.innerHTML = 
-    '<div class="skeleton-card">' +
-        '<h3 style="color: #667eea; margin-bottom: 20px;">Loading previous sessions...</h3>' +
-        '<div class="skeleton-session-item">' +
-            '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 8px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text small" style="width: 50%;"></div>' +
-        '</div>' +
-        '<div class="skeleton-session-item">' +
-            '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 8px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text small" style="width: 50%;"></div>' +
-        '</div>' +
-        '<div class="skeleton-session-item">' +
-            '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 8px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text small" style="width: 50%;"></div>' +
-        '</div>' +
-    '</div>';
-            await ensurePlayersLoaded();
-            
-            const sessionsWithHands = await apiCall('getSessionsWithHands', {});
-            if (sessionsWithHands.error) {
-                contentDiv.innerHTML = '<div class="error">Error loading sessions: ' + sessionsWithHands.error + '</div>';
-                return;
-            }
-            
-            const completedSessions = [];
-            for (let i = 0; i < sessionsWithHands.length; i++) {
-                const item = sessionsWithHands[i];
-                if (!item.session.notes) item.session.notes = '';
-                if (!item.session.tags) item.session.tags = '';
-                if (!item.session.player_join_info) item.session.player_join_info = '{}';
-                if (item.session.date_ended && item.session.date_ended !== '') {
-                    completedSessions.push({ session: item.session, hands: item.hands, index: i });
-                }
-            }
-            
-            allSessions = completedSessions.map(item => item.session);
-            window.sessionsHandsCache = {};
-            for (let i = 0; i < completedSessions.length; i++) {
-                window.sessionsHandsCache[completedSessions[i].session.session_id] = completedSessions[i].hands;
-            }
-            
-            if (completedSessions.length === 0) {
-                contentDiv.innerHTML = '<div class="placeholder-content"><h3>No Completed Sessions</h3><p>Complete a session to see it here!</p></div>';
-                return;
-            }
-            
-let html = '<div style="max-height: 600px; overflow-y: auto; padding-right: 5px;"><ul class="session-list">';
-for (let i = 0; i < completedSessions.length; i++) {
-    const session = completedSessions[i].session;
-    const hands = completedSessions[i].hands;
+async function loadPreviousSessions() {
+    const contentDiv = document.getElementById('previousSessionsContent');
+    contentDiv.innerHTML = 
+        '<div class="skeleton-card">' +
+            '<h3 style="color: #667eea; margin-bottom: 20px;">Loading previous sessions...</h3>' +
+            '<div class="skeleton-session-item">' +
+                '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 8px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 50%;"></div>' +
+            '</div>' +
+            '<div class="skeleton-session-item">' +
+                '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 8px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 50%;"></div>' +
+            '</div>' +
+            '<div class="skeleton-session-item">' +
+                '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 8px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 50%;"></div>' +
+            '</div>' +
+        '</div>';
     
-    var dateObj = new Date(session.date_started);
-    var month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    var day = String(dateObj.getDate()).padStart(2, '0');
-    var year = dateObj.getFullYear();
-    var cleanDate = month + '/' + day + '/' + year;
+    await ensurePlayersLoaded();
     
-    var playerIds = session.players_involved.split(',');
-    var playerTotals = {};
-    var handCount = 0;
-    
-    var joinInfo = {};
-    try {
-        if (session.player_join_info && session.player_join_info !== '' && session.player_join_info !== '{}') {
-            var parsed = JSON.parse(session.player_join_info);
-            for (var pid in parsed) {
-                if (parsed[pid] && parsed[pid].starting_score !== undefined) {
-                    joinInfo[pid] = parsed[pid].starting_score;
-                }
-            }
-        }
-    } catch(e) {}
-    
-    for (var p = 0; p < playerIds.length; p++) {
-        var pid = String(playerIds[p].trim());
-        playerTotals[pid] = joinInfo[pid] || 0;
+    const sessionsWithHands = await apiCall('getSessionsWithHands', {});
+    if (sessionsWithHands.error) {
+        contentDiv.innerHTML = '<div class="error">Error loading sessions: ' + sessionsWithHands.error + '</div>';
+        return;
     }
     
-    var handNumbers = new Set();
-    for (var h = 0; h < hands.length; h++) {
-        var hand = hands[h];
-        handNumbers.add(hand.hand_number);
-        if (playerTotals[hand.player_id] !== undefined) {
-            playerTotals[hand.player_id] += Number(hand.score);
-        }
-    }
-    handCount = handNumbers.size;
-    
-    var lowestScore = Infinity;
-    var winnerId = null;
-    for (var pid in playerTotals) {
-        if (playerTotals[pid] < lowestScore) {
-            lowestScore = playerTotals[pid];
-            winnerId = pid;
+    const completedSessions = [];
+    for (let i = 0; i < sessionsWithHands.length; i++) {
+        const item = sessionsWithHands[i];
+        if (!item.session.notes) item.session.notes = '';
+        if (!item.session.tags) item.session.tags = '';
+        if (!item.session.player_join_info) item.session.player_join_info = '{}';
+        if (item.session.date_ended && item.session.date_ended !== '') {
+            completedSessions.push({ session: item.session, hands: item.hands, index: i });
         }
     }
     
-    var winnerName = winnerId ? getPlayerName(winnerId) : 'Unknown';
-    
-    html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
-    html += '<div class="session-item-header">' + session.title + '</div>';
-    html += '<div class="session-item-info" style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">';
-    html += '<div>📅 ' + cleanDate + ' • ' + handCount + ' hands • ' + playerIds.length + ' players</div>';
-    html += '<div style="color: #4caf50; font-weight: 600;">🏆 ' + winnerName + ' (' + lowestScore + ' pts)</div>';
-    
-    if (session.tags && session.tags !== '') {
-        var tagsArray = session.tags.split(',').filter(function(t) { return t.trim(); });
-        if (tagsArray.length > 0) {
-            html += '<div style="margin-top: 4px;">';
-            for (var t = 0; t < tagsArray.length; t++) {
-                html += '<span class="tag-badge" style="font-size: 0.75em; padding: 2px 8px;">' + tagsArray[t] + '</span>';
-            }
-            html += '</div>';
-        }
+    allSessions = completedSessions.map(item => item.session);
+    window.sessionsHandsCache = {};
+    for (let i = 0; i < completedSessions.length; i++) {
+        window.sessionsHandsCache[completedSessions[i].session.session_id] = completedSessions[i].hands;
     }
     
+    if (completedSessions.length === 0) {
+        contentDiv.innerHTML = '<div class="placeholder-content"><h3>No Completed Sessions</h3><p>Complete a session to see it here!</p></div>';
+        return;
+    }
+    
+    // START: Add search box
+    let html = '<div style="margin-bottom: 20px;">';
+    html += '<input type="text" id="sessionSearchInput" placeholder="🔍 Search sessions by title, player, or tag..." style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em;" oninput="filterSessions()">';
     html += '</div>';
-    html += '</li>';
-}
-
-html += '</ul></div>';
-contentDiv.innerHTML = html;
+    
+    // START: Scrollable container
+    html += '<div id="sessionListContainer" style="max-height: 600px; overflow-y: auto; padding-right: 5px;">';
+    html += '<ul class="session-list" id="sessionList">';
+    
+    // Build session items (your existing code continues here)
+    for (let i = 0; i < completedSessions.length; i++) {
+        const session = completedSessions[i].session;
+        const hands = completedSessions[i].hands;
+        
+        var dateObj = new Date(session.date_started);
+        var month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        var day = String(dateObj.getDate()).padStart(2, '0');
+        var year = dateObj.getFullYear();
+        var cleanDate = month + '/' + day + '/' + year;
+        
+        var playerIds = session.players_involved.split(',');
+        var playerTotals = {};
+        var handCount = 0;
+        
+        var joinInfo = {};
+        try {
+            if (session.player_join_info && session.player_join_info !== '' && session.player_join_info !== '{}') {
+                var parsed = JSON.parse(session.player_join_info);
+                for (var pid in parsed) {
+                    if (parsed[pid] && parsed[pid].starting_score !== undefined) {
+                        joinInfo[pid] = parsed[pid].starting_score;
+                    }
+                }
+            }
+        } catch(e) {}
+        
+        for (var p = 0; p < playerIds.length; p++) {
+            var pid = String(playerIds[p].trim());
+            playerTotals[pid] = joinInfo[pid] || 0;
         }
+        
+        var handNumbers = new Set();
+        for (var h = 0; h < hands.length; h++) {
+            var hand = hands[h];
+            handNumbers.add(hand.hand_number);
+            if (playerTotals[hand.player_id] !== undefined) {
+                playerTotals[hand.player_id] += Number(hand.score);
+            }
+        }
+        handCount = handNumbers.size;
+        
+        var lowestScore = Infinity;
+        var winnerId = null;
+        for (var pid in playerTotals) {
+            if (playerTotals[pid] < lowestScore) {
+                lowestScore = playerTotals[pid];
+                winnerId = pid;
+            }
+        }
+        
+        var winnerName = winnerId ? getPlayerName(winnerId) : 'Unknown';
+        
+        html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
+        html += '<div class="session-item-header">' + session.title + '</div>';
+        html += '<div class="session-item-info" style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">';
+        html += '<div>📅 ' + cleanDate + ' • ' + handCount + ' hands • ' + playerIds.length + ' players</div>';
+        html += '<div style="color: #4caf50; font-weight: 600;">🏆 ' + winnerName + ' (' + lowestScore + ' pts)</div>';
+        
+        if (session.tags && session.tags !== '') {
+            var tagsArray = session.tags.split(',').filter(function(t) { return t.trim(); });
+            if (tagsArray.length > 0) {
+                html += '<div style="margin-top: 4px;">';
+                for (var t = 0; t < tagsArray.length; t++) {
+                    html += '<span class="tag-badge" style="font-size: 0.75em; padding: 2px 8px;">' + tagsArray[t] + '</span>';
+                }
+                html += '</div>';
+            }
+        }
+        
+        html += '</div>';
+        html += '</li>';
+    }
+    
+    html += '</ul>';
+    html += '</div>'; // Close scrollable container
+    contentDiv.innerHTML = html;
+}
 
 async function viewSessionDetail(sessionIndex, buttonElement) {
     // Show loading state
@@ -4231,6 +4243,24 @@ function triggerEasterEgg() {
             document.body.removeChild(message);
         }, 500);
     }, 3000);
+}
+// ============================================
+// SESSION SEARCH FILTER
+// ============================================
+function filterSessions() {
+    const searchTerm = document.getElementById('sessionSearchInput').value.toLowerCase();
+    const sessionItems = document.querySelectorAll('.session-item');
+    
+    for (let i = 0; i < sessionItems.length; i++) {
+        const item = sessionItems[i];
+        const text = item.textContent.toLowerCase();
+        
+        if (text.indexOf(searchTerm) !== -1) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    }
 }
     </script>
 </body>
