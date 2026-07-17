@@ -1637,9 +1637,10 @@ async function checkActiveSessions() {
         return !dateEnded || dateEnded === '' || dateEnded.toString().trim() === '';
     });
     
-    if (activeSessions.length > 0) {
-        let html = '<div class="active-session-box">';
-        html += '<h3>Active Sessions</h3>';
+if (activeSessions.length > 0) {
+    let html = '<div class="active-session-box">';
+    html += '<h3>Active Sessions</h3>';
+    html += '<div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">';
         
         for (let i = 0; i < activeSessions.length; i++) {
             const session = activeSessions[i];
@@ -1725,14 +1726,16 @@ for (let pid in playerLockouts) {
     }
 }
 
-html += '</div>';
+            html += '</div>';
         }
-        html += '</div>';
+        html += '</div>'; // Close scrollable container
+        html += '</div>'; // Close active-session-box
         document.getElementById('activeSessionsSection').innerHTML = html;
     } else {
         document.getElementById('activeSessionsSection').innerHTML = '';
     }
 }
+
 
         async function createSession() {
             const title = document.getElementById('sessionTitle').value.trim();
