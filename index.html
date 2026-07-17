@@ -2743,11 +2743,22 @@ document.getElementById('handHistoryList').innerHTML =
             const avgScorePerHand = handsData.reduce((sum, h) => sum + Number(h.score), 0) / handsData.length;
             const overallAvgLockout = totalLockouts > 0 ? (totalLockoutScore / totalLockouts).toFixed(2) : 'N/A';
             
-            let html = '<h3>Current Scores</h3>';
-            html += '<div style="overflow-x: auto;">';
-            html += '<table class="scores-table">';
-            html += '<tr><th>Player</th><th>Total</th><th>Hands</th><th>Avg Hand</th><th>Lockouts</th><th>LO Rate</th><th>Avg LO Score</th><th>False LO</th><th>False LO Rate</th></tr>';
-            
+            let html = html += '<h3>Current Scores</h3>';
+html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 10px;">💡 Click column headers to sort</p>';
+html += '<div style="overflow-x: auto;">';
+html += '<table class="scores-table" id="activeSessionTable">';
+html += '<tr>';
+html += '<th onclick="sortActiveSessionTable(0)" style="cursor: pointer; user-select: none;">Player ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(1)" style="cursor: pointer; user-select: none;">Total ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(2)" style="cursor: pointer; user-select: none;">Hands ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(3)" style="cursor: pointer; user-select: none;">Avg Hand ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(4)" style="cursor: pointer; user-select: none;">Lockouts ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(5)" style="cursor: pointer; user-select: none;">LO Rate ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(6)" style="cursor: pointer; user-select: none;">Avg LO Score ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(7)" style="cursor: pointer; user-select: none;">False LO ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(8)" style="cursor: pointer; user-select: none;">False LO Rate ⇅</th>';
+html += '</tr>';
+
             for (let i = 0; i < scores.length; i++) {
                 const p = scores[i];
                 const handsPlayed = p.hands.length;
@@ -3212,10 +3223,21 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
     return playerTotals[a] - playerTotals[b];
 });
 
-            let html = '<h3>Final Scores</h3>';
-            html += '<div style="overflow-x: auto;"><table class="scores-table">';
-            html += '<tr><th>Player</th><th>Total</th><th>Hands</th><th>Avg Hand</th><th>Lockouts</th><th>LO Rate</th><th>Avg LO Score</th><th>False LO</th><th>False LO Rate</th></tr>';
-            
+            let html = html += '<h3>Final Scores</h3>';
+html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 10px;">💡 Click column headers to sort</p>';
+html += '<div style="overflow-x: auto;"><table class="scores-table" id="sessionDetailTable">';
+html += '<tr>';
+html += '<th onclick="sortSessionTable(0)" style="cursor: pointer; user-select: none;">Player ⇅</th>';
+html += '<th onclick="sortSessionTable(1)" style="cursor: pointer; user-select: none;">Total ⇅</th>';
+html += '<th onclick="sortSessionTable(2)" style="cursor: pointer; user-select: none;">Hands ⇅</th>';
+html += '<th onclick="sortSessionTable(3)" style="cursor: pointer; user-select: none;">Avg Hand ⇅</th>';
+html += '<th onclick="sortSessionTable(4)" style="cursor: pointer; user-select: none;">Lockouts ⇅</th>';
+html += '<th onclick="sortSessionTable(5)" style="cursor: pointer; user-select: none;">LO Rate ⇅</th>';
+html += '<th onclick="sortSessionTable(6)" style="cursor: pointer; user-select: none;">Avg LO Score ⇅</th>';
+html += '<th onclick="sortSessionTable(7)" style="cursor: pointer; user-select: none;">False LO ⇅</th>';
+html += '<th onclick="sortSessionTable(8)" style="cursor: pointer; user-select: none;">False LO Rate ⇅</th>';
+html += '</tr>';
+
             for (let i = 0; i < sortedPlayers.length; i++) {
                 const playerId = sortedPlayers[i];
                 const playerName = getPlayerName(playerId);
@@ -4338,13 +4360,137 @@ function sortStatsTable(columnIndex) {
     for (let i = 0; i < headers.length; i++) {
         const header = headers[i];
         const text = header.textContent.replace(' ↑', '').replace(' ↓', '').replace(' ⇅', '');
+if (i === columnIndex) {
+    header.textContent = text + (currentSortAscending ? ' ↑' : ' ↓');
+    header.style.color = 'white';
+    header.style.backgroundColor = '#5568d3';
+    header.style.fontWeight = 'bold';
+} else {
+    header.textContent = text + ' ⇅';
+    header.style.color = 'white';
+    header.style.backgroundColor = '#667eea';
+    header.style.fontWeight = '600';
+}
+
+    }
+    
+    hapticFeedback('light');
+}
+// ============================================
+// SORTABLE SESSION DETAIL TABLE
+// ============================================
+let currentSessionSortColumn = -1;
+let currentSessionSortAscending = true;
+
+function sortSessionTable(columnIndex) {
+    const table = document.getElementById('sessionDetailTable');
+    if (!table) return;
+    
+    const rows = Array.from(table.querySelectorAll('tr')).slice(1);
+    
+    if (currentSessionSortColumn === columnIndex) {
+        currentSessionSortAscending = !currentSessionSortAscending;
+    } else {
+        currentSessionSortAscending = true;
+        currentSessionSortColumn = columnIndex;
+    }
+    
+    rows.sort(function(a, b) {
+        const aCell = a.cells[columnIndex].textContent.trim();
+        const bCell = b.cells[columnIndex].textContent.trim();
+        
+        const aNum = parseFloat(aCell.replace('%', ''));
+        const bNum = parseFloat(bCell.replace('%', ''));
+        
+        let comparison = 0;
+        
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+            comparison = aNum - bNum;
+        } else {
+            comparison = aCell.localeCompare(bCell);
+        }
+        
+        return currentSessionSortAscending ? comparison : -comparison;
+    });
+    
+    for (let i = 0; i < rows.length; i++) {
+        table.appendChild(rows[i]);
+    }
+    
+    const headers = table.querySelectorAll('th');
+    for (let i = 0; i < headers.length; i++) {
+        const header = headers[i];
+        const text = header.textContent.replace(' ↑', '').replace(' ↓', '').replace(' ⇅', '');
         if (i === columnIndex) {
-            header.textContent = text + (currentSortAscending ? ' ↑' : ' ↓');
-            header.style.color = '#667eea';
+            header.textContent = text + (currentSessionSortAscending ? ' ↑' : ' ↓');
+            header.style.color = 'white';
+            header.style.backgroundColor = '#5568d3';
             header.style.fontWeight = 'bold';
         } else {
             header.textContent = text + ' ⇅';
-            header.style.color = '';
+            header.style.color = 'white';
+            header.style.backgroundColor = '#667eea';
+            header.style.fontWeight = '600';
+        }
+    }
+    
+    hapticFeedback('light');
+}
+
+// ============================================
+// SORTABLE ACTIVE SESSION TABLE
+// ============================================
+let currentActiveSortColumn = -1;
+let currentActiveSortAscending = true;
+
+function sortActiveSessionTable(columnIndex) {
+    const table = document.getElementById('activeSessionTable');
+    if (!table) return;
+    
+    const rows = Array.from(table.querySelectorAll('tr')).slice(1);
+    
+    if (currentActiveSortColumn === columnIndex) {
+        currentActiveSortAscending = !currentActiveSortAscending;
+    } else {
+        currentActiveSortAscending = true;
+        currentActiveSortColumn = columnIndex;
+    }
+    
+    rows.sort(function(a, b) {
+        const aCell = a.cells[columnIndex].textContent.trim();
+        const bCell = b.cells[columnIndex].textContent.trim();
+        
+        const aNum = parseFloat(aCell.replace('%', ''));
+        const bNum = parseFloat(bCell.replace('%', ''));
+        
+        let comparison = 0;
+        
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+            comparison = aNum - bNum;
+        } else {
+            comparison = aCell.localeCompare(bCell);
+        }
+        
+        return currentActiveSortAscending ? comparison : -comparison;
+    });
+    
+    for (let i = 0; i < rows.length; i++) {
+        table.appendChild(rows[i]);
+    }
+    
+    const headers = table.querySelectorAll('th');
+    for (let i = 0; i < headers.length; i++) {
+        const header = headers[i];
+        const text = header.textContent.replace(' ↑', '').replace(' ↓', '').replace(' ⇅', '');
+        if (i === columnIndex) {
+            header.textContent = text + (currentActiveSortAscending ? ' ↑' : ' ↓');
+            header.style.color = 'white';
+            header.style.backgroundColor = '#5568d3';
+            header.style.fontWeight = 'bold';
+        } else {
+            header.textContent = text + ' ⇅';
+            header.style.color = 'white';
+            header.style.backgroundColor = '#667eea';
             header.style.fontWeight = '600';
         }
     }
