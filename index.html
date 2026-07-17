@@ -2599,9 +2599,59 @@ async function saveEditedHand() {
         // ACTIVE SESSION SCORING & CHARTS
         // ============================================
         async function updateSessionScores() {
-            document.getElementById('sessionScores').innerHTML = '<div class="loading">Calculating scores...</div>';
+document.getElementById('sessionScores').innerHTML = 
+    '<div class="skeleton-card">' +
+        '<h3 style="color: #667eea; margin-bottom: 20px;">Calculating scores...</h3>' +
+        '<div style="overflow-x: auto;">' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
             document.getElementById('handHistorySection').style.display = 'block';
-            document.getElementById('handHistoryList').innerHTML = '<div class="loading">Loading hand history...</div>';
+document.getElementById('handHistoryList').innerHTML = 
+    '<div style="padding: 10px;">' +
+        '<h4 style="color: #667eea; margin-bottom: 15px;">Loading hand history...</h4>' +
+        '<div class="hand-item" style="background: #f8f9fa;">' +
+            '<div class="hand-item-info" style="flex: 1;">' +
+                '<div class="shimmer-wrapper skeleton-text" style="width: 30%; margin-bottom: 8px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 80%;"></div>' +
+            '</div>' +
+            '<div class="shimmer-wrapper skeleton-button" style="width: 80px; height: 40px;"></div>' +
+        '</div>' +
+        '<div class="hand-item" style="background: #f8f9fa;">' +
+            '<div class="hand-item-info" style="flex: 1;">' +
+                '<div class="shimmer-wrapper skeleton-text" style="width: 30%; margin-bottom: 8px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 80%;"></div>' +
+            '</div>' +
+            '<div class="shimmer-wrapper skeleton-button" style="width: 80px; height: 40px;"></div>' +
+        '</div>' +
+        '<div class="hand-item" style="background: #f8f9fa;">' +
+            '<div class="hand-item-info" style="flex: 1;">' +
+                '<div class="shimmer-wrapper skeleton-text" style="width: 30%; margin-bottom: 8px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 80%;"></div>' +
+            '</div>' +
+            '<div class="shimmer-wrapper skeleton-button" style="width: 80px; height: 40px;"></div>' +
+        '</div>' +
+    '</div>';
             
             const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
             if (handsData.error) return;
@@ -2866,7 +2916,22 @@ async function saveEditedHand() {
         // ============================================
         async function loadPreviousSessions() {
             const contentDiv = document.getElementById('previousSessionsContent');
-            contentDiv.innerHTML = '<div class="loading">Loading sessions...</div>';
+contentDiv.innerHTML = 
+    '<div class="skeleton-card">' +
+        '<h3 style="color: #667eea; margin-bottom: 20px;">Loading previous sessions...</h3>' +
+        '<div class="skeleton-session-item">' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 8px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text small" style="width: 50%;"></div>' +
+        '</div>' +
+        '<div class="skeleton-session-item">' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 8px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text small" style="width: 50%;"></div>' +
+        '</div>' +
+        '<div class="skeleton-session-item">' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 8px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text small" style="width: 50%;"></div>' +
+        '</div>' +
+    '</div>';
             await ensurePlayersLoaded();
             
             const sessionsWithHands = await apiCall('getSessionsWithHands', {});
@@ -2981,7 +3046,37 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
         setButtonLoading(buttonElement, true);
     }
     
-    const session = allSessions[sessionIndex];
+const session = allSessions[sessionIndex];
+
+document.getElementById('sessionDetailContent').innerHTML = 
+    '<div class="skeleton-card">' +
+        '<h3 style="color: #667eea; margin-bottom: 20px;">Loading session details...</h3>' +
+        '<div style="overflow-x: auto;">' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
+
+let handsData;
+
     let handsData;
 
 handsData = await apiCall('getHands', { session_id: session.session_id });
@@ -3318,7 +3413,36 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
         // ============================================
         async function loadStats() {
             const contentDiv = document.getElementById('statsContent');
-            contentDiv.innerHTML = '<div class="loading">Loading stats...</div>';
+ contentDiv.innerHTML = 
+    '<div class="skeleton-card">' +
+        '<h3 style="color: #667eea; margin-bottom: 30px;">Loading statistics...</h3>' +
+        '<div class="stats-grid">' +
+            '<div class="skeleton-stat-card">' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 70%; margin-bottom: 10px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
+            '</div>' +
+            '<div class="skeleton-stat-card">' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 70%; margin-bottom: 10px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
+            '</div>' +
+            '<div class="skeleton-stat-card">' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 70%; margin-bottom: 10px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
+            '</div>' +
+            '<div class="skeleton-stat-card">' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 70%; margin-bottom: 10px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
+            '</div>' +
+            '<div class="skeleton-stat-card">' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 70%; margin-bottom: 10px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
+            '</div>' +
+            '<div class="skeleton-stat-card">' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 70%; margin-bottom: 10px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
             await ensurePlayersLoaded();
             
             const sessionsWithHands = await apiCall('getSessionsWithHands', {});
@@ -3592,7 +3716,25 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
         
         async function showHeadToHeadList() {
             const contentDiv = document.getElementById('statsContent');
-            contentDiv.innerHTML = '<div class="loading">Loading head-to-head records...</div>';
+contentDiv.innerHTML = 
+    '<div class="skeleton-card">' +
+        '<h3 style="color: #667eea; margin-bottom: 20px;">Loading head-to-head records...</h3>' +
+        '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 10px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 100%; height: 8px; margin-bottom: 8px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-button" style="height: 40px;"></div>' +
+        '</div>' +
+        '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 10px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 100%; height: 8px; margin-bottom: 8px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-button" style="height: 40px;"></div>' +
+        '</div>' +
+        '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 10px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 100%; height: 8px; margin-bottom: 8px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-button" style="height: 40px;"></div>' +
+        '</div>' +
+    '</div>';
             
             await ensurePlayersLoaded();
             
@@ -3741,7 +3883,37 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
                 return;
             }
             
-            contentDiv.innerHTML = '<div class="loading">Loading comparison...</div>';
+contentDiv.innerHTML = 
+    '<div class="skeleton-card">' +
+        '<h3 style="color: #667eea; margin-bottom: 30px; text-align: center;">Loading player comparison...</h3>' +
+        '<div style="overflow-x: auto;">' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
             showScreen('statsScreen');
             
             const data = await apiCall('getPlayerComparisonDetailed', {
