@@ -3846,37 +3846,42 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
             html += '</div>';
             
             // ✅ FIX: Add clickable session history with hyperlinks
-            if (data.sessions_together.length > 0) {
-                html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #9c27b0;">';
-                
-                html += '<h3 style="color: #9c27b0; margin-bottom: 20px;">📅 Session History</h3>';
-                html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">Sessions where both players competed (click to view details)</p>';
-                
-                for (let i = data.sessions_together.length - 1; i >= 0; i--) {
-                    const s = data.sessions_together[i];
-                    const winner = s.p1_won && !s.p2_won ? p1Name : s.p2_won && !s.p1_won ? p2Name : 'Tie';
-                    const winnerColor = s.p1_won && !s.p2_won ? '#667eea' : s.p2_won && !s.p1_won ? '#f5576c' : '#ff9800';
-                    
-                    html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px; margin-bottom: 10px; cursor: pointer; transition: background 0.2s;" onclick="viewSessionDetailFromComparison(' + s.session_id + ', this)" onmouseover="this.style.background=\'#f8f9fa\'" onmouseout="this.style.background=\'white\'">';
-                    html += '<div style="flex: 1;">';
-                    html += '<div style="font-weight: 600; color: #333;">' + s.title + ' 🔗</div>';
-                    var dateObj = new Date(s.date);
-                    var cleanDate = (dateObj.getMonth() + 1) + '/' + dateObj.getDate() + '/' + dateObj.getFullYear();
-                    var dateObj = new Date(s.date);
-                    var month = String(dateObj.getMonth() + 1).padStart(2, '0');
-                    var day = String(dateObj.getDate()).padStart(2, '0');
-                    var year = dateObj.getFullYear();
-                    var cleanDate = month + '/' + day + '/' + year;
-                    html += '<div style="font-size: 0.85em; color: #666;">' + cleanDate + ' • ' + s.player_count + ' players</div>';
-                    html += '<div style="text-align: right;">';
-                    html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1.1em;">' + winner + '</div>';
-                    html += '<div style="font-size: 0.85em; color: #666;">' + p1Name + ' ' + s.p1_score + ' | ' + p2Name + ' ' + s.p2_score + '</div>';
-                    html += '</div>';
-                    html += '</div>';
-                }
-                
-                html += '</div>';
-            }
+if (data.sessions_together.length > 0) {
+    html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 4px solid #9c27b0;">';
+    
+    html += '<h3 style="color: #9c27b0; margin-bottom: 20px;">📅 Session History</h3>';
+    html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">Sessions where both players competed (click to view details)</p>';
+    
+    for (let i = data.sessions_together.length - 1; i >= 0; i--) {
+        const s = data.sessions_together[i];
+        const winner = s.p1_won && !s.p2_won ? p1Name : s.p2_won && !s.p1_won ? p2Name : 'Tie';
+        const winnerColor = s.p1_won && !s.p2_won ? '#667eea' : s.p2_won && !s.p1_won ? '#f5576c' : '#ff9800';
+        
+        var dateObj = new Date(s.date);
+        var month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        var day = String(dateObj.getDate()).padStart(2, '0');
+        var year = dateObj.getFullYear();
+        var cleanDate = month + '/' + day + '/' + year;
+        
+        html += '<div style="padding: 15px; background: white; border-radius: 8px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; border: 1px solid #e0e0e0;" onclick="viewSessionDetailFromComparison(' + s.session_id + ', this)" onmouseover="this.style.background=\'#f8f9fa\'; this.style.borderColor=\'#9c27b0\';" onmouseout="this.style.background=\'white\'; this.style.borderColor=\'#e0e0e0\';">';
+        
+        html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
+        html += '<div style="font-weight: 600; color: #333; font-size: 1.05em;">' + s.title + ' 🔗</div>';
+        html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1em; padding: 4px 12px; background: ' + winnerColor + '20; border-radius: 12px;">' + winner + '</div>';
+        html += '</div>';
+        
+        html += '<div style="font-size: 0.85em; color: #666; margin-bottom: 8px;">' + cleanDate + ' • ' + s.player_count + ' players</div>';
+        
+        html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px;">';
+        html += '<div style="font-size: 0.9em;"><strong style="color: #667eea;">' + p1Name + ':</strong> ' + s.p1_score + ' pts</div>';
+        html += '<div style="font-size: 0.9em;"><strong style="color: #f5576c;">' + p2Name + ':</strong> ' + s.p2_score + ' pts</div>';
+        html += '</div>';
+        
+        html += '</div>';
+    }
+    
+    html += '</div>';
+}
             
             contentDiv.innerHTML = html;
         }
