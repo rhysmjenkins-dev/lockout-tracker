@@ -2972,7 +2972,7 @@ contentDiv.innerHTML =
                 return;
             }
             
-            let html = '<ul class="session-list">';
+let html = '<div style="max-height: 600px; overflow-y: auto; padding-right: 5px;"><ul class="session-list">';
 for (let i = 0; i < completedSessions.length; i++) {
     const session = completedSessions[i].session;
     const hands = completedSessions[i].hands;
@@ -3046,8 +3046,8 @@ for (let i = 0; i < completedSessions.length; i++) {
     html += '</li>';
 }
 
-            html += '</ul>';
-            contentDiv.innerHTML = html;
+html += '</ul></div>';
+contentDiv.innerHTML = html;
         }
 
 async function viewSessionDetail(sessionIndex, buttonElement) {
