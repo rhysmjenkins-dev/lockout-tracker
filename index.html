@@ -2743,7 +2743,7 @@ document.getElementById('handHistoryList').innerHTML =
             const avgScorePerHand = handsData.reduce((sum, h) => sum + Number(h.score), 0) / handsData.length;
             const overallAvgLockout = totalLockouts > 0 ? (totalLockoutScore / totalLockouts).toFixed(2) : 'N/A';
             
-let html = '<h3>Final Scores</h3>';
+let html = '<h3>Scores</h3>';
 html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 10px;">💡 Click column headers to sort</p>';
 html += '<div style="overflow-x: auto;">';
 html += '<table class="scores-table" id="activeSessionTable">';
