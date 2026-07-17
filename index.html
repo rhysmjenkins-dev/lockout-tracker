@@ -1697,7 +1697,13 @@ function showScreen(screenId, skipHistory) {
         // SESSION MANAGEMENT
         // ============================================
 async function checkActiveSessions() {
-    document.getElementById('activeSessionsSection').innerHTML = '<div class="loading">Loading active sessions...</div>';
+document.getElementById('activeSessionsSection').innerHTML = 
+    '<div class="skeleton-card">' +
+        '<div class="shimmer-wrapper skeleton-text large" style="width: 60%;"></div>' +
+        '<div class="shimmer-wrapper skeleton-text" style="width: 80%; margin-top: 15px;"></div>' +
+        '<div class="shimmer-wrapper skeleton-text" style="width: 70%;"></div>' +
+        '<div class="shimmer-wrapper skeleton-button" style="margin-top: 15px;"></div>' +
+    '</div>';
     const sessionsData = await apiCall('getSessions', {});
     if (sessionsData.error) {
         document.getElementById('activeSessionsSection').innerHTML = '<p style="color: #c33;">Error loading sessions</p>';
