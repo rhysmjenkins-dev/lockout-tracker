@@ -2820,18 +2820,79 @@ async function saveEditedHand() {
             }
             
             let html = '<ul class="session-list">';
-            for (let i = 0; i < completedSessions.length; i++) {
-                const session = completedSessions[i].session;
-                    var dateObj = new Date(session.date_started);
-                    var month = String(dateObj.getMonth() + 1).padStart(2, '0');
-                    var day = String(dateObj.getDate()).padStart(2, '0');
-                    var year = dateObj.getFullYear();
-                    var cleanDate = month + '/' + day + '/' + year;
-                    html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
-                    html += '<div class="session-item-header">' + session.title + '</div>';
-                    html += '<div class="session-item-info">Date: ' + cleanDate + '</div>';
-                    html += '</li>';
+for (let i = 0; i < completedSessions.length; i++) {
+    const session = completedSessions[i].session;
+    const hands = completedSessions[i].hands;
+    
+    var dateObj = new Date(session.date_started);
+    var month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    var day = String(dateObj.getDate()).padStart(2, '0');
+    var year = dateObj.getFullYear();
+    var cleanDate = month + '/' + day + '/' + year;
+    
+    var playerIds = session.players_involved.split(',');
+    var playerTotals = {};
+    var handCount = 0;
+    
+    var joinInfo = {};
+    try {
+        if (session.player_join_info && session.player_join_info !== '' && session.player_join_info !== '{}') {
+            var parsed = JSON.parse(session.player_join_info);
+            for (var pid in parsed) {
+                if (parsed[pid] && parsed[pid].starting_score !== undefined) {
+                    joinInfo[pid] = parsed[pid].starting_score;
+                }
             }
+        }
+    } catch(e) {}
+    
+    for (var p = 0; p < playerIds.length; p++) {
+        var pid = String(playerIds[p].trim());
+        playerTotals[pid] = joinInfo[pid] || 0;
+    }
+    
+    var handNumbers = new Set();
+    for (var h = 0; h < hands.length; h++) {
+        var hand = hands[h];
+        handNumbers.add(hand.hand_number);
+        if (playerTotals[hand.player_id] !== undefined) {
+            playerTotals[hand.player_id] += Number(hand.score);
+        }
+    }
+    handCount = handNumbers.size;
+    
+    var lowestScore = Infinity;
+    var winnerId = null;
+    for (var pid in playerTotals) {
+        if (playerTotals[pid] < lowestScore) {
+            lowestScore = playerTotals[pid];
+            winnerId = pid;
+        }
+    }
+    
+    var winnerName = winnerId ? getPlayerName(winnerId) : 'Unknown';
+    
+    html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
+    html += '<div class="session-item-header">' + session.title + '</div>';
+    html += '<div class="session-item-info" style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">';
+    html += '<div>📅 ' + cleanDate + ' • ' + handCount + ' hands • ' + playerIds.length + ' players</div>';
+    html += '<div style="color: #4caf50; font-weight: 600;">🏆 ' + winnerName + ' (' + lowestScore + ' pts)</div>';
+    
+    if (session.tags && session.tags !== '') {
+        var tagsArray = session.tags.split(',').filter(function(t) { return t.trim(); });
+        if (tagsArray.length > 0) {
+            html += '<div style="margin-top: 4px;">';
+            for (var t = 0; t < tagsArray.length; t++) {
+                html += '<span class="tag-badge" style="font-size: 0.75em; padding: 2px 8px;">' + tagsArray[t] + '</span>';
+            }
+            html += '</div>';
+        }
+    }
+    
+    html += '</div>';
+    html += '</li>';
+}
+
             html += '</ul>';
             contentDiv.innerHTML = html;
         }
