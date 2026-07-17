@@ -1699,11 +1699,7 @@ html += '<div><strong style="font-size: 1.2em; color: #667eea;">🎮 ' + session
 html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ', this)" style="margin: 0; flex-shrink: 0; padding: 10px 20px;">Resume</button>';
 html += '</div>';
 
-html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px;">';
-html += '<div style="background: #f8f9fa; padding: 10px; border-radius: 6px; font-size: 0.85em;">';
-html += '<div style="color: #999; font-size: 0.75em; margin-bottom: 3px;">⏱️ DURATION</div>';
-html += '<div style="color: #333; font-weight: 600;">' + timeStr + '</div>';
-html += '</div>';
+html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">';
 html += '<div style="background: #f8f9fa; padding: 10px; border-radius: 6px; font-size: 0.85em;">';
 html += '<div style="color: #999; font-size: 0.75em; margin-bottom: 3px;">🎴 HAND</div>';
 html += '<div style="color: #333; font-weight: 600;">' + handCount + '</div>';
@@ -1721,31 +1717,12 @@ if (leaderId) {
     html += '</div>';
 }
 
-var hasStats = false;
-var statsHtml = '<div style="display: flex; flex-direction: column; gap: 6px;">';
-
-for (let pid in playerFalseLockouts) {
-    if (playerFalseLockouts[pid] > 0) {
-        hasStats = true;
-        statsHtml += '<div style="background: #ffebee; padding: 8px 12px; border-radius: 6px; font-size: 0.85em; color: #c62828; border-left: 3px solid #f44336;">';
-        statsHtml += '⚠️ <strong>' + getPlayerName(pid) + ':</strong> ' + playerFalseLockouts[pid] + ' false lockout' + (playerFalseLockouts[pid] > 1 ? 's' : '');
-        statsHtml += '</div>';
-    }
-}
-
 for (let pid in playerLockouts) {
     if (playerLockouts[pid] >= 2) {
-        hasStats = true;
-        statsHtml += '<div style="background: #fff3e0; padding: 8px 12px; border-radius: 6px; font-size: 0.85em; color: #e65100; border-left: 3px solid #ff9800;">';
-        statsHtml += '🔥 <strong>' + getPlayerName(pid) + ':</strong> ' + playerLockouts[pid] + ' lockout streak';
-        statsHtml += '</div>';
+        html += '<div style="background: #fff3e0; padding: 8px 12px; border-radius: 6px; font-size: 0.85em; color: #e65100; border-left: 3px solid #ff9800; margin-top: 8px;">';
+        html += '🔥 <strong>' + getPlayerName(pid) + ':</strong> ' + playerLockouts[pid] + ' lockout streak';
+        html += '</div>';
     }
-}
-
-statsHtml += '</div>';
-
-if (hasStats) {
-    html += statsHtml;
 }
 
 html += '</div>';
