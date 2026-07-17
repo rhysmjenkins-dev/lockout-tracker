@@ -160,6 +160,77 @@
             input, select, textarea { min-height: 48px; font-size: 16px; }
             .session-item { min-height: 72px; }
         }
+/* ============================================
+   LOADING SHIMMERS / SKELETONS
+   ============================================ */
+.shimmer-wrapper {
+    animation: shimmer 1.5s infinite;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.skeleton-text {
+    height: 16px;
+    border-radius: 4px;
+    margin: 8px 0;
+}
+
+.skeleton-text.large { height: 24px; }
+.skeleton-text.small { height: 12px; }
+
+.skeleton-card {
+    background: #f8f9fa;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px;
+}
+
+.skeleton-session-item {
+    padding: 15px;
+    margin: 10px 0;
+    background: #f8f9fa;
+    border-radius: 8px;
+    min-height: 64px;
+}
+
+.skeleton-table-row {
+    display: flex;
+    gap: 10px;
+    padding: 12px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.skeleton-table-cell {
+    height: 20px;
+    border-radius: 4px;
+    flex: 1;
+}
+
+.skeleton-button {
+    height: 48px;
+    border-radius: 10px;
+    margin: 10px 0;
+}
+
+.skeleton-stat-card {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #e0e0e0;
+}
+
+.skeleton-stat-value {
+    height: 40px;
+    width: 60%;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+    
     </style>
 </head>
 <body>
