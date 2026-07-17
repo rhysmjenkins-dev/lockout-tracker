@@ -3077,9 +3077,8 @@ document.getElementById('sessionDetailContent').innerHTML =
 
 let handsData;
 
-    let handsData;
-
 handsData = await apiCall('getHands', { session_id: session.session_id });
+
 if (handsData.error) {
     alert('Error loading session details');
     if (buttonElement) {
