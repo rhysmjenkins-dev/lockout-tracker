@@ -90,7 +90,7 @@
         .success { background: #efe; color: #3c3; padding: 15px; border-radius: 8px; margin: 15px 0; }
         .nav-buttons { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
         .nav-buttons .btn { flex: 1; min-width: 140px; }
-        .active-session-box { background: #e8f5e9; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #4caf50; }
+.active-session-box { background: #e8f5e9; padding: 15px; border-radius: 8px; margin-bottom: 15px; margin-top: 20px; border-left: 4px solid #4caf50; }
         .active-session-box h3 { color: #2e7d32; margin-bottom: 10px; }
         .active-session-item { background: white; padding: 10px; border-radius: 5px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .placeholder-content { text-align: center; padding: 40px 20px; color: #666; }
@@ -1699,6 +1699,7 @@ function showScreen(screenId, skipHistory) {
 async function checkActiveSessions() {
 document.getElementById('activeSessionsSection').innerHTML = 
     '<div class="skeleton-card">' +
+        '<h3 style="color: #667eea; margin-bottom: 15px;">Loading active sessions...</h3>' +
         '<div class="shimmer-wrapper skeleton-text large" style="width: 60%;"></div>' +
         '<div class="shimmer-wrapper skeleton-text" style="width: 80%; margin-top: 15px;"></div>' +
         '<div class="shimmer-wrapper skeleton-text" style="width: 70%;"></div>' +
@@ -1771,13 +1772,13 @@ if (activeSessions.length > 0) {
             const minutes = Math.floor((elapsed % 3600000) / 60000);
             const timeStr = hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'm';
             
-html += '<div class="active-session-item" style="background: white; padding: 20px; border-radius: 12px; margin: 15px 0; border: 2px solid #e8e9ff; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);">';
-html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; gap: 15px; padding-bottom: 12px; border-bottom: 2px solid #f0f0f0;">';
-html += '<div><strong style="font-size: 1.2em; color: #667eea;">🎮 ' + session.title + '</strong></div>';
-html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ', this)" style="margin: 0; flex-shrink: 0; padding: 10px 20px;">Resume</button>';
+html += '<div class="active-session-item" style="background: white; padding: 20px; border-radius: 12px; margin: 12px 0; border: 2px solid #e8e9ff; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);">';
+html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 15px; padding-bottom: 12px; border-bottom: 2px solid #f0f0f0;">';
+html += '<div style="flex: 1;"><strong style="font-size: 1.15em; color: #667eea;">🎮 ' + session.title + '</strong></div>';
+html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ', this)" style="margin: 0; flex-shrink: 0; padding: 8px 16px; font-size: 0.9em;">Resume</button>';
 html += '</div>';
 
-html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">';
+html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">';
 html += '<div style="background: #f8f9fa; padding: 10px; border-radius: 6px; font-size: 0.85em;">';
 html += '<div style="color: #999; font-size: 0.75em; margin-bottom: 3px;">🎴 HAND</div>';
 html += '<div style="color: #333; font-weight: 600;">' + handCount + '</div>';
