@@ -1,5 +1,3 @@
-
-    <script>
         // ============================================
         // CONFIGURATION & STATE
         // ============================================
@@ -3141,6 +3139,3 @@ function sortActiveSessionTable(columnIndex) {
     
     hapticFeedback('light');
 }
-
-    </script>
-</body>
