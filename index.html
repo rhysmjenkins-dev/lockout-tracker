@@ -1479,65 +1479,65 @@ function showScreen(screenId, skipHistory) {
         // ============================================
         // SESSION MANAGEMENT
         // ============================================
+        
 async function checkActiveSessions() {
-document.getElementById('activeSessionsSection').innerHTML = 
-    '<div class="skeleton-card">' +
-        '<h3 class="section-heading-blue">Loading active sessions...</h3>' +
-        '<div class="shimmer-wrapper skeleton-text large" style="width: 60%;"></div>' +
-        '<div class="shimmer-wrapper skeleton-text" style="width: 80%; margin-top: 15px;"></div>' +
-        '<div class="shimmer-wrapper skeleton-text" style="width: 70%;"></div>' +
-        '<div class="shimmer-wrapper skeleton-button" style="margin-top: 15px;"></div>' +
-    '</div>';
-    const sessionsData = await apiCall('getSessions', {});
-    if (sessionsData.error) {
+    document.getElementById('activeSessionsSection').innerHTML = 
+        '<div class="skeleton-card">' +
+            '<h3 class="section-heading-blue">Loading active sessions...</h3>' +
+            '<div class="shimmer-wrapper skeleton-text large" style="width: 60%;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 80%; margin-top: 15px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 70%;"></div>' +
+            '<div class="shimmer-wrapper skeleton-button" style="margin-top: 15px;"></div>' +
+        '</div>';
+
+    const sessionsWithHands = await apiCall('getSessionsWithHands', {});
+
+    if (sessionsWithHands.error) {
         document.getElementById('activeSessionsSection').innerHTML = '<p style="color: #c33;">Error loading sessions</p>';
         return;
     }
-    const activeSessions = sessionsData.filter(s => {
-        const dateEnded = s.date_ended;
+
+    const activeSessions = sessionsWithHands.filter(item => {
+        const dateEnded = item.session.date_ended;
         return !dateEnded || dateEnded === '' || dateEnded.toString().trim() === '';
     });
-    
-if (activeSessions.length > 0) {
-    let html = '<div class="active-session-box">';
-    html += '<h3>Active Sessions</h3>';
-    html += '<div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">';
-        
+
+    if (activeSessions.length > 0) {
+        let html = '<div class="active-session-box">';
+        html += '<h3>Active Sessions</h3>';
+        html += '<div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">';
+
         for (let i = 0; i < activeSessions.length; i++) {
-            const session = activeSessions[i];
-            const handsData = await apiCall('getHands', { session_id: session.session_id });
-            const handCount = handsData.error ? 0 : (handsData.length > 0 ? Math.max(...handsData.map(h => h.hand_number)) : 0);
-            
-            // Calculate stats
+            const session = activeSessions[i].session;
+            const handsData = activeSessions[i].hands;
+            const handCount = handsData.length > 0 ? Math.max(...handsData.map(h => h.hand_number)) : 0;
+
             const playerIds = session.players_involved.split(',');
             const playerScores = {};
             const playerLockouts = {};
             const playerFalseLockouts = {};
-            
+
             for (let p = 0; p < playerIds.length; p++) {
                 const pid = playerIds[p];
                 playerScores[pid] = 0;
                 playerLockouts[pid] = 0;
                 playerFalseLockouts[pid] = 0;
             }
-            
-            if (!handsData.error) {
-                for (let h = 0; h < handsData.length; h++) {
-                    const hand = handsData[h];
-                    if (playerScores[hand.player_id] !== undefined) {
-                        playerScores[hand.player_id] += Number(hand.score);
-                    }
-                    if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
-                        if (hand.false_lockout == 1 || hand.false_lockout === true) {
-                            playerFalseLockouts[hand.player_id]++;
-                        } else {
-                            playerLockouts[hand.player_id]++;
-                        }
+
+            for (let h = 0; h < handsData.length; h++) {
+                const hand = handsData[h];
+                if (playerScores[hand.player_id] !== undefined) {
+                    playerScores[hand.player_id] += Number(hand.score);
+                }
+                if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+                    if (hand.false_lockout == 1 || hand.false_lockout === true) {
+                        playerFalseLockouts[hand.player_id]++;
+                    } else {
+                        playerLockouts[hand.player_id]++;
                     }
                 }
             }
-            
-            // Find leader
+
             let leaderId = null;
             let lowestScore = Infinity;
             for (let pid in playerScores) {
@@ -1546,57 +1546,49 @@ if (activeSessions.length > 0) {
                     leaderId = pid;
                 }
             }
-            
-            // Calculate elapsed time
-            const startTime = new Date(session.date_started);
-            const now = new Date();
-            const elapsed = now - startTime;
-            const hours = Math.floor(elapsed / 3600000);
-            const minutes = Math.floor((elapsed % 3600000) / 60000);
-            const timeStr = hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'm';
-            
-html += '<div class="active-session-item" style="background: white; padding: 20px; border-radius: 12px; margin: 12px 0; border: 2px solid #e8e9ff; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);">';
-html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 15px; padding-bottom: 12px; border-bottom: 2px solid #f0f0f0;">';
-html += '<div style="flex: 1;"><strong style="font-size: 1.15em; color: #667eea;">🎮 ' + session.title + '</strong></div>';
-html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ', this)" style="margin: 0; flex-shrink: 0; padding: 8px 16px; font-size: 0.9em;">Resume</button>';
-html += '</div>';
 
-html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">';
-html += '<div style="background: #f8f9fa; padding: 10px; border-radius: 6px; font-size: 0.85em;">';
-html += '<div style="color: #999; font-size: 0.75em; margin-bottom: 3px;">🎴 HAND</div>';
-html += '<div style="color: #333; font-weight: 600;">' + handCount + '</div>';
-html += '</div>';
-html += '<div style="background: #f8f9fa; padding: 10px; border-radius: 6px; font-size: 0.85em;">';
-html += '<div style="color: #999; font-size: 0.75em; margin-bottom: 3px;">👥 PLAYERS</div>';
-html += '<div style="color: #333; font-weight: 600;">' + playerIds.length + '</div>';
-html += '</div>';
-html += '</div>';
+            html += '<div class="active-session-item" style="background: white; padding: 20px; border-radius: 12px; margin: 12px 0; border: 2px solid #e8e9ff; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);">';
+            html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 15px; padding-bottom: 12px; border-bottom: 2px solid #f0f0f0;">';
+            html += '<div style="flex: 1;"><strong style="font-size: 1.15em; color: #667eea;">🎮 ' + session.title + '</strong></div>';
+            html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ', this)" style="margin: 0; flex-shrink: 0; padding: 8px 16px; font-size: 0.9em;">Resume</button>';
+            html += '</div>';
 
-if (leaderId) {
-    html += '<div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #4caf50;">';
-    html += '<div style="font-size: 0.85em; color: #2e7d32; font-weight: 600;">🏆 ' + getPlayerName(leaderId) + ' leading</div>';
-    html += '<div style="font-size: 0.9em; color: #1b5e20; font-weight: bold; margin-top: 3px;">' + playerScores[leaderId] + ' points</div>';
-    html += '</div>';
-}
+            html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">';
+            html += '<div style="background: #f8f9fa; padding: 10px; border-radius: 6px; font-size: 0.85em;">';
+            html += '<div style="color: #999; font-size: 0.75em; margin-bottom: 3px;">🎴 HAND</div>';
+            html += '<div style="color: #333; font-weight: 600;">' + handCount + '</div>';
+            html += '</div>';
+            html += '<div style="background: #f8f9fa; padding: 10px; border-radius: 6px; font-size: 0.85em;">';
+            html += '<div style="color: #999; font-size: 0.75em; margin-bottom: 3px;">👥 PLAYERS</div>';
+            html += '<div style="color: #333; font-weight: 600;">' + playerIds.length + '</div>';
+            html += '</div>';
+            html += '</div>';
 
-for (let pid in playerLockouts) {
-    if (playerLockouts[pid] >= 2) {
-        html += '<div style="background: #fff3e0; padding: 8px 12px; border-radius: 6px; font-size: 0.85em; color: #e65100; border-left: 3px solid #ff9800; margin-top: 8px;">';
-        html += '🔥 <strong>' + getPlayerName(pid) + ':</strong> ' + playerLockouts[pid] + ' lockout streak';
-        html += '</div>';
-    }
-}
+            if (leaderId) {
+                html += '<div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #4caf50;">';
+                html += '<div style="font-size: 0.85em; color: #2e7d32; font-weight: 600;">🏆 ' + getPlayerName(leaderId) + ' leading</div>';
+                html += '<div style="font-size: 0.9em; color: #1b5e20; font-weight: bold; margin-top: 3px;">' + playerScores[leaderId] + ' points</div>';
+                html += '</div>';
+            }
+
+            for (let pid in playerLockouts) {
+                if (playerLockouts[pid] >= 2) {
+                    html += '<div style="background: #fff3e0; padding: 8px 12px; border-radius: 6px; font-size: 0.85em; color: #e65100; border-left: 3px solid #ff9800; margin-top: 8px;">';
+                    html += '🔥 <strong>' + getPlayerName(pid) + ':</strong> ' + playerLockouts[pid] + ' lockout streak';
+                    html += '</div>';
+                }
+            }
 
             html += '</div>';
         }
-        html += '</div>'; // Close scrollable container
-        html += '</div>'; // Close active-session-box
+
+        html += '</div>';
+        html += '</div>';
         document.getElementById('activeSessionsSection').innerHTML = html;
     } else {
         document.getElementById('activeSessionsSection').innerHTML = '';
     }
 }
-
 
         async function createSession() {
             const title = document.getElementById('sessionTitle').value.trim();
