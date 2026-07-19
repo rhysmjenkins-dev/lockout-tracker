@@ -594,3 +594,43 @@
 #glossarySection .section-box {
     margin-top: 10px;
 }
+
+/* === BATCH 0 ADDITIONS === */
+
+.heading-blue-sm {
+    color: #667eea;
+    margin: 0 0 5px 0;
+    font-size: 1em;
+}
+
+.section-box-lightblue {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border-left: 4px solid #4facfe;
+}
+
+.p-question {
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.p-answer {
+    margin: 0;
+}
+
+.lockout-box-translucent {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.lockout-box-white {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    color: #333;
+}
