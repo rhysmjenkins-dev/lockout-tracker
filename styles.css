@@ -36,3 +36,39 @@
 .banner-center {
     text-align: center;
 }
+
+/* === SECTION BOXES === */
+.section-box {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.section-box-blue {
+    border-left: 4px solid #667eea;
+}
+
+.section-box-green {
+    border-left: 4px solid #4caf50;
+}
+
+.section-box-red {
+    border-left: 4px solid #f5576c;
+}
+
+.section-box-purple {
+    border-left: 4px solid #9c27b0;
+}
+
+.section-box-orange {
+    border-left: 4px solid #ff5722;
+}
+
+.section-box-cyan {
+    border-left: 4px solid #00bcd4;
+}
+
+.section-box-yellow {
+    border-left: 4px solid #ffc107;
+}
