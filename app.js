@@ -1,1 +1,3146 @@
 
+    <script>
+        // ============================================
+        // CONFIGURATION & STATE
+        // ============================================
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzcbiMfkq6D6PcySY2O-80NTHHmQplU0xzi1kzQG8OFuAYuw0F-YdI2IONkA3DVOhlH/exec';
+        let currentSession = null;
+        let currentHandNumber = 1;
+        let allPlayers = [];
+        let sessionPlayers = [];
+        let allSessions = [];
+        let currentEditingHand = null;
+        let selectedPlayerToAdd = null;
+        let playersLoaded = false;
+        let playerCache = {};
+        // ============================================
+        // BUTTON LOADING STATE HELPER
+        // ============================================
+        function setButtonLoading(buttonElement, isLoading, originalText) {
+            if (isLoading) {
+                buttonElement.disabled = true;
+                buttonElement.dataset.originalText = buttonElement.textContent;
+                buttonElement.textContent = '⏳ Loading...';
+                buttonElement.style.opacity = '0.6';
+                buttonElement.style.cursor = 'not-allowed';
+            } else {
+                buttonElement.disabled = false;
+                buttonElement.textContent = originalText || buttonElement.dataset.originalText || 'Submit';
+                buttonElement.style.opacity = '1';
+                buttonElement.style.cursor = 'pointer';
+            }
+        }
+
+        // ============================================
+        // API & UTILITY FUNCTIONS
+        // ============================================
+        async function apiCall(action, params) {
+            const url = new URL(API_URL);
+            url.searchParams.append('action', action);
+            for (let key in params) {
+                url.searchParams.append(key, params[key]);
+            }
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                return { error: error.message };
+            }
+        }
+
+        async function ensurePlayersLoaded() {
+            if (playersLoaded) return allPlayers;
+            const data = await apiCall('getPlayers', {});
+            if (data.error) {
+                console.error('Error loading players:', data.error);
+                return [];
+            }
+            allPlayers = data;
+            playersLoaded = true;
+            for (let i = 0; i < data.length; i++) {
+                playerCache[data[i].player_id] = data[i].username;
+            }
+            return allPlayers;
+        }
+
+// ============================================
+// HAPTIC FEEDBACK
+// ============================================
+function hapticFeedback(style) {
+    if ('vibrate' in navigator) {
+        switch(style) {
+            case 'light':
+                navigator.vibrate(10);
+                break;
+            case 'medium':
+                navigator.vibrate(20);
+                break;
+            case 'heavy':
+                navigator.vibrate(50);
+                break;
+            case 'success':
+                navigator.vibrate([10, 50, 10]);
+                break;
+            case 'error':
+                navigator.vibrate([50, 100, 50]);
+                break;
+            default:
+                navigator.vibrate(15);
+        }
+    }
+}
+
+// ============================================
+// CONFETTI CELEBRATION
+// ============================================
+function celebrateWinner(winnerName) {
+    // Confetti burst from center
+    confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+    });
+    
+    // Second burst after delay
+    setTimeout(function() {
+        confetti({
+            particleCount: 50,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 }
+        });
+    }, 250);
+    
+    // Third burst from right
+    setTimeout(function() {
+        confetti({
+            particleCount: 50,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 }
+        });
+    }, 400);
+}
+
+        function getPlayerName(playerId) {
+            if (playerCache[playerId]) {
+                return playerCache[playerId];
+            }
+            for (let i = 0; i < allPlayers.length; i++) {
+                if (allPlayers[i].player_id == playerId) {
+                    return allPlayers[i].username;
+                }
+            }
+            return 'Unknown';
+        }
+
+        function parsePlayerJoinInfo(joinInfoString) {
+            if (!joinInfoString || joinInfoString === '' || joinInfoString === '{}') return {};
+            try {
+                const parsed = JSON.parse(joinInfoString);
+                const result = {};
+                for (let playerId in parsed) {
+                    const value = parsed[playerId];
+                    if (typeof value === 'object' && value.hand !== undefined) {
+                        result[playerId] = value.hand;
+                    } else if (typeof value === 'number') {
+                        result[playerId] = value;
+                    }
+                }
+                return result;
+            } catch(e) {
+                return {};
+            }
+        }
+
+        function getPlayerStartingScore(playerId) {
+            if (!currentSession || !currentSession.player_join_info) return 0;
+            try {
+                const fullInfo = JSON.parse(currentSession.player_join_info);
+                const info = fullInfo[playerId];
+                if (!info) return 0;
+                if (typeof info === 'object' && info.starting_score !== undefined) {
+                    return info.starting_score;
+                }
+            } catch(e) {}
+            return 0;
+        }
+
+        function getPlayerJoinHand(playerId) {
+            if (!currentSession || !currentSession.player_join_info) return 1;
+            const joinInfo = parsePlayerJoinInfo(currentSession.player_join_info);
+            return joinInfo[playerId] || 1;
+        }
+
+        // ============================================
+        // SCREEN NAVIGATION
+        // ============================================
+function showScreen(screenId, skipHistory) {
+    const screens = document.querySelectorAll('.screen');
+    
+    // Fade out current screen
+    const currentScreen = document.querySelector('.screen.active');
+    if (currentScreen) {
+        currentScreen.style.opacity = '0';
+        currentScreen.style.transform = 'translateY(-10px)';
+    }
+    
+    // Wait for fade out, then switch screens
+    setTimeout(function() {
+        for (let i = 0; i < screens.length; i++) {
+            screens[i].classList.remove('active');
+            screens[i].style.opacity = '';
+            screens[i].style.transform = '';
+        }
+        document.getElementById(screenId).classList.add('active');
+        
+        // Scroll to top of new screen
+        window.scrollTo(0, 0);
+    }, 150);
+    
+    // Push to browser history
+    if (!skipHistory) {
+        history.pushState({ screen: screenId }, '', '#' + screenId);
+    }
+    
+    if (screenId === 'startSessionScreen') {
+        setTimeout(function() {
+            loadPlayersForSession();
+        }, 150);
+    }
+}
+
+        // ============================================
+        // PLAYER MANAGEMENT
+        // ============================================
+        async function loadPlayersForSession() {
+            await ensurePlayersLoaded();
+            const hostSelect = document.getElementById('sessionHost');
+            hostSelect.innerHTML = '<option value="">Select host...</option>';
+            for (let i = 0; i < allPlayers.length; i++) {
+                hostSelect.innerHTML += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
+            }
+            const playerList = document.getElementById('playerSelectionList');
+            let html = '<ul class="player-list">';
+            for (let i = 0; i < allPlayers.length; i++) {
+                html += '<li class="player-item"><label><input type="checkbox" value="' + allPlayers[i].player_id + '" class="player-checkbox"> ' + allPlayers[i].username + '</label></li>';
+            }
+            html += '</ul>';
+            playerList.innerHTML = html;
+        }
+
+        async function addPlayer() {
+            const username = document.getElementById('newPlayerName').value.trim();
+            const messageDiv = document.getElementById('addPlayerMessage');
+            
+            if (!username) {
+                messageDiv.innerHTML = '<div class="error">Please enter a player name</div>';
+                return;
+            }
+            
+            const addBtn = event.target;
+            setButtonLoading(addBtn, true);
+            
+            const data = await apiCall('addPlayer', { username: username, editor_name: username });
+            
+            if (data.error) {
+                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                setButtonLoading(addBtn, false);
+            } else {
+                messageDiv.innerHTML = '<div class="success">Player added!</div>';
+                document.getElementById('newPlayerName').value = '';
+                playersLoaded = false;
+                setTimeout(function() { 
+                    showScreen('homeScreen'); 
+                    setButtonLoading(addBtn, false);
+                }, 1500);
+            }
+        }
+        // ============================================
+        // ADD PLAYER TO ACTIVE SESSION
+        // ============================================
+        async function showAddPlayerModal() {
+            await ensurePlayersLoaded();
+            const currentPlayerIds = sessionPlayers.map(p => String(p.player_id));
+            const availablePlayers = allPlayers.filter(p => currentPlayerIds.indexOf(String(p.player_id)) === -1);
+            if (availablePlayers.length === 0) {
+                alert('All players are already in this session!');
+                return;
+            }
+            const playerList = document.getElementById('addPlayerList');
+            let html = '<ul class="player-list">';
+            for (let i = 0; i < availablePlayers.length; i++) {
+                const player = availablePlayers[i];
+                html += '<li class="player-item">';
+                html += '<label><input type="radio" name="addPlayerRadio" value="' + player.player_id + '" onchange="selectPlayerToAdd(' + player.player_id + ', \'' + player.username + '\')"> ' + player.username + '</label>';
+                html += '</li>';
+            }
+            html += '</ul>';
+            playerList.innerHTML = html;
+            selectedPlayerToAdd = null;
+            document.getElementById('confirmAddPlayerBtn').disabled = true;
+            document.getElementById('addPlayerConfirm').style.display = 'none';
+            document.getElementById('addPlayerMessage').innerHTML = '';
+            document.getElementById('addPlayerModal').classList.add('active');
+        }
+
+        function selectPlayerToAdd(playerId, playerName) {
+            selectedPlayerToAdd = playerId;
+            document.getElementById('confirmAddPlayerBtn').disabled = false;
+            const confirmDiv = document.getElementById('addPlayerConfirm');
+            const confirmText = document.getElementById('addPlayerConfirmText');
+            confirmText.innerHTML = '<strong>' + playerName + '</strong> will join from <strong>Hand ' + currentHandNumber + '</strong> onwards.';
+            confirmDiv.style.display = 'block';
+        }
+
+        async function confirmAddPlayer() {
+            if (!selectedPlayerToAdd) return;
+            const messageDiv = document.getElementById('addPlayerMessage');
+            const addBtn = document.getElementById('confirmAddPlayerBtn');
+            
+            if (addBtn) {
+                setButtonLoading(addBtn, true);
+            }
+            
+            messageDiv.innerHTML = '<div class="loading">Adding player...</div>';
+            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+            const data = await apiCall('addPlayerToSession', {
+                session_id: currentSession.session_id,
+                player_id: selectedPlayerToAdd,
+                join_hand_number: currentHandNumber,
+                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+            });
+            
+            if (data.error) {
+                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                if (addBtn) setButtonLoading(addBtn, false);
+            } else {
+                const startingScore = data.starting_score || 0;
+                messageDiv.innerHTML = '<div class="success">Player added successfully!' + 
+                    (startingScore > 0 ? ' (Starting with ' + startingScore + ' points)' : '') + 
+                    '</div>';
+                currentSession.players_involved = data.players_involved;
+                currentSession.player_join_info = data.player_join_info;
+                const newPlayer = allPlayers.find(p => String(p.player_id) === String(selectedPlayerToAdd));
+                if (newPlayer) {
+                    sessionPlayers.push(newPlayer);
+                }
+                setTimeout(function() {
+                    closeAddPlayerModal();
+                    showActiveSession();
+                    updateSessionScores();
+                    if (addBtn) setButtonLoading(addBtn, false);
+                }, 1500);
+            }
+        }
+        
+        function closeAddPlayerModal() {
+            document.getElementById('addPlayerModal').classList.remove('active');
+            document.getElementById('addPlayerMessage').innerHTML = '';
+            selectedPlayerToAdd = null;
+        }
+
+        // ============================================
+        // SESSION MANAGEMENT
+        // ============================================
+        
+async function checkActiveSessions() {
+    document.getElementById('activeSessionsSection').innerHTML = 
+        '<div class="skeleton-card">' +
+            '<h3 class="section-heading-blue">Loading active sessions...</h3>' +
+            '<div class="shimmer-wrapper skeleton-text large" style="width: 60%;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 80%; margin-top: 15px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 70%;"></div>' +
+            '<div class="shimmer-wrapper skeleton-button" style="margin-top: 15px;"></div>' +
+        '</div>';
+
+    const sessionsWithHands = await apiCall('getSessionsWithHands', {});
+
+    if (sessionsWithHands.error) {
+        document.getElementById('activeSessionsSection').innerHTML = '<p style="color: #c33;">Error loading sessions</p>';
+        return;
+    }
+
+    const activeSessions = sessionsWithHands.filter(item => {
+        const dateEnded = item.session.date_ended;
+        return !dateEnded || dateEnded === '' || dateEnded.toString().trim() === '';
+    });
+
+    if (activeSessions.length > 0) {
+        let html = '<div class="active-session-box">';
+        html += '<h3>Active Sessions</h3>';
+        html += '<div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">';
+
+        for (let i = 0; i < activeSessions.length; i++) {
+            const session = activeSessions[i].session;
+            const handsData = activeSessions[i].hands;
+            const handCount = handsData.length > 0 ? Math.max(...handsData.map(h => h.hand_number)) : 0;
+
+            const playerIds = session.players_involved.split(',');
+            const playerScores = {};
+            const playerLockouts = {};
+            const playerFalseLockouts = {};
+
+            for (let p = 0; p < playerIds.length; p++) {
+                const pid = playerIds[p];
+                playerScores[pid] = 0;
+                playerLockouts[pid] = 0;
+                playerFalseLockouts[pid] = 0;
+            }
+
+            for (let h = 0; h < handsData.length; h++) {
+                const hand = handsData[h];
+                if (playerScores[hand.player_id] !== undefined) {
+                    playerScores[hand.player_id] += Number(hand.score);
+                }
+                if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+                    if (hand.false_lockout == 1 || hand.false_lockout === true) {
+                        playerFalseLockouts[hand.player_id]++;
+                    } else {
+                        playerLockouts[hand.player_id]++;
+                    }
+                }
+            }
+
+            let leaderId = null;
+            let lowestScore = Infinity;
+            for (let pid in playerScores) {
+                if (playerScores[pid] < lowestScore) {
+                    lowestScore = playerScores[pid];
+                    leaderId = pid;
+                }
+            }
+
+            html += '<div class="active-session-item" style="background: white; padding: 20px; border-radius: 12px; margin: 12px 0; border: 2px solid #e8e9ff; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);">';
+            html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 15px; padding-bottom: 12px; border-bottom: 2px solid #f0f0f0;">';
+            html += '<div style="flex: 1;"><strong style="font-size: 1.15em; color: #667eea;">🎮 ' + session.title + '</strong></div>';
+            html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ', this)" style="margin: 0; flex-shrink: 0; padding: 8px 16px; font-size: 0.9em;">Resume</button>';
+            html += '</div>';
+
+            html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">';
+            html += '<div style="background: #f8f9fa; padding: 10px; border-radius: 6px; font-size: 0.85em;">';
+            html += '<div style="color: #999; font-size: 0.75em; margin-bottom: 3px;">🎴 HAND</div>';
+            html += '<div style="color: #333; font-weight: 600;">' + handCount + '</div>';
+            html += '</div>';
+            html += '<div style="background: #f8f9fa; padding: 10px; border-radius: 6px; font-size: 0.85em;">';
+            html += '<div style="color: #999; font-size: 0.75em; margin-bottom: 3px;">👥 PLAYERS</div>';
+            html += '<div style="color: #333; font-weight: 600;">' + playerIds.length + '</div>';
+            html += '</div>';
+            html += '</div>';
+
+            if (leaderId) {
+                html += '<div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #4caf50;">';
+                html += '<div style="font-size: 0.85em; color: #2e7d32; font-weight: 600;">🏆 ' + getPlayerName(leaderId) + ' leading</div>';
+                html += '<div style="font-size: 0.9em; color: #1b5e20; font-weight: bold; margin-top: 3px;">' + playerScores[leaderId] + ' points</div>';
+                html += '</div>';
+            }
+
+            for (let pid in playerLockouts) {
+                if (playerLockouts[pid] >= 2) {
+                    html += '<div style="background: #fff3e0; padding: 8px 12px; border-radius: 6px; font-size: 0.85em; color: #e65100; border-left: 3px solid #ff9800; margin-top: 8px;">';
+                    html += '🔥 <strong>' + getPlayerName(pid) + ':</strong> ' + playerLockouts[pid] + ' lockout streak';
+                    html += '</div>';
+                }
+            }
+
+            html += '</div>';
+        }
+
+        html += '</div>';
+        html += '</div>';
+        document.getElementById('activeSessionsSection').innerHTML = html;
+    } else {
+        document.getElementById('activeSessionsSection').innerHTML = '';
+    }
+}
+
+        async function createSession() {
+            const title = document.getElementById('sessionTitle').value.trim();
+            const hostId = document.getElementById('sessionHost').value;
+            const checkboxes = document.querySelectorAll('.player-checkbox:checked');
+            const selectedPlayers = [];
+            for (let i = 0; i < checkboxes.length; i++) {
+                selectedPlayers.push(checkboxes[i].value);
+            }
+            const notes = document.getElementById('sessionNotes').value.trim();
+            const tagsSelect = document.getElementById('sessionTags');
+            const selectedTags = [];
+            for (let i = 0; i < tagsSelect.options.length; i++) {
+                if (tagsSelect.options[i].selected) {
+                    selectedTags.push(tagsSelect.options[i].value);
+                }
+            }
+            const tags = selectedTags.join(',');
+            const penalty = document.getElementById('falseLockoutPenalty').value.trim();
+            const messageDiv = document.getElementById('sessionMessage');
+            
+            if (!title || !hostId || selectedPlayers.length === 0) {
+                messageDiv.innerHTML = '<div class="error">Please fill all required fields</div>';
+                return;
+            }
+            
+            const createBtn = event.target;
+            setButtonLoading(createBtn, true);
+            
+            const data = await apiCall('createSession', {
+                title: title,
+                host_player_id: hostId,
+                players_involved: selectedPlayers.join(','),
+                notes: notes,
+                tags: tags,
+                false_lockout_penalty: penalty
+            });
+            
+            if (data.error) {
+                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                setButtonLoading(createBtn, false);
+            } else {
+                currentSession = { 
+                    session_id: data.session_id, 
+                    title: title, 
+                    host_player_id: hostId,
+                    notes: notes,
+                    tags: tags,
+                    player_join_info: '{}',
+                    players_involved: selectedPlayers.join(','),
+                    false_lockout_penalty: penalty
+                };
+                sessionPlayers = [];
+                for (let i = 0; i < allPlayers.length; i++) {
+                    if (selectedPlayers.indexOf(String(allPlayers[i].player_id)) !== -1) {
+                        sessionPlayers.push(allPlayers[i]);
+                    }
+                }
+                currentHandNumber = 1;
+                
+                document.getElementById('sessionScores').innerHTML = '';
+                document.getElementById('handHistorySection').style.display = 'none';
+                document.getElementById('activeSessionCharts').innerHTML = '';
+                
+                showActiveSession();
+                setButtonLoading(createBtn, false);
+            }
+        }
+        
+        async function resumeSession(sessionId, buttonElement) {
+            if (buttonElement) {
+                setButtonLoading(buttonElement, true);
+            }
+            
+            const sessionData = await apiCall('getSession', { session_id: sessionId });
+            if (sessionData.error) {
+                alert('Error loading session: ' + sessionData.error);
+                if (buttonElement) setButtonLoading(buttonElement, false);
+                return;
+            }
+            
+            await ensurePlayersLoaded();
+            const playerIds = sessionData.players_involved.split(',');
+            sessionPlayers = [];
+            for (let i = 0; i < playerIds.length; i++) {
+                const player = allPlayers.find(p => String(p.player_id) === String(playerIds[i]));
+                if (player) sessionPlayers.push(player);
+            }
+            
+            currentSession = {
+                session_id: sessionData.session_id,
+                title: sessionData.title,
+                host_player_id: sessionData.host_player_id,
+                notes: sessionData.notes || '',
+                tags: sessionData.tags || '',
+                player_join_info: sessionData.player_join_info || '{}',
+                players_involved: sessionData.players_involved,
+                false_lockout_penalty: sessionData.false_lockout_penalty || 10
+            };
+            
+            const handsData = await apiCall('getHands', { session_id: sessionId });
+            if (handsData.error || handsData.length === 0) {
+                currentHandNumber = 1;
+            } else {
+                currentHandNumber = Math.max(...handsData.map(h => h.hand_number)) + 1;
+            }
+            
+            showActiveSession();
+            updateSessionScores();
+            
+            if (buttonElement) setButtonLoading(buttonElement, false);
+        }
+
+        function showActiveSession() {
+            document.getElementById('activeSessionTitle').textContent = currentSession.title;
+            let playerNames = sessionPlayers.map(p => {
+                const joinHand = getPlayerJoinHand(p.player_id);
+                if (joinHand > 1) {
+                    return p.username + ' <span class="late-join-badge">Joined H' + joinHand + '</span>';
+                }
+                return p.username;
+            }).join(', ');
+            document.getElementById('activeSessionInfo').innerHTML = 
+                '<p><strong>Session ID:</strong> ' + currentSession.session_id + '</p>' +
+                '<p><strong>Players:</strong> ' + playerNames + '</p>';
+            displaySessionMetadata('activeSessionMetadata');
+            setupHandInputs();
+            
+            document.getElementById('sessionScores').innerHTML = '';
+            document.getElementById('handHistorySection').style.display = 'none';
+            document.getElementById('activeSessionCharts').innerHTML = '';
+            
+            updateSessionScores();
+            
+            showScreen('activeSessionScreen');
+        }
+
+        function displaySessionMetadata(containerId) {
+            const container = document.getElementById(containerId);
+            if (!currentSession) return;
+            let html = '';
+            if (currentSession.notes || currentSession.tags) {
+                html += '<div class="session-metadata">';
+                if (currentSession.notes) {
+                    html += '<p><strong>📝 Notes:</strong> ' + currentSession.notes + '</p>';
+                }
+                if (currentSession.tags) {
+                    const tagsArray = currentSession.tags.split(',').filter(t => t.trim());
+                    if (tagsArray.length > 0) {
+                        html += '<p><strong>🏷️ Tags:</strong> ';
+                        for (let i = 0; i < tagsArray.length; i++) {
+                            html += '<span class="tag-badge">' + tagsArray[i] + '</span>';
+                        }
+                        html += '</p>';
+                    }
+                }
+                html += '</div>';
+            }
+            container.innerHTML = html;
+        }
+
+        function showEditSessionModal() {
+            document.getElementById('editSessionNotes').value = currentSession.notes || '';
+            const tagsSelect = document.getElementById('editSessionTags');
+            const currentTags = (currentSession.tags || '').split(',').filter(t => t.trim());
+            for (let i = 0; i < tagsSelect.options.length; i++) {
+                tagsSelect.options[i].selected = currentTags.indexOf(tagsSelect.options[i].value) !== -1;
+            }
+            document.getElementById('editSessionModal').classList.add('active');
+        }
+
+        async function saveEditedSession() {
+            const notes = document.getElementById('editSessionNotes').value.trim();
+            const tagsSelect = document.getElementById('editSessionTags');
+            const selectedTags = [];
+            for (let i = 0; i < tagsSelect.options.length; i++) {
+                if (tagsSelect.options[i].selected) {
+                    selectedTags.push(tagsSelect.options[i].value);
+                }
+            }
+            const tags = selectedTags.join(',');
+            const saveBtn = event.target;
+            setButtonLoading(saveBtn, true);
+            
+            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+            const data = await apiCall('updateSession', {
+                session_id: currentSession.session_id,
+                notes: notes,
+                tags: tags,
+                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+            });
+            const messageDiv = document.getElementById('editSessionMessage');
+            if (data.error) {
+                messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                setButtonLoading(saveBtn, false);
+            } else {
+                currentSession.notes = notes;
+                currentSession.tags = tags;
+                messageDiv.innerHTML = '<div class="success">Session updated!</div>';
+                displaySessionMetadata('activeSessionMetadata');
+                setTimeout(function() {
+                    closeEditSessionModal();
+                    setButtonLoading(saveBtn, false);
+                }, 1000);
+            }
+        }
+
+        function closeEditSessionModal() {
+            document.getElementById('editSessionModal').classList.remove('active');
+            document.getElementById('editSessionMessage').innerHTML = '';
+        }
+
+async function endSession() {
+    if (!confirm('End this session?')) return;
+    const endBtn = event.target;
+    setButtonLoading(endBtn, true);
+    
+    let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+    const data = await apiCall('closeSession', {
+        session_id: currentSession.session_id,
+        editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+    });
+    
+    if (data.error) {
+        alert('Error: ' + data.error);
+        setButtonLoading(endBtn, false);
+    } else {
+        // Calculate winner before ending
+        const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
+        const playerTotals = {};
+        
+        for (let i = 0; i < sessionPlayers.length; i++) {
+            const player = sessionPlayers[i];
+            const startingScore = getPlayerStartingScore(player.player_id);
+            playerTotals[player.player_id] = {
+                username: player.username,
+                total: startingScore
+            };
+        }
+        
+        for (let i = 0; i < handsData.length; i++) {
+            const hand = handsData[i];
+            if (playerTotals[hand.player_id]) {
+                playerTotals[hand.player_id].total += Number(hand.score);
+            }
+        }
+        
+        const scores = Object.values(playerTotals).sort((a, b) => a.total - b.total);
+        const winner = scores[0];
+        const isTie = scores.length > 1 && scores[1].total === winner.total;
+        
+        const winnerText = isTie ? 'Tie game!' : winner.username + ' wins!';
+        
+        alert('Session ended!\n\n🏆 ' + winnerText + ' (' + winner.total + ' pts)');
+        hapticFeedback('success');
+        
+        // Celebrate!
+        if (!isTie) {
+            celebrateWinner(winner.username);
+        }
+        
+        currentSession = null;
+        showScreen('homeScreen');
+        checkActiveSessions();
+    }
+}
+
+// ============================================
+// HAND INPUT & SUBMISSION
+// ============================================
+function setupHandInputs() {
+    document.getElementById('currentHandNumber').textContent = currentHandNumber;
+    document.getElementById('handMessage').innerHTML = '';
+    document.getElementById('handComment').value = '';
+    document.getElementById('lockoutWarning').style.display = 'none';
+    const handInputs = document.getElementById('handInputs');
+    let html = '';
+    
+    for (let i = 0; i < sessionPlayers.length; i++) {
+        const player = sessionPlayers[i];
+        const joinHand = getPlayerJoinHand(player.player_id);
+        if (joinHand <= currentHandNumber) {
+            html += '<div class="player-hand-row">' +
+                '<label>' + player.username + (joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '') + '</label>' +
+                '<input type="number" id="score_' + player.player_id + '" placeholder="Score" min="-2" oninput="checkLockoutValidity()">' +
+                '<label style="display: flex; align-items: center; gap: 5px; margin: 0;"><input type="radio" name="lockout_player" value="' + player.player_id + '" onchange="checkLockoutValidity()"> Locked Out</label>' +
+                '</div>';
+        }
+    }
+    
+    handInputs.innerHTML = html;
+}
+
+function checkLockoutValidity() {
+    const warningDiv = document.getElementById('lockoutWarning');
+    const lockoutRadio = document.querySelector('input[name="lockout_player"]:checked');
+            
+            if (!lockoutRadio) {
+                warningDiv.style.display = 'none';
+                return;
+            }
+            
+            const lockoutPlayerId = lockoutRadio.value;
+            const scores = [];
+            let allScoresEntered = true;
+            
+            for (let i = 0; i < sessionPlayers.length; i++) {
+                const player = sessionPlayers[i];
+                const joinHand = getPlayerJoinHand(player.player_id);
+                if (joinHand <= currentHandNumber) {
+                    const scoreInput = document.getElementById('score_' + player.player_id);
+                    const scoreVal = scoreInput.value.trim();
+                    if (scoreVal === '') {
+                        allScoresEntered = false;
+                        break;
+                    }
+                    scores.push({ player_id: player.player_id, score: parseFloat(scoreVal) });
+                }
+            }
+            
+            if (!allScoresEntered) {
+                warningDiv.style.display = 'none';
+                return;
+            }
+            
+            const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+            const lowestScore = Math.min(...scores.map(s => s.score));
+            const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
+            const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
+            
+            const isFalseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
+            
+            if (isFalseLockout) {
+                let warningMessage = '<strong>⚠️ Warning:</strong> ';
+                if (lockoutPlayerScore > 5) {
+                    warningMessage += getPlayerName(lockoutPlayerId) + ' has a score of ' + lockoutPlayerScore + ' (max allowed: 5). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+                } else if (lockoutPlayerScore > lowestScore) {
+                    const lowestPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
+                    warningMessage += getPlayerName(lockoutPlayerId) + ' does NOT have the lowest score. ' + lowestPlayers + ' has the lowest (' + lowestScore + '). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+                } else if (playersWithLowestScore.length > 1) {
+                    const tiedPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
+                    warningMessage += getPlayerName(lockoutPlayerId) + ' is TIED for lowest score with ' + tiedPlayers + '. This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+                }
+                warningDiv.innerHTML = warningMessage;
+                warningDiv.style.display = 'block';
+                hapticFeedback('error');
+            } else {
+                warningDiv.style.display = 'none';
+            }
+        }
+
+async function submitHand() {
+    const messageDiv = document.getElementById('handMessage');
+    const submitBtn = event.target;
+    setButtonLoading(submitBtn, true);
+    
+    const scores = [];
+    const lockoutRadio = document.querySelector('input[name="lockout_player"]:checked');
+    
+    if (!lockoutRadio) {
+        messageDiv.innerHTML = '<div class="error">Please select who locked out</div>';
+        setButtonLoading(submitBtn, false);
+        return;
+    }
+    
+    const lockoutPlayerId = lockoutRadio.value;
+    
+    for (let i = 0; i < sessionPlayers.length; i++) {
+        const player = sessionPlayers[i];
+        const joinHand = getPlayerJoinHand(player.player_id);
+        if (joinHand <= currentHandNumber) {
+            const scoreInput = document.getElementById('score_' + player.player_id);
+            const scoreVal = scoreInput.value.trim();
+            if (scoreVal === '') {
+                messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
+                setButtonLoading(submitBtn, false);
+                return;
+            }
+            const scoreNum = parseFloat(scoreVal);
+            if (scoreNum < -2) {
+                messageDiv.innerHTML = '<div class="error">Minimum score is -2 (two Red Kings)</div>';
+                hapticFeedback('error');
+                setButtonLoading(submitBtn, false);
+                return;
+            }
+            scores.push({ player_id: player.player_id, score: scoreNum });
+        }
+    }
+    
+    const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+    const lowestScore = Math.min(...scores.map(s => s.score));
+    const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
+    const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
+    
+    let falseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
+    
+    if (document.getElementById('lockoutWarning').style.display === 'block') {
+        const confirmMsg = 'This will be marked as a FALSE LOCKOUT. Continue?';
+        if (!confirm(confirmMsg)) {
+            setButtonLoading(submitBtn, false);
+            return;
+        }
+    }
+    
+    let penalty = 10;
+    if (currentSession.false_lockout_penalty) {
+        penalty = Number(currentSession.false_lockout_penalty);
+    }
+    
+    const lockoutScoreValue = lockoutPlayerScore;
+    
+    for (let i = 0; i < scores.length; i++) {
+        if (String(scores[i].player_id) === String(lockoutPlayerId)) {
+            if (falseLockout) {
+                scores[i].score = lockoutScoreValue + penalty;
+            } else {
+                scores[i].score = lockoutScoreValue < 0 ? lockoutScoreValue : 0;
+            }
+            break;
+        }
+    }
+
+    const comment = document.getElementById('handComment').value.trim();
+    let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+    const data = await apiCall('addHand', {
+        session_id: currentSession.session_id,
+        hand_number: currentHandNumber,
+        scores: JSON.stringify(scores),
+        lockout_player_id: lockoutPlayerId,
+        false_lockout: falseLockout,
+        editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
+        comment: comment,
+        lockout_score: lockoutScoreValue
+    });
+    
+    if (data.error) {
+        messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+        setButtonLoading(submitBtn, false);
+    } else {
+        currentHandNumber++;
+        hapticFeedback('success');
+        setupHandInputs();
+        updateSessionScores();
+        setButtonLoading(submitBtn, false);
+    }
+}
+        
+        // ============================================
+        // HAND HISTORY & EDITING
+        // ============================================
+        async function displayHandHistory() {
+            const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
+            if (handsData.error || handsData.length === 0) {
+                document.getElementById('handHistorySection').style.display = 'none';
+                return;
+            }
+            
+            const handsByNumber = {};
+            for (let i = 0; i < handsData.length; i++) {
+                const hand = handsData[i];
+                if (!handsByNumber[hand.hand_number]) {
+                    handsByNumber[hand.hand_number] = [];
+                }
+                handsByNumber[hand.hand_number].push(hand);
+            }
+            
+            const handNumbers = Object.keys(handsByNumber).sort((a, b) => b - a);
+            let html = '';
+            
+            for (let i = 0; i < handNumbers.length; i++) {
+                const handNum = handNumbers[i];
+                const hands = handsByNumber[handNum];
+                let scoreText = '';
+                let lockoutPlayer = '';
+                let isFalseLockout = false;
+                let handComment = '';
+                
+                for (let j = 0; j < hands.length; j++) {
+                    const h = hands[j];
+                    if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
+                        if (h.lockout_score) {
+                            if (h.false_lockout == 1 || h.false_lockout === true) {
+                                const penalty = h.score - h.lockout_score;
+                                scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + penalty + ' penalty) | ';
+                            } else {
+                                scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ') | ';
+                            }
+                        } else {
+                            scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
+                        }
+                        lockoutPlayer = getPlayerName(h.player_id);
+                        isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
+                    } else {
+                        scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
+                    }
+                    if (h.comment && !handComment) {
+                        handComment = h.comment;
+                    }
+                }
+                scoreText = scoreText.slice(0, -3);
+                
+                html += '<div class="hand-item">';
+                html += '<div class="hand-item-info">';
+                html += '<strong>Hand ' + handNum + '</strong><br>';
+                html += '<small>' + scoreText + '</small><br>';
+                html += '<small>Lockout: ' + lockoutPlayer + (isFalseLockout ? ' (FALSE)' : '') + '</small>';
+                if (handComment) {
+                    html += '<br><small style="color: #667eea;">💬 ' + handComment + '</small>';
+                }
+                html += '</div>';
+                html += '<div class="hand-item-actions">';
+                html += '<button class="btn btn-warning btn-small" onclick="editHand(' + handNum + ', event)">Edit</button>';
+                if (i === 0) {
+                    html += '<button class="btn btn-danger btn-small" onclick="deleteHand(' + handNum + ', event)">Delete</button>';
+                }
+                html += '</div>';
+                html += '</div>';
+            }
+            
+            document.getElementById('handHistoryList').innerHTML = html;
+            document.getElementById('handHistorySection').style.display = 'block';
+        }
+
+        async function editHand(handNumber, event) {
+            if (event && event.target) {
+                setButtonLoading(event.target, true);
+            }
+
+            const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
+            const handsToEdit = handsData.filter(h => h.hand_number == handNumber);
+            if (handsToEdit.length === 0) {
+                alert('Hand not found');
+                return;
+            }
+            
+            currentEditingHand = handNumber;
+            document.getElementById('editHandNumber').textContent = handNumber;
+            document.getElementById('editLockoutWarning').style.display = 'none';
+            let html = '';
+            let lockoutPlayerId = null;
+            let isFalseLockout = false;
+            let handComment = '';
+            
+            for (let i = 0; i < handsToEdit.length; i++) {
+                const hand = handsToEdit[i];
+                if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+                    lockoutPlayerId = hand.player_id;
+                    isFalseLockout = (hand.false_lockout == 1 || hand.false_lockout === true);
+                }
+                if (hand.comment && !handComment) {
+                    handComment = hand.comment;
+                }
+            }
+            
+            for (let i = 0; i < sessionPlayers.length; i++) {
+                const player = sessionPlayers[i];
+                const joinHand = getPlayerJoinHand(player.player_id);
+                if (joinHand <= handNumber) {
+                    const handData = handsToEdit.find(h => String(h.player_id) === String(player.player_id));
+                    let displayScore = '';
+                    if (handData) {
+                        if (lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id)) {
+                            displayScore = handData.lockout_score ? handData.lockout_score : handData.score;
+                        } else {
+                            displayScore = handData.score;
+                        }
+                    }
+                    const isLockout = (lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id));
+                    
+                    html += '<div class="player-hand-row">';
+                    html += '<label>' + player.username + '</label>';
+                    html += '<input type="number" id="edit_score_' + player.player_id + '" value="' + displayScore + '" placeholder="Score" min="-2" oninput="checkEditLockoutValidity()">';
+                    html += '<label style="display: flex; align-items: center; gap: 5px; margin: 0;"><input type="radio" name="edit_lockout_player" value="' + player.player_id + '" ' + (isLockout ? 'checked' : '') + ' onchange="checkEditLockoutValidity()"> Locked Out</label>';
+                    html += '</div>';
+                }
+            }
+            
+            document.getElementById('editHandInputs').innerHTML = html;
+            document.getElementById('editHandComment').value = handComment;
+            document.getElementById('editHandModal').classList.add('active');
+            
+            setTimeout(checkEditLockoutValidity, 100);
+            
+            if (event && event.target) {
+                setButtonLoading(event.target, false);
+            }
+        }
+
+        function checkEditLockoutValidity() {
+            const warningDiv = document.getElementById('editLockoutWarning');
+            const lockoutRadio = document.querySelector('input[name="edit_lockout_player"]:checked');
+            
+            if (!lockoutRadio) {
+                warningDiv.style.display = 'none';
+                return;
+            }
+            
+            const lockoutPlayerId = lockoutRadio.value;
+            const scores = [];
+            let allScoresEntered = true;
+            
+            for (let i = 0; i < sessionPlayers.length; i++) {
+                const player = sessionPlayers[i];
+                const joinHand = getPlayerJoinHand(player.player_id);
+                if (joinHand <= currentEditingHand) {
+                    const scoreInput = document.getElementById('edit_score_' + player.player_id);
+                    const scoreVal = scoreInput.value.trim();
+                    if (scoreVal === '') {
+                        allScoresEntered = false;
+                        break;
+                    }
+                    scores.push({ player_id: player.player_id, score: parseFloat(scoreVal) });
+                }
+            }
+            
+            if (!allScoresEntered) {
+                warningDiv.style.display = 'none';
+                return;
+            }
+            
+            const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+            const lowestScore = Math.min(...scores.map(s => s.score));
+            const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
+            const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
+            
+            const isFalseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
+            
+            if (isFalseLockout) {
+                let warningMessage = '<strong>⚠️ Warning:</strong> ';
+                if (lockoutPlayerScore > 5) {
+                    warningMessage += getPlayerName(lockoutPlayerId) + ' has a score of ' + lockoutPlayerScore + ' (max allowed: 5). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+                } else if (lockoutPlayerScore > lowestScore) {
+                    const lowestPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
+                    warningMessage += getPlayerName(lockoutPlayerId) + ' does NOT have the lowest score. ' + lowestPlayers + ' has the lowest (' + lowestScore + '). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+                } else if (playersWithLowestScore.length > 1) {
+                    const tiedPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
+                    warningMessage += getPlayerName(lockoutPlayerId) + ' is TIED for lowest score with ' + tiedPlayers + '. This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+                }
+                warningDiv.innerHTML = warningMessage;
+                warningDiv.style.display = 'block';
+                hapticFeedback('error');
+            } else {
+                warningDiv.style.display = 'none';
+            }
+        }
+
+async function saveEditedHand() {
+    const messageDiv = document.getElementById('editHandMessage');
+    const saveBtn = event.target;
+    setButtonLoading(saveBtn, true);
+    
+    const scores = [];
+    const lockoutRadio = document.querySelector('input[name="edit_lockout_player"]:checked');
+    
+    if (!lockoutRadio) {
+        messageDiv.innerHTML = '<div class="error">Please select who locked out</div>';
+        setButtonLoading(saveBtn, false);
+        return;
+    }
+    
+    const lockoutPlayerId = lockoutRadio.value;
+    
+    for (let i = 0; i < sessionPlayers.length; i++) {
+        const player = sessionPlayers[i];
+        const joinHand = getPlayerJoinHand(player.player_id);
+        if (joinHand <= currentEditingHand) {
+            const scoreInput = document.getElementById('edit_score_' + player.player_id);
+            const scoreVal = scoreInput.value.trim();
+            if (scoreVal === '') {
+                messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
+                setButtonLoading(saveBtn, false);
+                return;
+            }
+            const scoreNum = parseFloat(scoreVal);
+            if (scoreNum < -2) {
+                messageDiv.innerHTML = '<div class="error">Minimum score is -2 (two Red Kings)</div>';
+                hapticFeedback('error');
+                setButtonLoading(saveBtn, false);
+                return;
+            }
+            scores.push({ player_id: player.player_id, score: scoreNum });
+        }
+    }
+    
+    const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
+    const lowestScore = Math.min(...scores.map(s => s.score));
+    const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
+    const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
+    
+    let falseLockout = !hasStrictlyLowestScore;
+    
+    if (document.getElementById('editLockoutWarning').style.display === 'block') {
+        const confirmMsg = 'This will be marked as a FALSE LOCKOUT. Continue?';
+        if (!confirm(confirmMsg)) {
+            setButtonLoading(saveBtn, false);
+            return;
+        }
+    }
+    
+    let penalty = 10;
+    if (currentSession.false_lockout_penalty) {
+        penalty = Number(currentSession.false_lockout_penalty);
+    }
+    
+    const lockoutScoreValue = lockoutPlayerScore;
+    
+    for (let i = 0; i < scores.length; i++) {
+        if (String(scores[i].player_id) === String(lockoutPlayerId)) {
+            if (falseLockout) {
+                scores[i].score = lockoutScoreValue + penalty;
+            } else {
+                scores[i].score = lockoutScoreValue < 0 ? lockoutScoreValue : 0;
+            }
+            break;
+        }
+    }
+    
+    const comment = document.getElementById('editHandComment').value.trim();
+    let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+    const data = await apiCall('updateHand', {
+        session_id: currentSession.session_id,
+        hand_number: currentEditingHand,
+        scores: JSON.stringify(scores),
+        lockout_player_id: lockoutPlayerId,
+        false_lockout: falseLockout,
+        editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
+        comment: comment,
+        lockout_score: lockoutScoreValue
+    });
+    
+    if (data.error) {
+        messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+        setButtonLoading(saveBtn, false);
+    } else {
+        messageDiv.innerHTML = '<div class="success">Hand updated!</div>';
+        setTimeout(function() {
+            closeEditModal();
+            updateSessionScores();
+            setButtonLoading(saveBtn, false);
+        }, 1000);
+    }
+}
+
+        function closeEditModal() {
+            document.getElementById('editHandModal').classList.remove('active');
+            document.getElementById('editHandMessage').innerHTML = '';
+            currentEditingHand = null;
+        }
+
+        async function deleteHand(handNumber, event) {
+            if (!confirm('Delete Hand ' + handNumber + '? This cannot be undone.')) {
+                return;
+            }
+            if (event && event.target) {
+                const deleteBtn = event.target;
+                setButtonLoading(deleteBtn, true);
+            }
+            
+            let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
+            const data = await apiCall('deleteHand', {
+                session_id: currentSession.session_id,
+                hand_number: handNumber,
+                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+            });
+            
+            if (data.error) {
+                alert('Error: ' + data.error);
+                if (event && event.target) {
+                    setButtonLoading(event.target, false);
+                }
+            } else {
+                if (handNumber == currentHandNumber - 1) {
+                    currentHandNumber--;
+                    setupHandInputs();
+                }
+                updateSessionScores();
+                if (event && event.target) {
+                    setButtonLoading(event.target, false);
+                }
+            }
+        }
+        // ============================================
+        // ACTIVE SESSION SCORING & CHARTS
+        // ============================================
+        async function updateSessionScores() {
+document.getElementById('sessionScores').innerHTML = 
+    '<div class="skeleton-card">' +
+        '<h3 style="color: #667eea; margin-bottom: 20px;">Calculating scores...</h3>' +
+        '<div style="overflow-x: auto;">' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
+            document.getElementById('handHistorySection').style.display = 'block';
+document.getElementById('handHistoryList').innerHTML = 
+    '<div style="padding: 10px;">' +
+        '<h4 class="section-heading-blue">Loading hand history...</h4>' +
+        '<div class="hand-item" style="background: #f8f9fa;">' +
+            '<div class="hand-item-info" style="flex: 1;">' +
+                '<div class="shimmer-wrapper skeleton-text" style="width: 30%; margin-bottom: 8px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 80%;"></div>' +
+            '</div>' +
+            '<div class="shimmer-wrapper skeleton-button" style="width: 80px; height: 40px;"></div>' +
+        '</div>' +
+        '<div class="hand-item" style="background: #f8f9fa;">' +
+            '<div class="hand-item-info" style="flex: 1;">' +
+                '<div class="shimmer-wrapper skeleton-text" style="width: 30%; margin-bottom: 8px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 80%;"></div>' +
+            '</div>' +
+            '<div class="shimmer-wrapper skeleton-button" style="width: 80px; height: 40px;"></div>' +
+        '</div>' +
+        '<div class="hand-item" style="background: #f8f9fa;">' +
+            '<div class="hand-item-info" style="flex: 1;">' +
+                '<div class="shimmer-wrapper skeleton-text" style="width: 30%; margin-bottom: 8px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 80%;"></div>' +
+            '</div>' +
+            '<div class="shimmer-wrapper skeleton-button" style="width: 80px; height: 40px;"></div>' +
+        '</div>' +
+    '</div>';
+            
+            const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
+            if (handsData.error) return;
+            
+            displayHandHistory();
+            
+            const playerScores = {};
+            let totalLockoutScore = 0;
+            let totalLockouts = 0;
+            let falseLockoutCount = 0;
+            
+for (let i = 0; i < sessionPlayers.length; i++) {
+    const player = sessionPlayers[i];
+    const startingScore = getPlayerStartingScore(player.player_id);
+    playerScores[player.player_id] = {
+        username: player.username,
+        total: startingScore,
+        hands: [],
+        lockouts: 0,
+        lockoutScores: [],
+        falseLockouts: 0,
+        falseLockoutScores: [],
+        totalLockouts: 0,
+        joinHand: getPlayerJoinHand(player.player_id),
+        startingScore: startingScore
+    };
+}
+
+            for (let i = 0; i < handsData.length; i++) {
+                const hand = handsData[i];
+                if (playerScores[hand.player_id]) {
+                    playerScores[hand.player_id].total += Number(hand.score);
+                    playerScores[hand.player_id].hands.push({
+                        hand_number: hand.hand_number,
+                        score: hand.score
+                    });
+                    
+                    // ✅ FIX: Only count lockout scores when this player actually locked out
+if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+    playerScores[hand.player_id].totalLockouts++;
+    const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+    
+    playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
+    totalLockoutScore += lockoutScoreToUse;
+    totalLockouts++;
+    
+    if (hand.false_lockout == 1 || hand.false_lockout === true) {
+        falseLockoutCount++;
+        playerScores[hand.player_id].falseLockouts++;
+        playerScores[hand.player_id].falseLockoutScores.push(lockoutScoreToUse);
+    } else {
+        playerScores[hand.player_id].lockouts++;
+    }
+}
+                }
+            }
+            
+            const scores = Object.values(playerScores).sort((a, b) => a.total - b.total);
+            const leader = scores[0];
+            const lastPlace = scores[scores.length - 1];
+            const biggestGap = lastPlace.total - leader.total;
+            
+            let mostLockoutsPlayer = { username: 'None', lockouts: 0 };
+            for (let i = 0; i < scores.length; i++) {
+                if (scores[i].lockouts > mostLockoutsPlayer.lockouts) {
+                    mostLockoutsPlayer = { username: scores[i].username, lockouts: scores[i].lockouts };
+                }
+            }
+            
+            const avgScorePerHand = handsData.reduce((sum, h) => sum + Number(h.score), 0) / handsData.length;
+            const overallAvgLockout = totalLockouts > 0 ? (totalLockoutScore / totalLockouts).toFixed(2) : 'N/A';
+            
+let html = '<h3>Scores</h3>';
+html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 10px;">💡 Click column headers to sort</p>';
+html += '<div style="overflow-x: auto;">';
+html += '<table class="scores-table" id="activeSessionTable">';
+html += '<tr>';
+html += '<th onclick="sortActiveSessionTable(0)" style="cursor: pointer; user-select: none;">Player ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(1)" style="cursor: pointer; user-select: none;">Total ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(2)" style="cursor: pointer; user-select: none;">Hands ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(3)" style="cursor: pointer; user-select: none;">Avg Hand ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(4)" style="cursor: pointer; user-select: none;">Lockouts ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(5)" style="cursor: pointer; user-select: none;">LO Rate ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(6)" style="cursor: pointer; user-select: none;">Avg LO Score (All) ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(7)" style="cursor: pointer; user-select: none;">False LO ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(8)" style="cursor: pointer; user-select: none;">False LO Rate ⇅</th>';
+html += '<th onclick="sortActiveSessionTable(9)" style="cursor: pointer; user-select: none;">Avg False LO Score ⇅</th>';
+html += '</tr>';
+
+for (let i = 0; i < scores.length; i++) {
+    const p = scores[i];
+    const handsPlayed = p.hands.length;
+    const avgHand = handsPlayed > 0 ? ((p.total - p.startingScore) / handsPlayed).toFixed(2) : '0';
+    const lockoutRate = handsPlayed > 0 ? ((p.lockouts / handsPlayed) * 100).toFixed(1) : '0';
+    const avgLockoutScore = p.lockoutScores.length > 0 ? (p.lockoutScores.reduce((sum, s) => sum + s, 0) / p.lockoutScores.length).toFixed(2) : 'N/A';
+    const falseLockoutRate = p.totalLockouts > 0 ? ((p.falseLockouts / p.totalLockouts) * 100).toFixed(1) : '0';
+    const avgFalseLockoutScore = p.falseLockoutScores.length > 0 ? (p.falseLockoutScores.reduce((sum, s) => sum + s, 0) / p.falseLockoutScores.length).toFixed(2) : 'N/A';
+    
+    html += '<tr>';
+    html += '<td><strong>' + p.username + '</strong>' + (p.joinHand > 1 ? ' <span class="late-join-badge">H' + p.joinHand + '</span>' : '') + '</td>';
+    html += '<td>' + p.total + '</td>';
+    html += '<td>' + handsPlayed + '</td>';
+    html += '<td>' + avgHand + '</td>';
+    html += '<td>' + p.lockouts + '</td>';
+    html += '<td>' + lockoutRate + '%</td>';
+    html += '<td>' + avgLockoutScore + '</td>';
+    html += '<td>' + p.falseLockouts + '</td>';
+    html += '<td>' + falseLockoutRate + '%</td>';
+    html += '<td>' + avgFalseLockoutScore + '</td>';
+    html += '</tr>';
+}
+
+            html += '</table></div>';
+            
+            html += '<div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 20px; border-radius: 10px; margin-top: 20px; border-left: 4px solid #4caf50;">';
+            html += '<h3 style="color: #2e7d32; margin-bottom: 15px;">📊 Session Statistics</h3>';
+            html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">';
+            html += '<div><strong>🎴 Total Hands:</strong> ' + (new Set(handsData.map(h => h.hand_number)).size) + '</div>';
+            html += '<div><strong>📈 Avg Score/Hand:</strong> ' + avgScorePerHand.toFixed(2) + '</div>';
+            html += '<div><strong>🏆 Current Leader:</strong> ' + leader.username + ' (' + leader.total + ' pts)</div>';
+            html += '<div><strong>📏 Biggest Gap:</strong> ' + biggestGap + ' points</div>';
+            html += '<div><strong>🎯 Most Lockouts:</strong> ' + mostLockoutsPlayer.username + ' (' + mostLockoutsPlayer.lockouts + ')</div>';
+            html += '<div><strong>⚠️ False Lockouts:</strong> ' + falseLockoutCount + '</div>';
+            html += '</div>';
+            html += '<div style="background: white; padding: 15px; border-radius: 8px; margin-top: 10px;">';
+            html += '<strong style="color: #667eea;">Lockout Performance:</strong><br>';
+            html += '<div style="margin-top: 10px;">• <strong>Overall Avg:</strong> ' + overallAvgLockout + '</div>';
+            
+            for (let i = 0; i < scores.length; i++) {
+                const p = scores[i];
+                if (p.lockouts > 0) {
+                    const avgLockout = (p.lockoutScores.reduce((sum, s) => sum + s, 0) / p.lockouts).toFixed(2);
+                    const isBest = (totalLockouts > 0 && avgLockout === Math.min(...scores.filter(s => s.lockouts > 0).map(s => (s.lockoutScores.reduce((sum, sc) => sum + sc, 0) / s.lockouts).toFixed(2))));
+                    html += '<div>• <strong>' + p.username + ':</strong> ' + avgLockout + ' (' + p.lockouts + ' lockouts)' + (isBest ? ' ⭐ Best!' : '') + '</div>';
+                } else {
+                    html += '<div>• <strong>' + p.username + ':</strong> No lockouts yet</div>';
+                }
+            }
+            html += '</div></div>';
+            
+            document.getElementById('sessionScores').innerHTML = html;
+            
+            const chartSection = document.getElementById('activeSessionCharts');
+            if (chartSection && handsData.length > 0) {
+                let chartsHtml = '<h3 style="margin-top: 30px;">Session Graphs</h3>';
+                chartsHtml += '<div class="chart-container"><canvas id="activeWormChart"></canvas></div>';
+                chartsHtml += '<div class="chart-container"><canvas id="activeManhattanChart"></canvas></div>';
+                chartSection.innerHTML = chartsHtml;
+                
+                const playerHandsData = {};
+                const playerIdsArray = [];
+                for (let i = 0; i < scores.length; i++) {
+                    const p = scores[i];
+                    const playerId = sessionPlayers.find(sp => sp.username === p.username).player_id;
+                    playerIdsArray.push(playerId);
+                    playerHandsData[playerId] = p.hands.map(h => h.score);
+                }
+                
+                setTimeout(function() {
+                    drawActiveWormChart(playerHandsData, playerIdsArray);
+                    drawActiveManhattanChart(playerHandsData, playerIdsArray);
+                }, 100);
+            }
+        }
+
+        // ============================================
+        // ACTIVE SESSION CHARTS - FIXED
+        // ============================================
+        function drawActiveWormChart(playerHands, playerIds) {
+            const ctx = document.getElementById('activeWormChart');
+            if (!ctx) return;
+            
+            const datasets = [];
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+            
+            for (let i = 0; i < playerIds.length; i++) {
+                const playerId = playerIds[i];
+                const hands = playerHands[playerId];
+                const joinHand = getPlayerJoinHand(playerId);
+                const startingScore = getPlayerStartingScore(playerId);
+                let cumulative = startingScore;
+                const cumulativeScores = [];
+                
+                // Add nulls for hands before joining
+                for (let h = 1; h < joinHand; h++) {
+                    cumulativeScores.push(null);
+                }
+                
+                // Add cumulative scores for hands played
+                for (let j = 0; j < hands.length; j++) {
+                    cumulative += hands[j];
+                    cumulativeScores.push(cumulative);
+                }
+                
+                datasets.push({
+                    label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''),
+                    data: cumulativeScores,
+                    borderColor: colors[i % colors.length],
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    spanGaps: false
+                });
+            }
+            
+            const labels = [];
+            for (let i = 1; i <= maxHands; i++) labels.push('Hand ' + i);
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Cricket Worm' },
+                        legend: { display: true, position: 'top' }
+                    },
+                    scales: {
+                        y: { title: { display: true, text: 'Cumulative Score' } }
+                    }
+                }
+            });
+        }
+
+        function drawActiveManhattanChart(playerHands, playerIds) {
+            const ctx = document.getElementById('activeManhattanChart');
+            if (!ctx) return;
+            
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
+            const labels = [];
+            for (let i = 1; i <= maxHands; i++) labels.push('Hand ' + i);
+            
+            const datasets = [];
+            for (let i = 0; i < playerIds.length; i++) {
+                const playerId = playerIds[i];
+                const hands = playerHands[playerId];
+                const joinHand = getPlayerJoinHand(playerId);
+                const dataArray = [];
+                
+                // Add nulls for hands before joining
+                for (let h = 1; h < joinHand; h++) {
+                    dataArray.push(null);
+                }
+                
+                // Add actual scores for hands played
+                for (let j = 0; j < hands.length; j++) {
+                    dataArray.push(hands[j]);
+                }
+                
+                datasets.push({
+                    label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''),
+                    data: dataArray,
+                    backgroundColor: colors[i % colors.length],
+                    borderColor: colors[i % colors.length],
+                    borderWidth: 1
+                });
+            }
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Manhattan' },
+                        legend: { display: true, position: 'top' }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Hand Number' } },
+                        y: { title: { display: true, text: 'Score' }, beginAtZero: true }
+                    }
+                }
+            });
+        }
+        // ============================================
+        // PREVIOUS SESSIONS & SESSION DETAIL
+        // ============================================
+async function loadPreviousSessions() {
+    const contentDiv = document.getElementById('previousSessionsContent');
+    contentDiv.innerHTML = 
+        '<div class="skeleton-card">' +
+            '<h3 style="color: #667eea; margin-bottom: 20px;">Loading previous sessions...</h3>' +
+            '<div class="skeleton-session-item">' +
+                '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 8px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 50%;"></div>' +
+            '</div>' +
+            '<div class="skeleton-session-item">' +
+                '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 8px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 50%;"></div>' +
+            '</div>' +
+            '<div class="skeleton-session-item">' +
+                '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 8px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 50%;"></div>' +
+            '</div>' +
+        '</div>';
+    
+    await ensurePlayersLoaded();
+    
+    const sessionsWithHands = await apiCall('getSessionsWithHands', {});
+    if (sessionsWithHands.error) {
+        contentDiv.innerHTML = '<div class="error">Error loading sessions: ' + sessionsWithHands.error + '</div>';
+        return;
+    }
+    
+    const completedSessions = [];
+    for (let i = 0; i < sessionsWithHands.length; i++) {
+        const item = sessionsWithHands[i];
+        if (!item.session.notes) item.session.notes = '';
+        if (!item.session.tags) item.session.tags = '';
+        if (!item.session.player_join_info) item.session.player_join_info = '{}';
+        if (item.session.date_ended && item.session.date_ended !== '') {
+            completedSessions.push({ session: item.session, hands: item.hands, index: i });
+        }
+    }
+    
+    allSessions = completedSessions.map(item => item.session);
+    window.sessionsHandsCache = {};
+    for (let i = 0; i < completedSessions.length; i++) {
+        window.sessionsHandsCache[completedSessions[i].session.session_id] = completedSessions[i].hands;
+    }
+    
+    if (completedSessions.length === 0) {
+        contentDiv.innerHTML = '<div class="placeholder-content"><h3>No Completed Sessions</h3><p>Complete a session to see it here!</p></div>';
+        return;
+    }
+    
+    // START: Add search box
+    let html = '<div class="mb-20">';
+    html += '<input type="text" id="sessionSearchInput" placeholder="🔍 Search sessions by title, player, or tag..." style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em;" oninput="filterSessions()">';
+    html += '</div>';
+    
+    // START: Scrollable container
+    html += '<div id="sessionListContainer" style="max-height: 600px; overflow-y: auto; padding-right: 5px;">';
+    html += '<ul class="session-list" id="sessionList">';
+    
+    // Build session items (your existing code continues here)
+    for (let i = 0; i < completedSessions.length; i++) {
+        const session = completedSessions[i].session;
+        const hands = completedSessions[i].hands;
+        
+        var dateObj = new Date(session.date_started);
+        var month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        var day = String(dateObj.getDate()).padStart(2, '0');
+        var year = dateObj.getFullYear();
+        var cleanDate = month + '/' + day + '/' + year;
+        
+        var playerIds = session.players_involved.split(',');
+        var playerTotals = {};
+        var handCount = 0;
+        
+        var joinInfo = {};
+        try {
+            if (session.player_join_info && session.player_join_info !== '' && session.player_join_info !== '{}') {
+                var parsed = JSON.parse(session.player_join_info);
+                for (var pid in parsed) {
+                    if (parsed[pid] && parsed[pid].starting_score !== undefined) {
+                        joinInfo[pid] = parsed[pid].starting_score;
+                    }
+                }
+            }
+        } catch(e) {}
+        
+        for (var p = 0; p < playerIds.length; p++) {
+            var pid = String(playerIds[p].trim());
+            playerTotals[pid] = joinInfo[pid] || 0;
+        }
+        
+        var handNumbers = new Set();
+        for (var h = 0; h < hands.length; h++) {
+            var hand = hands[h];
+            handNumbers.add(hand.hand_number);
+            if (playerTotals[hand.player_id] !== undefined) {
+                playerTotals[hand.player_id] += Number(hand.score);
+            }
+        }
+        handCount = handNumbers.size;
+        
+        var lowestScore = Infinity;
+        var winnerId = null;
+        for (var pid in playerTotals) {
+            if (playerTotals[pid] < lowestScore) {
+                lowestScore = playerTotals[pid];
+                winnerId = pid;
+            }
+        }
+        
+        var winnerName = winnerId ? getPlayerName(winnerId) : 'Unknown';
+        
+        html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
+        html += '<div class="session-item-header">' + session.title + '</div>';
+        html += '<div class="session-item-info" style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">';
+        html += '<div>📅 ' + cleanDate + ' • ' + handCount + ' hands • ' + playerIds.length + ' players</div>';
+        html += '<div style="color: #4caf50; font-weight: 600;">🏆 ' + winnerName + ' (' + lowestScore + ' pts)</div>';
+        
+        if (session.tags && session.tags !== '') {
+            var tagsArray = session.tags.split(',').filter(function(t) { return t.trim(); });
+            if (tagsArray.length > 0) {
+                html += '<div style="margin-top: 4px;">';
+                for (var t = 0; t < tagsArray.length; t++) {
+                    html += '<span class="tag-badge" style="font-size: 0.75em; padding: 2px 8px;">' + tagsArray[t] + '</span>';
+                }
+                html += '</div>';
+            }
+        }
+        
+        html += '</div>';
+        html += '</li>';
+    }
+    
+    html += '</ul>';
+    html += '</div>'; // Close scrollable container
+    contentDiv.innerHTML = html;
+}
+
+async function viewSessionDetail(sessionIndex, buttonElement) {
+    // Show loading state
+    if (buttonElement) {
+        setButtonLoading(buttonElement, true);
+    }
+    
+const session = allSessions[sessionIndex];
+
+document.getElementById('sessionDetailContent').innerHTML = 
+    '<div class="skeleton-card">' +
+        '<h3 style="color: #667eea; margin-bottom: 20px;">Loading session details...</h3>' +
+        '<div style="overflow-x: auto;">' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
+
+let handsData;
+
+handsData = await apiCall('getHands', { session_id: session.session_id });
+
+if (handsData.error) {
+    alert('Error loading session details');
+    if (buttonElement) {
+        setButtonLoading(buttonElement, false);
+    }
+    return;
+}
+
+            for (let i = 0; i < handsData.length; i++) {
+                if (!handsData[i].comment) handsData[i].comment = '';
+            }
+            
+            document.getElementById('sessionDetailTitle').textContent = session.title;
+            const joinInfo = parsePlayerJoinInfo(session.player_join_info);
+            
+            let metadataHtml = '';
+            if ((session.notes && session.notes !== '') || (session.tags && session.tags !== '') || (Object.keys(joinInfo).length > 0)) {
+                metadataHtml += '<div class="session-metadata">';
+                if (session.notes && session.notes !== '') {
+                    metadataHtml += '<p><strong>📝 Notes:</strong> ' + session.notes + '</p>';
+                }
+                if (session.tags && session.tags !== '') {
+                    const tagsArray = session.tags.split(',').filter(t => t.trim());
+                    if (tagsArray.length > 0) {
+                        metadataHtml += '<p><strong>🏷️ Tags:</strong> ';
+                        for (let i = 0; i < tagsArray.length; i++) {
+                            metadataHtml += '<span class="tag-badge">' + tagsArray[i] + '</span>';
+                        }
+                        metadataHtml += '</p>';
+                    }
+                }
+                if (Object.keys(joinInfo).length > 0) {
+                    metadataHtml += '<p><strong>👥 Late Joiners:</strong> ';
+                    const joiners = [];
+                    for (let playerId in joinInfo) {
+                        joiners.push(getPlayerName(playerId) + ' (Hand ' + joinInfo[playerId] + ')');
+                    }
+                    metadataHtml += joiners.join(', ') + '</p>';
+                }
+                metadataHtml += '</div>';
+            }
+            document.getElementById('sessionDetailMetadata').innerHTML = metadataHtml;
+            
+const playerTotals = {};
+const playerHandScores = {};
+const playerStats = {};
+const playerJoinHands = {};
+
+for (let playerId in joinInfo) {
+    playerJoinHands[playerId] = joinInfo[playerId];
+}
+
+// ✅ FIX: Pre-initialize all players who appear in handsData
+const allPlayerIds = new Set();
+for (let i = 0; i < handsData.length; i++) {
+    allPlayerIds.add(String(handsData[i].player_id));
+}
+
+for (let pid of allPlayerIds) {
+    // Initialize with starting score for late joiners
+    let startingScore = 0;
+    if (session.player_join_info) {
+        try {
+            const fullInfo = JSON.parse(session.player_join_info);
+            if (fullInfo[pid] && fullInfo[pid].starting_score !== undefined) {
+                startingScore = fullInfo[pid].starting_score;
+            }
+        } catch(e) {}
+    }
+    
+    playerTotals[pid] = startingScore;
+    playerHandScores[pid] = [];
+    playerStats[pid] = { lockouts: 0, lockoutScores: [], falseLockouts: 0, falseLockoutScores: [], totalLockouts: 0 };
+}
+
+for (let i = 0; i < handsData.length; i++) {
+    const hand = handsData[i];
+    const pid = String(hand.player_id);
+    
+    playerTotals[pid] += Number(hand.score);
+    playerHandScores[pid].push({ handNum: Number(hand.hand_number), score: Number(hand.score) });
+    
+    // ✅ FIX: Track ALL lockout attempts
+if (hand.lockout_player_id && String(hand.lockout_player_id) === String(pid)) {
+    playerStats[pid].totalLockouts++;
+    const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+    
+    playerStats[pid].lockoutScores.push(lockoutScoreToUse);
+    
+    if (hand.false_lockout == 1 || hand.false_lockout === true) {
+        playerStats[pid].falseLockouts++;
+        playerStats[pid].falseLockoutScores.push(lockoutScoreToUse);
+    } else {
+        playerStats[pid].lockouts++;
+    }
+}
+}
+
+const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
+    return playerTotals[a] - playerTotals[b];
+});
+
+let html = '<h3>Final Scores</h3>';
+html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 10px;">💡 Click column headers to sort</p>';
+html += '<div style="overflow-x: auto;"><table class="scores-table" id="sessionDetailTable">';
+html += '<tr>';
+html += '<th onclick="sortSessionTable(0)" style="cursor: pointer; user-select: none;">Player ⇅</th>';
+html += '<th onclick="sortSessionTable(1)" style="cursor: pointer; user-select: none;">Total ⇅</th>';
+html += '<th onclick="sortSessionTable(2)" style="cursor: pointer; user-select: none;">Hands ⇅</th>';
+html += '<th onclick="sortSessionTable(3)" style="cursor: pointer; user-select: none;">Avg Hand ⇅</th>';
+html += '<th onclick="sortSessionTable(4)" style="cursor: pointer; user-select: none;">Lockouts ⇅</th>';
+html += '<th onclick="sortSessionTable(5)" style="cursor: pointer; user-select: none;">LO Rate ⇅</th>';
+html += '<th onclick="sortSessionTable(6)" style="cursor: pointer; user-select: none;">Avg LO Score ⇅</th>';
+html += '<th onclick="sortSessionTable(7)" style="cursor: pointer; user-select: none;">False LO ⇅</th>';
+html += '<th onclick="sortSessionTable(8)" style="cursor: pointer; user-select: none;">False LO Rate ⇅</th>';
+html += '<th onclick="sortSessionTable(9)" style="cursor: pointer; user-select: none;">Avg False LO Score ⇅</th>';
+html += '</tr>';
+
+            for (let i = 0; i < sortedPlayers.length; i++) {
+                const playerId = sortedPlayers[i];
+                const playerName = getPlayerName(playerId);
+                const total = playerTotals[playerId];
+                const handsPlayed = playerHandScores[playerId].length;
+                const avgHand = handsPlayed > 0 ? (total / handsPlayed).toFixed(2) : '0';
+                const stats = playerStats[playerId];
+                const lockoutRate = handsPlayed > 0 ? ((stats.lockouts / handsPlayed) * 100).toFixed(1) : '0';
+                const avgLockoutScore = stats.lockoutScores.length > 0 ? (stats.lockoutScores.reduce((sum, s) => sum + s, 0) / stats.lockoutScores.length).toFixed(2) : 'N/A';
+const falseLockoutRate = stats.totalLockouts > 0 ? ((stats.falseLockouts / stats.totalLockouts) * 100).toFixed(1) : '0';
+const avgFalseLockoutScore = stats.falseLockoutScores.length > 0 ? (stats.falseLockoutScores.reduce((sum, s) => sum + s, 0) / stats.falseLockoutScores.length).toFixed(2) : 'N/A';
+
+html += '<tr><td><strong>' + playerName + '</strong></td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
+
+            }
+            html += '</table></div>';
+
+            html += '<h3 style="margin-top: 30px;">Hand-by-Hand Breakdown</h3>';
+            html += '<div class="hand-history">';
+
+            const handsByNumber = {};
+            for (let i = 0; i < handsData.length; i++) {
+                const hand = handsData[i];
+                if (!handsByNumber[hand.hand_number]) {
+                    handsByNumber[hand.hand_number] = [];
+                }
+                handsByNumber[hand.hand_number].push(hand);
+            }
+
+            const handNumbers = Object.keys(handsByNumber).sort((a, b) => Number(a) - Number(b));
+
+            for (let i = 0; i < handNumbers.length; i++) {
+                const handNum = handNumbers[i];
+                const hands = handsByNumber[handNum];
+                let scoreText = '';
+                let lockoutPlayer = '';
+                let isFalseLockout = false;
+                let handComment = '';
+                
+                for (let j = 0; j < hands.length; j++) {
+                    const h = hands[j];
+                    if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
+                        if (h.lockout_score) {
+                            if (h.false_lockout == 1 || h.false_lockout === true) {
+                                const penalty = h.score - h.lockout_score;
+                                scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + penalty + ' penalty) | ';
+                            } else {
+                                scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ') | ';
+                            }
+                        } else {
+                            scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
+                        }
+                        lockoutPlayer = getPlayerName(h.player_id);
+                        isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
+                    } else {
+                        scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
+                    }
+                    if (h.comment && !handComment) {
+                        handComment = h.comment;
+                    }
+                }
+                scoreText = scoreText.slice(0, -3);
+                
+                html += '<div class="hand-item">';
+                html += '<div class="hand-item-info">';
+                html += '<strong>Hand ' + handNum + '</strong><br>';
+                html += '<small>' + scoreText + '</small><br>';
+                html += '<small>Lockout: ' + lockoutPlayer + (isFalseLockout ? ' (FALSE)' : '') + '</small>';
+                if (handComment) {
+                    html += '<br><small style="color: #667eea;">💬 ' + handComment + '</small>';
+                }
+                html += '</div>';
+                html += '</div>';
+            }
+
+            html += '</div>';
+
+            document.getElementById('sessionDetailContent').innerHTML = html;
+            
+            let graphsHtml = '<h3>Graphs</h3>';
+            graphsHtml += '<div class="chart-container"><canvas id="wormChart"></canvas></div>';
+            graphsHtml += '<div class="chart-container"><canvas id="manhattanChart"></canvas></div>';
+            document.getElementById('sessionDetailGraphs').innerHTML = graphsHtml;
+            
+            showScreen('sessionDetailScreen');
+            setTimeout(function() {
+                drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
+                drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
+            }, 100);
+        }
+        // ============================================
+        // COMPLETED SESSION CHARTS (WITH LATE JOINER SUPPORT)
+        // ============================================
+        function drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session) {
+            const ctx = document.getElementById('wormChart');
+            if (!ctx) return;
+            
+            const datasets = [];
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            
+            let maxHand = 0;
+            for (let playerId in playerHandScores) {
+                for (let i = 0; i < playerHandScores[playerId].length; i++) {
+                    if (playerHandScores[playerId][i].handNum > maxHand) {
+                        maxHand = playerHandScores[playerId][i].handNum;
+                    }
+                }
+            }
+            
+            for (let i = 0; i < sortedPlayers.length; i++) {
+                const playerId = sortedPlayers[i];
+                const hands = playerHandScores[playerId];
+                const joinHand = playerJoinHands[playerId] || 1;
+                
+                let startingScore = 0;
+                if (joinHand > 1 && session && session.player_join_info) {
+                    try {
+                        const fullInfo = JSON.parse(session.player_join_info);
+                        const info = fullInfo[playerId];
+                        if (info && typeof info === 'object' && info.starting_score !== undefined) {
+                            startingScore = info.starting_score;
+                        }
+                    } catch(e) {}
+                }
+                
+                let cumulative = startingScore;
+                const dataPoints = [];
+                
+                for (let h = 1; h < joinHand; h++) {
+                    dataPoints.push(null);
+                }
+                
+                for (let j = 0; j < hands.length; j++) {
+                    cumulative += hands[j].score;
+                    dataPoints.push(cumulative);
+                }
+                
+                datasets.push({
+                    label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''),
+                    data: dataPoints,
+                    borderColor: colors[i % colors.length],
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    spanGaps: false
+                });
+            }
+            
+            const labels = [];
+            for (let i = 1; i <= maxHand; i++) labels.push('Hand ' + i);
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Cricket Worm' },
+                        legend: { display: true, position: 'top' }
+                    },
+                    scales: {
+                        y: { title: { display: true, text: 'Cumulative Score' } }
+                    }
+                }
+            });
+        }
+
+        function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session) {
+            const ctx = document.getElementById('manhattanChart');
+            if (!ctx) return;
+            
+            const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+            
+            let maxHand = 0;
+            for (let playerId in playerHandScores) {
+                for (let i = 0; i < playerHandScores[playerId].length; i++) {
+                    if (playerHandScores[playerId][i].handNum > maxHand) {
+                        maxHand = playerHandScores[playerId][i].handNum;
+                    }
+                }
+            }
+            
+            const labels = [];
+            for (let i = 1; i <= maxHand; i++) labels.push('Hand ' + i);
+            
+            const datasets = [];
+            for (let i = 0; i < sortedPlayers.length; i++) {
+                const playerId = sortedPlayers[i];
+                const hands = playerHandScores[playerId];
+                const joinHand = playerJoinHands[playerId] || 1;
+                
+                const dataArray = [];
+                for (let h = 1; h < joinHand; h++) {
+                    dataArray.push(null);
+                }
+                
+                for (let j = 0; j < hands.length; j++) {
+                    dataArray.push(hands[j].score);
+                }
+                
+                datasets.push({
+                    label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''),
+                    data: dataArray,
+                    backgroundColor: colors[i % colors.length],
+                    borderColor: colors[i % colors.length],
+                    borderWidth: 1
+                });
+            }
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Manhattan' },
+                        legend: { display: true, position: 'top' }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Hand Number' } },
+                        y: { title: { display: true, text: 'Score' }, beginAtZero: true }
+                    }
+                }
+            });
+        }
+        // ============================================
+        // OVERALL STATS
+        // ============================================
+        async function loadStats() {
+            const contentDiv = document.getElementById('statsContent');
+ contentDiv.innerHTML = 
+    '<div class="skeleton-card">' +
+        '<h3 style="color: #667eea; margin-bottom: 30px;">Loading statistics...</h3>' +
+        '<div class="stats-grid">' +
+            '<div class="skeleton-stat-card">' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 70%; margin-bottom: 10px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
+            '</div>' +
+            '<div class="skeleton-stat-card">' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 70%; margin-bottom: 10px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
+            '</div>' +
+            '<div class="skeleton-stat-card">' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 70%; margin-bottom: 10px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
+            '</div>' +
+            '<div class="skeleton-stat-card">' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 70%; margin-bottom: 10px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
+            '</div>' +
+            '<div class="skeleton-stat-card">' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 70%; margin-bottom: 10px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
+            '</div>' +
+            '<div class="skeleton-stat-card">' +
+                '<div class="shimmer-wrapper skeleton-text small" style="width: 70%; margin-bottom: 10px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
+            await ensurePlayersLoaded();
+            
+            const sessionsWithHands = await apiCall('getSessionsWithHands', {});
+            if (sessionsWithHands.error) {
+                contentDiv.innerHTML = '<div class="error">Error loading stats</div>';
+                return;
+            }
+            
+            const completedSessionsData = [];
+            const allSessionsData = [];
+            
+            for (let i = 0; i < sessionsWithHands.length; i++) {
+                const item = sessionsWithHands[i];
+                const isCompleted = (item.session.date_ended && item.session.date_ended !== '');
+                const sessionData = {
+                    session_id: item.session.session_id,
+                    title: item.session.title,
+                    hands: item.hands,
+                    is_completed: isCompleted,
+                    player_join_info: item.session.player_join_info || '{}'
+                };
+                allSessionsData.push(sessionData);
+                if (isCompleted) {
+                    completedSessionsData.push(sessionData);
+                }
+            }
+            
+            const stats = calculateOverallStats(completedSessionsData, allSessionsData, allPlayers);
+            displayOverallStats(stats, completedSessionsData.length);
+        }
+
+        function calculateOverallStats(completedSessionsData, allSessionsData, playersData) {
+            const playerStats = {};
+            
+            for (let i = 0; i < playersData.length; i++) {
+                const player = playersData[i];
+                playerStats[player.player_id] = {
+                    username: player.username,
+                    sessionsWon: 0,
+                    sessionsPlayed: 0,
+                    handsWon: 0,
+                    handsPlayed: 0,
+                    totalScore: 0,
+lockoutScores: [],
+falseLockouts: 0,
+falseLockoutScores: [],
+totalLockouts: 0,
+                    currentHandStreak: 0,
+                    maxHandStreak: 0,
+                    bestMargin: 0,
+                    worstMargin: 0
+                };
+            }
+            
+            for (let s = 0; s < allSessionsData.length; s++) {
+                const session = allSessionsData[s];
+                const playerUniqueHands = {};
+                
+                for (let i = 0; i < playersData.length; i++) {
+                    playerUniqueHands[playersData[i].player_id] = new Set();
+                }
+                
+for (let h = 0; h < session.hands.length; h++) {
+    const hand = session.hands[h];
+    if (playerStats[hand.player_id]) {
+        playerStats[hand.player_id].totalScore += Number(hand.score);
+        playerUniqueHands[hand.player_id].add(Number(hand.hand_number));
+        
+        // ✅ FIX: Track ALL lockout attempts
+if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+    playerStats[hand.player_id].totalLockouts++;
+    const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+    
+    playerStats[hand.player_id].lockoutScores.push(lockoutScoreToUse);
+    
+    if (hand.false_lockout == 1 || hand.false_lockout === true) {
+        playerStats[hand.player_id].falseLockouts++;
+        playerStats[hand.player_id].falseLockoutScores.push(lockoutScoreToUse);
+        playerStats[hand.player_id].currentHandStreak = 0;
+    } else {
+        playerStats[hand.player_id].handsWon++;
+        playerStats[hand.player_id].currentHandStreak++;
+        if (playerStats[hand.player_id].currentHandStreak > playerStats[hand.player_id].maxHandStreak) {
+            playerStats[hand.player_id].maxHandStreak = playerStats[hand.player_id].currentHandStreak;
+        }
+    }
+}
+ 
+        else {
+            playerStats[hand.player_id].currentHandStreak = 0;
+        }
+    }
+}
+
+                for (let playerId in playerUniqueHands) {
+                    const uniqueHandCount = playerUniqueHands[playerId].size;
+                    if (uniqueHandCount > 0) {
+                        playerStats[playerId].handsPlayed += uniqueHandCount;
+                    }
+                }
+            }
+            
+            for (let s = 0; s < completedSessionsData.length; s++) {
+                const session = completedSessionsData[s];
+                const playerTotals = {};
+                const playersInSession = new Set();
+                
+                try {
+                    const ji = JSON.parse(session.player_join_info || '{}');
+                    for (let pid in ji) {
+                        if (ji[pid] && ji[pid].starting_score !== undefined) {
+                            playerTotals[pid] = Number(ji[pid].starting_score);
+                        }
+                    }
+                } catch(e) {}
+                
+                for (let h = 0; h < session.hands.length; h++) {
+                    const hand = session.hands[h];
+                    if (playerTotals[hand.player_id] === undefined) {
+                        playerTotals[hand.player_id] = 0;
+                    }
+                    playerTotals[hand.player_id] += Number(hand.score);
+                    playersInSession.add(hand.player_id);
+                }
+                
+                playersInSession.forEach(playerId => {
+                    if (playerStats[playerId]) {
+                        playerStats[playerId].sessionsPlayed++;
+                    }
+                });
+                
+                let lowestScore = Infinity;
+                let winnerPlayerIds = [];
+                for (let playerId in playerTotals) {
+                    const score = playerTotals[playerId];
+                    if (score < lowestScore) {
+                        lowestScore = score;
+                        winnerPlayerIds = [playerId];
+                    } else if (score === lowestScore) {
+                        winnerPlayerIds.push(playerId);
+                    }
+                }
+                
+                let secondLowestScore = Infinity;
+                for (let playerId in playerTotals) {
+                    const score = playerTotals[playerId];
+                    if (score > lowestScore && score < secondLowestScore) {
+                        secondLowestScore = score;
+                    }
+                }
+                
+                for (let playerId in playerTotals) {
+                    if (playerStats[playerId]) {
+                        if (winnerPlayerIds.indexOf(String(playerId)) !== -1) {
+                            playerStats[playerId].sessionsWon += (1 / winnerPlayerIds.length);
+                            if (secondLowestScore !== Infinity) {
+                                const margin = secondLowestScore - lowestScore;
+                                if (margin > playerStats[playerId].bestMargin) {
+                                    playerStats[playerId].bestMargin = margin;
+                                }
+                            }
+                        } else {
+                            const margin = playerTotals[playerId] - lowestScore;
+                            if (margin > playerStats[playerId].worstMargin) {
+                                playerStats[playerId].worstMargin = margin;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return playerStats;
+        }
+
+        function displayOverallStats(stats, totalSessions) {
+            let mostSessionsWon = { player: 'N/A', wins: 0 };
+            let mostHandsWon = { player: 'N/A', hands: 0 };
+            let bestSessionWinRate = { player: 'N/A', rate: 0 };
+            let bestHandWinRate = { player: 'N/A', rate: 0 };
+            let lowestAvgScore = { player: 'N/A', avg: Infinity };
+            let mostFalseLockouts = { player: 'N/A', count: 0 };
+            let longestHandStreak = { player: 'N/A', streak: 0 };
+            let bestAvgLockoutScore = { player: 'N/A', avg: Infinity };
+            let totalHands = 0;
+            
+            for (let playerId in stats) {
+                if (stats[playerId].handsPlayed > totalHands) {
+                    totalHands = stats[playerId].handsPlayed;
+                }
+            }
+            
+            for (let playerId in stats) {
+                const ps = stats[playerId];
+                
+                if (ps.sessionsWon > mostSessionsWon.wins) {
+                    mostSessionsWon = { player: ps.username, wins: ps.sessionsWon.toFixed(1) };
+                }
+                if (ps.handsWon > mostHandsWon.hands) {
+                    mostHandsWon = { player: ps.username, hands: ps.handsWon };
+                }
+                if (ps.sessionsPlayed > 0) {
+                    const sessionWinRate = (ps.sessionsWon / ps.sessionsPlayed) * 100;
+                    if (sessionWinRate > bestSessionWinRate.rate) {
+                        bestSessionWinRate = { player: ps.username, rate: sessionWinRate.toFixed(1) };
+                    }
+                }
+                if (ps.handsPlayed > 0) {
+                    const handWinRate = (ps.handsWon / ps.handsPlayed) * 100;
+                    if (handWinRate > bestHandWinRate.rate) {
+                        bestHandWinRate = { player: ps.username, rate: handWinRate.toFixed(1) };
+                    }
+                }
+                if (ps.handsPlayed > 0) {
+                    const avgScore = ps.totalScore / ps.handsPlayed;
+                    if (avgScore < lowestAvgScore.avg) {
+                        lowestAvgScore = { player: ps.username, avg: avgScore.toFixed(2) };
+                    }
+                }
+                if (ps.falseLockouts > mostFalseLockouts.count) {
+                    mostFalseLockouts = { player: ps.username, count: ps.falseLockouts };
+                }
+                if (ps.maxHandStreak > longestHandStreak.streak) {
+                    longestHandStreak = { player: ps.username, streak: ps.maxHandStreak };
+                }
+                if (ps.lockoutScores.length > 0) {
+                    const avgLockoutScore = ps.lockoutScores.reduce((sum, score) => sum + score, 0) / ps.lockoutScores.length;
+                    if (avgLockoutScore < bestAvgLockoutScore.avg) {
+                        bestAvgLockoutScore = { player: ps.username, avg: avgLockoutScore.toFixed(2) };
+                    }
+                }
+            }
+            
+            let html = '<div class="stats-grid">';
+            html += '<div class="stat-card"><h4>Total Sessions</h4><p class="stat-value">' + totalSessions + '</p></div>';
+            html += '<div class="stat-card"><h4>Total Hands</h4><p class="stat-value">' + totalHands + '</p></div>';
+            html += '<div class="stat-card"><h4>Most Sessions Won</h4><p class="stat-value">' + mostSessionsWon.player + '</p><p>' + mostSessionsWon.wins + ' wins</p></div>';
+            html += '<div class="stat-card"><h4>Most Hands Won</h4><p class="stat-value">' + mostHandsWon.player + '</p><p>' + mostHandsWon.hands + ' hands</p></div>';
+            html += '<div class="stat-card"><h4>Best Session Win Rate</h4><p class="stat-value">' + bestSessionWinRate.player + '</p><p>' + bestSessionWinRate.rate + '%</p></div>';
+            html += '<div class="stat-card"><h4>Best Hand Win Rate</h4><p class="stat-value">' + bestHandWinRate.player + '</p><p>' + bestHandWinRate.rate + '%</p></div>';
+            html += '<div class="stat-card"><h4>Lowest Avg Score/Hand</h4><p class="stat-value">' + lowestAvgScore.player + '</p><p>' + lowestAvgScore.avg + '</p></div>';
+            html += '<div class="stat-card"><h4>Best Avg Lockout Score</h4><p class="stat-value">' + bestAvgLockoutScore.player + '</p><p>' + bestAvgLockoutScore.avg + '</p></div>';
+            html += '<div class="stat-card"><h4>Longest Hand Streak</h4><p class="stat-value">' + longestHandStreak.player + '</p><p>' + longestHandStreak.streak + ' hands</p></div>';
+            html += '<div class="stat-card"><h4>Most False Lockouts</h4><p class="stat-value">' + mostFalseLockouts.player + '</p><p>' + mostFalseLockouts.count + ' times</p></div>';
+            html += '</div>';
+            
+            html += '<div style="background: #fff3cd; padding: 10px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #ffc107; font-size: 0.9em;">';
+            html += '<strong>ℹ️ Note:</strong> Hand-level stats include active sessions. Session-level stats only include completed sessions.';
+            html += '</div>';
+            
+html += '<h3 style="margin-top: 30px;">Player Breakdown</h3>';
+html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 10px;">💡 Click column headers to sort</p>';
+html += '<div style="overflow-x: auto;"><table class="scores-table" id="playerBreakdownTable">';
+html += '<tr>';
+html += '<th onclick="sortStatsTable(0)" style="cursor: pointer; user-select: none;">Player ⇅</th>';
+html += '<th onclick="sortStatsTable(1)" style="cursor: pointer; user-select: none;">Sessions ⇅</th>';
+html += '<th onclick="sortStatsTable(2)" style="cursor: pointer; user-select: none;">Wins ⇅</th>';
+html += '<th onclick="sortStatsTable(3)" style="cursor: pointer; user-select: none;">Win Rate ⇅</th>';
+html += '<th onclick="sortStatsTable(4)" style="cursor: pointer; user-select: none;">Hands ⇅</th>';
+html += '<th onclick="sortStatsTable(5)" style="cursor: pointer; user-select: none;">Avg Hand ⇅</th>';
+html += '<th onclick="sortStatsTable(6)" style="cursor: pointer; user-select: none;">Lockouts ⇅</th>';
+html += '<th onclick="sortStatsTable(7)" style="cursor: pointer; user-select: none;">LO Rate ⇅</th>';
+html += '<th onclick="sortStatsTable(8)" style="cursor: pointer; user-select: none;">Avg LO Score ⇅</th>';
+html += '<th onclick="sortStatsTable(9)" style="cursor: pointer; user-select: none;">False Lockouts ⇅</th>';
+html += '<th onclick="sortStatsTable(10)" style="cursor: pointer; user-select: none;">False LO Rate ⇅</th>';
+html += '<th onclick="sortStatsTable(11)" style="cursor: pointer; user-select: none;">Avg False LO Score ⇅</th>';
+html += '</tr>';
+
+            for (let playerId in stats) {
+                const ps = stats[playerId];
+                const sessionWinRate = ps.sessionsPlayed > 0 ? ((ps.sessionsWon / ps.sessionsPlayed) * 100).toFixed(1) : '0';
+                const lockoutRate = ps.handsPlayed > 0 ? ((ps.handsWon / ps.handsPlayed) * 100).toFixed(1) : '0';
+                const avgScore = ps.handsPlayed > 0 ? (ps.totalScore / ps.handsPlayed).toFixed(2) : '0';
+const falseLockoutRate = ps.totalLockouts > 0 ? ((ps.falseLockouts / ps.totalLockouts) * 100).toFixed(1) : '0';
+const avgLockoutScore = ps.lockoutScores.length > 0 ? (ps.lockoutScores.reduce((sum, score) => sum + score, 0) / ps.lockoutScores.length).toFixed(2) : 'N/A';
+const avgFalseLockoutScore = ps.falseLockoutScores.length > 0 ? (ps.falseLockoutScores.reduce((sum, score) => sum + score, 0) / ps.falseLockoutScores.length).toFixed(2) : 'N/A';
+
+html += '<tr><td>' + ps.username + '</td><td>' + ps.sessionsPlayed + '</td><td>' + ps.sessionsWon.toFixed(1) + '</td><td>' + sessionWinRate + '%</td><td>' + ps.handsPlayed + '</td><td>' + avgScore + '</td><td>' + ps.handsWon + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + ps.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
+
+            }
+            html += '</table></div>';
+            
+            document.getElementById('statsContent').innerHTML = html;
+        }
+        
+        async function showOverallStats() {
+            const contentDiv = document.getElementById('statsContent');
+            contentDiv.innerHTML = '<div class="loading">Loading overall stats...</div>';
+            await loadStats();
+        }
+        // ============================================
+        // HEAD-TO-HEAD STATS
+        // ============================================
+        
+        async function showHeadToHeadList() {
+            const contentDiv = document.getElementById('statsContent');
+contentDiv.innerHTML = 
+    '<div class="skeleton-card">' +
+        '<h3 style="color: #667eea; margin-bottom: 20px;">Loading head-to-head records...</h3>' +
+        '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 10px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 100%; height: 8px; margin-bottom: 8px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-button" style="height: 40px;"></div>' +
+        '</div>' +
+        '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 10px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 100%; height: 8px; margin-bottom: 8px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-button" style="height: 40px;"></div>' +
+        '</div>' +
+        '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 70%; margin-bottom: 10px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text" style="width: 100%; height: 8px; margin-bottom: 8px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-button" style="height: 40px;"></div>' +
+        '</div>' +
+    '</div>';
+            
+            await ensurePlayersLoaded();
+            
+            const data = await apiCall('getHeadToHeadMatrix', {});
+            
+            if (data.error) {
+                contentDiv.innerHTML = '<div class="error">Error loading data: ' + data.error + '</div>';
+                return;
+            }
+            
+            if (data.length === 0) {
+                contentDiv.innerHTML = '<div class="placeholder-content"><h3>Not Enough Data</h3><p>Play more sessions to see head-to-head records!</p></div>';
+                return;
+            }
+            
+            data.sort(function(a, b) {
+                return b.sessions_together - a.sessions_together;
+            });
+            
+            let html = '<h2>⚔️ Head-to-Head Records</h2>';
+            html += '<p style="color: #666; margin-bottom: 20px;">Direct records when playing in the same session (who finished with a lower score)</p>';
+            
+            html += '<div style="display: grid; gap: 15px; margin-bottom: 20px;">';
+            
+            for (let i = 0; i < data.length; i++) {
+                const m = data[i];
+                const p1Name = getPlayerName(m.p1);
+                const p2Name = getPlayerName(m.p2);
+                const total = m.p1_wins + m.p2_wins + m.ties;
+                
+                if (total === 0) continue;
+                
+                const p1Pct = total > 0 ? Math.round((m.p1_wins / total) * 100) : 50;
+                const p2Pct = total > 0 ? Math.round((m.p2_wins / total) * 100) : 50;
+
+                html += '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">';
+                
+                html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
+                html += '<strong style="color: #667eea;">' + p1Name + '</strong>';
+                html += '<span style="color: #333; font-weight: 600; font-size: 1.1em;">';
+                html += m.p1_wins + '-' + m.p2_wins;
+                if (m.ties > 0) html += '-' + m.ties;
+                html += '</span>';
+                html += '<strong style="color: #f5576c;">' + p2Name + '</strong>';
+                html += '</div>';
+                
+                html += '<div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">';
+                html += '<div style="width: ' + p1Pct + '%; background: #667eea;"></div>';
+                html += '<div style="width: ' + p2Pct + '%; background: #f5576c;"></div>';
+                html += '</div>';
+                
+                html += '<div style="display: flex; justify-content: space-between; font-size: 0.85em; color: #666; margin-bottom: 10px;">';
+                html += '<span>' + p1Pct + '%</span>';
+                html += '<span>' + m.sessions_together + ' session' + (m.sessions_together > 1 ? 's' : '') + ' together</span>';
+                html += '<span>' + p2Pct + '%</span>';
+                html += '</div>';
+                
+                html += '<button class="btn btn-small btn-info" onclick="quickCompare(' + m.p1 + ', ' + m.p2 + ')" style="width: 100%;">View Detailed Comparison</button>';
+                
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            
+            contentDiv.innerHTML = html;
+        }
+
+        function quickCompare(p1Id, p2Id) {
+            showPlayerComparisonUI();
+            setTimeout(function() {
+                document.getElementById('comparisonPlayer1').value = p1Id;
+                document.getElementById('comparisonPlayer2').value = p2Id;
+                showPlayerComparison();
+            }, 100);
+        }
+        // ============================================
+        // PLAYER COMPARISON
+        // ============================================
+        
+        async function showPlayerComparisonUI() {
+            await ensurePlayersLoaded();
+            
+            const contentDiv = document.getElementById('statsContent');
+            
+            let html = '<h3 class="mb-20">⚔️ Compare Two Players</h3>';
+            
+            html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">';
+            
+            html += '<div>';
+            html += '<label style="display: block; margin-bottom: 8px; font-weight: 600; color: #667eea;">Player 1</label>';
+            html += '<select id="comparisonPlayer1" style="width: 100%; padding: 12px; border: 2px solid #667eea; border-radius: 8px; font-size: 1em;">';
+            html += '<option value="">Select player...</option>';
+            for (let i = 0; i < allPlayers.length; i++) {
+                html += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
+            }
+            html += '</select>';
+            html += '</div>';
+            
+            html += '<div>';
+            html += '<label style="display: block; margin-bottom: 8px; font-weight: 600; color: #f5576c;">Player 2</label>';
+            html += '<select id="comparisonPlayer2" style="width: 100%; padding: 12px; border: 2px solid #f5576c; border-radius: 8px; font-size: 1em;">';
+            html += '<option value="">Select player...</option>';
+            for (let i = 0; i < allPlayers.length; i++) {
+                html += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
+            }
+            html += '</select>';
+            html += '</div>';
+            
+            html += '</div>';
+            
+            html += '<button class="btn btn-success" id="comparePlayersBtn" style="width: 100%;">Compare Players</button>';
+            
+            contentDiv.innerHTML = html;
+            
+            setTimeout(function() {
+                const btn = document.getElementById('comparePlayersBtn');
+                if (btn) {
+                    btn.addEventListener('click', showPlayerComparison);
+                }
+            }, 50);
+        }
+
+        async function showPlayerComparison() {
+            await ensurePlayersLoaded();
+            
+            const contentDiv = document.getElementById('statsContent');
+            
+            const p1Select = document.getElementById('comparisonPlayer1');
+            const p2Select = document.getElementById('comparisonPlayer2');
+            
+            if (!p1Select || !p2Select) {
+                contentDiv.innerHTML = '<div class="error">Error: Please select players from the dropdowns above.</div>';
+                return;
+            }
+            
+            const p1Id = p1Select.value;
+            const p2Id = p2Select.value;
+            
+            if (!p1Id || !p2Id) {
+                contentDiv.innerHTML = '<div class="error">Please select two players</div>';
+                return;
+            }
+            
+            if (p1Id === p2Id) {
+                contentDiv.innerHTML = '<div class="error">Please select two different players</div>';
+                return;
+            }
+            
+contentDiv.innerHTML = 
+    '<div class="skeleton-card">' +
+        '<h3 style="color: #667eea; margin-bottom: 30px; text-align: center;">Loading player comparison...</h3>' +
+        '<div style="overflow-x: auto;">' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+            '<div class="skeleton-table-row">' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+                '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
+            showScreen('statsScreen');
+            
+            const data = await apiCall('getPlayerComparisonDetailed', {
+                player1_id: p1Id,
+                player2_id: p2Id
+            });
+
+            if (data.error) {
+                contentDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+                return;
+            }
+            
+            const p1Name = getPlayerName(p1Id);
+            const p2Name = getPlayerName(p2Id);
+            
+            let html = '';
+            
+            html += '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center;">';
+            html += '<h2 style="color: white; margin: 0; font-size: 1.8em;">' + p1Name + ' vs ' + p2Name + '</h2>';
+            html += '</div>';
+            
+            html += '<button class="btn btn-info" onclick="showPlayerComparisonUI()" style="margin-bottom: 30px; width: 100%;">← Change Players</button>';
+            
+            const ts = data.sessions_together_stats;
+            
+            html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #667eea;">';
+            
+            html += '<h3 style="color: #667eea; margin-bottom: 20px;">📊 Sessions Together</h3>';
+            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;"><strong>Head-to-head record:</strong> Who finished with a lower score when both players competed in the same session (regardless of who won overall)</p>';
+            
+            if (ts.total_sessions === 0) {
+                html += '<div style="background: white; padding: 15px; border-radius: 6px; color: #666; text-align: center;">';
+                html += 'These players have never played together';
+                html += '</div>';
+            } else {
+                html += '<div style="overflow-x: auto;"><table class="scores-table">';
+                html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + p1Name + '</th><th style="color: white; background: #f5576c;">' + p2Name + '</th></tr>';
+                
+                html += '<tr><td><strong>Wins</strong></td><td>' + ts.p1_wins + '</td><td>' + ts.p2_wins + '</td></tr>';
+                html += '<tr><td><strong>Win Rate</strong></td><td>' + ts.p1_win_rate + '%</td><td>' + ts.p2_win_rate + '%</td></tr>';
+                html += '<tr><td><strong>Total Score</strong></td><td>' + ts.p1_total_score + '</td><td>' + ts.p2_total_score + '</td></tr>';
+                html += '<tr><td><strong>Hands Played</strong></td><td>' + ts.p1_total_hands + '</td><td>' + ts.p2_total_hands + '</td></tr>';
+                html += '<tr><td><strong>Avg Hand</strong></td><td>' + ts.p1_avg_hand + '</td><td>' + ts.p2_avg_hand + '</td></tr>';
+                html += '<tr><td><strong>Lockouts</strong></td><td>' + ts.p1_lockouts + '</td><td>' + ts.p2_lockouts + '</td></tr>';
+                html += '<tr><td><strong>Lockout Rate</strong></td><td>' + ts.p1_lockout_rate + '%</td><td>' + ts.p2_lockout_rate + '%</td></tr>';
+                html += '<tr><td><strong>Avg Lockout Score</strong></td><td>' + (ts.p1_lockouts > 0 ? ts.p1_avg_lockout : 'N/A') + '</td><td>' + (ts.p2_lockouts > 0 ? ts.p2_avg_lockout : 'N/A') + '</td></tr>';
+                html += '<tr><td><strong>False Lockouts</strong></td><td>' + ts.p1_false_lockouts + '</td><td>' + ts.p2_false_lockouts + '</td></tr>';
+                html += '<tr><td><strong>False Lockout Rate</strong></td><td>' + (ts.p1_false_lockouts + ts.p1_lockouts > 0 ? ts.p1_false_lockout_rate + '%' : 'N/A') + '</td><td>' + (ts.p2_false_lockouts + ts.p2_lockouts > 0 ? ts.p2_false_lockout_rate + '%' : 'N/A') + '</td></tr>';
+                
+                html += '</table></div>';
+                
+                // ✅ FIX: Only show Performance Context if there are at least 2 different other players
+                if (ts.best_with && ts.worst_with && ts.best_with.player_id !== ts.worst_with.player_id) {
+                    html += '<div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #ffc107;">';
+                    html += '<h4 style="color: #856404; margin-bottom: 10px; font-size: 0.95em;">📊 Performance Context</h4>';
+                    html += '<p style="font-size: 0.85em; color: #666; margin-bottom: 10px;">When ' + p1Name + ' plays against ' + p2Name + ' <strong>head-to-head</strong>, ' + p1Name + '\'s win rate varies depending on who else is playing:</p>';
+                    
+                    html += '<div class="content-card-sm">';
+                    html += '<div style="font-size: 0.85em; color: #4caf50; font-weight: 600; margin-bottom: 3px;">✅ Best with ' + getPlayerName(ts.best_with.player_id) + '</div>';
+                    html += '<div style="color: #333; font-size: 0.85em;">' + p1Name + ' beats ' + p2Name + ' in ' + ts.best_with.wins + ' out of ' + ts.best_with.total + ' sessions when ' + getPlayerName(ts.best_with.player_id) + ' is also playing</div>';
+                    html += '</div>';
+                    
+                    html += '<div class="content-card-sm">';
+                    html += '<div style="font-size: 0.85em; color: #f44336; font-weight: 600; margin-bottom: 3px;">❌ Worst with ' + getPlayerName(ts.worst_with.player_id) + '</div>';
+                    html += '<div style="color: #333; font-size: 0.85em;">' + p1Name + ' beats ' + p2Name + ' in ' + ts.worst_with.wins + ' out of ' + ts.worst_with.total + ' sessions when ' + getPlayerName(ts.worst_with.player_id) + ' is also playing</div>';
+                    html += '</div>';
+                    
+                    html += '</div>';
+                }
+            }
+            
+            html += '</div>';
+            
+            const as1 = data.all_sessions_stats.player1;
+            const as2 = data.all_sessions_stats.player2;
+            
+            html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #f5576c;">';
+            
+            html += '<h3 style="color: #f5576c; margin-bottom: 20px;">📊 All Sessions</h3>';
+            html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;"><strong>Overall wins:</strong> Sessions where each player had the lowest score and won outright (across all sessions they participated in)</p>';
+            
+            html += '<div style="overflow-x: auto;"><table class="scores-table">';
+            html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + p1Name + '</th><th style="color: white; background: #f5576c;">' + p2Name + '</th></tr>';
+            
+            html += '<tr><td><strong>Wins</strong></td><td>' + as1.wins + '</td><td>' + as2.wins + '</td></tr>';
+            html += '<tr><td><strong>Losses</strong></td><td>' + as1.losses + '</td><td>' + as2.losses + '</td></tr>';
+            if (as1.ties > 0 || as2.ties > 0) {
+                html += '<tr><td><strong>Ties</strong></td><td>' + as1.ties + '</td><td>' + as2.ties + '</td></tr>';
+            }
+            html += '<tr><td><strong>Win Rate</strong></td><td>' + as1.win_rate + '%</td><td>' + as2.win_rate + '%</td></tr>';
+            html += '<tr><td><strong>Total Score</strong></td><td>' + as1.total_score + '</td><td>' + as2.total_score + '</td></tr>';
+            html += '<tr><td><strong>Hands Played</strong></td><td>' + as1.total_hands + '</td><td>' + as2.total_hands + '</td></tr>';
+            html += '<tr><td><strong>Avg Hand</strong></td><td>' + as1.avg_hand + '</td><td>' + as2.avg_hand + '</td></tr>';
+            html += '<tr><td><strong>Lockouts</strong></td><td>' + as1.lockouts + '</td><td>' + as2.lockouts + '</td></tr>';
+            html += '<tr><td><strong>Lockout Rate</strong></td><td>' + as1.lockout_rate + '%</td><td>' + as2.lockout_rate + '%</td></tr>';
+            html += '<tr><td><strong>Avg Lockout Score</strong></td><td>' + (as1.lockouts > 0 ? as1.avg_lockout : 'N/A') + '</td><td>' + (as2.lockouts > 0 ? as2.avg_lockout : 'N/A') + '</td></tr>';
+            html += '<tr><td><strong>False Lockouts</strong></td><td>' + as1.false_lockouts + '</td><td>' + as2.false_lockouts + '</td></tr>';
+            html += '<tr><td><strong>False Lockout Rate</strong></td><td>' + (as1.false_lockouts + as1.lockouts > 0 ? as1.false_lockout_rate + '%' : 'N/A') + '</td><td>' + (as2.false_lockouts + as2.lockouts > 0 ? as2.false_lockout_rate + '%' : 'N/A') + '</td></tr>';
+            
+            html += '</table></div>';
+            
+            html += '</div>';
+            
+            // ✅ FIX: Add clickable session history with hyperlinks
+if (data.sessions_together.length > 0) {
+    html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 4px solid #9c27b0;">';
+    
+    html += '<h3 style="color: #9c27b0; margin-bottom: 20px;">📅 Session History</h3>';
+    html += '<p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">Sessions where both players competed (click to view details)</p>';
+    
+    for (let i = data.sessions_together.length - 1; i >= 0; i--) {
+        const s = data.sessions_together[i];
+        const winner = s.p1_won && !s.p2_won ? p1Name : s.p2_won && !s.p1_won ? p2Name : 'Tie';
+        const winnerColor = s.p1_won && !s.p2_won ? '#667eea' : s.p2_won && !s.p1_won ? '#f5576c' : '#ff9800';
+        
+        var dateObj = new Date(s.date);
+        var month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        var day = String(dateObj.getDate()).padStart(2, '0');
+        var year = dateObj.getFullYear();
+        var cleanDate = month + '/' + day + '/' + year;
+        
+        html += '<div style="padding: 15px; background: white; border-radius: 8px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; border: 1px solid #e0e0e0;" onclick="viewSessionDetailFromComparison(' + s.session_id + ', this)" onmouseover="this.style.background=\'#f8f9fa\'; this.style.borderColor=\'#9c27b0\';" onmouseout="this.style.background=\'white\'; this.style.borderColor=\'#e0e0e0\';">';
+        
+        html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
+        html += '<div style="font-weight: 600; color: #333; font-size: 1.05em;">' + s.title + ' 🔗</div>';
+        html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1em; padding: 4px 12px; background: ' + winnerColor + '20; border-radius: 12px;">' + winner + '</div>';
+        html += '</div>';
+        
+        html += '<div style="font-size: 0.85em; color: #666; margin-bottom: 8px;">' + cleanDate + ' • ' + s.player_count + ' players</div>';
+        
+        html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px;">';
+        html += '<div style="font-size: 0.9em;"><strong style="color: #667eea;">' + p1Name + ':</strong> ' + s.p1_score + ' pts</div>';
+        html += '<div style="font-size: 0.9em;"><strong style="color: #f5576c;">' + p2Name + ':</strong> ' + s.p2_score + ' pts</div>';
+        html += '</div>';
+        
+        html += '</div>';
+    }
+    
+    html += '</div>';
+}
+            
+            contentDiv.innerHTML = html;
+        }
+
+// ============================================
+// DICTIONARY SECTION TOGGLE
+// ============================================
+function showDictionarySection(section) {
+    if (section === 'lingo') {
+        document.getElementById('lingoSection').style.display = 'block';
+        document.getElementById('glossarySection').style.display = 'none';
+    } else {
+        document.getElementById('lingoSection').style.display = 'none';
+        document.getElementById('glossarySection').style.display = 'block';
+    }
+}
+
+// Show lingo by default when dictionary screen loads
+window.addEventListener('DOMContentLoaded', function() {
+    console.log('Lockout Tracker v4.1 🚀');
+    ensurePlayersLoaded();
+    checkActiveSessions();
+    history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
+    showDictionarySection('lingo');
+});
+    
+        // ✅ NEW: Helper function to navigate from comparison to session detail
+        async function viewSessionDetailFromComparison(sessionId, buttonElement) {     if (buttonElement) {         setButtonLoading(buttonElement, true);     }
+            if (allSessions.length === 0) {
+                await loadPreviousSessions();
+            }
+            
+            const sessionIndex = allSessions.findIndex(s => String(s.session_id) === String(sessionId));
+            
+if (sessionIndex !== -1) {
+    viewSessionDetail(sessionIndex, buttonElement);
+} else {
+    alert('Session not found');
+    if (buttonElement) {
+        setButtonLoading(buttonElement, false);
+    }
+}
+        }
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+window.addEventListener('DOMContentLoaded', function() {
+    console.log('Lockout Tracker v4.1 🚀');
+    ensurePlayersLoaded();
+    checkActiveSessions();
+    history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
+    showDictionarySection('lingo');
+});
+
+// ============================================
+// BROWSER BACK BUTTON HANDLING
+// ============================================
+window.addEventListener('popstate', function(event) {
+    if (event.state && event.state.screen) {
+        // Navigate to the screen from history without adding another history entry
+        showScreen(event.state.screen, true);
+    } else {
+        // If no state, go to home screen
+        showScreen('homeScreen', true);
+    }
+});
+
+// Set initial history state
+window.addEventListener('DOMContentLoaded', function() {
+    console.log('Lockout Tracker v4.1 🚀');
+    ensurePlayersLoaded();
+    checkActiveSessions();
+    history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
+    showDictionarySection('lingo');
+});
+
+// ============================================
+// HAPTIC FEEDBACK EVENT LISTENER
+// ============================================
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('btn')) {
+        hapticFeedback('light');
+    }
+});
+        
+// ============================================
+// EASTER EGG
+// ============================================
+// Mobile easter egg
+let headerTapCount = 0;
+let headerTapTimeout;
+
+function handleHeaderClick(event) {
+    headerTapCount++;
+    
+    clearTimeout(headerTapTimeout);
+    
+    if (headerTapCount >= 7) {
+        headerTapCount = 0;
+        triggerEasterEgg();
+    } else {
+        headerTapTimeout = setTimeout(function() {
+            if (headerTapCount < 7) {
+                showScreen('homeScreen');
+            }
+            headerTapCount = 0;
+        }, 800);
+    }
+}
+
+let easterEggCode = '';
+let easterEggTimeout;
+
+document.addEventListener('keypress', function(e) {
+    clearTimeout(easterEggTimeout);
+    easterEggCode += e.key.toLowerCase();
+    
+    // Check for secret code
+    if (easterEggCode.includes('lockout')) {
+        easterEggCode = '';
+        triggerEasterEgg();
+    }
+    
+    // Reset after 2 seconds of no typing
+    easterEggTimeout = setTimeout(function() {
+        easterEggCode = '';
+    }, 2000);
+});
+
+function triggerEasterEgg() {
+    // Epic confetti
+    const duration = 3000;
+    const end = Date.now() + duration;
+    
+    (function frame() {
+        confetti({
+            particleCount: 3,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 },
+            colors: ['#667eea', '#764ba2', '#f5576c']
+        });
+        confetti({
+            particleCount: 3,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 },
+            colors: ['#667eea', '#764ba2', '#f5576c']
+        });
+        
+        if (Date.now() < end) {
+            requestAnimationFrame(frame);
+        }
+    }());
+    
+    // Show message
+    const message = document.createElement('div');
+    message.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 50px; border-radius: 20px; font-size: 2em; font-weight: bold; z-index: 10000; box-shadow: 0 10px 40px rgba(0,0,0,0.3); animation: fadeIn 0.5s ease-in-out;';
+    message.textContent = '🎉 YOU FOUND THE SECRET! 🎉';
+    document.body.appendChild(message);
+    
+    hapticFeedback('success');
+    
+    setTimeout(function() {
+        message.style.opacity = '0';
+        message.style.transform = 'translate(-50%, -50%) scale(0.8)';
+        message.style.transition = 'all 0.5s ease-out';
+        setTimeout(function() {
+            document.body.removeChild(message);
+        }, 500);
+    }, 3000);
+}
+// ============================================
+// SESSION SEARCH FILTER
+// ============================================
+function filterSessions() {
+    const searchTerm = document.getElementById('sessionSearchInput').value.toLowerCase();
+    const sessionItems = document.querySelectorAll('.session-item');
+    
+    for (let i = 0; i < sessionItems.length; i++) {
+        const item = sessionItems[i];
+        const text = item.textContent.toLowerCase();
+        
+        if (text.indexOf(searchTerm) !== -1) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    }
+}
+// ============================================
+// SORTABLE STATS TABLE
+// ============================================
+let currentSortColumn = -1;
+let currentSortAscending = true;
+
+function sortStatsTable(columnIndex) {
+    const table = document.getElementById('playerBreakdownTable');
+    if (!table) return;
+    
+    const rows = Array.from(table.querySelectorAll('tr')).slice(1); // Skip header row
+    
+    // Toggle sort direction if clicking same column
+    if (currentSortColumn === columnIndex) {
+        currentSortAscending = !currentSortAscending;
+    } else {
+        currentSortAscending = true;
+        currentSortColumn = columnIndex;
+    }
+    
+    rows.sort(function(a, b) {
+        const aCell = a.cells[columnIndex].textContent.trim();
+        const bCell = b.cells[columnIndex].textContent.trim();
+        
+        // Try to parse as number (remove % signs and parse)
+        const aNum = parseFloat(aCell.replace('%', ''));
+        const bNum = parseFloat(bCell.replace('%', ''));
+        
+        let comparison = 0;
+        
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+            // Numeric comparison
+            comparison = aNum - bNum;
+        } else {
+            // String comparison (for player names)
+            comparison = aCell.localeCompare(bCell);
+        }
+        
+        return currentSortAscending ? comparison : -comparison;
+    });
+    
+    // Re-append sorted rows to table
+    for (let i = 0; i < rows.length; i++) {
+        table.appendChild(rows[i]);
+    }
+    
+    // Update header to show sort direction
+    const headers = table.querySelectorAll('th');
+    for (let i = 0; i < headers.length; i++) {
+        const header = headers[i];
+        const text = header.textContent.replace(' ↑', '').replace(' ↓', '').replace(' ⇅', '');
+if (i === columnIndex) {
+    header.textContent = text + (currentSortAscending ? ' ↑' : ' ↓');
+    header.style.color = 'white';
+    header.style.backgroundColor = '#5568d3';
+    header.style.fontWeight = 'bold';
+} else {
+    header.textContent = text + ' ⇅';
+    header.style.color = 'white';
+    header.style.backgroundColor = '#667eea';
+    header.style.fontWeight = '600';
+}
+
+    }
+    
+    hapticFeedback('light');
+}
+// ============================================
+// SORTABLE SESSION DETAIL TABLE
+// ============================================
+let currentSessionSortColumn = -1;
+let currentSessionSortAscending = true;
+
+function sortSessionTable(columnIndex) {
+    const table = document.getElementById('sessionDetailTable');
+    if (!table) return;
+    
+    const rows = Array.from(table.querySelectorAll('tr')).slice(1);
+    
+    if (currentSessionSortColumn === columnIndex) {
+        currentSessionSortAscending = !currentSessionSortAscending;
+    } else {
+        currentSessionSortAscending = true;
+        currentSessionSortColumn = columnIndex;
+    }
+    
+    rows.sort(function(a, b) {
+        const aCell = a.cells[columnIndex].textContent.trim();
+        const bCell = b.cells[columnIndex].textContent.trim();
+        
+        const aNum = parseFloat(aCell.replace('%', ''));
+        const bNum = parseFloat(bCell.replace('%', ''));
+        
+        let comparison = 0;
+        
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+            comparison = aNum - bNum;
+        } else {
+            comparison = aCell.localeCompare(bCell);
+        }
+        
+        return currentSessionSortAscending ? comparison : -comparison;
+    });
+    
+    for (let i = 0; i < rows.length; i++) {
+        table.appendChild(rows[i]);
+    }
+    
+    const headers = table.querySelectorAll('th');
+    for (let i = 0; i < headers.length; i++) {
+        const header = headers[i];
+        const text = header.textContent.replace(' ↑', '').replace(' ↓', '').replace(' ⇅', '');
+        if (i === columnIndex) {
+            header.textContent = text + (currentSessionSortAscending ? ' ↑' : ' ↓');
+            header.style.color = 'white';
+            header.style.backgroundColor = '#5568d3';
+            header.style.fontWeight = 'bold';
+        } else {
+            header.textContent = text + ' ⇅';
+            header.style.color = 'white';
+            header.style.backgroundColor = '#667eea';
+            header.style.fontWeight = '600';
+        }
+    }
+    
+    hapticFeedback('light');
+}
+
+// ============================================
+// SORTABLE ACTIVE SESSION TABLE
+// ============================================
+let currentActiveSortColumn = -1;
+let currentActiveSortAscending = true;
+
+function sortActiveSessionTable(columnIndex) {
+    const table = document.getElementById('activeSessionTable');
+    if (!table) return;
+    
+    const rows = Array.from(table.querySelectorAll('tr')).slice(1);
+    
+    if (currentActiveSortColumn === columnIndex) {
+        currentActiveSortAscending = !currentActiveSortAscending;
+    } else {
+        currentActiveSortAscending = true;
+        currentActiveSortColumn = columnIndex;
+    }
+    
+    rows.sort(function(a, b) {
+        const aCell = a.cells[columnIndex].textContent.trim();
+        const bCell = b.cells[columnIndex].textContent.trim();
+        
+        const aNum = parseFloat(aCell.replace('%', ''));
+        const bNum = parseFloat(bCell.replace('%', ''));
+        
+        let comparison = 0;
+        
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+            comparison = aNum - bNum;
+        } else {
+            comparison = aCell.localeCompare(bCell);
+        }
+        
+        return currentActiveSortAscending ? comparison : -comparison;
+    });
+    
+    for (let i = 0; i < rows.length; i++) {
+        table.appendChild(rows[i]);
+    }
+    
+    const headers = table.querySelectorAll('th');
+    for (let i = 0; i < headers.length; i++) {
+        const header = headers[i];
+        const text = header.textContent.replace(' ↑', '').replace(' ↓', '').replace(' ⇅', '');
+        if (i === columnIndex) {
+            header.textContent = text + (currentActiveSortAscending ? ' ↑' : ' ↓');
+            header.style.color = 'white';
+            header.style.backgroundColor = '#5568d3';
+            header.style.fontWeight = 'bold';
+        } else {
+            header.textContent = text + ' ⇅';
+            header.style.color = 'white';
+            header.style.backgroundColor = '#667eea';
+            header.style.fontWeight = '600';
+        }
+    }
+    
+    hapticFeedback('light');
+}
+
+    </script>
+</body>
