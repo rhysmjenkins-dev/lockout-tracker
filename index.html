@@ -3972,13 +3972,6 @@ window.addEventListener('DOMContentLoaded', function() {
     history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
 });
 
-// ============================================
-// HAPTIC FEEDBACK EVENT LISTENER
-// ============================================
-document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('btn')) {
-        hapticFeedback('light');
-    }
 });
 // ============================================
 // HAPTIC FEEDBACK EVENT LISTENER
