@@ -580,3 +580,9 @@
 .header-title:hover {
     opacity: 0.8;
 }
+
+.banner-orange,
+.banner-purple,
+.banner-green {
+    margin-top: 15px;
+}
