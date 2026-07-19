@@ -1137,7 +1137,7 @@ async function updateSessionScores() {
             playerScores[hand.player_id].hands.push({ hand_number: hand.hand_number, score: hand.score });
             if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
                 playerScores[hand.player_id].totalLockouts++;
-                const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+                const lockoutScoreToUse = (hand.lockout_score !== null && hand.lockout_score !== undefined && hand.lockout_score !== '') ? Number(hand.lockout_score) : Number(hand.score);
                 playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
                 totalLockoutScore += lockoutScoreToUse;
                 totalLockouts++;
@@ -1594,7 +1594,7 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
         playerHandScores[pid].push({ handNum: Number(hand.hand_number), score: Number(hand.score) });
         if (hand.lockout_player_id && String(hand.lockout_player_id) === String(pid)) {
             playerStats[pid].totalLockouts++;
-            const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+            const lockoutScoreToUse = (hand.lockout_score !== null && hand.lockout_score !== undefined && hand.lockout_score !== '') ? Number(hand.lockout_score) : Number(hand.score);
             playerStats[pid].lockoutScores.push(lockoutScoreToUse);
             if (hand.false_lockout == 1 || hand.false_lockout === true) {
                 playerStats[pid].falseLockouts++;
@@ -1915,7 +1915,7 @@ function calculateOverallStats(completedSessionsData, allSessionsData, playersDa
                 playerUniqueHands[hand.player_id].add(Number(hand.hand_number));
                 if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
                     playerStats[hand.player_id].totalLockouts++;
-                    const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+                    const lockoutScoreToUse = (hand.lockout_score !== null && hand.lockout_score !== undefined && hand.lockout_score !== '') ? Number(hand.lockout_score) : Number(hand.score);
                     playerStats[hand.player_id].lockoutScores.push(lockoutScoreToUse);
                     if (hand.false_lockout == 1 || hand.false_lockout === true) {
                         playerStats[hand.player_id].falseLockouts++;
@@ -2047,9 +2047,11 @@ function displayOverallStats(stats, totalSessions) {
     html += '<div class="stat-card"><h4>Most False Lockouts</h4><p class="stat-value">' + mostFalseLockouts.player + '</p><p>' + mostFalseLockouts.count + ' times</p></div>';
     html += '</div>';
 
-    html += '<div class="warning-box mt-15 mb-15 text-sm">';
-    html += '<strong>ℹ️ Note:</strong> Hand-level stats include active sessions. Session-level stats only include completed sessions.';
-    html += '</div>';
+html += '<div class="warning-box mt-15 mb-15 text-sm">';
+html += '<strong>ℹ️ Note:</strong> Hand-level stats include active sessions. Session-level stats only include completed sessions. ';
+html += '<strong>LO Rate</strong> = successful lockouts ÷ hands played. ';
+html += '<strong>False LO Rate</strong> = false lockouts ÷ total lockout attempts.';
+html += '</div>';
 
     html += '<h3 class="mt-20">Player Breakdown</h3>';
     html += '<p class="text-muted text-sm mb-10">💡 Click column headers to sort</p>';
