@@ -91,3 +91,52 @@
 .content-card-sm p {
     margin: 0;
 }
+
+/* === SCROLLABLE CONTAINERS === */
+.scroll-container {
+    max-height: 65vh;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.scroll-container-lg {
+    max-height: 70vh;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+/* === SECTION HEADINGS === */
+.section-heading-green {
+    color: #4caf50;
+    margin-bottom: 15px;
+}
+
+.section-heading-blue {
+    color: #667eea;
+    margin-bottom: 15px;
+}
+
+.section-heading-red {
+    color: #f5576c;
+    margin-bottom: 15px;
+}
+
+.section-heading-purple {
+    color: #9c27b0;
+    margin-bottom: 15px;
+}
+
+.section-heading-orange {
+    color: #ff5722;
+    margin-bottom: 15px;
+}
+
+.section-heading-cyan {
+    color: #00bcd4;
+    margin-bottom: 15px;
+}
+
+.section-heading-yellow {
+    color: #ffc107;
+    margin-bottom: 15px;
+}
