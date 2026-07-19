@@ -260,7 +260,7 @@
 <body>
     <div class="container">
 <div class="header">
-<h1 style="cursor: pointer; transition: opacity 0.2s; user-select: none;" 
+<h1 class="header-title" 
     onclick="handleHeaderClick(event)" 
     onmouseover="this.style.opacity='0.8'" 
     onmouseout="this.style.opacity='1'">
@@ -1361,7 +1361,7 @@
                 <h3>Add Player to Session</h3>
                 <button class="modal-close" onclick="closeAddPlayerModal()">&times;</button>
             </div>
-            <p style="margin-bottom: 15px; color: #666;">Select a player to add to this session. They will join from the next hand onwards.</p>
+            <p class="modal-body-text">Select a player to add to this session. They will join from the next hand onwards.</p>
             <label>Select Player</label>
             <div id="addPlayerList" class="loading">Loading players...</div>
             <div id="addPlayerConfirm" style="display: none; background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0;">
