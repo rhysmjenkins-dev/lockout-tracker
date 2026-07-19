@@ -140,3 +140,44 @@
     color: #ffc107;
     margin-bottom: 15px;
 }
+
+/* === UTILITY === */
+.mt-20 {
+    margin-top: 20px;
+}
+
+.mb-20 {
+    margin-bottom: 20px;
+}
+
+.mb-10 {
+    margin-bottom: 10px;
+}
+
+.mb-5 {
+    margin-bottom: 5px;
+}
+
+.text-sm {
+    font-size: 0.9em;
+}
+
+.text-muted {
+    color: #666;
+}
+
+.text-muted-sm {
+    font-size: 0.9em;
+    color: #555;
+}
+
+.list-indented {
+    margin-left: 20px;
+    line-height: 1.8;
+}
+
+.flex-wrap-gap {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
