@@ -63,7 +63,7 @@
     <div class="card">
         <h2>📖 Dictionary</h2>
         
-        <div id="dictionaryNav" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+        <div id="dictionaryNav" class="dictionary-nav">
             <button class="btn btn-small btn-info" onclick="showDictionarySection('lingo')">🎭 Lockout Lingo</button>
             <button class="btn btn-small btn-info" onclick="showDictionarySection('glossary')">📚 Glossary</button>
         </div>
@@ -159,7 +159,7 @@
                         <span style="font-size: 0.9em; color: #555;">Two red kings? Stand up and sing. House rules.</span></p>
                     </div>
                     
-                    <div style="background: white; padding: 10px; border-radius: 6px;">
+                    <div class="content-card-sm">
                         <p style="margin: 0;"><strong style="color: #667eea;">🕵️ Bond (Red King - Red King turned, then 7)</strong><br>
                         <span style="font-size: 0.9em; color: #555;">0-0-7. Licensed to lockout.</span></p>
                     </div>
@@ -241,7 +241,7 @@
                         <p class="p-muted">Your total score across all hands in a session. Lowest cumulative score wins.</p>
                     </div>
                     
-                    <div style="background: white; padding: 12px; border-radius: 8px;">
+                    <div class="content-card-sm">
                         <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Red King</h4>
                         <p class="p-muted">The only card worth -1 points (King of Hearts or Diamonds). Cannot be slammed.</p>
                     </div>
@@ -326,7 +326,7 @@
                         <p class="p-muted">Categories applied to sessions (e.g., Casual, Holiday, Pub, Tournament) for filtering and organization.</p>
                     </div>
                     
-                    <div style="background: white; padding: 12px; border-radius: 8px;">
+                    <div class="content-card-sm">
                         <h4 style="color: #667eea; margin: 0 0 5px 0; font-size: 1em;">Edit History</h4>
                         <p class="p-muted">A log of all changes made to sessions and hands, tracking who edited what and when.</p>
                     </div>
@@ -668,7 +668,7 @@
                     <p style="margin: 0;">A: Average of all current players' cumulative totals at the hand they join.</p>
                 </div>
                 
-                <div style="background: white; padding: 12px; border-radius: 8px;">
+                <div class="content-card-sm">
                     <p style="font-weight: 600; margin-bottom: 5px;">Q: Why does the app ask for lockout scores, not final scores?</p>
                     <p style="margin: 0;">A: The app calculates final scores automatically based on lockout validity. You only input the score the player called lockout with.</p>
                 </div>
@@ -3829,7 +3829,7 @@ contentDiv.innerHTML =
                     html += '<div style="color: #333; font-size: 0.85em;">' + p1Name + ' beats ' + p2Name + ' in ' + ts.best_with.wins + ' out of ' + ts.best_with.total + ' sessions when ' + getPlayerName(ts.best_with.player_id) + ' is also playing</div>';
                     html += '</div>';
                     
-                    html += '<div style="background: white; padding: 10px; border-radius: 6px;">';
+                    html += '<div class="content-card-sm">';
                     html += '<div style="font-size: 0.85em; color: #f44336; font-weight: 600; margin-bottom: 3px;">❌ Worst with ' + getPlayerName(ts.worst_with.player_id) + '</div>';
                     html += '<div style="color: #333; font-size: 0.85em;">' + p1Name + ' beats ' + p2Name + ' in ' + ts.worst_with.wins + ' out of ' + ts.worst_with.total + ' sessions when ' + getPlayerName(ts.worst_with.player_id) + ' is also playing</div>';
                     html += '</div>';
@@ -3972,7 +3972,6 @@ window.addEventListener('DOMContentLoaded', function() {
     history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
 });
 
-});
 // ============================================
 // HAPTIC FEEDBACK EVENT LISTENER
 // ============================================
