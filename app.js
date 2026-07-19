@@ -348,10 +348,10 @@ async function checkActiveSessions() {
     document.getElementById('activeSessionsSection').innerHTML = 
         '<div class="skeleton-card">' +
             '<h3 class="section-heading-blue">Loading active sessions...</h3>' +
-            '<div class="shimmer-wrapper skeleton-text large" style="width: 60%;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text" style="width: 80%; margin-top: 15px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text" style="width: 70%;"></div>' +
-            '<div class="shimmer-wrapper skeleton-button" style="margin-top: 15px;"></div>' +
+'<div class="shimmer-wrapper skeleton-text large skeleton-w-60"></div>' +
+'<div class="shimmer-wrapper skeleton-text skeleton-w-80 mt-20"></div>' +
+'<div class="shimmer-wrapper skeleton-text skeleton-w-70"></div>' +
+'<div class="shimmer-wrapper skeleton-button mt-20"></div>' +
         '</div>';
 
     const sessionsWithHands = await apiCall('getSessionsWithHands', {});
@@ -1275,26 +1275,26 @@ document.getElementById('sessionScores').innerHTML =
 document.getElementById('handHistoryList').innerHTML = 
     '<div style="padding: 10px;">' +
         '<h4 class="section-heading-blue">Loading hand history...</h4>' +
-        '<div class="hand-item" style="background: #f8f9fa;">' +
-            '<div class="hand-item-info" style="flex: 1;">' +
-                '<div class="shimmer-wrapper skeleton-text" style="width: 30%; margin-bottom: 8px;"></div>' +
-                '<div class="shimmer-wrapper skeleton-text small" style="width: 80%;"></div>' +
+        '<div class="hand-item">' +
+            '<div class="hand-item-info">' +
+'<div class="shimmer-wrapper skeleton-text skeleton-w-30 mb-10"></div>' +
+'<div class="shimmer-wrapper skeleton-text small skeleton-w-80"></div>' +
             '</div>' +
-            '<div class="shimmer-wrapper skeleton-button" style="width: 80px; height: 40px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-button skeleton-w-80 skeleton-h-40"></div>' +
         '</div>' +
-        '<div class="hand-item" style="background: #f8f9fa;">' +
-            '<div class="hand-item-info" style="flex: 1;">' +
-                '<div class="shimmer-wrapper skeleton-text" style="width: 30%; margin-bottom: 8px;"></div>' +
-                '<div class="shimmer-wrapper skeleton-text small" style="width: 80%;"></div>' +
+        '<div class="hand-item">' +
+            '<div class="hand-item-info">' +
+'<div class="shimmer-wrapper skeleton-text skeleton-w-30 mb-10"></div>' +
+'<div class="shimmer-wrapper skeleton-text small skeleton-w-80"></div>' +
             '</div>' +
-            '<div class="shimmer-wrapper skeleton-button" style="width: 80px; height: 40px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-button skeleton-w-80 skeleton-h-40"></div>' +
         '</div>' +
-        '<div class="hand-item" style="background: #f8f9fa;">' +
-            '<div class="hand-item-info" style="flex: 1;">' +
-                '<div class="shimmer-wrapper skeleton-text" style="width: 30%; margin-bottom: 8px;"></div>' +
-                '<div class="shimmer-wrapper skeleton-text small" style="width: 80%;"></div>' +
+        '<div class="hand-item">' +
+            '<div class="hand-item-info">' +
+'<div class="shimmer-wrapper skeleton-text skeleton-w-30 mb-10"></div>' +
+'<div class="shimmer-wrapper skeleton-text small skeleton-w-80"></div>' +
             '</div>' +
-            '<div class="shimmer-wrapper skeleton-button" style="width: 80px; height: 40px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-button skeleton-w-80 skeleton-h-40"></div>' +
         '</div>' +
     '</div>';
             
