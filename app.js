@@ -2035,8 +2035,6 @@ function displayOverallStats(stats, totalSessions) {
     let mostFalseLockouts = { player: 'N/A', count: 0 };
     let longestHandStreak = { player: 'N/A', streak: 0 };
     let bestAvgLockoutScore = { player: 'N/A', avg: Infinity };
-    let totalHands = 0;
-
 let totalHands = stats._totalUniqueHands || 0;
 
     for (let playerId in stats) {
