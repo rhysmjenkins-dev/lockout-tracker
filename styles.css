@@ -181,3 +181,51 @@
     gap: 10px;
     flex-wrap: wrap;
 }
+
+/* === INNER ELEMENT STYLES === */
+.heading-green {
+    color: #4caf50;
+    margin-bottom: 10px;
+}
+
+.heading-blue {
+    color: #667eea;
+    margin-bottom: 10px;
+}
+
+.heading-purple {
+    color: #9c27b0;
+    margin-bottom: 10px;
+}
+
+.heading-red {
+    color: #f5576c;
+    margin-bottom: 10px;
+}
+
+.heading-cyan {
+    color: #00bcd4;
+    margin-bottom: 10px;
+}
+
+.heading-sm {
+    font-size: 1em;
+    margin: 0 0 5px 0;
+}
+
+.heading-banner {
+    margin: 0 0 10px 0;
+    font-size: 1.3em;
+}
+
+.p-muted {
+    margin: 0;
+    font-size: 0.9em;
+    color: #555;
+}
+
+.p-banner {
+    margin: 0;
+    font-size: 0.85em;
+    font-style: italic;
+}
