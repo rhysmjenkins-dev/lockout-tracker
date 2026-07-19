@@ -2480,6 +2480,7 @@ contentDiv.innerHTML =
                 
                 if (total === 0) continue;
                 
+const wins = m.p1_wins + m.p2_wins;
 const p1Pct = total > 0 ? Math.round((m.p1_wins / total) * 100) : 33;
 const drawPct = total > 0 ? Math.round((m.ties / total) * 100) : 34;
 const p2Pct = total > 0 ? Math.round((m.p2_wins / total) * 100) : 33;
@@ -2501,9 +2502,9 @@ html += '<div style="width: ' + p2Pct + '%; background: #f5576c;"></div>';
 html += '</div>';
 
                 html += '<div style="display: flex; justify-content: space-between; font-size: 0.85em; color: #666; margin-bottom: 10px;">';
-                html += '<span>' + p1Pct + '%</span>';
-                html += '<span>' + m.sessions_together + ' session' + (m.sessions_together > 1 ? 's' : '') + ' together</span>';
-                html += '<span>' + p2Pct + '%</span>';
+html += '<span>' + p1Pct + '%</span>';
+html += '<span>' + m.sessions_together + ' session' + (m.sessions_together > 1 ? 's' : '') + ' together • W-D-L</span>';
+html += '<span>' + p2Pct + '%</span>';
                 html += '</div>';
                 
                 html += '<button class="btn btn-small btn-info" onclick="quickCompare(' + m.p1 + ', ' + m.p2 + ')" style="width: 100%;">View Detailed Comparison</button>';
