@@ -2480,25 +2480,26 @@ contentDiv.innerHTML =
                 
                 if (total === 0) continue;
                 
-                const p1Pct = total > 0 ? Math.round((m.p1_wins / total) * 100) : 50;
-                const p2Pct = total > 0 ? Math.round((m.p2_wins / total) * 100) : 50;
+const p1Pct = total > 0 ? Math.round((m.p1_wins / total) * 100) : 33;
+const drawPct = total > 0 ? Math.round((m.ties / total) * 100) : 34;
+const p2Pct = total > 0 ? Math.round((m.p2_wins / total) * 100) : 33;
 
                 html += '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">';
                 
                 html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
                 html += '<strong style="color: #667eea;">' + p1Name + '</strong>';
                 html += '<span style="color: #333; font-weight: 600; font-size: 1.1em;">';
-                html += m.p1_wins + '-' + m.p2_wins;
-                if (m.ties > 0) html += '-' + m.ties;
+html += m.p1_wins + '-' + m.ties + '-' + m.p2_wins;
                 html += '</span>';
                 html += '<strong style="color: #f5576c;">' + p2Name + '</strong>';
                 html += '</div>';
                 
-                html += '<div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">';
-                html += '<div style="width: ' + p1Pct + '%; background: #667eea;"></div>';
-                html += '<div style="width: ' + p2Pct + '%; background: #f5576c;"></div>';
-                html += '</div>';
-                
+html += '<div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">';
+html += '<div style="width: ' + p1Pct + '%; background: #667eea;"></div>';
+html += '<div style="width: ' + drawPct + '%; background: #aaaaaa;"></div>';
+html += '<div style="width: ' + p2Pct + '%; background: #f5576c;"></div>';
+html += '</div>';
+
                 html += '<div style="display: flex; justify-content: space-between; font-size: 0.85em; color: #666; margin-bottom: 10px;">';
                 html += '<span>' + p1Pct + '%</span>';
                 html += '<span>' + m.sessions_together + ' session' + (m.sessions_together > 1 ? 's' : '') + ' together</span>';
