@@ -2040,8 +2040,8 @@ let totalHands = stats._totalUniqueHands || 0;
 for (let playerId in stats) {
     if (playerId === '_totalUniqueHands') continue;
     const ps = stats[playerId];
-    if (ps.sessionsWon > mostSessionsWon.wins) mostSessionsWon =
-        if (ps.handsWon > mostHandsWon.hands) mostHandsWon = { player: ps.username, hands: ps.handsWon };
+    if (ps.sessionsWon > mostSessionsWon.wins) mostSessionsWon = { player: ps.username, wins: ps.sessionsWon.toFixed(1) };
+    if (ps.handsWon > mostHandsWon.hands) mostHandsWon = { player: ps.username, hands: ps.handsWon };
         if (ps.sessionsPlayed > 0) {
             const sessionWinRate = (ps.sessionsWon / ps.sessionsPlayed) * 100;
             if (sessionWinRate > bestSessionWinRate.rate) bestSessionWinRate = { player: ps.username, rate: sessionWinRate.toFixed(1) };
