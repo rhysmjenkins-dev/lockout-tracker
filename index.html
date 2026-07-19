@@ -2713,19 +2713,22 @@ for (let i = 0; i < sessionPlayers.length; i++) {
                     });
                     
                     // ✅ FIX: Only count lockout scores when this player actually locked out
-                    if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
-                        playerScores[hand.player_id].totalLockouts++;
-                        if (hand.false_lockout == 1 || hand.false_lockout === true) {
-                            falseLockoutCount++;
-                            playerScores[hand.player_id].falseLockouts++;
-                        } else {
-                            playerScores[hand.player_id].lockouts++;
-                            const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
-                            playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
-                            totalLockoutScore += lockoutScoreToUse;
-                            totalLockouts++;
-                        }
-                    }
+if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+    playerScores[hand.player_id].totalLockouts++;
+    const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+    
+    playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
+    totalLockoutScore += lockoutScoreToUse;
+    totalLockouts++;
+    
+    if (hand.false_lockout == 1 || hand.false_lockout === true) {
+        falseLockoutCount++;
+        playerScores[hand.player_id].falseLockouts++;
+        playerScores[hand.player_id].falseLockoutScores.push(lockoutScoreToUse);
+    } else {
+        playerScores[hand.player_id].lockouts++;
+    }
+}
                 }
             }
             
