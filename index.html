@@ -3204,7 +3204,7 @@ for (let pid of allPlayerIds) {
     
     playerTotals[pid] = startingScore;
     playerHandScores[pid] = [];
-    playerStats[pid] = { lockouts: 0, lockoutScores: [], falseLockouts: 0, totalLockouts: 0 };
+    playerStats[pid] = { lockouts: 0, lockoutScores: [], falseLockouts: 0, falseLockoutScores: [], totalLockouts: 0 };
 }
 
 for (let i = 0; i < handsData.length; i++) {
@@ -3215,20 +3215,19 @@ for (let i = 0; i < handsData.length; i++) {
     playerHandScores[pid].push({ handNum: Number(hand.hand_number), score: Number(hand.score) });
     
     // ✅ FIX: Track ALL lockout attempts
-    if (hand.lockout_player_id && String(hand.lockout_player_id) === String(pid)) {
-        playerStats[pid].totalLockouts++;
-        const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
-        
-        // Add to ALL lockout scores
-        playerStats[pid].lockoutScores.push(lockoutScoreToUse);
-        
-        if (hand.false_lockout == 1 || hand.false_lockout === true) {
-            playerStats[pid].falseLockouts++;
-            playerStats[pid].falseLockoutScores.push(lockoutScoreToUse);
-        } else {
-            playerStats[pid].lockouts++;
-        }
+if (hand.lockout_player_id && String(hand.lockout_player_id) === String(pid)) {
+    playerStats[pid].totalLockouts++;
+    const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+    
+    playerStats[pid].lockoutScores.push(lockoutScoreToUse);
+    
+    if (hand.false_lockout == 1 || hand.false_lockout === true) {
+        playerStats[pid].falseLockouts++;
+        playerStats[pid].falseLockoutScores.push(lockoutScoreToUse);
+    } else {
+        playerStats[pid].lockouts++;
     }
+}
 }
 
 const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
@@ -3248,6 +3247,7 @@ html += '<th onclick="sortSessionTable(5)" style="cursor: pointer; user-select: 
 html += '<th onclick="sortSessionTable(6)" style="cursor: pointer; user-select: none;">Avg LO Score ⇅</th>';
 html += '<th onclick="sortSessionTable(7)" style="cursor: pointer; user-select: none;">False LO ⇅</th>';
 html += '<th onclick="sortSessionTable(8)" style="cursor: pointer; user-select: none;">False LO Rate ⇅</th>';
+html += '<th onclick="sortSessionTable(9)" style="cursor: pointer; user-select: none;">Avg False LO Score ⇅</th>';
 html += '</tr>';
 
             for (let i = 0; i < sortedPlayers.length; i++) {
@@ -3259,9 +3259,11 @@ html += '</tr>';
                 const stats = playerStats[playerId];
                 const lockoutRate = handsPlayed > 0 ? ((stats.lockouts / handsPlayed) * 100).toFixed(1) : '0';
                 const avgLockoutScore = stats.lockoutScores.length > 0 ? (stats.lockoutScores.reduce((sum, s) => sum + s, 0) / stats.lockoutScores.length).toFixed(2) : 'N/A';
-                const falseLockoutRate = stats.totalLockouts > 0 ? ((stats.falseLockouts / stats.totalLockouts) * 100).toFixed(1) : '0';
-                
-                html += '<tr><td><strong>' + playerName + '</strong></td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td></tr>';
+const falseLockoutRate = stats.totalLockouts > 0 ? ((stats.falseLockouts / stats.totalLockouts) * 100).toFixed(1) : '0';
+const avgFalseLockoutScore = stats.falseLockoutScores.length > 0 ? (stats.falseLockoutScores.reduce((sum, s) => sum + s, 0) / stats.falseLockoutScores.length).toFixed(2) : 'N/A';
+
+html += '<tr><td><strong>' + playerName + '</strong></td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
+
             }
             html += '</table></div>';
 
