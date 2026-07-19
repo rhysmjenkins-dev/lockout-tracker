@@ -1882,6 +1882,7 @@ async function loadStats() {
 
 function calculateOverallStats(completedSessionsData, allSessionsData, playersData) {
     const playerStats = {};
+    
     for (let i = 0; i < playersData.length; i++) {
         const player = playersData[i];
         playerStats[player.player_id] = {
@@ -1901,18 +1902,26 @@ function calculateOverallStats(completedSessionsData, allSessionsData, playersDa
             worstMargin: 0
         };
     }
-
+    
+    let totalUniqueHands = 0;
+    
     for (let s = 0; s < allSessionsData.length; s++) {
         const session = allSessionsData[s];
         const playerUniqueHands = {};
+        
         for (let i = 0; i < playersData.length; i++) {
             playerUniqueHands[playersData[i].player_id] = new Set();
         }
+        
+        const sessionHandNumbers = new Set();
+        
         for (let h = 0; h < session.hands.length; h++) {
             const hand = session.hands[h];
             if (playerStats[hand.player_id]) {
                 playerStats[hand.player_id].totalScore += Number(hand.score);
                 playerUniqueHands[hand.player_id].add(Number(hand.hand_number));
+                sessionHandNumbers.add(Number(hand.hand_number));
+                
                 if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
                     playerStats[hand.player_id].totalLockouts++;
                     const lockoutScoreToUse = (hand.lockout_score !== null && hand.lockout_score !== undefined && hand.lockout_score !== '') ? Number(hand.lockout_score) : Number(hand.score);
@@ -1933,16 +1942,22 @@ function calculateOverallStats(completedSessionsData, allSessionsData, playersDa
                 }
             }
         }
+        
         for (let playerId in playerUniqueHands) {
             const uniqueHandCount = playerUniqueHands[playerId].size;
-            if (uniqueHandCount > 0) playerStats[playerId].handsPlayed += uniqueHandCount;
+            if (uniqueHandCount > 0) {
+                playerStats[playerId].handsPlayed += uniqueHandCount;
+            }
         }
+        
+        totalUniqueHands += sessionHandNumbers.size;
     }
-
+    
     for (let s = 0; s < completedSessionsData.length; s++) {
         const session = completedSessionsData[s];
         const playerTotals = {};
         const playersInSession = new Set();
+        
         try {
             const ji = JSON.parse(session.player_join_info || '{}');
             for (let pid in ji) {
@@ -1951,15 +1966,22 @@ function calculateOverallStats(completedSessionsData, allSessionsData, playersDa
                 }
             }
         } catch(e) {}
+        
         for (let h = 0; h < session.hands.length; h++) {
             const hand = session.hands[h];
-            if (playerTotals[hand.player_id] === undefined) playerTotals[hand.player_id] = 0;
+            if (playerTotals[hand.player_id] === undefined) {
+                playerTotals[hand.player_id] = 0;
+            }
             playerTotals[hand.player_id] += Number(hand.score);
             playersInSession.add(hand.player_id);
         }
+        
         playersInSession.forEach(playerId => {
-            if (playerStats[playerId]) playerStats[playerId].sessionsPlayed++;
+            if (playerStats[playerId]) {
+                playerStats[playerId].sessionsPlayed++;
+            }
         });
+        
         let lowestScore = Infinity;
         let winnerPlayerIds = [];
         for (let playerId in playerTotals) {
@@ -1971,27 +1993,36 @@ function calculateOverallStats(completedSessionsData, allSessionsData, playersDa
                 winnerPlayerIds.push(playerId);
             }
         }
+        
         let secondLowestScore = Infinity;
         for (let playerId in playerTotals) {
             const score = playerTotals[playerId];
-            if (score > lowestScore && score < secondLowestScore) secondLowestScore = score;
+            if (score > lowestScore && score < secondLowestScore) {
+                secondLowestScore = score;
+            }
         }
+        
         for (let playerId in playerTotals) {
             if (playerStats[playerId]) {
                 if (winnerPlayerIds.indexOf(String(playerId)) !== -1) {
                     playerStats[playerId].sessionsWon += (1 / winnerPlayerIds.length);
                     if (secondLowestScore !== Infinity) {
                         const margin = secondLowestScore - lowestScore;
-                        if (margin > playerStats[playerId].bestMargin) playerStats[playerId].bestMargin = margin;
+                        if (margin > playerStats[playerId].bestMargin) {
+                            playerStats[playerId].bestMargin = margin;
+                        }
                     }
                 } else {
                     const margin = playerTotals[playerId] - lowestScore;
-                    if (margin > playerStats[playerId].worstMargin) playerStats[playerId].worstMargin = margin;
+                    if (margin > playerStats[playerId].worstMargin) {
+                        playerStats[playerId].worstMargin = margin;
+                    }
                 }
             }
         }
     }
-
+    
+    playerStats._totalUniqueHands = totalUniqueHands;
     return playerStats;
 }
 
@@ -2006,9 +2037,7 @@ function displayOverallStats(stats, totalSessions) {
     let bestAvgLockoutScore = { player: 'N/A', avg: Infinity };
     let totalHands = 0;
 
-    for (let playerId in stats) {
-        if (stats[playerId].handsPlayed > totalHands) totalHands = stats[playerId].handsPlayed;
-    }
+let totalHands = stats._totalUniqueHands || 0;
 
     for (let playerId in stats) {
         const ps = stats[playerId];
