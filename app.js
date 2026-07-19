@@ -1642,11 +1642,11 @@ async function loadPreviousSessions() {
         const hands = completedSessions[i].hands;
         
         var dateObj = new Date(session.date_started);
-        var month = String(dateObj.getMonth() + 1).padStart(2, '0');
-        var day = String(dateObj.getDate()).padStart(2, '0');
-        var year = dateObj.getFullYear();
-        var cleanDate = month + '/' + day + '/' + year;
-        
+var day = String(dateObj.getDate()).padStart(2, '0');
+var month = String(dateObj.getMonth() + 1).padStart(2, '0');
+var year = dateObj.getFullYear();
+var cleanDate = day + '/' + month + '/' + year;
+
         var playerIds = session.players_involved.split(',');
         var playerTotals = {};
         var handCount = 0;
@@ -2744,11 +2744,11 @@ if (data.sessions_together.length > 0) {
         const winnerColor = s.p1_won && !s.p2_won ? '#667eea' : s.p2_won && !s.p1_won ? '#f5576c' : '#ff9800';
         
         var dateObj = new Date(s.date);
-        var month = String(dateObj.getMonth() + 1).padStart(2, '0');
-        var day = String(dateObj.getDate()).padStart(2, '0');
-        var year = dateObj.getFullYear();
-        var cleanDate = month + '/' + day + '/' + year;
-        
+var day = String(dateObj.getDate()).padStart(2, '0');
+var month = String(dateObj.getMonth() + 1).padStart(2, '0');
+var year = dateObj.getFullYear();
+var cleanDate = day + '/' + month + '/' + year;
+
         html += '<div style="padding: 15px; background: white; border-radius: 8px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; border: 1px solid #e0e0e0;" onclick="viewSessionDetailFromComparison(' + s.session_id + ', this)" onmouseover="this.style.background=\'#f8f9fa\'; this.style.borderColor=\'#9c27b0\';" onmouseout="this.style.background=\'white\'; this.style.borderColor=\'#e0e0e0\';">';
         
         html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
