@@ -655,3 +655,14 @@
 .mb-15 {
     margin-bottom: 15px;
 }
+
+/* === BATCH 1 ADDITIONS === */
+
+.skeleton-w-30 { width: 30%; }
+.skeleton-w-50 { width: 50%; }
+.skeleton-w-60 { width: 60%; }
+.skeleton-w-70 { width: 70%; }
+.skeleton-w-80 { width: 80%; }
+.skeleton-w-100 { width: 100%; }
+.skeleton-h-8 { height: 8px; }
+.skeleton-h-40 { height: 40px; }
