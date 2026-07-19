@@ -634,3 +634,21 @@
     margin-bottom: 15px;
     color: #333;
 }
+
+.section-heading-lightblue {
+    color: #4facfe;
+    margin-bottom: 15px;
+}
+
+.alert-box-red {
+    background: #ffebee;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border-left: 3px solid #f44336;
+}
+
+.heading-red-sm {
+    color: #f44336;
+    margin-bottom: 10px;
+}
