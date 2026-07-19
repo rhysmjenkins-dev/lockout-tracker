@@ -677,9 +677,12 @@ async function endSession() {
     });
     
     if (data.error) {
-        alert('Error: ' + data.error);
+        alert('❌ Failed to end session. Please try again.\n\n' + data.error);
+        hapticFeedback('error');
         setButtonLoading(endBtn, false);
+        return;
     } else {
+
         // Calculate winner before ending
         const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
         const playerTotals = {};
@@ -889,7 +892,8 @@ async function submitHand() {
     });
     
     if (data.error) {
-        messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+        messageDiv.innerHTML = '<div class="error">❌ Failed to save hand. Please try again. (' + data.error + ')</div>';
+        hapticFeedback('error');
         setButtonLoading(submitBtn, false);
     } else {
         currentHandNumber++;
@@ -1219,7 +1223,8 @@ async function saveEditedHand() {
             });
             
             if (data.error) {
-                alert('Error: ' + data.error);
+                alert('❌ Failed to delete hand. Please try again.\n\n' + data.error);
+                hapticFeedback('error');
                 if (event && event.target) {
                     setButtonLoading(event.target, false);
                 }
@@ -1228,6 +1233,7 @@ async function saveEditedHand() {
                     currentHandNumber--;
                     setupHandInputs();
                 }
+                hapticFeedback('success');
                 updateSessionScores();
                 if (event && event.target) {
                     setButtonLoading(event.target, false);
