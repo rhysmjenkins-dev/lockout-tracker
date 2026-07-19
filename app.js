@@ -2784,15 +2784,6 @@ function showDictionarySection(section) {
     }
 }
 
-// Show lingo by default when dictionary screen loads
-window.addEventListener('DOMContentLoaded', function() {
-    console.log('Lockout Tracker v4.1 🚀');
-    ensurePlayersLoaded();
-    checkActiveSessions();
-    history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
-    showDictionarySection('lingo');
-});
-    
         // ✅ NEW: Helper function to navigate from comparison to session detail
         async function viewSessionDetailFromComparison(sessionId, buttonElement) {     if (buttonElement) {         setButtonLoading(buttonElement, true);     }
             if (allSessions.length === 0) {
@@ -2832,15 +2823,6 @@ window.addEventListener('popstate', function(event) {
         // If no state, go to home screen
         showScreen('homeScreen', true);
     }
-});
-
-// Set initial history state
-window.addEventListener('DOMContentLoaded', function() {
-    console.log('Lockout Tracker v4.1 🚀');
-    ensurePlayersLoaded();
-    checkActiveSessions();
-    history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
-    showDictionarySection('lingo');
 });
 
 // ============================================
