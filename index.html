@@ -22,9 +22,7 @@
     <div class="container">
 <div class="header">
 <h1 class="header-title" 
-    onclick="handleHeaderClick(event)" 
-    onmouseover="this.style.opacity='0.8'" 
-    onmouseout="this.style.opacity='1'">
+    onclick="handleHeaderClick(event)">
     🎴 Lockout Tracker
 </h1>
     <p>Track your games, dominate the leaderboard</p>
@@ -3926,9 +3924,13 @@ function showDictionarySection(section) {
 
 // Show lingo by default when dictionary screen loads
 window.addEventListener('DOMContentLoaded', function() {
+    console.log('Lockout Tracker v4.1 🚀');
+    ensurePlayersLoaded();
+    checkActiveSessions();
+    history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
     showDictionarySection('lingo');
 });
-        
+    
         // ✅ NEW: Helper function to navigate from comparison to session detail
         async function viewSessionDetailFromComparison(sessionId, buttonElement) {     if (buttonElement) {         setButtonLoading(buttonElement, true);     }
             if (allSessions.length === 0) {
@@ -3949,11 +3951,14 @@ if (sessionIndex !== -1) {
         // ============================================
         // INITIALIZATION
         // ============================================
-        window.addEventListener('DOMContentLoaded', function() {
-            console.log('Lockout Tracker v3.0 - Optimized & Bug-Free! 🚀');
-            ensurePlayersLoaded();
-            checkActiveSessions();
-        });
+window.addEventListener('DOMContentLoaded', function() {
+    console.log('Lockout Tracker v4.1 🚀');
+    ensurePlayersLoaded();
+    checkActiveSessions();
+    history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
+    showDictionarySection('lingo');
+});
+
 // ============================================
 // BROWSER BACK BUTTON HANDLING
 // ============================================
@@ -3969,7 +3974,11 @@ window.addEventListener('popstate', function(event) {
 
 // Set initial history state
 window.addEventListener('DOMContentLoaded', function() {
+    console.log('Lockout Tracker v4.1 🚀');
+    ensurePlayersLoaded();
+    checkActiveSessions();
     history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
+    showDictionarySection('lingo');
 });
 
 // ============================================
