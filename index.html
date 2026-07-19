@@ -2686,22 +2686,23 @@ document.getElementById('handHistoryList').innerHTML =
             let totalLockouts = 0;
             let falseLockoutCount = 0;
             
-            for (let i = 0; i < sessionPlayers.length; i++) {
-                const player = sessionPlayers[i];
-                const startingScore = getPlayerStartingScore(player.player_id);
-                playerScores[player.player_id] = {
-                    username: player.username,
-                    total: startingScore,
-                    hands: [],
-                    lockouts: 0,
-                    lockoutScores: [],
-                    falseLockouts: 0,
-                    totalLockouts: 0,
-                    joinHand: getPlayerJoinHand(player.player_id),
-                    startingScore: startingScore
-                };
-            }
-            
+for (let i = 0; i < sessionPlayers.length; i++) {
+    const player = sessionPlayers[i];
+    const startingScore = getPlayerStartingScore(player.player_id);
+    playerScores[player.player_id] = {
+        username: player.username,
+        total: startingScore,
+        hands: [],
+        lockouts: 0,
+        lockoutScores: [],
+        falseLockouts: 0,
+        falseLockoutScores: [],
+        totalLockouts: 0,
+        joinHand: getPlayerJoinHand(player.player_id),
+        startingScore: startingScore
+    };
+}
+
             for (let i = 0; i < handsData.length; i++) {
                 const hand = handsData[i];
                 if (playerScores[hand.player_id]) {
@@ -2760,26 +2761,29 @@ html += '<th onclick="sortActiveSessionTable(8)" style="cursor: pointer; user-se
 html += '<th onclick="sortActiveSessionTable(9)" style="cursor: pointer; user-select: none;">Avg False LO Score ⇅</th>';
 html += '</tr>';
 
-            for (let i = 0; i < scores.length; i++) {
-                const p = scores[i];
-                const handsPlayed = p.hands.length;
-                const avgHand = handsPlayed > 0 ? ((p.total - p.startingScore) / handsPlayed).toFixed(2) : '0';
-                const lockoutRate = handsPlayed > 0 ? ((p.lockouts / handsPlayed) * 100).toFixed(1) : '0';
-                const avgLockoutScore = p.lockoutScores.length > 0 ? (p.lockoutScores.reduce((sum, s) => sum + s, 0) / p.lockoutScores.length).toFixed(2) : 'N/A';
-                const falseLockoutRate = p.totalLockouts > 0 ? ((p.falseLockouts / p.totalLockouts) * 100).toFixed(1) : '0';
-                
-                html += '<tr>';
-                html += '<td><strong>' + p.username + '</strong>' + (p.joinHand > 1 ? ' <span class="late-join-badge">H' + p.joinHand + '</span>' : '') + '</td>';
-                html += '<td>' + p.total + '</td>';
-                html += '<td>' + handsPlayed + '</td>';
-                html += '<td>' + avgHand + '</td>';
-                html += '<td>' + p.lockouts + '</td>';
-                html += '<td>' + lockoutRate + '%</td>';
-                html += '<td>' + avgLockoutScore + '</td>';
-                html += '<td>' + p.falseLockouts + '</td>';
-                html += '<td>' + falseLockoutRate + '%</td>';
-                html += '</tr>';
-            }
+for (let i = 0; i < scores.length; i++) {
+    const p = scores[i];
+    const handsPlayed = p.hands.length;
+    const avgHand = handsPlayed > 0 ? ((p.total - p.startingScore) / handsPlayed).toFixed(2) : '0';
+    const lockoutRate = handsPlayed > 0 ? ((p.lockouts / handsPlayed) * 100).toFixed(1) : '0';
+    const avgLockoutScore = p.lockoutScores.length > 0 ? (p.lockoutScores.reduce((sum, s) => sum + s, 0) / p.lockoutScores.length).toFixed(2) : 'N/A';
+    const falseLockoutRate = p.totalLockouts > 0 ? ((p.falseLockouts / p.totalLockouts) * 100).toFixed(1) : '0';
+    const avgFalseLockoutScore = p.falseLockoutScores.length > 0 ? (p.falseLockoutScores.reduce((sum, s) => sum + s, 0) / p.falseLockoutScores.length).toFixed(2) : 'N/A';
+    
+    html += '<tr>';
+    html += '<td><strong>' + p.username + '</strong>' + (p.joinHand > 1 ? ' <span class="late-join-badge">H' + p.joinHand + '</span>' : '') + '</td>';
+    html += '<td>' + p.total + '</td>';
+    html += '<td>' + handsPlayed + '</td>';
+    html += '<td>' + avgHand + '</td>';
+    html += '<td>' + p.lockouts + '</td>';
+    html += '<td>' + lockoutRate + '%</td>';
+    html += '<td>' + avgLockoutScore + '</td>';
+    html += '<td>' + p.falseLockouts + '</td>';
+    html += '<td>' + falseLockoutRate + '%</td>';
+    html += '<td>' + avgFalseLockoutScore + '</td>';
+    html += '</tr>';
+}
+
             html += '</table></div>';
             
             html += '<div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 20px; border-radius: 10px; margin-top: 20px; border-left: 4px solid #4caf50;">';
@@ -3204,18 +3208,26 @@ for (let i = 0; i < handsData.length; i++) {
     const hand = handsData[i];
     const pid = String(hand.player_id);
     
+for (let i = 0; i < handsData.length; i++) {
+    const hand = handsData[i];
+    const pid = String(hand.player_id);
+    
     playerTotals[pid] += Number(hand.score);
     playerHandScores[pid].push({ handNum: Number(hand.hand_number), score: Number(hand.score) });
     
-    // ✅ FIX: Only count lockout scores when this player actually locked out
+    // ✅ FIX: Track ALL lockout attempts
     if (hand.lockout_player_id && String(hand.lockout_player_id) === String(pid)) {
         playerStats[pid].totalLockouts++;
+        const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+        
+        // Add to ALL lockout scores
+        playerStats[pid].lockoutScores.push(lockoutScoreToUse);
+        
         if (hand.false_lockout == 1 || hand.false_lockout === true) {
             playerStats[pid].falseLockouts++;
+            playerStats[pid].falseLockoutScores.push(lockoutScoreToUse);
         } else {
             playerStats[pid].lockouts++;
-            const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
-            playerStats[pid].lockoutScores.push(lockoutScoreToUse);
         }
     }
 }
@@ -3560,33 +3572,37 @@ html += '</tr>';
                     playerUniqueHands[playersData[i].player_id] = new Set();
                 }
                 
-                for (let h = 0; h < session.hands.length; h++) {
-                    const hand = session.hands[h];
-                    if (playerStats[hand.player_id]) {
-                        playerStats[hand.player_id].totalScore += Number(hand.score);
-                        playerUniqueHands[hand.player_id].add(Number(hand.hand_number));
-                        
-                        // ✅ FIX: Only count lockout scores when this player actually locked out
-                        if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
-                            playerStats[hand.player_id].totalLockouts++;
-                            if (hand.false_lockout == 1 || hand.false_lockout === true) {
-                                playerStats[hand.player_id].falseLockouts++;
-                                playerStats[hand.player_id].currentHandStreak = 0;
-                            } else {
-                                playerStats[hand.player_id].handsWon++;
-                                const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
-                                playerStats[hand.player_id].lockoutScores.push(lockoutScoreToUse);
-                                playerStats[hand.player_id].currentHandStreak++;
-                                if (playerStats[hand.player_id].currentHandStreak > playerStats[hand.player_id].maxHandStreak) {
-                                    playerStats[hand.player_id].maxHandStreak = playerStats[hand.player_id].currentHandStreak;
-                                }
-                            }
-                        } else {
-                            playerStats[hand.player_id].currentHandStreak = 0;
-                        }
-                    }
+for (let h = 0; h < session.hands.length; h++) {
+    const hand = session.hands[h];
+    if (playerStats[hand.player_id]) {
+        playerStats[hand.player_id].totalScore += Number(hand.score);
+        playerUniqueHands[hand.player_id].add(Number(hand.hand_number));
+        
+        // ✅ FIX: Track ALL lockout attempts
+        if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+            playerStats[hand.player_id].totalLockouts++;
+            const lockoutScoreToUse = hand.lockout_score ? Number(hand.lockout_score) : Number(hand.score);
+            
+            // Add to ALL lockout scores
+            playerStats[hand.player_id].lockoutScores.push(lockoutScoreToUse);
+            
+            if (hand.false_lockout == 1 || hand.false_lockout === true) {
+                playerStats[hand.player_id].falseLockouts++;
+                playerStats[hand.player_id].falseLockoutScores.push(lockoutScoreToUse);
+                playerStats[hand.player_id].currentHandStreak = 0;
+            } else {
+                playerStats[hand.player_id].handsWon++;
+                playerStats[hand.player_id].currentHandStreak++;
+                if (playerStats[hand.player_id].currentHandStreak > playerStats[hand.player_id].maxHandStreak) {
+                    playerStats[hand.player_id].maxHandStreak = playerStats[hand.player_id].currentHandStreak;
                 }
-                
+            }
+        } else {
+            playerStats[hand.player_id].currentHandStreak = 0;
+        }
+    }
+}
+
                 for (let playerId in playerUniqueHands) {
                     const uniqueHandCount = playerUniqueHands[playerId].size;
                     if (uniqueHandCount > 0) {
