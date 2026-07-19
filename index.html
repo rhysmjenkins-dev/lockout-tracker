@@ -914,8 +914,8 @@
             </div>
 
             <!-- DATA & PRIVACY -->
-            <div style="background: #e8f5e9; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #4caf50;">
-                <h3 style="color: #2e7d32; margin-bottom: 15px;">🔒 DATA & PRIVACY</h3>
+<div class="privacy-box">
+                <h3>🔒 DATA & PRIVACY</h3>
                 <ul class="list-indented">
                     <li>All data is stored in <strong>Google Sheets</strong> (your own spreadsheet)</li>
                     <li>No data is shared with third parties</li>
@@ -925,7 +925,7 @@
 
         </div>
 
-        <button class="btn btn-secondary" onclick="showScreen('homeScreen')" class="mt-20">Back to Home</button>
+        <button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
     </div>
 </div>
         
@@ -1208,7 +1208,7 @@
 
         </div>
 
-        <button class="btn btn-secondary" onclick="showScreen('homeScreen')" class="mt-20">Back to Home</button>
+        <button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
     </div>
 </div>
         <!-- PREVIOUS SESSIONS SCREEN -->
@@ -1236,14 +1236,14 @@
             <div class="card">
                 <h2>📊 Statistics</h2>
                 
-                <div id="statsNav" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                <div id="statsNav" class="stats-nav">
                     <button class="btn btn-small btn-info" onclick="showOverallStats()">Overall Stats</button>
                     <button class="btn btn-small btn-info" onclick="showHeadToHeadList()">Head-to-Head Records</button>
                     <button class="btn btn-small btn-info" onclick="showPlayerComparisonUI()">Detailed Comparison</button>
                 </div>
                 
                 <div id="statsContent" class="loading">Loading...</div>
-                <button class="btn btn-secondary" onclick="showScreen('homeScreen')" class="mt-20">Back to Home</button>
+                <button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
             </div>
         </div>
         <!-- START SESSION SCREEN -->
@@ -1259,7 +1259,7 @@
                 <label for="sessionNotes">Session Notes (Optional)</label>
                 <textarea id="sessionNotes" placeholder="e.g. Playing at John's house, bring snacks"></textarea>
                 <label for="sessionTags">Session Type (Optional)</label>
-                <select id="sessionTags" multiple size="4" style="min-height: 120px;">
+                <select id="sessionTags" multiple size="4" class="min-height-120">
                     <option value="Testing">🧪 Testing</option>
                     <option value="Casual">😎 Casual</option>
                     <option value="Holiday">🏖️ Holiday</option>
@@ -1267,10 +1267,10 @@
                     <option value="Late Night">🌙 Late Night</option>
                     <option value="Tournament">🏆 Tournament</option>
                 </select>
-                <small style="color: #666; display: block; margin-top: 5px;">Hold Ctrl (Cmd on Mac) to select multiple</small>
+                <small class="display-block color-666">Hold Ctrl (Cmd on Mac) to select multiple</small>
                 <label for="falseLockoutPenalty">False Lockout Penalty</label>
                 <input type="number" id="falseLockoutPenalty" placeholder="e.g. 10" value="10" min="0">
-                <small style="color: #666; display: block; margin-top: 5px;">Points added to score when a lockout attempt fails</small>
+                <small class="display-block color-666">Points added to score when a lockout attempt fails</small>
                 <label>Select Players</label>
                 <div id="playerSelectionList" class="loading">Loading players...</div>
                 <button class="btn btn-success" onclick="createSession()">Start Session</button>
@@ -1339,7 +1339,7 @@
             <label for="editSessionNotes">Session Notes</label>
             <textarea id="editSessionNotes" placeholder="e.g. Playing at John's house"></textarea>
             <label for="editSessionTags">Session Type</label>
-            <select id="editSessionTags" multiple size="4" style="min-height: 120px;">
+            <select id="editSessionTags" multiple size="4" class="min-height-120">
                 <option value="Testing">🧪 Testing</option>
                 <option value="Casual">😎 Casual</option>
                 <option value="Holiday">🏖️ Holiday</option>
@@ -1347,7 +1347,7 @@
                 <option value="Late Night">🌙 Late Night</option>
                 <option value="Tournament">🏆 Tournament</option>
             </select>
-            <small style="color: #666; display: block; margin-top: 5px;">Hold Ctrl (Cmd on Mac) to select multiple</small>
+            <small class="display-block color-666">Hold Ctrl (Cmd on Mac) to select multiple</small>
             <button class="btn btn-success" onclick="saveEditedSession()">Save Changes</button>
             <button class="btn btn-secondary" onclick="closeEditSessionModal()">Cancel</button>
             <div id="editSessionMessage"></div>
