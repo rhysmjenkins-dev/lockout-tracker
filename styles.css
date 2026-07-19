@@ -72,3 +72,22 @@
 .section-box-yellow {
     border-left: 4px solid #ffc107;
 }
+
+/* === CONTENT CARDS === */
+.content-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.content-card-sm {
+    background: white;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.content-card-sm p {
+    margin: 0;
+}
