@@ -1,1 +1,34 @@
+/* === BANNER HEADERS === */
+.banner-purple {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    color: white;
+}
 
+.banner-orange {
+    background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    color: white;
+}
+
+.banner-green {
+    background: linear-gradient(135deg, #4caf50 0%, #8bc34a 100%);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    color: white;
+}
+
+.banner h3 {
+    margin: 0 0 10px 0;
+    font-size: 1.3em;
+}
+
+.banner p {
+    margin: 0;
+    font-size: 0.9em;
+}
