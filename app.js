@@ -2299,8 +2299,10 @@ async function showPlayerComparison() {
         html += '<tr><td><strong>Lockout Rate</strong></td><td>' + ts.p1_lockout_rate + '%</td><td>' + ts.p2_lockout_rate + '%</td></tr>';
         html += '<tr><td><strong>Avg Lockout Score</strong></td><td>' + (ts.p1_lockouts > 0 ? ts.p1_avg_lockout : 'N/A') + '</td><td>' + (ts.p2_lockouts > 0 ? ts.p2_avg_lockout : 'N/A') + '</td></tr>';
         html += '<tr><td><strong>False Lockouts</strong></td><td>' + ts.p1_false_lockouts + '</td><td>' + ts.p2_false_lockouts + '</td></tr>';
-        html += '<tr><td><strong>False Lockout Rate</strong></td><td>' + (ts.p1_false_lockouts + ts.p1_lockouts > 0 ? ts.p1_false_lockout_rate + '%' : 'N/A') + '</td><td>' + (ts.p2_false_lockouts + ts.p2_lockouts > 0 ? ts.p2_false_lockout_rate + '%' : 'N/A') + '</td></tr>';
-        html += '</table></div>';
+html += '<tr><td><strong>False Lockout Rate</strong></td><td>' + (ts.p1_false_lockouts + ts.p1_lockouts > 0 ? ts.p1_false_lockout_rate + '%' : 'N/A') + '</td><td>' + (ts.p2_false_lockouts + ts.p2_lockouts > 0 ? ts.p2_false_lockout_rate + '%' : 'N/A') + '</td></tr>';
+html += '<tr><td><strong>Avg False LO Score</strong></td><td>' + (ts.p1_false_lockouts > 0 ? ts.p1_avg_false_lockout : 'N/A') + '</td><td>' + (ts.p2_false_lockouts > 0 ? ts.p2_avg_false_lockout : 'N/A') + '</td></tr>';
+
+html += '</table></div>';
 
         if (ts.best_with && ts.worst_with && ts.best_with.player_id !== ts.worst_with.player_id) {
             html += '<div class="warning-box mt-20">';
@@ -2341,9 +2343,11 @@ async function showPlayerComparison() {
     html += '<tr><td><strong>Lockout Rate</strong></td><td>' + as1.lockout_rate + '%</td><td>' + as2.lockout_rate + '%</td></tr>';
     html += '<tr><td><strong>Avg Lockout Score</strong></td><td>' + (as1.lockouts > 0 ? as1.avg_lockout : 'N/A') + '</td><td>' + (as2.lockouts > 0 ? as2.avg_lockout : 'N/A') + '</td></tr>';
     html += '<tr><td><strong>False Lockouts</strong></td><td>' + as1.false_lockouts + '</td><td>' + as2.false_lockouts + '</td></tr>';
-    html += '<tr><td><strong>False Lockout Rate</strong></td><td>' + (as1.false_lockouts + as1.lockouts > 0 ? as1.false_lockout_rate + '%' : 'N/A') + '</td><td>' + (as2.false_lockouts + as2.lockouts > 0 ? as2.false_lockout_rate + '%' : 'N/A') + '</td></tr>';
-    html += '</table></div>';
-    html += '</div>';
+html += '<tr><td><strong>False Lockout Rate</strong></td><td>' + (as1.false_lockouts + as1.lockouts > 0 ? as1.false_lockout_rate + '%' : 'N/A') + '</td><td>' + (as2.false_lockouts + as2.lockouts > 0 ? as2.false_lockout_rate + '%' : 'N/A') + '</td></tr>';
+html += '<tr><td><strong>Avg False LO Score</strong></td><td>' + (as1.false_lockouts > 0 ? as1.avg_false_lockout : 'N/A') + '</td><td>' + (as2.false_lockouts > 0 ? as2.avg_false_lockout : 'N/A') + '</td></tr>';
+
+html += '</table></div>';
+html += '</div>';
 
     if (data.sessions_together.length > 0) {
         html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 4px solid #9c27b0;">';
