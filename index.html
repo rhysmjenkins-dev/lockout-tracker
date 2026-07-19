@@ -3208,10 +3208,6 @@ for (let i = 0; i < handsData.length; i++) {
     const hand = handsData[i];
     const pid = String(hand.player_id);
     
-for (let i = 0; i < handsData.length; i++) {
-    const hand = handsData[i];
-    const pid = String(hand.player_id);
-    
     playerTotals[pid] += Number(hand.score);
     playerHandScores[pid].push({ handNum: Number(hand.hand_number), score: Number(hand.score) });
     
