@@ -290,3 +290,50 @@
     font-size: 1.2em;
     font-weight: 600;
 }
+
+/* === HEADER CLICK === */
+.header-title {
+    cursor: pointer;
+    transition: opacity 0.2s;
+    user-select: none;
+}
+
+/* === MODAL HELPERS === */
+.modal-body-text {
+    margin-bottom: 15px;
+    color: #666;
+}
+
+/* === INSTRUCTIONS SCREEN === */
+.overview-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    color: white;
+    text-align: center;
+}
+
+.overview-banner h3 {
+    margin: 0;
+    font-size: 1.3em;
+}
+
+.overview-banner p {
+    margin: 10px 0 0 0;
+    font-size: 0.95em;
+}
+
+/* === DATA PRIVACY BOX === */
+.privacy-box {
+    background: #e8f5e9;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border-left: 4px solid #4caf50;
+}
+
+.privacy-box h3 {
+    color: #2e7d32;
+    margin-bottom: 15px;
+}
