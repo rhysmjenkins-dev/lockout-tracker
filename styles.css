@@ -582,7 +582,15 @@
 }
 
 .banner-orange,
-.banner-purple,
 .banner-green {
     margin-top: 15px;
+}
+
+.banner-purple {
+    margin-top: 15px;
+    margin-bottom: 20px;
+}
+
+#glossarySection .section-box {
+    margin-top: 10px;
 }
