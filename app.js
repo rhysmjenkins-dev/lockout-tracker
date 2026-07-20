@@ -243,22 +243,34 @@ async function drawEloHistoryChart() {
     if (shimmer) shimmer.style.display = 'none';
     if (container) container.style.display = 'block';
 
+    const isMobile = window.innerWidth < 600;
+    const shortLabels = labels.map(l => l.length > 8 ? l.substring(0, 8) + '…' : l);
+
     new Chart(ctx.getContext('2d'), {
         type: 'line',
-        data: { labels, datasets },
+        data: { labels: isMobile ? shortLabels : labels, datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
                 title: { display: true, text: 'ELO Rating History' },
-                legend: { display: true, position: 'top' }
+                legend: {
+                    display: true,
+                    position: isMobile ? 'bottom' : 'top',
+                    labels: { font: { size: isMobile ? 10 : 12 }, boxWidth: 12 }
+                }
             },
             scales: {
                 x: {
-                    title: { display: true, text: 'Session' },
-                    ticks: { maxRotation: 45, font: { size: 11 } }
+                    ticks: {
+                        maxRotation: isMobile ? 45 : 30,
+                        font: { size: isMobile ? 9 : 11 }
+                    }
                 },
-                y: { title: { display: true, text: 'Rating' } }
+                y: {
+                    title: { display: true, text: 'Rating' },
+                    ticks: { font: { size: isMobile ? 10 : 12 } }
+                }
             }
         }
     });
@@ -2019,23 +2031,23 @@ window.addEventListener('DOMContentLoaded', function() {
     console.log('Lockout Tracker v4.1 🚀');
 
     // Show both skeletons immediately and simultaneously
-    const skeletonHtml =
-        '<div class="skeleton-card">' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-50 mb-10" style="height:22px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10" style="height:36px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-60" style="height:36px;"></div>' +
-        '</div>';
-
     document.getElementById('activeSessionsSection').innerHTML =
         '<div class="skeleton-card">' +
+            '<p class="skeleton-loading-text">Loading active sessions...</p>' +
             '<div class="shimmer-wrapper skeleton-text skeleton-w-50 mb-10" style="height:22px;"></div>' +
             '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
             '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10" style="height:36px;"></div>' +
             '<div class="shimmer-wrapper skeleton-text skeleton-w-60" style="height:36px;"></div>' +
         '</div>';
 
-    document.getElementById('eloLeaderboardSection').innerHTML = skeletonHtml;
+    document.getElementById('eloLeaderboardSection').innerHTML =
+        '<div class="skeleton-card">' +
+            '<p class="skeleton-loading-text">Loading ELO rankings...</p>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-50 mb-10" style="height:22px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10" style="height:36px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-60" style="height:36px;"></div>' +
+        '</div>';
 
     ensurePlayersLoaded();
     Promise.all([checkActiveSessions(), displayEloLeaderboard()]);
