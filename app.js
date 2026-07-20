@@ -96,13 +96,6 @@ function formatEloBadge(playerId) {
 }
 
 async function displayEloLeaderboard() {
-    document.getElementById('eloLeaderboardSection').innerHTML =
-        '<div class="skeleton-card">' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-30 mb-10" style="height:22px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10" style="height:36px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-60" style="height:36px;"></div>' +
-        '</div>';
     const data = await loadEloRatings();
     if (!data || data.length === 0) return;
     const medals = ['🥇', '🥈', '🥉'];
@@ -474,13 +467,6 @@ function closeAddPlayerModal() {
 // ============================================
 async function checkActiveSessions() {
     await ensurePlayersLoaded();
-    document.getElementById('activeSessionsSection').innerHTML =
-        '<div class="skeleton-card">' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-50 mb-10" style="height:22px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10" style="height:36px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-60" style="height:36px;"></div>' +
-        '</div>';
 
     const sessionsWithHands = await apiCall('getSessionsWithHands', {});
     if (sessionsWithHands.error) {
@@ -2031,6 +2017,26 @@ async function viewSessionDetailFromComparison(sessionId, buttonElement) {
 // ============================================
 window.addEventListener('DOMContentLoaded', function() {
     console.log('Lockout Tracker v4.1 🚀');
+
+    // Show both skeletons immediately and simultaneously
+    const skeletonHtml =
+        '<div class="skeleton-card">' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-50 mb-10" style="height:22px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10" style="height:36px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-60" style="height:36px;"></div>' +
+        '</div>';
+
+    document.getElementById('activeSessionsSection').innerHTML =
+        '<div class="skeleton-card">' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-50 mb-10" style="height:22px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10" style="height:36px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-60" style="height:36px;"></div>' +
+        '</div>';
+
+    document.getElementById('eloLeaderboardSection').innerHTML = skeletonHtml;
+
     ensurePlayersLoaded();
     Promise.all([checkActiveSessions(), displayEloLeaderboard()]);
     history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
