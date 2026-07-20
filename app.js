@@ -777,11 +777,11 @@ async function endSession() {
     hapticFeedback('success');
     setTimeout(function() {
         alert('Session ended!\n\n🏆 ' + (isTie ? 'Tie game!' : winner.username + ' wins!') + ' (' + winner.total + ' pts)');
-        if (!isTie) celebrateWinner(winner.username);
         setButtonLoading(endBtn, false);
         currentSession = null;
         showScreen('homeScreen');
         checkActiveSessions();
+        if (!isTie) setTimeout(function() { celebrateWinner(winner.username); }, 300);
     }, 500);
 }
 
