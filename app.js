@@ -915,6 +915,11 @@ async function submitHand() {
 async function displayHandHistory() {
     document.getElementById('handHistorySection').style.display = 'none';
     document.getElementById('handHistoryList').innerHTML = '';
+    const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
+    if (handsData.error || handsData.length === 0) {
+        document.getElementById('activeHandHistoryBottom').innerHTML = '';
+        return;
+    }
     const handsByNumber = {};
     for (let i = 0; i < handsData.length; i++) {
         const hand = handsData[i];
