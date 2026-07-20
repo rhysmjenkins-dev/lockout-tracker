@@ -179,9 +179,9 @@ async function addPlayer() {
     if (!username) { messageDiv.innerHTML = '<div class="error">Please enter a player name</div>'; return; }
     const addBtn = event.target;
     setButtonLoading(addBtn, true);
-    const data = await apiCall('addPlayer', { username: username, editor_name: username });
+const data = await apiCall('addPlayer', { username: username, editor_name: username });
     if (data.error) {
-        messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+        messageDiv.innerHTML = '<div class="error">⚠️ ' + data.error + '</div>';
         setButtonLoading(addBtn, false);
     } else {
         messageDiv.innerHTML = '<div class="success">Player added!</div>';
@@ -379,6 +379,12 @@ async function createSession() {
     }
     const createBtn = event.target;
     setButtonLoading(createBtn, true);
+    const existingTitles = allSessions.map(s => s.title.toLowerCase().trim());
+    if (existingTitles.includes(title.toLowerCase().trim())) {
+        messageDiv.innerHTML = '<div class="error">⚠️ A session named "' + title + '" already exists.</div>';
+        setButtonLoading(createBtn, false);
+        return;
+    }
     const data = await apiCall('createSession', {
         title: title, host_player_id: hostId, players_involved: selectedPlayers.join(','),
         notes: notes, tags: tags, false_lockout_penalty: penalty
