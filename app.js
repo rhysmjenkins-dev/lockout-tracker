@@ -775,9 +775,9 @@ async function endSession() {
     const winner = scores[0];
     const isTie = scores.length > 1 && scores[1].total === winner.total;
     hapticFeedback('success');
-    if (!isTie) celebrateWinner(winner.username);
     setTimeout(function() {
         alert('Session ended!\n\n🏆 ' + (isTie ? 'Tie game!' : winner.username + ' wins!') + ' (' + winner.total + ' pts)');
+        if (!isTie) celebrateWinner(winner.username);
         setButtonLoading(endBtn, false);
         currentSession = null;
         showScreen('homeScreen');
