@@ -1182,7 +1182,9 @@ async function updateSessionScores() {
                 '<p>🎴 No hands played yet</p>' +
                 '<p class="text-muted text-sm">Submit your first hand above to begin tracking!</p>' +
             '</div>';
+        document.getElementById('handHistorySection').style.display = 'none';
         document.getElementById('activeHandHistoryBottom').innerHTML = '';
+        document.getElementById('activeSessionCharts').innerHTML = '';
         return;
     }
 
