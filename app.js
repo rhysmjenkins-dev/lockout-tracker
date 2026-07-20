@@ -1176,7 +1176,7 @@ async function updateSessionScores() {
     const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
     if (handsData.error) return;
 
-    // hand history rendered after charts — see bottom of updateSessionScores
+    displayHandHistory();
 
     const playerScores = {};
     let totalLockoutScore = 0, totalLockouts = 0, falseLockoutCount = 0;
@@ -1297,7 +1297,6 @@ async function updateSessionScores() {
         }
         setTimeout(function() { drawActiveWormChart(playerHandsData, playerIdsArray); drawActiveManhattanChart(playerHandsData, playerIdsArray); }, 100);
     }
-    displayHandHistory();
 }
 
 // ============================================
