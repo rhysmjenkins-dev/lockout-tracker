@@ -1150,7 +1150,7 @@ async function updateSessionScores() {
     document.getElementById('handHistoryList').innerHTML = '';
 document.getElementById('activeHandHistoryBottom').innerHTML =
     '<div class="skeleton-card">' +
-        '<p class="skeleton-loading-text">Loading hand history...</p>' +
+        '<h3 class="section-heading-blue mb-15">Loading hand history...</h3>' +
         '<div class="shimmer-wrapper skeleton-text skeleton-w-50 mb-10" style="height:18px;"></div>' +
         '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:40px;"></div>' +
         '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:40px;"></div>' +
@@ -1159,15 +1159,16 @@ document.getElementById('activeHandHistoryBottom').innerHTML =
     const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
     if (handsData.error) return;
 
-    if (handsData.length === 0) {
-        document.getElementById('sessionScores').innerHTML =
-            '<div class="no-active-sessions-box">' +
-                '<p>🎴 No hands played yet</p>' +
-                '<p class="text-muted text-sm">Submit your first hand above to begin tracking!</p>' +
-            '</div>';
-        document.getElementById('activeSessionCharts').innerHTML = '';
-        return;
-    }
+if (handsData.length === 0) {
+    document.getElementById('sessionScores').innerHTML =
+        '<div class="no-active-sessions-box">' +
+            '<p>🎴 No hands played yet</p>' +
+            '<p class="text-muted text-sm">Submit your first hand above to begin tracking!</p>' +
+        '</div>';
+    document.getElementById('activeSessionCharts').innerHTML = '';
+    document.getElementById('activeHandHistoryBottom').innerHTML = '';
+    return;
+}
 
     const playerScores = {};
     let totalLockoutScore = 0, totalLockouts = 0, falseLockoutCount = 0;
