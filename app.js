@@ -913,6 +913,8 @@ async function submitHand() {
 // HAND HISTORY & EDITING
 // ============================================
 async function displayHandHistory() {
+    document.getElementById('handHistorySection').style.display = 'none';
+    document.getElementById('handHistoryList').innerHTML = '';
     const handsByNumber = {};
     for (let i = 0; i < handsData.length; i++) {
         const hand = handsData[i];
@@ -963,8 +965,14 @@ async function displayHandHistory() {
                 '<div class="hand-history-scroll-inner">' + html + '</div>' +
             '</div>';
     } else {
-        document.getElementById('handHistoryList').innerHTML = html;
-        document.getElementById('handHistorySection').style.display = 'block';
+    const bottomContainer = document.getElementById('activeHandHistoryBottom');
+    if (bottomContainer) {
+        bottomContainer.innerHTML =
+            '<div class="hand-history-scrollable">' +
+                '<h4>Hand History</h4>' +
+                '<div class="hand-history-scroll-inner">' + html + '</div>' +
+            '</div>';
+    }
     }
 }
 
@@ -2065,6 +2073,7 @@ async function viewSessionDetailFromComparison(sessionId, buttonElement) {
 // ============================================
 window.addEventListener('DOMContentLoaded', function() {
     console.log('Lockout Tracker v4.1 🚀');
+    window.scrollTo(0, 0);
 
     // Show both skeletons immediately and simultaneously
     document.getElementById('activeSessionsSection').innerHTML =
