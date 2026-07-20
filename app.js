@@ -913,8 +913,10 @@ async function submitHand() {
 // ============================================
 // HAND HISTORY & EDITING
 // ============================================
-async function displayHandHistory() {
-    const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
+async function displayHandHistory(handsData) {
+    if (!handsData) {
+        handsData = await apiCall('getHands', { session_id: currentSession.session_id });
+    }
     if (handsData.error || handsData.length === 0) {
         document.getElementById('activeHandHistoryBottom').innerHTML = '';
         return;
@@ -1289,7 +1291,7 @@ if (handsData.length === 0) {
         setTimeout(function() { drawActiveWormChart(playerHandsData, playerIdsArray); drawActiveManhattanChart(playerHandsData, playerIdsArray); }, 100);
     }
 
-    await displayHandHistory();
+    await displayHandHistory(handsData);
 }
 
 // ============================================
