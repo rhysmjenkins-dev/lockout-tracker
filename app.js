@@ -314,7 +314,7 @@ async function checkActiveSessions() {
     if (activeSessions.length > 0) {
         let html = '<div class="active-session-box">';
         html += '<h3>Active Sessions</h3>';
-        html += '<div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">';
+        html += '<div class="active-sessions-scroll">';
 
         for (let i = 0; i < activeSessions.length; i++) {
             const session = activeSessions[i].session;
@@ -356,35 +356,35 @@ async function checkActiveSessions() {
                 }
             }
 
-            html += '<div class="active-session-item" style="background: white; padding: 20px; border-radius: 12px; margin: 12px 0; border: 2px solid #e8e9ff; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);">';
-            html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 15px; padding-bottom: 12px; border-bottom: 2px solid #f0f0f0;">';
-            html += '<div style="flex: 1;"><strong style="font-size: 1.15em; color: #667eea;">🎮 ' + session.title + '</strong></div>';
-            html += '<button class="btn btn-success btn-small" onclick="resumeSession(' + session.session_id + ', this)" style="margin: 0; flex-shrink: 0; padding: 8px 16px; font-size: 0.9em;">Resume</button>';
-            html += '</div>';
+            html += '<div class="active-session-item active-session-card">';
+html += '<div class="active-session-card-header">';
+html += '<div class="active-session-card-title"><strong>🎮 ' + session.title + '</strong></div>';
+html += '<button class="btn btn-success btn-small active-session-resume-btn" onclick="resumeSession(' + session.session_id + ', this)">Resume</button>';
+html += '</div>';
 
-            html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">';
-            html += '<div style="background: #f8f9fa; padding: 10px; border-radius: 6px; font-size: 0.85em;">';
-            html += '<div style="color: #999; font-size: 0.75em; margin-bottom: 3px;">🎴 HAND</div>';
-            html += '<div style="color: #333; font-weight: 600;">' + handCount + '</div>';
-            html += '</div>';
-            html += '<div style="background: #f8f9fa; padding: 10px; border-radius: 6px; font-size: 0.85em;">';
-            html += '<div style="color: #999; font-size: 0.75em; margin-bottom: 3px;">👥 PLAYERS</div>';
-            html += '<div style="color: #333; font-weight: 600;">' + playerIds.length + '</div>';
-            html += '</div>';
-            html += '</div>';
+html += '<div class="active-session-stat-grid">';
+html += '<div class="active-session-stat-cell">';
+html += '<div class="active-session-stat-label">🎴 HAND</div>';
+html += '<div class="active-session-stat-value">' + handCount + '</div>';
+html += '</div>';
+html += '<div class="active-session-stat-cell">';
+html += '<div class="active-session-stat-label">👥 PLAYERS</div>';
+html += '<div class="active-session-stat-value">' + playerIds.length + '</div>';
+html += '</div>';
+html += '</div>';
 
             if (leaderId) {
-                html += '<div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #4caf50;">';
-                html += '<div style="font-size: 0.85em; color: #2e7d32; font-weight: 600;">🏆 ' + getPlayerName(leaderId) + ' leading</div>';
-                html += '<div style="font-size: 0.9em; color: #1b5e20; font-weight: bold; margin-top: 3px;">' + playerScores[leaderId] + ' points</div>';
-                html += '</div>';
+html += '<div class="active-session-leader-box">';
+html += '<div class="active-session-leader-name">🏆 ' + getPlayerName(leaderId) + ' leading</div>';
+html += '<div class="active-session-leader-score">' + playerScores[leaderId] + ' points</div>';
+html += '</div>';
             }
 
             for (let pid in playerLockouts) {
                 if (playerLockouts[pid] >= 2) {
-                    html += '<div style="background: #fff3e0; padding: 8px 12px; border-radius: 6px; font-size: 0.85em; color: #e65100; border-left: 3px solid #ff9800; margin-top: 8px;">';
-                    html += '🔥 <strong>' + getPlayerName(pid) + ':</strong> ' + playerLockouts[pid] + ' lockout streak';
-                    html += '</div>';
+html += '<div class="active-session-streak-box">';
+html += '🔥 <strong>' + getPlayerName(pid) + ':</strong> ' + playerLockouts[pid] + ' lockout streak';
+html += '</div>';
                 }
             }
 
