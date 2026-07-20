@@ -85,12 +85,8 @@ function hapticFeedback(style) {
 // ============================================
 function celebrateWinner(winnerName) {
     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-    setTimeout(function() {
-        confetti({ particleCount: 50, angle: 60, spread: 55, origin: { x: 0 } });
-    }, 250);
-    setTimeout(function() {
-        confetti({ particleCount: 50, angle: 120, spread: 55, origin: { x: 1 } });
-    }, 400);
+    setTimeout(function() { confetti({ particleCount: 50, angle: 60, spread: 55, origin: { x: 0 } }); }, 250);
+    setTimeout(function() { confetti({ particleCount: 50, angle: 120, spread: 55, origin: { x: 1 } }); }, 400);
 }
 
 function getPlayerName(playerId) {
@@ -115,9 +111,7 @@ function parsePlayerJoinInfo(joinInfoString) {
             }
         }
         return result;
-    } catch(e) {
-        return {};
-    }
+    } catch(e) { return {}; }
 }
 
 function getPlayerStartingScore(playerId) {
@@ -126,9 +120,7 @@ function getPlayerStartingScore(playerId) {
         const fullInfo = JSON.parse(currentSession.player_join_info);
         const info = fullInfo[playerId];
         if (!info) return 0;
-        if (typeof info === 'object' && info.starting_score !== undefined) {
-            return info.starting_score;
-        }
+        if (typeof info === 'object' && info.starting_score !== undefined) return info.starting_score;
     } catch(e) {}
     return 0;
 }
@@ -158,12 +150,8 @@ function showScreen(screenId, skipHistory) {
         document.getElementById(screenId).classList.add('active');
         window.scrollTo(0, 0);
     }, 150);
-    if (!skipHistory) {
-        history.pushState({ screen: screenId }, '', '#' + screenId);
-    }
-    if (screenId === 'startSessionScreen') {
-        setTimeout(function() { loadPlayersForSession(); }, 150);
-    }
+    if (!skipHistory) history.pushState({ screen: screenId }, '', '#' + screenId);
+    if (screenId === 'startSessionScreen') setTimeout(function() { loadPlayersForSession(); }, 150);
 }
 
 // ============================================
@@ -188,10 +176,7 @@ async function loadPlayersForSession() {
 async function addPlayer() {
     const username = document.getElementById('newPlayerName').value.trim();
     const messageDiv = document.getElementById('addPlayerMessage');
-    if (!username) {
-        messageDiv.innerHTML = '<div class="error">Please enter a player name</div>';
-        return;
-    }
+    if (!username) { messageDiv.innerHTML = '<div class="error">Please enter a player name</div>'; return; }
     const addBtn = event.target;
     setButtonLoading(addBtn, true);
     const data = await apiCall('addPlayer', { username: username, editor_name: username });
@@ -202,10 +187,7 @@ async function addPlayer() {
         messageDiv.innerHTML = '<div class="success">Player added!</div>';
         document.getElementById('newPlayerName').value = '';
         playersLoaded = false;
-        setTimeout(function() {
-            showScreen('homeScreen');
-            setButtonLoading(addBtn, false);
-        }, 1500);
+        setTimeout(function() { showScreen('homeScreen'); setButtonLoading(addBtn, false); }, 1500);
     }
 }
 
@@ -216,17 +198,12 @@ async function showAddPlayerModal() {
     await ensurePlayersLoaded();
     const currentPlayerIds = sessionPlayers.map(p => String(p.player_id));
     const availablePlayers = allPlayers.filter(p => currentPlayerIds.indexOf(String(p.player_id)) === -1);
-    if (availablePlayers.length === 0) {
-        alert('All players are already in this session!');
-        return;
-    }
+    if (availablePlayers.length === 0) { alert('All players are already in this session!'); return; }
     const playerList = document.getElementById('addPlayerList');
     let html = '<ul class="player-list">';
     for (let i = 0; i < availablePlayers.length; i++) {
         const player = availablePlayers[i];
-        html += '<li class="player-item">';
-        html += '<label><input type="radio" name="addPlayerRadio" value="' + player.player_id + '" onchange="selectPlayerToAdd(' + player.player_id + ', \'' + player.username + '\')"> ' + player.username + '</label>';
-        html += '</li>';
+        html += '<li class="player-item"><label><input type="radio" name="addPlayerRadio" value="' + player.player_id + '" onchange="selectPlayerToAdd(' + player.player_id + ', \'' + player.username + '\')"> ' + player.username + '</label></li>';
     }
     html += '</ul>';
     playerList.innerHTML = html;
@@ -264,9 +241,7 @@ async function confirmAddPlayer() {
         if (addBtn) setButtonLoading(addBtn, false);
     } else {
         const startingScore = data.starting_score || 0;
-        messageDiv.innerHTML = '<div class="success">Player added successfully!' +
-            (startingScore > 0 ? ' (Starting with ' + startingScore + ' points)' : '') +
-            '</div>';
+        messageDiv.innerHTML = '<div class="success">Player added successfully!' + (startingScore > 0 ? ' (Starting with ' + startingScore + ' points)' : '') + '</div>';
         currentSession.players_involved = data.players_involved;
         currentSession.player_join_info = data.player_join_info;
         const newPlayer = allPlayers.find(p => String(p.player_id) === String(selectedPlayerToAdd));
@@ -301,7 +276,6 @@ async function checkActiveSessions() {
         '</div>';
 
     const sessionsWithHands = await apiCall('getSessionsWithHands', {});
-
     if (sessionsWithHands.error) {
         document.getElementById('activeSessionsSection').innerHTML = '<p style="color: #c33;">Error loading sessions</p>';
         return;
@@ -321,7 +295,6 @@ async function checkActiveSessions() {
             const session = activeSessions[i].session;
             const handsData = activeSessions[i].hands;
             const handCount = handsData.length > 0 ? Math.max(...handsData.map(h => h.hand_number)) : 0;
-
             const playerIds = session.players_involved.split(',');
             const playerScores = {};
             const playerLockouts = {};
@@ -336,9 +309,7 @@ async function checkActiveSessions() {
 
             for (let h = 0; h < handsData.length; h++) {
                 const hand = handsData[h];
-                if (playerScores[hand.player_id] !== undefined) {
-                    playerScores[hand.player_id] += Number(hand.score);
-                }
+                if (playerScores[hand.player_id] !== undefined) playerScores[hand.player_id] += Number(hand.score);
                 if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
                     if (hand.false_lockout == 1 || hand.false_lockout === true) {
                         playerFalseLockouts[hand.player_id]++;
@@ -351,49 +322,36 @@ async function checkActiveSessions() {
             let leaderId = null;
             let lowestScore = Infinity;
             for (let pid in playerScores) {
-                if (playerScores[pid] < lowestScore) {
-                    lowestScore = playerScores[pid];
-                    leaderId = pid;
-                }
+                if (playerScores[pid] < lowestScore) { lowestScore = playerScores[pid]; leaderId = pid; }
             }
 
             html += '<div class="active-session-item active-session-card">';
-html += '<div class="active-session-card-header">';
-html += '<div class="active-session-card-title"><strong>🎮 ' + session.title + '</strong></div>';
-html += '<button class="btn btn-success btn-small active-session-resume-btn" onclick="resumeSession(' + session.session_id + ', this)">Resume</button>';
-html += '</div>';
-
-html += '<div class="active-session-stat-grid">';
-html += '<div class="active-session-stat-cell">';
-html += '<div class="active-session-stat-label">🎴 HAND</div>';
-html += '<div class="active-session-stat-value">' + handCount + '</div>';
-html += '</div>';
-html += '<div class="active-session-stat-cell">';
-html += '<div class="active-session-stat-label">👥 PLAYERS</div>';
-html += '<div class="active-session-stat-value">' + playerIds.length + '</div>';
-html += '</div>';
-html += '</div>';
+            html += '<div class="active-session-card-header">';
+            html += '<div class="active-session-card-title"><strong>🎮 ' + session.title + '</strong></div>';
+            html += '<button class="btn btn-success btn-small active-session-resume-btn" onclick="resumeSession(' + session.session_id + ', this)">Resume</button>';
+            html += '</div>';
+            html += '<div class="active-session-stat-grid">';
+            html += '<div class="active-session-stat-cell"><div class="active-session-stat-label">🎴 HAND</div><div class="active-session-stat-value">' + handCount + '</div></div>';
+            html += '<div class="active-session-stat-cell"><div class="active-session-stat-label">👥 PLAYERS</div><div class="active-session-stat-value">' + playerIds.length + '</div></div>';
+            html += '</div>';
 
             if (leaderId) {
-html += '<div class="active-session-leader-box">';
-html += '<div class="active-session-leader-name">🏆 ' + getPlayerName(leaderId) + ' leading</div>';
-html += '<div class="active-session-leader-score">' + playerScores[leaderId] + ' points</div>';
-html += '</div>';
+                html += '<div class="active-session-leader-box">';
+                html += '<div class="active-session-leader-name">🏆 ' + getPlayerName(leaderId) + ' leading</div>';
+                html += '<div class="active-session-leader-score">' + playerScores[leaderId] + ' points</div>';
+                html += '</div>';
             }
 
             for (let pid in playerLockouts) {
                 if (playerLockouts[pid] >= 2) {
-html += '<div class="active-session-streak-box">';
-html += '🔥 <strong>' + getPlayerName(pid) + ':</strong> ' + playerLockouts[pid] + ' lockout streak';
-html += '</div>';
+                    html += '<div class="active-session-streak-box">🔥 <strong>' + getPlayerName(pid) + ':</strong> ' + playerLockouts[pid] + ' lockout streak</div>';
                 }
             }
 
             html += '</div>';
         }
 
-        html += '</div>';
-        html += '</div>';
+        html += '</div></div>';
         document.getElementById('activeSessionsSection').innerHTML = html;
     } else {
         document.getElementById('activeSessionsSection').innerHTML = '';
@@ -405,9 +363,7 @@ async function createSession() {
     const hostId = document.getElementById('sessionHost').value;
     const checkboxes = document.querySelectorAll('.player-checkbox:checked');
     const selectedPlayers = [];
-    for (let i = 0; i < checkboxes.length; i++) {
-        selectedPlayers.push(checkboxes[i].value);
-    }
+    for (let i = 0; i < checkboxes.length; i++) selectedPlayers.push(checkboxes[i].value);
     const notes = document.getElementById('sessionNotes').value.trim();
     const tagsSelect = document.getElementById('sessionTags');
     const selectedTags = [];
@@ -424,32 +380,21 @@ async function createSession() {
     const createBtn = event.target;
     setButtonLoading(createBtn, true);
     const data = await apiCall('createSession', {
-        title: title,
-        host_player_id: hostId,
-        players_involved: selectedPlayers.join(','),
-        notes: notes,
-        tags: tags,
-        false_lockout_penalty: penalty
+        title: title, host_player_id: hostId, players_involved: selectedPlayers.join(','),
+        notes: notes, tags: tags, false_lockout_penalty: penalty
     });
     if (data.error) {
         messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
         setButtonLoading(createBtn, false);
     } else {
         currentSession = {
-            session_id: data.session_id,
-            title: title,
-            host_player_id: hostId,
-            notes: notes,
-            tags: tags,
-            player_join_info: '{}',
-            players_involved: selectedPlayers.join(','),
-            false_lockout_penalty: penalty
+            session_id: data.session_id, title: title, host_player_id: hostId,
+            notes: notes, tags: tags, player_join_info: '{}',
+            players_involved: selectedPlayers.join(','), false_lockout_penalty: penalty
         };
         sessionPlayers = [];
         for (let i = 0; i < allPlayers.length; i++) {
-            if (selectedPlayers.indexOf(String(allPlayers[i].player_id)) !== -1) {
-                sessionPlayers.push(allPlayers[i]);
-            }
+            if (selectedPlayers.indexOf(String(allPlayers[i].player_id)) !== -1) sessionPlayers.push(allPlayers[i]);
         }
         currentHandNumber = 1;
         document.getElementById('sessionScores').innerHTML = '';
@@ -476,21 +421,14 @@ async function resumeSession(sessionId, buttonElement) {
         if (player) sessionPlayers.push(player);
     }
     currentSession = {
-        session_id: sessionData.session_id,
-        title: sessionData.title,
-        host_player_id: sessionData.host_player_id,
-        notes: sessionData.notes || '',
-        tags: sessionData.tags || '',
-        player_join_info: sessionData.player_join_info || '{}',
+        session_id: sessionData.session_id, title: sessionData.title,
+        host_player_id: sessionData.host_player_id, notes: sessionData.notes || '',
+        tags: sessionData.tags || '', player_join_info: sessionData.player_join_info || '{}',
         players_involved: sessionData.players_involved,
         false_lockout_penalty: sessionData.false_lockout_penalty || 10
     };
     const handsData = await apiCall('getHands', { session_id: sessionId });
-    if (handsData.error || handsData.length === 0) {
-        currentHandNumber = 1;
-    } else {
-        currentHandNumber = Math.max(...handsData.map(h => h.hand_number)) + 1;
-    }
+    currentHandNumber = (handsData.error || handsData.length === 0) ? 1 : Math.max(...handsData.map(h => h.hand_number)) + 1;
     showActiveSession();
     updateSessionScores();
     if (buttonElement) setButtonLoading(buttonElement, false);
@@ -500,9 +438,7 @@ function showActiveSession() {
     document.getElementById('activeSessionTitle').textContent = currentSession.title;
     let playerNames = sessionPlayers.map(p => {
         const joinHand = getPlayerJoinHand(p.player_id);
-        if (joinHand > 1) {
-            return p.username + ' <span class="late-join-badge">Joined H' + joinHand + '</span>';
-        }
+        if (joinHand > 1) return p.username + ' <span class="late-join-badge">Joined H' + joinHand + '</span>';
         return p.username;
     }).join(', ');
     document.getElementById('activeSessionInfo').innerHTML =
@@ -523,16 +459,12 @@ function displaySessionMetadata(containerId) {
     let html = '';
     if (currentSession.notes || currentSession.tags) {
         html += '<div class="session-metadata">';
-        if (currentSession.notes) {
-            html += '<p><strong>📝 Notes:</strong> ' + currentSession.notes + '</p>';
-        }
+        if (currentSession.notes) html += '<p><strong>📝 Notes:</strong> ' + currentSession.notes + '</p>';
         if (currentSession.tags) {
             const tagsArray = currentSession.tags.split(',').filter(t => t.trim());
             if (tagsArray.length > 0) {
                 html += '<p><strong>🏷️ Tags:</strong> ';
-                for (let i = 0; i < tagsArray.length; i++) {
-                    html += '<span class="tag-badge">' + tagsArray[i] + '</span>';
-                }
+                for (let i = 0; i < tagsArray.length; i++) html += '<span class="tag-badge">' + tagsArray[i] + '</span>';
                 html += '</p>';
             }
         }
@@ -563,9 +495,7 @@ async function saveEditedSession() {
     setButtonLoading(saveBtn, true);
     let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
     const data = await apiCall('updateSession', {
-        session_id: currentSession.session_id,
-        notes: notes,
-        tags: tags,
+        session_id: currentSession.session_id, notes: notes, tags: tags,
         editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
     });
     const messageDiv = document.getElementById('editSessionMessage');
@@ -577,10 +507,7 @@ async function saveEditedSession() {
         currentSession.tags = tags;
         messageDiv.innerHTML = '<div class="success">Session updated!</div>';
         displaySessionMetadata('activeSessionMetadata');
-        setTimeout(function() {
-            closeEditSessionModal();
-            setButtonLoading(saveBtn, false);
-        }, 1000);
+        setTimeout(function() { closeEditSessionModal(); setButtonLoading(saveBtn, false); }, 1000);
     }
 }
 
@@ -603,31 +530,26 @@ async function endSession() {
         hapticFeedback('error');
         setButtonLoading(endBtn, false);
         return;
-    } else {
-        const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
-        const playerTotals = {};
-        for (let i = 0; i < sessionPlayers.length; i++) {
-            const player = sessionPlayers[i];
-            const startingScore = getPlayerStartingScore(player.player_id);
-            playerTotals[player.player_id] = { username: player.username, total: startingScore };
-        }
-        for (let i = 0; i < handsData.length; i++) {
-            const hand = handsData[i];
-            if (playerTotals[hand.player_id]) {
-                playerTotals[hand.player_id].total += Number(hand.score);
-            }
-        }
-        const scores = Object.values(playerTotals).sort((a, b) => a.total - b.total);
-        const winner = scores[0];
-        const isTie = scores.length > 1 && scores[1].total === winner.total;
-        const winnerText = isTie ? 'Tie game!' : winner.username + ' wins!';
-        alert('Session ended!\n\n🏆 ' + winnerText + ' (' + winner.total + ' pts)');
-        hapticFeedback('success');
-        if (!isTie) celebrateWinner(winner.username);
-        currentSession = null;
-        showScreen('homeScreen');
-        checkActiveSessions();
     }
+    const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
+    const playerTotals = {};
+    for (let i = 0; i < sessionPlayers.length; i++) {
+        const player = sessionPlayers[i];
+        playerTotals[player.player_id] = { username: player.username, total: getPlayerStartingScore(player.player_id) };
+    }
+    for (let i = 0; i < handsData.length; i++) {
+        const hand = handsData[i];
+        if (playerTotals[hand.player_id]) playerTotals[hand.player_id].total += Number(hand.score);
+    }
+    const scores = Object.values(playerTotals).sort((a, b) => a.total - b.total);
+    const winner = scores[0];
+    const isTie = scores.length > 1 && scores[1].total === winner.total;
+    alert('Session ended!\n\n🏆 ' + (isTie ? 'Tie game!' : winner.username + ' wins!') + ' (' + winner.total + ' pts)');
+    hapticFeedback('success');
+    if (!isTie) celebrateWinner(winner.username);
+    currentSession = null;
+    showScreen('homeScreen');
+    checkActiveSessions();
 }
 
 // ============================================
@@ -714,18 +636,9 @@ async function submitHand() {
         if (joinHand <= currentHandNumber) {
             const scoreInput = document.getElementById('score_' + player.player_id);
             const scoreVal = scoreInput.value.trim();
-            if (scoreVal === '') {
-                messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
-                setButtonLoading(submitBtn, false);
-                return;
-            }
+            if (scoreVal === '') { messageDiv.innerHTML = '<div class="error">Please enter all scores</div>'; setButtonLoading(submitBtn, false); return; }
             const scoreNum = parseFloat(scoreVal);
-            if (scoreNum < -2) {
-                messageDiv.innerHTML = '<div class="error">Minimum score is -2 (two Red Kings)</div>';
-                hapticFeedback('error');
-                setButtonLoading(submitBtn, false);
-                return;
-            }
+            if (scoreNum < -2) { messageDiv.innerHTML = '<div class="error">Minimum score is -2 (two Red Kings)</div>'; hapticFeedback('error'); setButtonLoading(submitBtn, false); return; }
             scores.push({ player_id: player.player_id, score: scoreNum });
         }
     }
@@ -735,35 +648,24 @@ async function submitHand() {
     const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
     let falseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
     if (document.getElementById('lockoutWarning').style.display === 'block') {
-        if (!confirm('This will be marked as a FALSE LOCKOUT. Continue?')) {
-            setButtonLoading(submitBtn, false);
-            return;
-        }
+        if (!confirm('This will be marked as a FALSE LOCKOUT. Continue?')) { setButtonLoading(submitBtn, false); return; }
     }
     let penalty = 10;
     if (currentSession.false_lockout_penalty) penalty = Number(currentSession.false_lockout_penalty);
     const lockoutScoreValue = lockoutPlayerScore;
     for (let i = 0; i < scores.length; i++) {
         if (String(scores[i].player_id) === String(lockoutPlayerId)) {
-            if (falseLockout) {
-                scores[i].score = lockoutScoreValue + penalty;
-            } else {
-                scores[i].score = lockoutScoreValue < 0 ? lockoutScoreValue : 0;
-            }
+            scores[i].score = falseLockout ? lockoutScoreValue + penalty : (lockoutScoreValue < 0 ? lockoutScoreValue : 0);
             break;
         }
     }
     const comment = document.getElementById('handComment').value.trim();
     let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
     const data = await apiCall('addHand', {
-        session_id: currentSession.session_id,
-        hand_number: currentHandNumber,
-        scores: JSON.stringify(scores),
-        lockout_player_id: lockoutPlayerId,
-        false_lockout: falseLockout,
-        editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
-        comment: comment,
-        lockout_score: lockoutScoreValue
+        session_id: currentSession.session_id, hand_number: currentHandNumber,
+        scores: JSON.stringify(scores), lockout_player_id: lockoutPlayerId,
+        false_lockout: falseLockout, editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
+        comment: comment, lockout_score: lockoutScoreValue
     });
     if (data.error) {
         messageDiv.innerHTML = '<div class="error">❌ Failed to save hand. Please try again. (' + data.error + ')</div>';
@@ -783,10 +685,7 @@ async function submitHand() {
 // ============================================
 async function displayHandHistory() {
     const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
-    if (handsData.error || handsData.length === 0) {
-        document.getElementById('handHistorySection').style.display = 'none';
-        return;
-    }
+    if (handsData.error || handsData.length === 0) { document.getElementById('handHistorySection').style.display = 'none'; return; }
     const handsByNumber = {};
     for (let i = 0; i < handsData.length; i++) {
         const hand = handsData[i];
@@ -798,17 +697,13 @@ async function displayHandHistory() {
     for (let i = 0; i < handNumbers.length; i++) {
         const handNum = handNumbers[i];
         const hands = handsByNumber[handNum];
-        let scoreText = '';
-        let lockoutPlayer = '';
-        let isFalseLockout = false;
-        let handComment = '';
+        let scoreText = '', lockoutPlayer = '', isFalseLockout = false, handComment = '';
         for (let j = 0; j < hands.length; j++) {
             const h = hands[j];
             if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
                 if (h.lockout_score) {
                     if (h.false_lockout == 1 || h.false_lockout === true) {
-                        const penalty = h.score - h.lockout_score;
-                        scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + penalty + ' penalty) | ';
+                        scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + (h.score - h.lockout_score) + ' penalty) | ';
                     } else {
                         scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ') | ';
                     }
@@ -823,22 +718,15 @@ async function displayHandHistory() {
             if (h.comment && !handComment) handComment = h.comment;
         }
         scoreText = scoreText.slice(0, -3);
-        html += '<div class="hand-item">';
-        html += '<div class="hand-item-info">';
+        html += '<div class="hand-item"><div class="hand-item-info">';
         html += '<strong>Hand ' + handNum + '</strong><br>';
         html += '<small>' + scoreText + '</small><br>';
         html += '<small>Lockout: ' + lockoutPlayer + (isFalseLockout ? ' (FALSE)' : '') + '</small>';
-        if (handComment) {
-            html += '<br><small class="comment-text">💬 ' + handComment + '</small>';
-        }
-        html += '</div>';
-        html += '<div class="hand-item-actions">';
+        if (handComment) html += '<br><small class="comment-text">💬 ' + handComment + '</small>';
+        html += '</div><div class="hand-item-actions">';
         html += '<button class="btn btn-warning btn-small" onclick="editHand(' + handNum + ', event)">Edit</button>';
-        if (i === 0) {
-            html += '<button class="btn btn-danger btn-small" onclick="deleteHand(' + handNum + ', event)">Delete</button>';
-        }
-        html += '</div>';
-        html += '</div>';
+        if (i === 0) html += '<button class="btn btn-danger btn-small" onclick="deleteHand(' + handNum + ', event)">Delete</button>';
+        html += '</div></div>';
     }
     document.getElementById('handHistoryList').innerHTML = html;
     document.getElementById('handHistorySection').style.display = 'block';
@@ -852,10 +740,7 @@ async function editHand(handNumber, event) {
     currentEditingHand = handNumber;
     document.getElementById('editHandNumber').textContent = handNumber;
     document.getElementById('editLockoutWarning').style.display = 'none';
-    let html = '';
-    let lockoutPlayerId = null;
-    let isFalseLockout = false;
-    let handComment = '';
+    let html = '', lockoutPlayerId = null, isFalseLockout = false, handComment = '';
     for (let i = 0; i < handsToEdit.length; i++) {
         const hand = handsToEdit[i];
         if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
@@ -871,11 +756,9 @@ async function editHand(handNumber, event) {
             const handData = handsToEdit.find(h => String(h.player_id) === String(player.player_id));
             let displayScore = '';
             if (handData) {
-                if (lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id)) {
-                    displayScore = handData.lockout_score ? handData.lockout_score : handData.score;
-                } else {
-                    displayScore = handData.score;
-                }
+                displayScore = (lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id))
+                    ? (handData.lockout_score ? handData.lockout_score : handData.score)
+                    : handData.score;
             }
             const isLockout = (lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id));
             html += '<div class="player-hand-row">';
@@ -940,11 +823,7 @@ async function saveEditedHand() {
     setButtonLoading(saveBtn, true);
     const scores = [];
     const lockoutRadio = document.querySelector('input[name="edit_lockout_player"]:checked');
-    if (!lockoutRadio) {
-        messageDiv.innerHTML = '<div class="error">Please select who locked out</div>';
-        setButtonLoading(saveBtn, false);
-        return;
-    }
+    if (!lockoutRadio) { messageDiv.innerHTML = '<div class="error">Please select who locked out</div>'; setButtonLoading(saveBtn, false); return; }
     const lockoutPlayerId = lockoutRadio.value;
     for (let i = 0; i < sessionPlayers.length; i++) {
         const player = sessionPlayers[i];
@@ -952,18 +831,9 @@ async function saveEditedHand() {
         if (joinHand <= currentEditingHand) {
             const scoreInput = document.getElementById('edit_score_' + player.player_id);
             const scoreVal = scoreInput.value.trim();
-            if (scoreVal === '') {
-                messageDiv.innerHTML = '<div class="error">Please enter all scores</div>';
-                setButtonLoading(saveBtn, false);
-                return;
-            }
+            if (scoreVal === '') { messageDiv.innerHTML = '<div class="error">Please enter all scores</div>'; setButtonLoading(saveBtn, false); return; }
             const scoreNum = parseFloat(scoreVal);
-            if (scoreNum < -2) {
-                messageDiv.innerHTML = '<div class="error">Minimum score is -2 (two Red Kings)</div>';
-                hapticFeedback('error');
-                setButtonLoading(saveBtn, false);
-                return;
-            }
+            if (scoreNum < -2) { messageDiv.innerHTML = '<div class="error">Minimum score is -2 (two Red Kings)</div>'; hapticFeedback('error'); setButtonLoading(saveBtn, false); return; }
             scores.push({ player_id: player.player_id, score: scoreNum });
         }
     }
@@ -973,46 +843,31 @@ async function saveEditedHand() {
     const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
     let falseLockout = !hasStrictlyLowestScore;
     if (document.getElementById('editLockoutWarning').style.display === 'block') {
-        if (!confirm('This will be marked as a FALSE LOCKOUT. Continue?')) {
-            setButtonLoading(saveBtn, false);
-            return;
-        }
+        if (!confirm('This will be marked as a FALSE LOCKOUT. Continue?')) { setButtonLoading(saveBtn, false); return; }
     }
     let penalty = 10;
     if (currentSession.false_lockout_penalty) penalty = Number(currentSession.false_lockout_penalty);
     const lockoutScoreValue = lockoutPlayerScore;
     for (let i = 0; i < scores.length; i++) {
         if (String(scores[i].player_id) === String(lockoutPlayerId)) {
-            if (falseLockout) {
-                scores[i].score = lockoutScoreValue + penalty;
-            } else {
-                scores[i].score = lockoutScoreValue < 0 ? lockoutScoreValue : 0;
-            }
+            scores[i].score = falseLockout ? lockoutScoreValue + penalty : (lockoutScoreValue < 0 ? lockoutScoreValue : 0);
             break;
         }
     }
     const comment = document.getElementById('editHandComment').value.trim();
     let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
     const data = await apiCall('updateHand', {
-        session_id: currentSession.session_id,
-        hand_number: currentEditingHand,
-        scores: JSON.stringify(scores),
-        lockout_player_id: lockoutPlayerId,
-        false_lockout: falseLockout,
-        editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
-        comment: comment,
-        lockout_score: lockoutScoreValue
+        session_id: currentSession.session_id, hand_number: currentEditingHand,
+        scores: JSON.stringify(scores), lockout_player_id: lockoutPlayerId,
+        false_lockout: falseLockout, editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
+        comment: comment, lockout_score: lockoutScoreValue
     });
     if (data.error) {
         messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
         setButtonLoading(saveBtn, false);
     } else {
         messageDiv.innerHTML = '<div class="success">Hand updated!</div>';
-        setTimeout(function() {
-            closeEditModal();
-            updateSessionScores();
-            setButtonLoading(saveBtn, false);
-        }, 1000);
+        setTimeout(function() { closeEditModal(); updateSessionScores(); setButtonLoading(saveBtn, false); }, 1000);
     }
 }
 
@@ -1027,8 +882,7 @@ async function deleteHand(handNumber, event) {
     if (event && event.target) setButtonLoading(event.target, true);
     let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
     const data = await apiCall('deleteHand', {
-        session_id: currentSession.session_id,
-        hand_number: handNumber,
+        session_id: currentSession.session_id, hand_number: handNumber,
         editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
     });
     if (data.error) {
@@ -1036,10 +890,7 @@ async function deleteHand(handNumber, event) {
         hapticFeedback('error');
         if (event && event.target) setButtonLoading(event.target, false);
     } else {
-        if (handNumber == currentHandNumber - 1) {
-            currentHandNumber--;
-            setupHandInputs();
-        }
+        if (handNumber == currentHandNumber - 1) { currentHandNumber--; setupHandInputs(); }
         hapticFeedback('success');
         updateSessionScores();
         if (event && event.target) setButtonLoading(event.target, false);
@@ -1053,7 +904,7 @@ async function updateSessionScores() {
     document.getElementById('sessionScores').innerHTML =
         '<div class="skeleton-card">' +
             '<h3 class="section-heading-blue mb-15">Calculating scores...</h3>' +
-            '<div style="overflow-x: auto;">' +
+            '<div class="overflow-x-auto">' +
                 '<div class="skeleton-table-row">' +
                     '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
                     '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
@@ -1081,27 +932,9 @@ async function updateSessionScores() {
     document.getElementById('handHistoryList').innerHTML =
         '<div class="p-10">' +
             '<h4 class="section-heading-blue">Loading hand history...</h4>' +
-            '<div class="hand-item">' +
-                '<div class="hand-item-info">' +
-                    '<div class="shimmer-wrapper skeleton-text skeleton-w-30 mb-10"></div>' +
-                    '<div class="shimmer-wrapper skeleton-text small skeleton-w-80"></div>' +
-                '</div>' +
-                '<div class="shimmer-wrapper skeleton-button skeleton-w-80 skeleton-h-40"></div>' +
-            '</div>' +
-            '<div class="hand-item">' +
-                '<div class="hand-item-info">' +
-                    '<div class="shimmer-wrapper skeleton-text skeleton-w-30 mb-10"></div>' +
-                    '<div class="shimmer-wrapper skeleton-text small skeleton-w-80"></div>' +
-                '</div>' +
-                '<div class="shimmer-wrapper skeleton-button skeleton-w-80 skeleton-h-40"></div>' +
-            '</div>' +
-            '<div class="hand-item">' +
-                '<div class="hand-item-info">' +
-                    '<div class="shimmer-wrapper skeleton-text skeleton-w-30 mb-10"></div>' +
-                    '<div class="shimmer-wrapper skeleton-text small skeleton-w-80"></div>' +
-                '</div>' +
-                '<div class="shimmer-wrapper skeleton-button skeleton-w-80 skeleton-h-40"></div>' +
-            '</div>' +
+            '<div class="hand-item"><div class="hand-item-info"><div class="shimmer-wrapper skeleton-text skeleton-w-30 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-80"></div></div><div class="shimmer-wrapper skeleton-button skeleton-w-80 skeleton-h-40"></div></div>' +
+            '<div class="hand-item"><div class="hand-item-info"><div class="shimmer-wrapper skeleton-text skeleton-w-30 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-80"></div></div><div class="shimmer-wrapper skeleton-button skeleton-w-80 skeleton-h-40"></div></div>' +
+            '<div class="hand-item"><div class="hand-item-info"><div class="shimmer-wrapper skeleton-text skeleton-w-30 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-80"></div></div><div class="shimmer-wrapper skeleton-button skeleton-w-80 skeleton-h-40"></div></div>' +
         '</div>';
 
     const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
@@ -1110,24 +943,15 @@ async function updateSessionScores() {
     displayHandHistory();
 
     const playerScores = {};
-    let totalLockoutScore = 0;
-    let totalLockouts = 0;
-    let falseLockoutCount = 0;
+    let totalLockoutScore = 0, totalLockouts = 0, falseLockoutCount = 0;
 
     for (let i = 0; i < sessionPlayers.length; i++) {
         const player = sessionPlayers[i];
         const startingScore = getPlayerStartingScore(player.player_id);
         playerScores[player.player_id] = {
-            username: player.username,
-            total: startingScore,
-            hands: [],
-            lockouts: 0,
-            lockoutScores: [],
-            falseLockouts: 0,
-            falseLockoutScores: [],
-            totalLockouts: 0,
-            joinHand: getPlayerJoinHand(player.player_id),
-            startingScore: startingScore
+            username: player.username, total: startingScore, hands: [],
+            lockouts: 0, lockoutScores: [], falseLockouts: 0, falseLockoutScores: [],
+            totalLockouts: 0, joinHand: getPlayerJoinHand(player.player_id), startingScore: startingScore
         };
     }
 
@@ -1155,23 +979,17 @@ async function updateSessionScores() {
 
     const scores = Object.values(playerScores).sort((a, b) => a.total - b.total);
     const leader = scores[0];
-    const lastPlace = scores[scores.length - 1];
-    const biggestGap = lastPlace.total - leader.total;
-
+    const biggestGap = scores[scores.length - 1].total - leader.total;
     let mostLockoutsPlayer = { username: 'None', lockouts: 0 };
     for (let i = 0; i < scores.length; i++) {
-        if (scores[i].lockouts > mostLockoutsPlayer.lockouts) {
-            mostLockoutsPlayer = { username: scores[i].username, lockouts: scores[i].lockouts };
-        }
+        if (scores[i].lockouts > mostLockoutsPlayer.lockouts) mostLockoutsPlayer = { username: scores[i].username, lockouts: scores[i].lockouts };
     }
-
     const avgScorePerHand = handsData.reduce((sum, h) => sum + Number(h.score), 0) / handsData.length;
     const overallAvgLockout = totalLockouts > 0 ? (totalLockoutScore / totalLockouts).toFixed(2) : 'N/A';
 
     let html = '<h3>Scores</h3>';
     html += '<p class="text-muted text-sm mb-10">💡 Click column headers to sort</p>';
-html += '<div class="overflow-x-auto">';
-html += '<table class="scores-table" id="activeSessionTable">';
+    html += '<div class="overflow-x-auto"><table class="scores-table" id="activeSessionTable">';
     html += '<tr>';
     html += '<th onclick="sortActiveSessionTable(0)" style="cursor: pointer; user-select: none;">Player ⇅</th>';
     html += '<th onclick="sortActiveSessionTable(1)" style="cursor: pointer; user-select: none;">Total ⇅</th>';
@@ -1195,18 +1013,11 @@ html += '<table class="scores-table" id="activeSessionTable">';
         const avgFalseLockoutScore = p.falseLockoutScores.length > 0 ? (p.falseLockoutScores.reduce((sum, s) => sum + s, 0) / p.falseLockoutScores.length).toFixed(2) : 'N/A';
         html += '<tr>';
         html += '<td><strong>' + p.username + '</strong>' + (p.joinHand > 1 ? ' <span class="late-join-badge">H' + p.joinHand + '</span>' : '') + '</td>';
-        html += '<td>' + p.total + '</td>';
-        html += '<td>' + handsPlayed + '</td>';
-        html += '<td>' + avgHand + '</td>';
-        html += '<td>' + p.lockouts + '</td>';
-        html += '<td>' + lockoutRate + '%</td>';
-        html += '<td>' + avgLockoutScore + '</td>';
-        html += '<td>' + p.falseLockouts + '</td>';
-        html += '<td>' + falseLockoutRate + '%</td>';
-        html += '<td>' + avgFalseLockoutScore + '</td>';
+        html += '<td>' + p.total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td>';
+        html += '<td>' + p.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td>';
+        html += '<td>' + p.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td>';
         html += '</tr>';
     }
-
     html += '</table></div>';
 
     html += '<div class="stats-summary-box">';
@@ -1219,10 +1030,9 @@ html += '<table class="scores-table" id="activeSessionTable">';
     html += '<div><strong>🎯 Most Lockouts:</strong> ' + mostLockoutsPlayer.username + ' (' + mostLockoutsPlayer.lockouts + ')</div>';
     html += '<div><strong>⚠️ False Lockouts:</strong> ' + falseLockoutCount + '</div>';
     html += '</div>';
-html += '<div class="lockout-perf-box">';
-html += '<strong class="term-heading-blue">Lockout Performance:</strong><br>';
-html += '<div class="mt-10">• <strong>Overall Avg:</strong> ' + overallAvgLockout + '</div>';
-
+    html += '<div class="lockout-perf-box">';
+    html += '<strong class="term-heading-blue">Lockout Performance:</strong><br>';
+    html += '<div class="mt-10">• <strong>Overall Avg:</strong> ' + overallAvgLockout + '</div>';
     for (let i = 0; i < scores.length; i++) {
         const p = scores[i];
         if (p.lockouts > 0) {
@@ -1234,7 +1044,6 @@ html += '<div class="mt-10">• <strong>Overall Avg:</strong> ' + overallAvgLock
         }
     }
     html += '</div></div>';
-
     document.getElementById('sessionScores').innerHTML = html;
 
     const chartSection = document.getElementById('activeSessionCharts');
@@ -1243,18 +1052,14 @@ html += '<div class="mt-10">• <strong>Overall Avg:</strong> ' + overallAvgLock
         chartsHtml += '<div class="chart-container"><canvas id="activeWormChart"></canvas></div>';
         chartsHtml += '<div class="chart-container"><canvas id="activeManhattanChart"></canvas></div>';
         chartSection.innerHTML = chartsHtml;
-        const playerHandsData = {};
-        const playerIdsArray = [];
+        const playerHandsData = {}, playerIdsArray = [];
         for (let i = 0; i < scores.length; i++) {
             const p = scores[i];
             const playerId = sessionPlayers.find(sp => sp.username === p.username).player_id;
             playerIdsArray.push(playerId);
             playerHandsData[playerId] = p.hands.map(h => h.score);
         }
-        setTimeout(function() {
-            drawActiveWormChart(playerHandsData, playerIdsArray);
-            drawActiveManhattanChart(playerHandsData, playerIdsArray);
-        }, 100);
+        setTimeout(function() { drawActiveWormChart(playerHandsData, playerIdsArray); drawActiveManhattanChart(playerHandsData, playerIdsArray); }, 100);
     }
 }
 
@@ -1264,46 +1069,20 @@ html += '<div class="mt-10">• <strong>Overall Avg:</strong> ' + overallAvgLock
 function drawActiveWormChart(playerHands, playerIds) {
     const ctx = document.getElementById('activeWormChart');
     if (!ctx) return;
-    const datasets = [];
-    const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+    const datasets = [], colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
     const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
     for (let i = 0; i < playerIds.length; i++) {
-        const playerId = playerIds[i];
-        const hands = playerHands[playerId];
-        const joinHand = getPlayerJoinHand(playerId);
-        const startingScore = getPlayerStartingScore(playerId);
+        const playerId = playerIds[i], hands = playerHands[playerId];
+        const joinHand = getPlayerJoinHand(playerId), startingScore = getPlayerStartingScore(playerId);
         let cumulative = startingScore;
         const cumulativeScores = [];
         for (let h = 1; h < joinHand; h++) cumulativeScores.push(null);
-        for (let j = 0; j < hands.length; j++) {
-            cumulative += hands[j];
-            cumulativeScores.push(cumulative);
-        }
-        datasets.push({
-            label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''),
-            data: cumulativeScores,
-            borderColor: colors[i % colors.length],
-            backgroundColor: 'transparent',
-            borderWidth: 2,
-            tension: 0.1,
-            spanGaps: false
-        });
+        for (let j = 0; j < hands.length; j++) { cumulative += hands[j]; cumulativeScores.push(cumulative); }
+        datasets.push({ label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''), data: cumulativeScores, borderColor: colors[i % colors.length], backgroundColor: 'transparent', borderWidth: 2, tension: 0.1, spanGaps: false });
     }
     const labels = [];
     for (let i = 1; i <= maxHands; i++) labels.push('Hand ' + i);
-    new Chart(ctx.getContext('2d'), {
-        type: 'line',
-        data: { labels: labels, datasets: datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: { display: true, text: 'Cricket Worm' },
-                legend: { display: true, position: 'top' }
-            },
-            scales: { y: { title: { display: true, text: 'Cumulative Score' } } }
-        }
-    });
+    new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Cricket Worm' }, legend: { display: true, position: 'top' } }, scales: { y: { title: { display: true, text: 'Cumulative Score' } } } } });
 }
 
 function drawActiveManhattanChart(playerHands, playerIds) {
@@ -1315,36 +1094,13 @@ function drawActiveManhattanChart(playerHands, playerIds) {
     for (let i = 1; i <= maxHands; i++) labels.push('Hand ' + i);
     const datasets = [];
     for (let i = 0; i < playerIds.length; i++) {
-        const playerId = playerIds[i];
-        const hands = playerHands[playerId];
-        const joinHand = getPlayerJoinHand(playerId);
+        const playerId = playerIds[i], hands = playerHands[playerId], joinHand = getPlayerJoinHand(playerId);
         const dataArray = [];
         for (let h = 1; h < joinHand; h++) dataArray.push(null);
         for (let j = 0; j < hands.length; j++) dataArray.push(hands[j]);
-        datasets.push({
-            label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''),
-            data: dataArray,
-            backgroundColor: colors[i % colors.length],
-            borderColor: colors[i % colors.length],
-            borderWidth: 1
-        });
+        datasets.push({ label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''), data: dataArray, backgroundColor: colors[i % colors.length], borderColor: colors[i % colors.length], borderWidth: 1 });
     }
-    new Chart(ctx.getContext('2d'), {
-        type: 'bar',
-        data: { labels: labels, datasets: datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: { display: true, text: 'Manhattan' },
-                legend: { display: true, position: 'top' }
-            },
-            scales: {
-                x: { title: { display: true, text: 'Hand Number' } },
-                y: { title: { display: true, text: 'Score' }, beginAtZero: true }
-            }
-        }
-    });
+    new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Manhattan' }, legend: { display: true, position: 'top' } }, scales: { x: { title: { display: true, text: 'Hand Number' } }, y: { title: { display: true, text: 'Score' }, beginAtZero: true } } } });
 }
 
 // ============================================
@@ -1355,110 +1111,57 @@ async function loadPreviousSessions() {
     contentDiv.innerHTML =
         '<div class="skeleton-card">' +
             '<h3 class="section-heading-blue mb-15">Loading previous sessions...</h3>' +
-            '<div class="skeleton-session-item">' +
-                '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div>' +
-                '<div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div>' +
-            '</div>' +
-            '<div class="skeleton-session-item">' +
-                '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div>' +
-                '<div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div>' +
-            '</div>' +
-            '<div class="skeleton-session-item">' +
-                '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div>' +
-                '<div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div>' +
-            '</div>' +
+            '<div class="skeleton-session-item"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div></div>' +
+            '<div class="skeleton-session-item"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div></div>' +
+            '<div class="skeleton-session-item"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div></div>' +
         '</div>';
 
     await ensurePlayersLoaded();
-
     const sessionsWithHands = await apiCall('getSessionsWithHands', {});
-    if (sessionsWithHands.error) {
-        contentDiv.innerHTML = '<div class="error">Error loading sessions: ' + sessionsWithHands.error + '</div>';
-        return;
-    }
+    if (sessionsWithHands.error) { contentDiv.innerHTML = '<div class="error">Error loading sessions: ' + sessionsWithHands.error + '</div>'; return; }
 
-const completedSessions = [];
-for (let i = 0; i < sessionsWithHands.length; i++) {
-    const item = sessionsWithHands[i];
-    if (!item.session.notes) item.session.notes = '';
-    if (!item.session.tags) item.session.tags = '';
-    if (!item.session.player_join_info) item.session.player_join_info = '{}';
-    if (item.session.date_ended && item.session.date_ended !== '') {
-        completedSessions.push({ session: item.session, hands: item.hands, index: i });
+    const completedSessions = [];
+    for (let i = 0; i < sessionsWithHands.length; i++) {
+        const item = sessionsWithHands[i];
+        if (!item.session.notes) item.session.notes = '';
+        if (!item.session.tags) item.session.tags = '';
+        if (!item.session.player_join_info) item.session.player_join_info = '{}';
+        if (item.session.date_ended && item.session.date_ended !== '') completedSessions.push({ session: item.session, hands: item.hands, index: i });
     }
-}
-completedSessions.sort(function(a, b) {
-    return new Date(b.session.date_started) - new Date(a.session.date_started);
-});
+    completedSessions.sort(function(a, b) { return new Date(b.session.date_started) - new Date(a.session.date_started); });
 
     allSessions = completedSessions.map(item => item.session);
     window.sessionsHandsCache = {};
-    for (let i = 0; i < completedSessions.length; i++) {
-        window.sessionsHandsCache[completedSessions[i].session.session_id] = completedSessions[i].hands;
-    }
+    for (let i = 0; i < completedSessions.length; i++) window.sessionsHandsCache[completedSessions[i].session.session_id] = completedSessions[i].hands;
 
-    if (completedSessions.length === 0) {
-        contentDiv.innerHTML = '<div class="placeholder-content"><h3>No Completed Sessions</h3><p>Complete a session to see it here!</p></div>';
-        return;
-    }
+    if (completedSessions.length === 0) { contentDiv.innerHTML = '<div class="placeholder-content"><h3>No Completed Sessions</h3><p>Complete a session to see it here!</p></div>'; return; }
 
-    let html = '<div class="mb-20">';
-    html += '<input type="text" id="sessionSearchInput" placeholder="🔍 Search sessions by title, player, or tag..." style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em;" oninput="filterSessions()">';
-    html += '</div>';
-
-    html += '<div id="sessionListContainer" style="max-height: 600px; overflow-y: auto; padding-right: 5px;">';
-    html += '<ul class="session-list" id="sessionList">';
+    let html = '<div class="mb-20"><input type="text" id="sessionSearchInput" placeholder="🔍 Search sessions by title, player, or tag..." style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em;" oninput="filterSessions()"></div>';
+    html += '<div id="sessionListContainer" style="max-height: 600px; overflow-y: auto; padding-right: 5px;"><ul class="session-list" id="sessionList">';
 
     for (let i = 0; i < completedSessions.length; i++) {
         const session = completedSessions[i].session;
         const hands = completedSessions[i].hands;
-
         var dateObj = new Date(session.date_started);
-        var day = String(dateObj.getDate()).padStart(2, '0');
-        var month = String(dateObj.getMonth() + 1).padStart(2, '0');
-        var year = dateObj.getFullYear();
-        var cleanDate = day + '/' + month + '/' + year;
-
+        var cleanDate = String(dateObj.getDate()).padStart(2, '0') + '/' + String(dateObj.getMonth() + 1).padStart(2, '0') + '/' + dateObj.getFullYear();
         var playerIds = session.players_involved.split(',');
-        var playerTotals = {};
-        var handCount = 0;
-
-        var joinInfo = {};
+        var playerTotals = {}, handCount = 0, joinInfo = {};
         try {
             if (session.player_join_info && session.player_join_info !== '' && session.player_join_info !== '{}') {
                 var parsed = JSON.parse(session.player_join_info);
-                for (var pid in parsed) {
-                    if (parsed[pid] && parsed[pid].starting_score !== undefined) {
-                        joinInfo[pid] = parsed[pid].starting_score;
-                    }
-                }
+                for (var pid in parsed) { if (parsed[pid] && parsed[pid].starting_score !== undefined) joinInfo[pid] = parsed[pid].starting_score; }
             }
         } catch(e) {}
-
-        for (var p = 0; p < playerIds.length; p++) {
-            var pid = String(playerIds[p].trim());
-            playerTotals[pid] = joinInfo[pid] || 0;
-        }
-
+        for (var p = 0; p < playerIds.length; p++) { var pid = String(playerIds[p].trim()); playerTotals[pid] = joinInfo[pid] || 0; }
         var handNumbers = new Set();
         for (var h = 0; h < hands.length; h++) {
             var hand = hands[h];
             handNumbers.add(hand.hand_number);
-            if (playerTotals[hand.player_id] !== undefined) {
-                playerTotals[hand.player_id] += Number(hand.score);
-            }
+            if (playerTotals[hand.player_id] !== undefined) playerTotals[hand.player_id] += Number(hand.score);
         }
         handCount = handNumbers.size;
-
-        var lowestScore = Infinity;
-        var winnerId = null;
-        for (var pid in playerTotals) {
-            if (playerTotals[pid] < lowestScore) {
-                lowestScore = playerTotals[pid];
-                winnerId = pid;
-            }
-        }
-
+        var lowestScore = Infinity, winnerId = null;
+        for (var pid in playerTotals) { if (playerTotals[pid] < lowestScore) { lowestScore = playerTotals[pid]; winnerId = pid; } }
         var winnerName = winnerId ? getPlayerName(winnerId) : 'Unknown';
 
         html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
@@ -1466,70 +1169,37 @@ completedSessions.sort(function(a, b) {
         html += '<div class="session-item-info" style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">';
         html += '<div>📅 ' + cleanDate + ' • ' + handCount + ' hands • ' + playerIds.length + ' players</div>';
         html += '<div style="color: #4caf50; font-weight: 600;">🏆 ' + winnerName + ' (' + lowestScore + ' pts)</div>';
-
         if (session.tags && session.tags !== '') {
             var tagsArray = session.tags.split(',').filter(function(t) { return t.trim(); });
             if (tagsArray.length > 0) {
                 html += '<div style="margin-top: 4px;">';
-                for (var t = 0; t < tagsArray.length; t++) {
-                    html += '<span class="tag-badge" style="font-size: 0.75em; padding: 2px 8px;">' + tagsArray[t] + '</span>';
-                }
+                for (var t = 0; t < tagsArray.length; t++) html += '<span class="tag-badge" style="font-size: 0.75em; padding: 2px 8px;">' + tagsArray[t] + '</span>';
                 html += '</div>';
             }
         }
-
-        html += '</div>';
-        html += '</li>';
+        html += '</div></li>';
     }
-
-    html += '</ul>';
-    html += '</div>';
+    html += '</ul></div>';
     contentDiv.innerHTML = html;
 }
 
 async function viewSessionDetail(sessionIndex, buttonElement) {
     if (buttonElement) setButtonLoading(buttonElement, true);
-
     const session = allSessions[sessionIndex];
-
     document.getElementById('sessionDetailContent').innerHTML =
         '<div class="skeleton-card">' +
             '<h3 class="section-heading-blue mb-15">Loading session details...</h3>' +
-            '<div style="overflow-x: auto;">' +
-                '<div class="skeleton-table-row">' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                '</div>' +
-                '<div class="skeleton-table-row">' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                '</div>' +
-                '<div class="skeleton-table-row">' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                '</div>' +
-                '<div class="skeleton-table-row">' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                '</div>' +
+            '<div class="overflow-x-auto">' +
+                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
             '</div>' +
         '</div>';
 
     let handsData = await apiCall('getHands', { session_id: session.session_id });
-
-    if (handsData.error) {
-        alert('Error loading session details');
-        if (buttonElement) setButtonLoading(buttonElement, false);
-        return;
-    }
-
-    for (let i = 0; i < handsData.length; i++) {
-        if (!handsData[i].comment) handsData[i].comment = '';
-    }
+    if (handsData.error) { alert('Error loading session details'); if (buttonElement) setButtonLoading(buttonElement, false); return; }
+    for (let i = 0; i < handsData.length; i++) { if (!handsData[i].comment) handsData[i].comment = ''; }
 
     document.getElementById('sessionDetailTitle').textContent = session.title;
     const joinInfo = parsePlayerJoinInfo(session.player_join_info);
@@ -1537,86 +1207,56 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
     let metadataHtml = '';
     if ((session.notes && session.notes !== '') || (session.tags && session.tags !== '') || (Object.keys(joinInfo).length > 0)) {
         metadataHtml += '<div class="session-metadata">';
-        if (session.notes && session.notes !== '') {
-            metadataHtml += '<p><strong>📝 Notes:</strong> ' + session.notes + '</p>';
-        }
+        if (session.notes && session.notes !== '') metadataHtml += '<p><strong>📝 Notes:</strong> ' + session.notes + '</p>';
         if (session.tags && session.tags !== '') {
             const tagsArray = session.tags.split(',').filter(t => t.trim());
             if (tagsArray.length > 0) {
                 metadataHtml += '<p><strong>🏷️ Tags:</strong> ';
-                for (let i = 0; i < tagsArray.length; i++) {
-                    metadataHtml += '<span class="tag-badge">' + tagsArray[i] + '</span>';
-                }
+                for (let i = 0; i < tagsArray.length; i++) metadataHtml += '<span class="tag-badge">' + tagsArray[i] + '</span>';
                 metadataHtml += '</p>';
             }
         }
         if (Object.keys(joinInfo).length > 0) {
             metadataHtml += '<p><strong>👥 Late Joiners:</strong> ';
             const joiners = [];
-            for (let playerId in joinInfo) {
-                joiners.push(getPlayerName(playerId) + ' (Hand ' + joinInfo[playerId] + ')');
-            }
+            for (let playerId in joinInfo) joiners.push(getPlayerName(playerId) + ' (Hand ' + joinInfo[playerId] + ')');
             metadataHtml += joiners.join(', ') + '</p>';
         }
         metadataHtml += '</div>';
     }
     document.getElementById('sessionDetailMetadata').innerHTML = metadataHtml;
 
-    const playerTotals = {};
-    const playerHandScores = {};
-    const playerStats = {};
-    const playerJoinHands = {};
-
-    for (let playerId in joinInfo) {
-        playerJoinHands[playerId] = joinInfo[playerId];
-    }
-
+    const playerTotals = {}, playerHandScores = {}, playerStats = {}, playerJoinHands = {};
+    for (let playerId in joinInfo) playerJoinHands[playerId] = joinInfo[playerId];
     const allPlayerIds = new Set();
-    for (let i = 0; i < handsData.length; i++) {
-        allPlayerIds.add(String(handsData[i].player_id));
-    }
-
+    for (let i = 0; i < handsData.length; i++) allPlayerIds.add(String(handsData[i].player_id));
     for (let pid of allPlayerIds) {
         let startingScore = 0;
         if (session.player_join_info) {
-            try {
-                const fullInfo = JSON.parse(session.player_join_info);
-                if (fullInfo[pid] && fullInfo[pid].starting_score !== undefined) {
-                    startingScore = fullInfo[pid].starting_score;
-                }
-            } catch(e) {}
+            try { const fullInfo = JSON.parse(session.player_join_info); if (fullInfo[pid] && fullInfo[pid].starting_score !== undefined) startingScore = fullInfo[pid].starting_score; } catch(e) {}
         }
         playerTotals[pid] = startingScore;
         playerHandScores[pid] = [];
         playerStats[pid] = { lockouts: 0, lockoutScores: [], falseLockouts: 0, falseLockoutScores: [], totalLockouts: 0 };
     }
-
     for (let i = 0; i < handsData.length; i++) {
-        const hand = handsData[i];
-        const pid = String(hand.player_id);
+        const hand = handsData[i], pid = String(hand.player_id);
         playerTotals[pid] += Number(hand.score);
         playerHandScores[pid].push({ handNum: Number(hand.hand_number), score: Number(hand.score) });
         if (hand.lockout_player_id && String(hand.lockout_player_id) === String(pid)) {
             playerStats[pid].totalLockouts++;
             const lockoutScoreToUse = (hand.lockout_score !== null && hand.lockout_score !== undefined && hand.lockout_score !== '') ? Number(hand.lockout_score) : Number(hand.score);
             playerStats[pid].lockoutScores.push(lockoutScoreToUse);
-            if (hand.false_lockout == 1 || hand.false_lockout === true) {
-                playerStats[pid].falseLockouts++;
-                playerStats[pid].falseLockoutScores.push(lockoutScoreToUse);
-            } else {
-                playerStats[pid].lockouts++;
-            }
+            if (hand.false_lockout == 1 || hand.false_lockout === true) { playerStats[pid].falseLockouts++; playerStats[pid].falseLockoutScores.push(lockoutScoreToUse); }
+            else { playerStats[pid].lockouts++; }
         }
     }
 
-    const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) {
-        return playerTotals[a] - playerTotals[b];
-    });
+    const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return playerTotals[a] - playerTotals[b]; });
 
     let html = '<h3>Final Scores</h3>';
     html += '<p class="text-muted text-sm mb-10">💡 Click column headers to sort</p>';
-    html += '<div class="overflow-x-auto"><table class="scores-table" id="sessionDetailTable">';
-    html += '<tr>';
+    html += '<div class="overflow-x-auto"><table class="scores-table" id="sessionDetailTable"><tr>';
     html += '<th onclick="sortSessionTable(0)" style="cursor: pointer; user-select: none;">Player ⇅</th>';
     html += '<th onclick="sortSessionTable(1)" style="cursor: pointer; user-select: none;">Total ⇅</th>';
     html += '<th onclick="sortSessionTable(2)" style="cursor: pointer; user-select: none;">Hands ⇅</th>';
@@ -1630,9 +1270,7 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
     html += '</tr>';
 
     for (let i = 0; i < sortedPlayers.length; i++) {
-        const playerId = sortedPlayers[i];
-        const playerName = getPlayerName(playerId);
-        const total = playerTotals[playerId];
+        const playerId = sortedPlayers[i], total = playerTotals[playerId];
         const handsPlayed = playerHandScores[playerId].length;
         const avgHand = handsPlayed > 0 ? (total / handsPlayed).toFixed(2) : '0';
         const stats = playerStats[playerId];
@@ -1640,12 +1278,10 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
         const avgLockoutScore = stats.lockoutScores.length > 0 ? (stats.lockoutScores.reduce((sum, s) => sum + s, 0) / stats.lockoutScores.length).toFixed(2) : 'N/A';
         const falseLockoutRate = stats.totalLockouts > 0 ? ((stats.falseLockouts / stats.totalLockouts) * 100).toFixed(1) : '0';
         const avgFalseLockoutScore = stats.falseLockoutScores.length > 0 ? (stats.falseLockoutScores.reduce((sum, s) => sum + s, 0) / stats.falseLockoutScores.length).toFixed(2) : 'N/A';
-        html += '<tr><td><strong>' + playerName + '</strong></td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
+        html += '<tr><td><strong>' + getPlayerName(playerId) + '</strong></td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
     }
     html += '</table></div>';
-
-    html += '<h3 class="mt-20">Hand-by-Hand Breakdown</h3>';
-    html += '<div class="hand-history">';
+    html += '<h3 class="mt-20">Hand-by-Hand Breakdown</h3><div class="hand-history">';
 
     const handsByNumber = {};
     for (let i = 0; i < handsData.length; i++) {
@@ -1653,49 +1289,28 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
         if (!handsByNumber[hand.hand_number]) handsByNumber[hand.hand_number] = [];
         handsByNumber[hand.hand_number].push(hand);
     }
-
     const handNumbers = Object.keys(handsByNumber).sort((a, b) => Number(a) - Number(b));
-
     for (let i = 0; i < handNumbers.length; i++) {
-        const handNum = handNumbers[i];
-        const hands = handsByNumber[handNum];
-        let scoreText = '';
-        let lockoutPlayer = '';
-        let isFalseLockout = false;
-        let handComment = '';
+        const handNum = handNumbers[i], hands = handsByNumber[handNum];
+        let scoreText = '', lockoutPlayer = '', isFalseLockout = false, handComment = '';
         for (let j = 0; j < hands.length; j++) {
             const h = hands[j];
             if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
                 if (h.lockout_score) {
-                    if (h.false_lockout == 1 || h.false_lockout === true) {
-                        const penalty = h.score - h.lockout_score;
-                        scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + penalty + ' penalty) | ';
-                    } else {
-                        scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ') | ';
-                    }
-                } else {
-                    scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
-                }
+                    scoreText += getPlayerName(h.player_id) + ': ' + h.score + (h.false_lockout == 1 || h.false_lockout === true ? ' (' + h.lockout_score + ' + ' + (h.score - h.lockout_score) + ' penalty)' : ' (' + h.lockout_score + ')') + ' | ';
+                } else { scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | '; }
                 lockoutPlayer = getPlayerName(h.player_id);
                 isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
-            } else {
-                scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
-            }
+            } else { scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | '; }
             if (h.comment && !handComment) handComment = h.comment;
         }
         scoreText = scoreText.slice(0, -3);
-        html += '<div class="hand-item">';
-        html += '<div class="hand-item-info">';
-        html += '<strong>Hand ' + handNum + '</strong><br>';
-        html += '<small>' + scoreText + '</small><br>';
+        html += '<div class="hand-item"><div class="hand-item-info">';
+        html += '<strong>Hand ' + handNum + '</strong><br><small>' + scoreText + '</small><br>';
         html += '<small>Lockout: ' + lockoutPlayer + (isFalseLockout ? ' (FALSE)' : '') + '</small>';
-        if (handComment) {
-            html += '<br><small class="comment-text">💬 ' + handComment + '</small>';
-        }
-        html += '</div>';
-        html += '</div>';
+        if (handComment) html += '<br><small class="comment-text">💬 ' + handComment + '</small>';
+        html += '</div></div>';
     }
-
     html += '</div>';
     document.getElementById('sessionDetailContent').innerHTML = html;
 
@@ -1703,12 +1318,8 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
     graphsHtml += '<div class="chart-container"><canvas id="wormChart"></canvas></div>';
     graphsHtml += '<div class="chart-container"><canvas id="manhattanChart"></canvas></div>';
     document.getElementById('sessionDetailGraphs').innerHTML = graphsHtml;
-
     showScreen('sessionDetailScreen');
-    setTimeout(function() {
-        drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
-        drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
-    }, 100);
+    setTimeout(function() { drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session); drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session); }, 100);
 }
 
 // ============================================
@@ -1717,60 +1328,24 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
 function drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session) {
     const ctx = document.getElementById('wormChart');
     if (!ctx) return;
-    const datasets = [];
-    const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+    const datasets = [], colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
     let maxHand = 0;
-    for (let playerId in playerHandScores) {
-        for (let i = 0; i < playerHandScores[playerId].length; i++) {
-            if (playerHandScores[playerId][i].handNum > maxHand) maxHand = playerHandScores[playerId][i].handNum;
-        }
-    }
+    for (let playerId in playerHandScores) for (let i = 0; i < playerHandScores[playerId].length; i++) if (playerHandScores[playerId][i].handNum > maxHand) maxHand = playerHandScores[playerId][i].handNum;
     for (let i = 0; i < sortedPlayers.length; i++) {
-        const playerId = sortedPlayers[i];
-        const hands = playerHandScores[playerId];
-        const joinHand = playerJoinHands[playerId] || 1;
+        const playerId = sortedPlayers[i], hands = playerHandScores[playerId], joinHand = playerJoinHands[playerId] || 1;
         let startingScore = 0;
         if (joinHand > 1 && session && session.player_join_info) {
-            try {
-                const fullInfo = JSON.parse(session.player_join_info);
-                const info = fullInfo[playerId];
-                if (info && typeof info === 'object' && info.starting_score !== undefined) {
-                    startingScore = info.starting_score;
-                }
-            } catch(e) {}
+            try { const fullInfo = JSON.parse(session.player_join_info); const info = fullInfo[playerId]; if (info && typeof info === 'object' && info.starting_score !== undefined) startingScore = info.starting_score; } catch(e) {}
         }
         let cumulative = startingScore;
         const dataPoints = [];
         for (let h = 1; h < joinHand; h++) dataPoints.push(null);
-        for (let j = 0; j < hands.length; j++) {
-            cumulative += hands[j].score;
-            dataPoints.push(cumulative);
-        }
-        datasets.push({
-            label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''),
-            data: dataPoints,
-            borderColor: colors[i % colors.length],
-            backgroundColor: 'transparent',
-            borderWidth: 2,
-            tension: 0.1,
-            spanGaps: false
-        });
+        for (let j = 0; j < hands.length; j++) { cumulative += hands[j].score; dataPoints.push(cumulative); }
+        datasets.push({ label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''), data: dataPoints, borderColor: colors[i % colors.length], backgroundColor: 'transparent', borderWidth: 2, tension: 0.1, spanGaps: false });
     }
     const labels = [];
     for (let i = 1; i <= maxHand; i++) labels.push('Hand ' + i);
-    new Chart(ctx.getContext('2d'), {
-        type: 'line',
-        data: { labels: labels, datasets: datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: { display: true, text: 'Cricket Worm' },
-                legend: { display: true, position: 'top' }
-            },
-            scales: { y: { title: { display: true, text: 'Cumulative Score' } } }
-        }
-    });
+    new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Cricket Worm' }, legend: { display: true, position: 'top' } }, scales: { y: { title: { display: true, text: 'Cumulative Score' } } } } });
 }
 
 function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session) {
@@ -1778,45 +1353,18 @@ function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, 
     if (!ctx) return;
     const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
     let maxHand = 0;
-    for (let playerId in playerHandScores) {
-        for (let i = 0; i < playerHandScores[playerId].length; i++) {
-            if (playerHandScores[playerId][i].handNum > maxHand) maxHand = playerHandScores[playerId][i].handNum;
-        }
-    }
+    for (let playerId in playerHandScores) for (let i = 0; i < playerHandScores[playerId].length; i++) if (playerHandScores[playerId][i].handNum > maxHand) maxHand = playerHandScores[playerId][i].handNum;
     const labels = [];
     for (let i = 1; i <= maxHand; i++) labels.push('Hand ' + i);
     const datasets = [];
     for (let i = 0; i < sortedPlayers.length; i++) {
-        const playerId = sortedPlayers[i];
-        const hands = playerHandScores[playerId];
-        const joinHand = playerJoinHands[playerId] || 1;
+        const playerId = sortedPlayers[i], hands = playerHandScores[playerId], joinHand = playerJoinHands[playerId] || 1;
         const dataArray = [];
         for (let h = 1; h < joinHand; h++) dataArray.push(null);
         for (let j = 0; j < hands.length; j++) dataArray.push(hands[j].score);
-        datasets.push({
-            label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''),
-            data: dataArray,
-            backgroundColor: colors[i % colors.length],
-            borderColor: colors[i % colors.length],
-            borderWidth: 1
-        });
+        datasets.push({ label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''), data: dataArray, backgroundColor: colors[i % colors.length], borderColor: colors[i % colors.length], borderWidth: 1 });
     }
-    new Chart(ctx.getContext('2d'), {
-        type: 'bar',
-        data: { labels: labels, datasets: datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: { display: true, text: 'Manhattan' },
-                legend: { display: true, position: 'top' }
-            },
-            scales: {
-                x: { title: { display: true, text: 'Hand Number' } },
-                y: { title: { display: true, text: 'Score' }, beginAtZero: true }
-            }
-        }
-    });
+    new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Manhattan' }, legend: { display: true, position: 'top' } }, scales: { x: { title: { display: true, text: 'Hand Number' } }, y: { title: { display: true, text: 'Score' }, beginAtZero: true } } } });
 }
 
 // ============================================
@@ -1828,104 +1376,49 @@ async function loadStats() {
         '<div class="skeleton-card">' +
             '<h3 class="section-heading-blue mb-20">Loading statistics...</h3>' +
             '<div class="stats-grid">' +
-                '<div class="skeleton-stat-card">' +
-                    '<div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div>' +
-                    '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
-                '</div>' +
-                '<div class="skeleton-stat-card">' +
-                    '<div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div>' +
-                    '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
-                '</div>' +
-                '<div class="skeleton-stat-card">' +
-                    '<div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div>' +
-                    '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
-                '</div>' +
-                '<div class="skeleton-stat-card">' +
-                    '<div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div>' +
-                    '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
-                '</div>' +
-                '<div class="skeleton-stat-card">' +
-                    '<div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div>' +
-                    '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
-                '</div>' +
-                '<div class="skeleton-stat-card">' +
-                    '<div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div>' +
-                    '<div class="shimmer-wrapper skeleton-stat-value"></div>' +
-                '</div>' +
+                '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+                '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+                '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+                '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+                '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+                '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
             '</div>' +
         '</div>';
 
     await ensurePlayersLoaded();
-
     const sessionsWithHands = await apiCall('getSessionsWithHands', {});
-    if (sessionsWithHands.error) {
-        contentDiv.innerHTML = '<div class="error">Error loading stats</div>';
-        return;
-    }
+    if (sessionsWithHands.error) { contentDiv.innerHTML = '<div class="error">Error loading stats</div>'; return; }
 
-    const completedSessionsData = [];
-    const allSessionsData = [];
-
+    const completedSessionsData = [], allSessionsData = [];
     for (let i = 0; i < sessionsWithHands.length; i++) {
         const item = sessionsWithHands[i];
         const isCompleted = (item.session.date_ended && item.session.date_ended !== '');
-        const sessionData = {
-            session_id: item.session.session_id,
-            title: item.session.title,
-            hands: item.hands,
-            is_completed: isCompleted,
-            player_join_info: item.session.player_join_info || '{}'
-        };
+        const sessionData = { session_id: item.session.session_id, title: item.session.title, hands: item.hands, is_completed: isCompleted, player_join_info: item.session.player_join_info || '{}' };
         allSessionsData.push(sessionData);
         if (isCompleted) completedSessionsData.push(sessionData);
     }
-
     const stats = calculateOverallStats(completedSessionsData, allSessionsData, allPlayers);
     displayOverallStats(stats, completedSessionsData.length);
 }
 
 function calculateOverallStats(completedSessionsData, allSessionsData, playersData) {
     const playerStats = {};
-    
     for (let i = 0; i < playersData.length; i++) {
         const player = playersData[i];
-        playerStats[player.player_id] = {
-            username: player.username,
-            sessionsWon: 0,
-            sessionsPlayed: 0,
-            handsWon: 0,
-            handsPlayed: 0,
-            totalScore: 0,
-            lockoutScores: [],
-            falseLockouts: 0,
-            falseLockoutScores: [],
-            totalLockouts: 0,
-            currentHandStreak: 0,
-            maxHandStreak: 0,
-            bestMargin: 0,
-            worstMargin: 0
-        };
+        playerStats[player.player_id] = { username: player.username, sessionsWon: 0, sessionsPlayed: 0, handsWon: 0, handsPlayed: 0, totalScore: 0, lockoutScores: [], falseLockouts: 0, falseLockoutScores: [], totalLockouts: 0, currentHandStreak: 0, maxHandStreak: 0, bestMargin: 0, worstMargin: 0 };
     }
-    
     let totalUniqueHands = 0;
-    
     for (let s = 0; s < allSessionsData.length; s++) {
         const session = allSessionsData[s];
         const playerUniqueHands = {};
-        
-        for (let i = 0; i < playersData.length; i++) {
-            playerUniqueHands[playersData[i].player_id] = new Set();
-        }
-        
+        for (let i = 0; i < playersData.length; i++) playerUniqueHands[playersData[i].player_id] = new Set();
         const sessionHandNumbers = new Set();
-        
         for (let h = 0; h < session.hands.length; h++) {
             const hand = session.hands[h];
             if (playerStats[hand.player_id]) {
                 playerStats[hand.player_id].totalScore += Number(hand.score);
                 playerUniqueHands[hand.player_id].add(Number(hand.hand_number));
                 sessionHandNumbers.add(Number(hand.hand_number));
-                
                 if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
                     playerStats[hand.player_id].totalLockouts++;
                     const lockoutScoreToUse = (hand.lockout_score !== null && hand.lockout_score !== undefined && hand.lockout_score !== '') ? Number(hand.lockout_score) : Number(hand.score);
@@ -1937,211 +1430,107 @@ function calculateOverallStats(completedSessionsData, allSessionsData, playersDa
                     } else {
                         playerStats[hand.player_id].handsWon++;
                         playerStats[hand.player_id].currentHandStreak++;
-                        if (playerStats[hand.player_id].currentHandStreak > playerStats[hand.player_id].maxHandStreak) {
-                            playerStats[hand.player_id].maxHandStreak = playerStats[hand.player_id].currentHandStreak;
-                        }
+                        if (playerStats[hand.player_id].currentHandStreak > playerStats[hand.player_id].maxHandStreak) playerStats[hand.player_id].maxHandStreak = playerStats[hand.player_id].currentHandStreak;
                     }
-                } else {
-                    playerStats[hand.player_id].currentHandStreak = 0;
-                }
+                } else { playerStats[hand.player_id].currentHandStreak = 0; }
             }
         }
-        
-        for (let playerId in playerUniqueHands) {
-            const uniqueHandCount = playerUniqueHands[playerId].size;
-            if (uniqueHandCount > 0) {
-                playerStats[playerId].handsPlayed += uniqueHandCount;
-            }
-        }
-        
+        for (let playerId in playerUniqueHands) { const uniqueHandCount = playerUniqueHands[playerId].size; if (uniqueHandCount > 0) playerStats[playerId].handsPlayed += uniqueHandCount; }
         totalUniqueHands += sessionHandNumbers.size;
     }
-    
     for (let s = 0; s < completedSessionsData.length; s++) {
         const session = completedSessionsData[s];
-        const playerTotals = {};
-        const playersInSession = new Set();
-        
-        try {
-            const ji = JSON.parse(session.player_join_info || '{}');
-            for (let pid in ji) {
-                if (ji[pid] && ji[pid].starting_score !== undefined) {
-                    playerTotals[pid] = Number(ji[pid].starting_score);
-                }
-            }
-        } catch(e) {}
-        
+        const playerTotals = {}, playersInSession = new Set();
+        try { const ji = JSON.parse(session.player_join_info || '{}'); for (let pid in ji) { if (ji[pid] && ji[pid].starting_score !== undefined) playerTotals[pid] = Number(ji[pid].starting_score); } } catch(e) {}
         for (let h = 0; h < session.hands.length; h++) {
             const hand = session.hands[h];
-            if (playerTotals[hand.player_id] === undefined) {
-                playerTotals[hand.player_id] = 0;
-            }
+            if (playerTotals[hand.player_id] === undefined) playerTotals[hand.player_id] = 0;
             playerTotals[hand.player_id] += Number(hand.score);
             playersInSession.add(hand.player_id);
         }
-        
-        playersInSession.forEach(playerId => {
-            if (playerStats[playerId]) {
-                playerStats[playerId].sessionsPlayed++;
-            }
-        });
-        
-        let lowestScore = Infinity;
-        let winnerPlayerIds = [];
+        playersInSession.forEach(playerId => { if (playerStats[playerId]) playerStats[playerId].sessionsPlayed++; });
+        let lowestScore = Infinity, winnerPlayerIds = [];
         for (let playerId in playerTotals) {
             const score = playerTotals[playerId];
-            if (score < lowestScore) {
-                lowestScore = score;
-                winnerPlayerIds = [playerId];
-            } else if (score === lowestScore) {
-                winnerPlayerIds.push(playerId);
-            }
+            if (score < lowestScore) { lowestScore = score; winnerPlayerIds = [playerId]; }
+            else if (score === lowestScore) winnerPlayerIds.push(playerId);
         }
-        
         let secondLowestScore = Infinity;
-        for (let playerId in playerTotals) {
-            const score = playerTotals[playerId];
-            if (score > lowestScore && score < secondLowestScore) {
-                secondLowestScore = score;
-            }
-        }
-        
+        for (let playerId in playerTotals) { const score = playerTotals[playerId]; if (score > lowestScore && score < secondLowestScore) secondLowestScore = score; }
         for (let playerId in playerTotals) {
             if (playerStats[playerId]) {
                 if (winnerPlayerIds.indexOf(String(playerId)) !== -1) {
                     playerStats[playerId].sessionsWon += (1 / winnerPlayerIds.length);
-                    if (secondLowestScore !== Infinity) {
-                        const margin = secondLowestScore - lowestScore;
-                        if (margin > playerStats[playerId].bestMargin) {
-                            playerStats[playerId].bestMargin = margin;
-                        }
-                    }
-                } else {
-                    const margin = playerTotals[playerId] - lowestScore;
-                    if (margin > playerStats[playerId].worstMargin) {
-                        playerStats[playerId].worstMargin = margin;
-                    }
-                }
+                    if (secondLowestScore !== Infinity) { const margin = secondLowestScore - lowestScore; if (margin > playerStats[playerId].bestMargin) playerStats[playerId].bestMargin = margin; }
+                } else { const margin = playerTotals[playerId] - lowestScore; if (margin > playerStats[playerId].worstMargin) playerStats[playerId].worstMargin = margin; }
             }
         }
     }
-    
     playerStats._totalUniqueHands = totalUniqueHands;
     return playerStats;
 }
 
 function formatStatWinners(winners, value, suffix) {
     var names;
-    if (winners.length === 1) {
-        names = winners[0];
-    } else if (winners.length === 2) {
-        names = winners[0] + ' & ' + winners[1];
-    } else {
-        names = winners[0] + ' (+' + (winners.length - 1) + ' tied)';
-    }
+    if (winners.length === 1) names = winners[0];
+    else if (winners.length === 2) names = winners[0] + ' & ' + winners[1];
+    else names = winners[0] + ' (+' + (winners.length - 1) + ' tied)';
     return { names: names, value: value + (suffix ? ' ' + suffix : '') };
 }
 
 function displayOverallStats(stats, totalSessions) {
-let totalHands = stats._totalUniqueHands || 0;
-
-// Collect raw values for all players
-const statValues = {
-    sessionsWon: { best: -Infinity, winners: [], value: null, suffix: 'wins' },
-    handsWon: { best: -Infinity, winners: [], value: null, suffix: 'hands' },
-    sessionWinRate: { best: -Infinity, winners: [], value: null, suffix: '%' },
-    handWinRate: { best: -Infinity, winners: [], value: null, suffix: '%' },
-    avgScore: { best: Infinity, winners: [], value: null, suffix: '', lower: true },
-    falseLockouts: { best: -Infinity, winners: [], value: null, suffix: 'times' },
-    handStreak: { best: -Infinity, winners: [], value: null, suffix: 'hands' },
-    avgLockout: { best: Infinity, winners: [], value: null, suffix: '', lower: true }
-};
-
-for (let playerId in stats) {
-    if (playerId === '_totalUniqueHands') continue;
-    const ps = stats[playerId];
-
-    // Sessions won
-    const sw = ps.sessionsWon;
-    if (sw > statValues.sessionsWon.best) { statValues.sessionsWon.best = sw; statValues.sessionsWon.winners = [ps.username]; statValues.sessionsWon.value = sw.toFixed(1); }
-    else if (sw === statValues.sessionsWon.best) { statValues.sessionsWon.winners.push(ps.username); }
-
-    // Hands won
-    const hw = ps.handsWon;
-    if (hw > statValues.handsWon.best) { statValues.handsWon.best = hw; statValues.handsWon.winners = [ps.username]; statValues.handsWon.value = hw; }
-    else if (hw === statValues.handsWon.best) { statValues.handsWon.winners.push(ps.username); }
-
-    // Session win rate
-    if (ps.sessionsPlayed > 0) {
-        const swr = (ps.sessionsWon / ps.sessionsPlayed) * 100;
-        if (swr > statValues.sessionWinRate.best) { statValues.sessionWinRate.best = swr; statValues.sessionWinRate.winners = [ps.username]; statValues.sessionWinRate.value = swr.toFixed(1); }
-        else if (swr === statValues.sessionWinRate.best) { statValues.sessionWinRate.winners.push(ps.username); }
+    let totalHands = stats._totalUniqueHands || 0;
+    const statValues = {
+        sessionsWon: { best: -Infinity, winners: [], value: null, suffix: 'wins' },
+        handsWon: { best: -Infinity, winners: [], value: null, suffix: 'hands' },
+        sessionWinRate: { best: -Infinity, winners: [], value: null, suffix: '%' },
+        handWinRate: { best: -Infinity, winners: [], value: null, suffix: '%' },
+        avgScore: { best: Infinity, winners: [], value: null, suffix: '', lower: true },
+        falseLockouts: { best: -Infinity, winners: [], value: null, suffix: 'times' },
+        handStreak: { best: -Infinity, winners: [], value: null, suffix: 'hands' },
+        avgLockout: { best: Infinity, winners: [], value: null, suffix: '', lower: true }
+    };
+    for (let playerId in stats) {
+        if (playerId === '_totalUniqueHands') continue;
+        const ps = stats[playerId];
+        const sw = ps.sessionsWon;
+        if (sw > statValues.sessionsWon.best) { statValues.sessionsWon.best = sw; statValues.sessionsWon.winners = [ps.username]; statValues.sessionsWon.value = sw.toFixed(1); } else if (sw === statValues.sessionsWon.best) statValues.sessionsWon.winners.push(ps.username);
+        const hw = ps.handsWon;
+        if (hw > statValues.handsWon.best) { statValues.handsWon.best = hw; statValues.handsWon.winners = [ps.username]; statValues.handsWon.value = hw; } else if (hw === statValues.handsWon.best) statValues.handsWon.winners.push(ps.username);
+        if (ps.sessionsPlayed > 0) { const swr = (ps.sessionsWon / ps.sessionsPlayed) * 100; if (swr > statValues.sessionWinRate.best) { statValues.sessionWinRate.best = swr; statValues.sessionWinRate.winners = [ps.username]; statValues.sessionWinRate.value = swr.toFixed(1); } else if (swr === statValues.sessionWinRate.best) statValues.sessionWinRate.winners.push(ps.username); }
+        if (ps.handsPlayed > 0) { const hwr = (ps.handsWon / ps.handsPlayed) * 100; if (hwr > statValues.handWinRate.best) { statValues.handWinRate.best = hwr; statValues.handWinRate.winners = [ps.username]; statValues.handWinRate.value = hwr.toFixed(1); } else if (hwr === statValues.handWinRate.best) statValues.handWinRate.winners.push(ps.username); }
+        if (ps.handsPlayed > 0) { const avg = ps.totalScore / ps.handsPlayed; if (avg < statValues.avgScore.best) { statValues.avgScore.best = avg; statValues.avgScore.winners = [ps.username]; statValues.avgScore.value = avg.toFixed(2); } else if (avg === statValues.avgScore.best) statValues.avgScore.winners.push(ps.username); }
+        const fl = ps.falseLockouts;
+        if (fl > statValues.falseLockouts.best) { statValues.falseLockouts.best = fl; statValues.falseLockouts.winners = [ps.username]; statValues.falseLockouts.value = fl; } else if (fl === statValues.falseLockouts.best) statValues.falseLockouts.winners.push(ps.username);
+        const hs = ps.maxHandStreak;
+        if (hs > statValues.handStreak.best) { statValues.handStreak.best = hs; statValues.handStreak.winners = [ps.username]; statValues.handStreak.value = hs; } else if (hs === statValues.handStreak.best) statValues.handStreak.winners.push(ps.username);
+        if (ps.lockoutScores.length > 0) { const als = ps.lockoutScores.reduce((sum, score) => sum + score, 0) / ps.lockoutScores.length; if (als < statValues.avgLockout.best) { statValues.avgLockout.best = als; statValues.avgLockout.winners = [ps.username]; statValues.avgLockout.value = als.toFixed(2); } else if (als === statValues.avgLockout.best) statValues.avgLockout.winners.push(ps.username); }
     }
-
-    // Hand win rate
-    if (ps.handsPlayed > 0) {
-        const hwr = (ps.handsWon / ps.handsPlayed) * 100;
-        if (hwr > statValues.handWinRate.best) { statValues.handWinRate.best = hwr; statValues.handWinRate.winners = [ps.username]; statValues.handWinRate.value = hwr.toFixed(1); }
-        else if (hwr === statValues.handWinRate.best) { statValues.handWinRate.winners.push(ps.username); }
-    }
-
-    // Avg score (lower is better)
-    if (ps.handsPlayed > 0) {
-        const avg = ps.totalScore / ps.handsPlayed;
-        if (avg < statValues.avgScore.best) { statValues.avgScore.best = avg; statValues.avgScore.winners = [ps.username]; statValues.avgScore.value = avg.toFixed(2); }
-        else if (avg === statValues.avgScore.best) { statValues.avgScore.winners.push(ps.username); }
-    }
-
-    // False lockouts
-    const fl = ps.falseLockouts;
-    if (fl > statValues.falseLockouts.best) { statValues.falseLockouts.best = fl; statValues.falseLockouts.winners = [ps.username]; statValues.falseLockouts.value = fl; }
-    else if (fl === statValues.falseLockouts.best) { statValues.falseLockouts.winners.push(ps.username); }
-
-    // Hand streak
-    const hs = ps.maxHandStreak;
-    if (hs > statValues.handStreak.best) { statValues.handStreak.best = hs; statValues.handStreak.winners = [ps.username]; statValues.handStreak.value = hs; }
-    else if (hs === statValues.handStreak.best) { statValues.handStreak.winners.push(ps.username); }
-
-    // Avg lockout score (lower is better)
-    if (ps.lockoutScores.length > 0) {
-        const als = ps.lockoutScores.reduce((sum, score) => sum + score, 0) / ps.lockoutScores.length;
-        if (als < statValues.avgLockout.best) { statValues.avgLockout.best = als; statValues.avgLockout.winners = [ps.username]; statValues.avgLockout.value = als.toFixed(2); }
-        else if (als === statValues.avgLockout.best) { statValues.avgLockout.winners.push(ps.username); }
-    }
-}
-
-const mostSessionsWon = formatStatWinners(statValues.sessionsWon.winners.length ? statValues.sessionsWon.winners : ['N/A'], statValues.sessionsWon.value || '0', 'wins');
-const mostHandsWon = formatStatWinners(statValues.handsWon.winners.length ? statValues.handsWon.winners : ['N/A'], statValues.handsWon.value || '0', 'hands');
-const bestSessionWinRate = formatStatWinners(statValues.sessionWinRate.winners.length ? statValues.sessionWinRate.winners : ['N/A'], statValues.sessionWinRate.value || '0', '%');
-const bestHandWinRate = formatStatWinners(statValues.handWinRate.winners.length ? statValues.handWinRate.winners : ['N/A'], statValues.handWinRate.value || '0', '%');
-const lowestAvgScore = formatStatWinners(statValues.avgScore.winners.length ? statValues.avgScore.winners : ['N/A'], statValues.avgScore.value || '0', '');
-const mostFalseLockouts = formatStatWinners(statValues.falseLockouts.winners.length ? statValues.falseLockouts.winners : ['N/A'], statValues.falseLockouts.value || '0', 'times');
-const longestHandStreak = formatStatWinners(statValues.handStreak.winners.length ? statValues.handStreak.winners : ['N/A'], statValues.handStreak.value || '0', 'hands');
-const bestAvgLockoutScore = formatStatWinners(statValues.avgLockout.winners.length ? statValues.avgLockout.winners : ['N/A'], statValues.avgLockout.value || '0', '');
+    const mostSessionsWon = formatStatWinners(statValues.sessionsWon.winners.length ? statValues.sessionsWon.winners : ['N/A'], statValues.sessionsWon.value || '0', 'wins');
+    const mostHandsWon = formatStatWinners(statValues.handsWon.winners.length ? statValues.handsWon.winners : ['N/A'], statValues.handsWon.value || '0', 'hands');
+    const bestSessionWinRate = formatStatWinners(statValues.sessionWinRate.winners.length ? statValues.sessionWinRate.winners : ['N/A'], statValues.sessionWinRate.value || '0', '%');
+    const bestHandWinRate = formatStatWinners(statValues.handWinRate.winners.length ? statValues.handWinRate.winners : ['N/A'], statValues.handWinRate.value || '0', '%');
+    const lowestAvgScore = formatStatWinners(statValues.avgScore.winners.length ? statValues.avgScore.winners : ['N/A'], statValues.avgScore.value || '0', '');
+    const mostFalseLockouts = formatStatWinners(statValues.falseLockouts.winners.length ? statValues.falseLockouts.winners : ['N/A'], statValues.falseLockouts.value || '0', 'times');
+    const longestHandStreak = formatStatWinners(statValues.handStreak.winners.length ? statValues.handStreak.winners : ['N/A'], statValues.handStreak.value || '0', 'hands');
+    const bestAvgLockoutScore = formatStatWinners(statValues.avgLockout.winners.length ? statValues.avgLockout.winners : ['N/A'], statValues.avgLockout.value || '0', '');
 
     let html = '<div class="stats-grid">';
-   html += '<div class="stat-card"><h4>Total Sessions</h4><p class="stat-value">' + totalSessions + '</p></div>';
-html += '<div class="stat-card"><h4>Total Hands</h4><p class="stat-value">' + totalHands + '</p></div>';
-html += '<div class="stat-card"><h4>Most Sessions Won</h4><p class="stat-value">' + mostSessionsWon.names + '</p><p>' + mostSessionsWon.value + '</p></div>';
-html += '<div class="stat-card"><h4>Most Hands Won</h4><p class="stat-value">' + mostHandsWon.names + '</p><p>' + mostHandsWon.value + '</p></div>';
-html += '<div class="stat-card"><h4>Best Session Win Rate</h4><p class="stat-value">' + bestSessionWinRate.names + '</p><p>' + bestSessionWinRate.value + '</p></div>';
-html += '<div class="stat-card"><h4>Best Hand Win Rate</h4><p class="stat-value">' + bestHandWinRate.names + '</p><p>' + bestHandWinRate.value + '</p></div>';
-html += '<div class="stat-card"><h4>Lowest Avg Score/Hand</h4><p class="stat-value">' + lowestAvgScore.names + '</p><p>' + lowestAvgScore.value + '</p></div>';
-html += '<div class="stat-card"><h4>Best Avg Lockout Score</h4><p class="stat-value">' + bestAvgLockoutScore.names + '</p><p>' + bestAvgLockoutScore.value + '</p></div>';
-html += '<div class="stat-card"><h4>Longest Hand Streak</h4><p class="stat-value">' + longestHandStreak.names + '</p><p>' + longestHandStreak.value + '</p></div>';
-html += '<div class="stat-card"><h4>Most False Lockouts</h4><p class="stat-value">' + mostFalseLockouts.names + '</p><p>' + mostFalseLockouts.value + '</p></div>';
-html += '</div>';
-
-html += '<div class="warning-box mt-15 mb-15 text-sm">';
-html += '<strong>ℹ️ Note:</strong> Hand-level stats include active sessions. Session-level stats only include completed sessions. ';
-html += '<strong>LO Rate</strong> = successful lockouts ÷ hands played. ';
-html += '<strong>False LO Rate</strong> = false lockouts ÷ total lockout attempts.';
-html += '</div>';
-
+    html += '<div class="stat-card"><h4>Total Sessions</h4><p class="stat-value">' + totalSessions + '</p></div>';
+    html += '<div class="stat-card"><h4>Total Hands</h4><p class="stat-value">' + totalHands + '</p></div>';
+    html += '<div class="stat-card"><h4>Most Sessions Won</h4><p class="stat-value">' + mostSessionsWon.names + '</p><p>' + mostSessionsWon.value + '</p></div>';
+    html += '<div class="stat-card"><h4>Most Hands Won</h4><p class="stat-value">' + mostHandsWon.names + '</p><p>' + mostHandsWon.value + '</p></div>';
+    html += '<div class="stat-card"><h4>Best Session Win Rate</h4><p class="stat-value">' + bestSessionWinRate.names + '</p><p>' + bestSessionWinRate.value + '</p></div>';
+    html += '<div class="stat-card"><h4>Best Hand Win Rate</h4><p class="stat-value">' + bestHandWinRate.names + '</p><p>' + bestHandWinRate.value + '</p></div>';
+    html += '<div class="stat-card"><h4>Lowest Avg Score/Hand</h4><p class="stat-value">' + lowestAvgScore.names + '</p><p>' + lowestAvgScore.value + '</p></div>';
+    html += '<div class="stat-card"><h4>Best Avg Lockout Score</h4><p class="stat-value">' + bestAvgLockoutScore.names + '</p><p>' + bestAvgLockoutScore.value + '</p></div>';
+    html += '<div class="stat-card"><h4>Longest Hand Streak</h4><p class="stat-value">' + longestHandStreak.names + '</p><p>' + longestHandStreak.value + '</p></div>';
+    html += '<div class="stat-card"><h4>Most False Lockouts</h4><p class="stat-value">' + mostFalseLockouts.names + '</p><p>' + mostFalseLockouts.value + '</p></div>';
+    html += '</div>';
+    html += '<div class="warning-box mt-15 mb-15 text-sm"><strong>ℹ️ Note:</strong> Hand-level stats include active sessions. Session-level stats only include completed sessions. <strong>LO Rate</strong> = successful lockouts ÷ hands played. <strong>False LO Rate</strong> = false lockouts ÷ total lockout attempts.</div>';
     html += '<h3 class="mt-20">Player Breakdown</h3>';
     html += '<p class="text-muted text-sm mb-10">💡 Click column headers to sort</p>';
-    html += '<div class="overflow-x-auto"><table class="scores-table" id="playerBreakdownTable">';
-    html += '<tr>';
+    html += '<div class="overflow-x-auto"><table class="scores-table" id="playerBreakdownTable"><tr>';
     html += '<th onclick="sortStatsTable(0)" style="cursor: pointer; user-select: none;">Player ⇅</th>';
     html += '<th onclick="sortStatsTable(1)" style="cursor: pointer; user-select: none;">Sessions ⇅</th>';
     html += '<th onclick="sortStatsTable(2)" style="cursor: pointer; user-select: none;">Wins ⇅</th>';
@@ -2155,7 +1544,6 @@ html += '</div>';
     html += '<th onclick="sortStatsTable(10)" style="cursor: pointer; user-select: none;">False LO Rate ⇅</th>';
     html += '<th onclick="sortStatsTable(11)" style="cursor: pointer; user-select: none;">Avg False LO Score ⇅</th>';
     html += '</tr>';
-
     for (let playerId in stats) {
         if (playerId === '_totalUniqueHands') continue;
         const ps = stats[playerId];
@@ -2168,7 +1556,6 @@ html += '</div>';
         html += '<tr><td>' + ps.username + '</td><td>' + ps.sessionsPlayed + '</td><td>' + ps.sessionsWon.toFixed(1) + '</td><td>' + sessionWinRate + '%</td><td>' + ps.handsPlayed + '</td><td>' + avgScore + '</td><td>' + ps.handsWon + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + ps.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
     }
     html += '</table></div>';
-
     document.getElementById('statsContent').innerHTML = html;
 }
 
@@ -2186,36 +1573,15 @@ async function showHeadToHeadList() {
     contentDiv.innerHTML =
         '<div class="skeleton-card">' +
             '<h3 class="section-heading-blue mb-15">Loading head-to-head records...</h3>' +
-            '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">' +
-                '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div>' +
-                '<div class="shimmer-wrapper skeleton-text skeleton-w-100 skeleton-h-8 mb-10"></div>' +
-                '<div class="shimmer-wrapper skeleton-button skeleton-h-40"></div>' +
-            '</div>' +
-            '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">' +
-                '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div>' +
-                '<div class="shimmer-wrapper skeleton-text skeleton-w-100 skeleton-h-8 mb-10"></div>' +
-                '<div class="shimmer-wrapper skeleton-button skeleton-h-40"></div>' +
-            '</div>' +
-            '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">' +
-                '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div>' +
-                '<div class="shimmer-wrapper skeleton-text skeleton-w-100 skeleton-h-8 mb-10"></div>' +
-                '<div class="shimmer-wrapper skeleton-button skeleton-h-40"></div>' +
-            '</div>' +
+            '<div class="h2h-matchup-card"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-100 skeleton-h-8 mb-10"></div><div class="shimmer-wrapper skeleton-button skeleton-h-40"></div></div>' +
+            '<div class="h2h-matchup-card"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-100 skeleton-h-8 mb-10"></div><div class="shimmer-wrapper skeleton-button skeleton-h-40"></div></div>' +
+            '<div class="h2h-matchup-card"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-100 skeleton-h-8 mb-10"></div><div class="shimmer-wrapper skeleton-button skeleton-h-40"></div></div>' +
         '</div>';
 
     await ensurePlayersLoaded();
-
     const data = await apiCall('getHeadToHeadMatrix', {});
-
-    if (data.error) {
-        contentDiv.innerHTML = '<div class="error">Error loading data: ' + data.error + '</div>';
-        return;
-    }
-
-    if (data.length === 0) {
-        contentDiv.innerHTML = '<div class="placeholder-content"><h3>Not Enough Data</h3><p>Play more sessions to see head-to-head records!</p></div>';
-        return;
-    }
+    if (data.error) { contentDiv.innerHTML = '<div class="error">Error loading data: ' + data.error + '</div>'; return; }
+    if (data.length === 0) { contentDiv.innerHTML = '<div class="placeholder-content"><h3>Not Enough Data</h3><p>Play more sessions to see head-to-head records!</p></div>'; return; }
 
     data.sort(function(a, b) { return b.sessions_together - a.sessions_together; });
 
@@ -2225,27 +1591,25 @@ async function showHeadToHeadList() {
 
     for (let i = 0; i < data.length; i++) {
         const m = data[i];
-        const p1Name = getPlayerName(m.p1);
-        const p2Name = getPlayerName(m.p2);
+        const p1Name = getPlayerName(m.p1), p2Name = getPlayerName(m.p2);
         const total = m.p1_wins + m.p2_wins + m.ties;
         if (total === 0) continue;
+        const p1Pct = Math.round((m.p1_wins / total) * 100);
+        const drawPct = Math.round((m.ties / total) * 100);
+        const p2Pct = Math.round((m.p2_wins / total) * 100);
 
-        const p1Pct = total > 0 ? Math.round((m.p1_wins / total) * 100) : 33;
-        const drawPct = total > 0 ? Math.round((m.ties / total) * 100) : 34;
-        const p2Pct = total > 0 ? Math.round((m.p2_wins / total) * 100) : 33;
-
-        html += '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">';
-        html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
-        html += '<strong style="color: #667eea;">' + p1Name + '</strong>';
-        html += '<span style="color: #333; font-weight: 600; font-size: 1.1em;">' + m.p1_wins + '-' + m.ties + '-' + m.p2_wins + '</span>';
-        html += '<strong style="color: #f5576c;">' + p2Name + '</strong>';
+        html += '<div class="h2h-matchup-card">';
+        html += '<div class="h2h-matchup-header">';
+        html += '<strong class="heading-blue">' + p1Name + '</strong>';
+        html += '<span class="h2h-score-span">' + m.p1_wins + '-' + m.ties + '-' + m.p2_wins + '</span>';
+        html += '<strong class="heading-red">' + p2Name + '</strong>';
         html += '</div>';
-        html += '<div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">';
+        html += '<div class="h2h-bar-wrapper">';
         html += '<div style="width: ' + p1Pct + '%; background: #667eea;"></div>';
         html += '<div style="width: ' + drawPct + '%; background: #aaaaaa;"></div>';
         html += '<div style="width: ' + p2Pct + '%; background: #f5576c;"></div>';
         html += '</div>';
-        html += '<div style="display: flex; justify-content: space-between; font-size: 0.85em; color: #666; margin-bottom: 10px;">';
+        html += '<div class="h2h-pct-row">';
         html += '<span>' + p1Pct + '%</span>';
         html += '<span>' + m.sessions_together + ' session' + (m.sessions_together > 1 ? 's' : '') + ' together • W-D-L</span>';
         html += '<span>' + p2Pct + '%</span>';
@@ -2274,32 +1638,19 @@ async function showPlayerComparisonUI() {
     await ensurePlayersLoaded();
     const contentDiv = document.getElementById('statsContent');
     let html = '<h3 class="mb-20">⚔️ Compare Two Players</h3>';
-    html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">';
-    html += '<div>';
-    html += '<label style="display: block; margin-bottom: 8px; font-weight: 600; color: #667eea;">Player 1</label>';
-    html += '<select id="comparisonPlayer1" style="width: 100%; padding: 12px; border: 2px solid #667eea; border-radius: 8px; font-size: 1em;">';
-    html += '<option value="">Select player...</option>';
-    for (let i = 0; i < allPlayers.length; i++) {
-        html += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
-    }
-    html += '</select>';
-    html += '</div>';
-    html += '<div>';
-    html += '<label style="display: block; margin-bottom: 8px; font-weight: 600; color: #f5576c;">Player 2</label>';
-    html += '<select id="comparisonPlayer2" style="width: 100%; padding: 12px; border: 2px solid #f5576c; border-radius: 8px; font-size: 1em;">';
-    html += '<option value="">Select player...</option>';
-    for (let i = 0; i < allPlayers.length; i++) {
-        html += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
-    }
-    html += '</select>';
-    html += '</div>';
+    html += '<div class="comparison-player-grid">';
+    html += '<div><label class="heading-blue">Player 1</label>';
+    html += '<select id="comparisonPlayer1" class="comparison-select-p1"><option value="">Select player...</option>';
+    for (let i = 0; i < allPlayers.length; i++) html += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
+    html += '</select></div>';
+    html += '<div><label class="heading-red">Player 2</label>';
+    html += '<select id="comparisonPlayer2" class="comparison-select-p2"><option value="">Select player...</option>';
+    for (let i = 0; i < allPlayers.length; i++) html += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
+    html += '</select></div>';
     html += '</div>';
     html += '<button class="btn btn-success" id="comparePlayersBtn" style="width: 100%;">Compare Players</button>';
     contentDiv.innerHTML = html;
-    setTimeout(function() {
-        const btn = document.getElementById('comparePlayersBtn');
-        if (btn) btn.addEventListener('click', showPlayerComparison);
-    }, 50);
+    setTimeout(function() { const btn = document.getElementById('comparePlayersBtn'); if (btn) btn.addEventListener('click', showPlayerComparison); }, 50);
 }
 
 async function showPlayerComparison() {
@@ -2307,77 +1658,46 @@ async function showPlayerComparison() {
     const contentDiv = document.getElementById('statsContent');
     const p1Select = document.getElementById('comparisonPlayer1');
     const p2Select = document.getElementById('comparisonPlayer2');
-    if (!p1Select || !p2Select) {
-        contentDiv.innerHTML = '<div class="error">Error: Please select players from the dropdowns above.</div>';
-        return;
-    }
-    const p1Id = p1Select.value;
-    const p2Id = p2Select.value;
+    if (!p1Select || !p2Select) { contentDiv.innerHTML = '<div class="error">Error: Please select players from the dropdowns above.</div>'; return; }
+    const p1Id = p1Select.value, p2Id = p2Select.value;
     if (!p1Id || !p2Id) { contentDiv.innerHTML = '<div class="error">Please select two players</div>'; return; }
     if (p1Id === p2Id) { contentDiv.innerHTML = '<div class="error">Please select two different players</div>'; return; }
 
     contentDiv.innerHTML =
         '<div class="skeleton-card">' +
             '<h3 class="section-heading-blue mb-20">Loading player comparison...</h3>' +
-            '<div style="overflow-x: auto;">' +
-                '<div class="skeleton-table-row">' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                '</div>' +
-                '<div class="skeleton-table-row">' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                '</div>' +
-                '<div class="skeleton-table-row">' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                '</div>' +
-                '<div class="skeleton-table-row">' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                '</div>' +
-                '<div class="skeleton-table-row">' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                '</div>' +
+            '<div class="overflow-x-auto">' +
+                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
             '</div>' +
         '</div>';
 
     showScreen('statsScreen');
-
     const data = await apiCall('getPlayerComparisonDetailed', { player1_id: p1Id, player2_id: p2Id });
-
     if (data.error) { contentDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>'; return; }
 
-    const p1Name = getPlayerName(p1Id);
-    const p2Name = getPlayerName(p2Id);
-
+    const p1Name = getPlayerName(p1Id), p2Name = getPlayerName(p2Id);
     let html = '';
 
-    html += '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center;">';
-    html += '<h2 style="color: white; margin: 0; font-size: 1.8em;">' + p1Name + ' vs ' + p2Name + '</h2>';
-    html += '</div>';
-
-    html += '<button class="btn btn-info" onclick="showPlayerComparisonUI()" style="margin-bottom: 30px; width: 100%;">← Change Players</button>';
+    html += '<div class="comparison-vs-header"><h2 class="comparison-vs-title">' + p1Name + ' vs ' + p2Name + '</h2></div>';
+    html += '<button class="btn btn-info mb-20" onclick="showPlayerComparisonUI()" style="width: 100%;">← Change Players</button>';
 
     const ts = data.sessions_together_stats;
 
-    html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #667eea;">';
-    html += '<h3 style="color: #667eea; margin-bottom: 20px;">📊 Sessions Together</h3>';
+    html += '<div class="section-box section-box-blue">';
+    html += '<h3 class="section-heading-blue">📊 Sessions Together</h3>';
     html += '<p class="text-muted text-sm mb-20"><strong>Head-to-head record:</strong> Who finished with a lower score when both players competed in the same session (regardless of who won overall)</p>';
 
     if (ts.total_sessions === 0) {
-        html += '<div style="background: white; padding: 15px; border-radius: 6px; color: #666; text-align: center;">These players have never played together</div>';
+        html += '<div class="content-card" style="text-align: center; color: #666;">These players have never played together</div>';
     } else {
-html += '<div class="overflow-x-auto"><table class="scores-table">';
-html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + p1Name + '</th><th style="color: white; background: #f5576c;">' + p2Name + '</th></tr>';
-html += '<tr><td><strong>Wins</strong></td><td>' + ts.p1_wins + '</td><td>' + ts.p2_wins + '</td></tr>';
-html += '<tr><td><strong>Win Rate</strong></td><td>' + ts.p1_win_rate + '%</td><td>' + ts.p2_win_rate + '%</td></tr>';
+        html += '<div class="overflow-x-auto"><table class="scores-table">';
+        html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + p1Name + '</th><th style="color: white; background: #f5576c;">' + p2Name + '</th></tr>';
+        html += '<tr><td><strong>Wins</strong></td><td>' + ts.p1_wins + '</td><td>' + ts.p2_wins + '</td></tr>';
+        html += '<tr><td><strong>Win Rate</strong></td><td>' + ts.p1_win_rate + '%</td><td>' + ts.p2_win_rate + '%</td></tr>';
         html += '<tr><td><strong>Total Score</strong></td><td>' + ts.p1_total_score + '</td><td>' + ts.p2_total_score + '</td></tr>';
         html += '<tr><td><strong>Hands Played</strong></td><td>' + ts.p1_total_hands + '</td><td>' + ts.p2_total_hands + '</td></tr>';
         html += '<tr><td><strong>Avg Hand</strong></td><td>' + ts.p1_avg_hand + '</td><td>' + ts.p2_avg_hand + '</td></tr>';
@@ -2385,42 +1705,32 @@ html += '<tr><td><strong>Win Rate</strong></td><td>' + ts.p1_win_rate + '%</td><
         html += '<tr><td><strong>Lockout Rate</strong></td><td>' + ts.p1_lockout_rate + '%</td><td>' + ts.p2_lockout_rate + '%</td></tr>';
         html += '<tr><td><strong>Avg Lockout Score</strong></td><td>' + (ts.p1_lockouts > 0 ? ts.p1_avg_lockout : 'N/A') + '</td><td>' + (ts.p2_lockouts > 0 ? ts.p2_avg_lockout : 'N/A') + '</td></tr>';
         html += '<tr><td><strong>False Lockouts</strong></td><td>' + ts.p1_false_lockouts + '</td><td>' + ts.p2_false_lockouts + '</td></tr>';
-html += '<tr><td><strong>False Lockout Rate</strong></td><td>' + (ts.p1_false_lockouts + ts.p1_lockouts > 0 ? ts.p1_false_lockout_rate + '%' : 'N/A') + '</td><td>' + (ts.p2_false_lockouts + ts.p2_lockouts > 0 ? ts.p2_false_lockout_rate + '%' : 'N/A') + '</td></tr>';
-html += '<tr><td><strong>Avg False LO Score</strong></td><td>' + (ts.p1_false_lockouts > 0 ? ts.p1_avg_false_lockout : 'N/A') + '</td><td>' + (ts.p2_false_lockouts > 0 ? ts.p2_avg_false_lockout : 'N/A') + '</td></tr>';
-
-html += '</table></div>';
+        html += '<tr><td><strong>False Lockout Rate</strong></td><td>' + (ts.p1_false_lockouts + ts.p1_lockouts > 0 ? ts.p1_false_lockout_rate + '%' : 'N/A') + '</td><td>' + (ts.p2_false_lockouts + ts.p2_lockouts > 0 ? ts.p2_false_lockout_rate + '%' : 'N/A') + '</td></tr>';
+        html += '<tr><td><strong>Avg False LO Score</strong></td><td>' + (ts.p1_false_lockouts > 0 ? ts.p1_avg_false_lockout : 'N/A') + '</td><td>' + (ts.p2_false_lockouts > 0 ? ts.p2_avg_false_lockout : 'N/A') + '</td></tr>';
+        html += '</table></div>';
 
         if (ts.best_with && ts.worst_with && ts.best_with.player_id !== ts.worst_with.player_id) {
             html += '<div class="warning-box mt-20">';
-            html += '<h4 style="color: #856404; margin-bottom: 10px; font-size: 0.95em;">📊 Performance Context</h4>';
+            html += '<h4 class="comparison-context-heading">📊 Performance Context</h4>';
             html += '<p class="text-muted text-sm mb-10">When ' + p1Name + ' plays against ' + p2Name + ' <strong>head-to-head</strong>, ' + p1Name + '\'s win rate varies depending on who else is playing:</p>';
-            html += '<div class="content-card-sm">';
-            html += '<div style="font-size: 0.85em; color: #4caf50; font-weight: 600; margin-bottom: 3px;">✅ Best with ' + getPlayerName(ts.best_with.player_id) + '</div>';
-            html += '<div style="color: #333; font-size: 0.85em;">' + p1Name + ' beats ' + p2Name + ' in ' + ts.best_with.wins + ' out of ' + ts.best_with.total + ' sessions when ' + getPlayerName(ts.best_with.player_id) + ' is also playing</div>';
-            html += '</div>';
-            html += '<div class="content-card-sm">';
-            html += '<div style="font-size: 0.85em; color: #f44336; font-weight: 600; margin-bottom: 3px;">❌ Worst with ' + getPlayerName(ts.worst_with.player_id) + '</div>';
-            html += '<div style="color: #333; font-size: 0.85em;">' + p1Name + ' beats ' + p2Name + ' in ' + ts.worst_with.wins + ' out of ' + ts.worst_with.total + ' sessions when ' + getPlayerName(ts.worst_with.player_id) + ' is also playing</div>';
-            html += '</div>';
+            html += '<div class="content-card-sm"><div style="font-size: 0.85em; color: #4caf50; font-weight: 600; margin-bottom: 3px;">✅ Best with ' + getPlayerName(ts.best_with.player_id) + '</div>';
+            html += '<div class="text-sm" style="color: #333;">' + p1Name + ' beats ' + p2Name + ' in ' + ts.best_with.wins + ' out of ' + ts.best_with.total + ' sessions when ' + getPlayerName(ts.best_with.player_id) + ' is also playing</div></div>';
+            html += '<div class="content-card-sm"><div style="font-size: 0.85em; color: #f44336; font-weight: 600; margin-bottom: 3px;">❌ Worst with ' + getPlayerName(ts.worst_with.player_id) + '</div>';
+            html += '<div class="text-sm" style="color: #333;">' + p1Name + ' beats ' + p2Name + ' in ' + ts.worst_with.wins + ' out of ' + ts.worst_with.total + ' sessions when ' + getPlayerName(ts.worst_with.player_id) + ' is also playing</div></div>';
             html += '</div>';
         }
     }
-
     html += '</div>';
 
-    const as1 = data.all_sessions_stats.player1;
-    const as2 = data.all_sessions_stats.player2;
-
-    html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #f5576c;">';
-    html += '<h3 style="color: #f5576c; margin-bottom: 20px;">📊 All Sessions</h3>';
+    const as1 = data.all_sessions_stats.player1, as2 = data.all_sessions_stats.player2;
+    html += '<div class="section-box section-box-red">';
+    html += '<h3 class="section-heading-red">📊 All Sessions</h3>';
     html += '<p class="text-muted text-sm mb-20"><strong>Overall wins:</strong> Sessions where each player had the lowest score and won outright (across all sessions they participated in)</p>';
-    html += '<div style="overflow-x: auto;"><table class="scores-table">';
+    html += '<div class="overflow-x-auto"><table class="scores-table">';
     html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + p1Name + '</th><th style="color: white; background: #f5576c;">' + p2Name + '</th></tr>';
     html += '<tr><td><strong>Wins</strong></td><td>' + as1.wins + '</td><td>' + as2.wins + '</td></tr>';
     html += '<tr><td><strong>Losses</strong></td><td>' + as1.losses + '</td><td>' + as2.losses + '</td></tr>';
-    if (as1.ties > 0 || as2.ties > 0) {
-        html += '<tr><td><strong>Ties</strong></td><td>' + as1.ties + '</td><td>' + as2.ties + '</td></tr>';
-    }
+    if (as1.ties > 0 || as2.ties > 0) html += '<tr><td><strong>Ties</strong></td><td>' + as1.ties + '</td><td>' + as2.ties + '</td></tr>';
     html += '<tr><td><strong>Win Rate</strong></td><td>' + as1.win_rate + '%</td><td>' + as2.win_rate + '%</td></tr>';
     html += '<tr><td><strong>Total Score</strong></td><td>' + as1.total_score + '</td><td>' + as2.total_score + '</td></tr>';
     html += '<tr><td><strong>Hands Played</strong></td><td>' + as1.total_hands + '</td><td>' + as2.total_hands + '</td></tr>';
@@ -2429,41 +1739,33 @@ html += '</table></div>';
     html += '<tr><td><strong>Lockout Rate</strong></td><td>' + as1.lockout_rate + '%</td><td>' + as2.lockout_rate + '%</td></tr>';
     html += '<tr><td><strong>Avg Lockout Score</strong></td><td>' + (as1.lockouts > 0 ? as1.avg_lockout : 'N/A') + '</td><td>' + (as2.lockouts > 0 ? as2.avg_lockout : 'N/A') + '</td></tr>';
     html += '<tr><td><strong>False Lockouts</strong></td><td>' + as1.false_lockouts + '</td><td>' + as2.false_lockouts + '</td></tr>';
-html += '<tr><td><strong>False Lockout Rate</strong></td><td>' + (as1.false_lockouts + as1.lockouts > 0 ? as1.false_lockout_rate + '%' : 'N/A') + '</td><td>' + (as2.false_lockouts + as2.lockouts > 0 ? as2.false_lockout_rate + '%' : 'N/A') + '</td></tr>';
-html += '<tr><td><strong>Avg False LO Score</strong></td><td>' + (as1.false_lockouts > 0 ? as1.avg_false_lockout : 'N/A') + '</td><td>' + (as2.false_lockouts > 0 ? as2.avg_false_lockout : 'N/A') + '</td></tr>';
-
-html += '</table></div>';
-html += '</div>';
+    html += '<tr><td><strong>False Lockout Rate</strong></td><td>' + (as1.false_lockouts + as1.lockouts > 0 ? as1.false_lockout_rate + '%' : 'N/A') + '</td><td>' + (as2.false_lockouts + as2.lockouts > 0 ? as2.false_lockout_rate + '%' : 'N/A') + '</td></tr>';
+    html += '<tr><td><strong>Avg False LO Score</strong></td><td>' + (as1.false_lockouts > 0 ? as1.avg_false_lockout : 'N/A') + '</td><td>' + (as2.false_lockouts > 0 ? as2.avg_false_lockout : 'N/A') + '</td></tr>';
+    html += '</table></div></div>';
 
     if (data.sessions_together.length > 0) {
-        html += '<div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 4px solid #9c27b0;">';
-        html += '<h3 style="color: #9c27b0; margin-bottom: 20px;">📅 Session History</h3>';
+        html += '<div class="section-box section-box-purple">';
+        html += '<h3 class="section-heading-purple">📅 Session History</h3>';
         html += '<p class="text-muted text-sm mb-20">Sessions where both players competed (click to view details)</p>';
 
         for (let i = data.sessions_together.length - 1; i >= 0; i--) {
             const s = data.sessions_together[i];
             const winner = s.p1_won && !s.p2_won ? p1Name : s.p2_won && !s.p1_won ? p2Name : 'Tie';
             const winnerColor = s.p1_won && !s.p2_won ? '#667eea' : s.p2_won && !s.p1_won ? '#f5576c' : '#ff9800';
-
             var dateObj = new Date(s.date);
-            var day = String(dateObj.getDate()).padStart(2, '0');
-            var month = String(dateObj.getMonth() + 1).padStart(2, '0');
-            var year = dateObj.getFullYear();
-            var cleanDate = day + '/' + month + '/' + year;
+            var cleanDate = String(dateObj.getDate()).padStart(2, '0') + '/' + String(dateObj.getMonth() + 1).padStart(2, '0') + '/' + dateObj.getFullYear();
 
-            html += '<div style="padding: 15px; background: white; border-radius: 8px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; border: 1px solid #e0e0e0;" onclick="viewSessionDetailFromComparison(' + s.session_id + ', this)" onmouseover="this.style.background=\'#f8f9fa\'; this.style.borderColor=\'#9c27b0\';" onmouseout="this.style.background=\'white\'; this.style.borderColor=\'#e0e0e0\';">';
-            html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
-            html += '<div style="font-weight: 600; color: #333; font-size: 1.05em;">' + s.title + ' 🔗</div>';
+            html += '<div class="session-history-card" onclick="viewSessionDetailFromComparison(' + s.session_id + ', this)">';
+            html += '<div class="session-history-card-header">';
+            html += '<div class="session-history-title">' + s.title + ' 🔗</div>';
             html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1em; padding: 4px 12px; background: ' + winnerColor + '20; border-radius: 12px;">' + winner + '</div>';
             html += '</div>';
-            html += '<div style="font-size: 0.85em; color: #666; margin-bottom: 8px;">' + cleanDate + ' • ' + s.player_count + ' players</div>';
-            html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px;">';
-            html += '<div style="font-size: 0.9em;"><strong style="color: #667eea;">' + p1Name + ':</strong> ' + s.p1_score + ' pts</div>';
-            html += '<div style="font-size: 0.9em;"><strong style="color: #f5576c;">' + p2Name + ':</strong> ' + s.p2_score + ' pts</div>';
-            html += '</div>';
-            html += '</div>';
+            html += '<div class="text-muted text-sm mb-10">' + cleanDate + ' • ' + s.player_count + ' players</div>';
+            html += '<div class="session-history-scores">';
+            html += '<div class="text-sm"><strong class="heading-blue">' + p1Name + ':</strong> ' + s.p1_score + ' pts</div>';
+            html += '<div class="text-sm"><strong class="heading-red">' + p2Name + ':</strong> ' + s.p2_score + ' pts</div>';
+            html += '</div></div>';
         }
-
         html += '</div>';
     }
 
@@ -2550,16 +1852,12 @@ let easterEggTimeout;
 document.addEventListener('keypress', function(e) {
     clearTimeout(easterEggTimeout);
     easterEggCode += e.key.toLowerCase();
-    if (easterEggCode.includes('lockout')) {
-        easterEggCode = '';
-        triggerEasterEgg();
-    }
+    if (easterEggCode.includes('lockout')) { easterEggCode = ''; triggerEasterEgg(); }
     easterEggTimeout = setTimeout(function() { easterEggCode = ''; }, 2000);
 });
 
 function triggerEasterEgg() {
-    const duration = 3000;
-    const end = Date.now() + duration;
+    const duration = 3000, end = Date.now() + duration;
     (function frame() {
         confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#667eea', '#764ba2', '#f5576c'] });
         confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#667eea', '#764ba2', '#f5576c'] });
@@ -2586,38 +1884,24 @@ function filterSessions() {
     const sessionItems = document.querySelectorAll('.session-item');
     for (let i = 0; i < sessionItems.length; i++) {
         const item = sessionItems[i];
-        const text = item.textContent.toLowerCase();
-        item.style.display = text.indexOf(searchTerm) !== -1 ? 'block' : 'none';
+        item.style.display = item.textContent.toLowerCase().indexOf(searchTerm) !== -1 ? 'block' : 'none';
     }
 }
 
 // ============================================
 // SORTABLE STATS TABLE
 // ============================================
-let currentSortColumn = -1;
-let currentSortAscending = true;
+let currentSortColumn = -1, currentSortAscending = true;
 
 function sortStatsTable(columnIndex) {
     const table = document.getElementById('playerBreakdownTable');
     if (!table) return;
     const rows = Array.from(table.querySelectorAll('tr')).slice(1);
-    if (currentSortColumn === columnIndex) {
-        currentSortAscending = !currentSortAscending;
-    } else {
-        currentSortAscending = true;
-        currentSortColumn = columnIndex;
-    }
+    if (currentSortColumn === columnIndex) { currentSortAscending = !currentSortAscending; } else { currentSortAscending = true; currentSortColumn = columnIndex; }
     rows.sort(function(a, b) {
-        const aCell = a.cells[columnIndex].textContent.trim();
-        const bCell = b.cells[columnIndex].textContent.trim();
-        const aNum = parseFloat(aCell.replace('%', ''));
-        const bNum = parseFloat(bCell.replace('%', ''));
-        let comparison = 0;
-        if (!isNaN(aNum) && !isNaN(bNum)) {
-            comparison = aNum - bNum;
-        } else {
-            comparison = aCell.localeCompare(bCell);
-        }
+        const aCell = a.cells[columnIndex].textContent.trim(), bCell = b.cells[columnIndex].textContent.trim();
+        const aNum = parseFloat(aCell.replace('%', '')), bNum = parseFloat(bCell.replace('%', ''));
+        let comparison = (!isNaN(aNum) && !isNaN(bNum)) ? aNum - bNum : aCell.localeCompare(bCell);
         return currentSortAscending ? comparison : -comparison;
     });
     for (let i = 0; i < rows.length; i++) table.appendChild(rows[i]);
@@ -2625,17 +1909,8 @@ function sortStatsTable(columnIndex) {
     for (let i = 0; i < headers.length; i++) {
         const header = headers[i];
         const text = header.textContent.replace(' ↑', '').replace(' ↓', '').replace(' ⇅', '');
-        if (i === columnIndex) {
-            header.textContent = text + (currentSortAscending ? ' ↑' : ' ↓');
-            header.style.color = 'white';
-            header.style.backgroundColor = '#5568d3';
-            header.style.fontWeight = 'bold';
-        } else {
-            header.textContent = text + ' ⇅';
-            header.style.color = 'white';
-            header.style.backgroundColor = '#667eea';
-            header.style.fontWeight = '600';
-        }
+        if (i === columnIndex) { header.textContent = text + (currentSortAscending ? ' ↑' : ' ↓'); header.style.color = 'white'; header.style.backgroundColor = '#5568d3'; header.style.fontWeight = 'bold'; }
+        else { header.textContent = text + ' ⇅'; header.style.color = 'white'; header.style.backgroundColor = '#667eea'; header.style.fontWeight = '600'; }
     }
     hapticFeedback('light');
 }
@@ -2643,30 +1918,17 @@ function sortStatsTable(columnIndex) {
 // ============================================
 // SORTABLE SESSION DETAIL TABLE
 // ============================================
-let currentSessionSortColumn = -1;
-let currentSessionSortAscending = true;
+let currentSessionSortColumn = -1, currentSessionSortAscending = true;
 
 function sortSessionTable(columnIndex) {
     const table = document.getElementById('sessionDetailTable');
     if (!table) return;
     const rows = Array.from(table.querySelectorAll('tr')).slice(1);
-    if (currentSessionSortColumn === columnIndex) {
-        currentSessionSortAscending = !currentSessionSortAscending;
-    } else {
-        currentSessionSortAscending = true;
-        currentSessionSortColumn = columnIndex;
-    }
+    if (currentSessionSortColumn === columnIndex) { currentSessionSortAscending = !currentSessionSortAscending; } else { currentSessionSortAscending = true; currentSessionSortColumn = columnIndex; }
     rows.sort(function(a, b) {
-        const aCell = a.cells[columnIndex].textContent.trim();
-        const bCell = b.cells[columnIndex].textContent.trim();
-        const aNum = parseFloat(aCell.replace('%', ''));
-        const bNum = parseFloat(bCell.replace('%', ''));
-        let comparison = 0;
-        if (!isNaN(aNum) && !isNaN(bNum)) {
-            comparison = aNum - bNum;
-        } else {
-            comparison = aCell.localeCompare(bCell);
-        }
+        const aCell = a.cells[columnIndex].textContent.trim(), bCell = b.cells[columnIndex].textContent.trim();
+        const aNum = parseFloat(aCell.replace('%', '')), bNum = parseFloat(bCell.replace('%', ''));
+        let comparison = (!isNaN(aNum) && !isNaN(bNum)) ? aNum - bNum : aCell.localeCompare(bCell);
         return currentSessionSortAscending ? comparison : -comparison;
     });
     for (let i = 0; i < rows.length; i++) table.appendChild(rows[i]);
@@ -2674,17 +1936,8 @@ function sortSessionTable(columnIndex) {
     for (let i = 0; i < headers.length; i++) {
         const header = headers[i];
         const text = header.textContent.replace(' ↑', '').replace(' ↓', '').replace(' ⇅', '');
-        if (i === columnIndex) {
-            header.textContent = text + (currentSessionSortAscending ? ' ↑' : ' ↓');
-            header.style.color = 'white';
-            header.style.backgroundColor = '#5568d3';
-            header.style.fontWeight = 'bold';
-        } else {
-            header.textContent = text + ' ⇅';
-            header.style.color = 'white';
-            header.style.backgroundColor = '#667eea';
-            header.style.fontWeight = '600';
-        }
+        if (i === columnIndex) { header.textContent = text + (currentSessionSortAscending ? ' ↑' : ' ↓'); header.style.color = 'white'; header.style.backgroundColor = '#5568d3'; header.style.fontWeight = 'bold'; }
+        else { header.textContent = text + ' ⇅'; header.style.color = 'white'; header.style.backgroundColor = '#667eea'; header.style.fontWeight = '600'; }
     }
     hapticFeedback('light');
 }
@@ -2692,30 +1945,17 @@ function sortSessionTable(columnIndex) {
 // ============================================
 // SORTABLE ACTIVE SESSION TABLE
 // ============================================
-let currentActiveSortColumn = -1;
-let currentActiveSortAscending = true;
+let currentActiveSortColumn = -1, currentActiveSortAscending = true;
 
 function sortActiveSessionTable(columnIndex) {
     const table = document.getElementById('activeSessionTable');
     if (!table) return;
     const rows = Array.from(table.querySelectorAll('tr')).slice(1);
-    if (currentActiveSortColumn === columnIndex) {
-        currentActiveSortAscending = !currentActiveSortAscending;
-    } else {
-        currentActiveSortAscending = true;
-        currentActiveSortColumn = columnIndex;
-    }
+    if (currentActiveSortColumn === columnIndex) { currentActiveSortAscending = !currentActiveSortAscending; } else { currentActiveSortAscending = true; currentActiveSortColumn = columnIndex; }
     rows.sort(function(a, b) {
-        const aCell = a.cells[columnIndex].textContent.trim();
-        const bCell = b.cells[columnIndex].textContent.trim();
-        const aNum = parseFloat(aCell.replace('%', ''));
-        const bNum = parseFloat(bCell.replace('%', ''));
-        let comparison = 0;
-        if (!isNaN(aNum) && !isNaN(bNum)) {
-            comparison = aNum - bNum;
-        } else {
-            comparison = aCell.localeCompare(bCell);
-        }
+        const aCell = a.cells[columnIndex].textContent.trim(), bCell = b.cells[columnIndex].textContent.trim();
+        const aNum = parseFloat(aCell.replace('%', '')), bNum = parseFloat(bCell.replace('%', ''));
+        let comparison = (!isNaN(aNum) && !isNaN(bNum)) ? aNum - bNum : aCell.localeCompare(bCell);
         return currentActiveSortAscending ? comparison : -comparison;
     });
     for (let i = 0; i < rows.length; i++) table.appendChild(rows[i]);
@@ -2723,17 +1963,8 @@ function sortActiveSessionTable(columnIndex) {
     for (let i = 0; i < headers.length; i++) {
         const header = headers[i];
         const text = header.textContent.replace(' ↑', '').replace(' ↓', '').replace(' ⇅', '');
-        if (i === columnIndex) {
-            header.textContent = text + (currentActiveSortAscending ? ' ↑' : ' ↓');
-            header.style.color = 'white';
-            header.style.backgroundColor = '#5568d3';
-            header.style.fontWeight = 'bold';
-        } else {
-            header.textContent = text + ' ⇅';
-            header.style.color = 'white';
-            header.style.backgroundColor = '#667eea';
-            header.style.fontWeight = '600';
-        }
+        if (i === columnIndex) { header.textContent = text + (currentActiveSortAscending ? ' ↑' : ' ↓'); header.style.color = 'white'; header.style.backgroundColor = '#5568d3'; header.style.fontWeight = 'bold'; }
+        else { header.textContent = text + ' ⇅'; header.style.color = 'white'; header.style.backgroundColor = '#667eea'; header.style.fontWeight = '600'; }
     }
     hapticFeedback('light');
 }
