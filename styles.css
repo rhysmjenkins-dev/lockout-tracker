@@ -412,3 +412,27 @@ label { display: block; margin-top: 15px; font-weight: 600; color: #555; }
 }
 .elo-history-section { margin-top: 20px; }
 .stats-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+.elo-dropdown-header {
+    display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer; padding: 5px 0 12px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+    margin-bottom: 5px;
+}
+.elo-dropdown-header span:first-child { color: #ffd700; font-size: 1.2em; font-weight: bold; }
+.elo-dropdown-preview { color: rgba(255,255,255,0.8); font-size: 0.9em; }
+.elo-dropdown-arrow { color: #ffd700; font-size: 0.85em; }
+.elo-chart-container {
+    position: relative;
+    height: 300px;
+    margin: 20px 0;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+}
+@media (max-width: 600px) {
+    .elo-chart-container {
+        height: 260px;
+        padding: 8px;
+        margin: 10px 0;
+    }
+}
