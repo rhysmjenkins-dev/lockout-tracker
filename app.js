@@ -1150,6 +1150,7 @@ async function updateSessionScores() {
     document.getElementById('handHistoryList').innerHTML = '';
 document.getElementById('activeHandHistoryBottom').innerHTML =
     '<div class="skeleton-card">' +
+        '<p class="skeleton-loading-text">Loading hand history...</p>' +
         '<div class="shimmer-wrapper skeleton-text skeleton-w-50 mb-10" style="height:18px;"></div>' +
         '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:40px;"></div>' +
         '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:40px;"></div>' +
