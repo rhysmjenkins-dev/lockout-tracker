@@ -2119,8 +2119,6 @@ const longestHandStreak = formatStatWinners(statValues.handStreak.winners.length
 const bestAvgLockoutScore = formatStatWinners(statValues.avgLockout.winners.length ? statValues.avgLockout.winners : ['N/A'], statValues.avgLockout.value || '0', '');
 
     let html = '<div class="stats-grid">';
-    html += '<div class="stat-card"><h4>Total Sessions</h4><p class="stat-value">' + totalSessions + '</p></div>';
-    html += '<div class="stat-card"><h4>Total Hands</h4><p class="stat-value">' + totalHands + '</p></div>';
    html += '<div class="stat-card"><h4>Total Sessions</h4><p class="stat-value">' + totalSessions + '</p></div>';
 html += '<div class="stat-card"><h4>Total Hands</h4><p class="stat-value">' + totalHands + '</p></div>';
 html += '<div class="stat-card"><h4>Most Sessions Won</h4><p class="stat-value">' + mostSessionsWon.names + '</p><p>' + mostSessionsWon.value + '</p></div>';
