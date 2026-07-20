@@ -309,9 +309,14 @@ function closeSessionEndPopup() {
 }
 
 function celebrateWinner(winnerName) {
-    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-    setTimeout(function() { confetti({ particleCount: 50, angle: 60, spread: 55, origin: { x: 0 } }); }, 250);
-    setTimeout(function() { confetti({ particleCount: 50, angle: 120, spread: 55, origin: { x: 1 } }); }, 400);
+    const canvas = document.createElement('canvas');
+    canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;pointer-events:none;';
+    document.body.appendChild(canvas);
+    const myConfetti = confetti.create(canvas, { resize: true });
+    myConfetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    setTimeout(function() { myConfetti({ particleCount: 50, angle: 60, spread: 55, origin: { x: 0 } }); }, 250);
+    setTimeout(function() { myConfetti({ particleCount: 50, angle: 120, spread: 55, origin: { x: 1 } }); }, 400);
+    setTimeout(function() { document.body.removeChild(canvas); }, 4000);
 }
 
 function getPlayerName(playerId) {
@@ -783,6 +788,10 @@ async function endSession() {
     currentSession = null;
     showScreen('homeScreen');
     checkActiveSessions();
+    setTimeout(function() {
+        eloCache = [];
+        displayEloLeaderboard();
+    }, 3000);
     setTimeout(function() {
         const popup = document.getElementById('sessionEndPopup');
         document.getElementById('sessionEndTitle').textContent = isTie ? 'Tie game!' : winner.username + ' wins!';
