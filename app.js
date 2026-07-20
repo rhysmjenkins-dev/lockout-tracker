@@ -914,8 +914,6 @@ async function submitHand() {
 // HAND HISTORY & EDITING
 // ============================================
 async function displayHandHistory() {
-    document.getElementById('handHistorySection').style.display = 'none';
-    document.getElementById('handHistoryList').innerHTML = '';
     const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
     if (handsData.error || handsData.length === 0) {
         document.getElementById('activeHandHistoryBottom').innerHTML = '';
@@ -963,23 +961,11 @@ async function displayHandHistory() {
         if (i === 0) html += '<button class="btn btn-danger btn-small" onclick="deleteHand(' + handNum + ', event)">Delete</button>';
         html += '</div></div>';
     }
-    const bottomContainer = document.getElementById('activeHandHistoryBottom');
-    if (bottomContainer) {
-        bottomContainer.innerHTML =
-            '<div class="hand-history-scrollable">' +
-                '<h4>Hand History</h4>' +
-                '<div class="hand-history-scroll-inner">' + html + '</div>' +
-            '</div>';
-    } else {
-    const bottomContainer = document.getElementById('activeHandHistoryBottom');
-    if (bottomContainer) {
-        bottomContainer.innerHTML =
-            '<div class="hand-history-scrollable">' +
-                '<h4>Hand History</h4>' +
-                '<div class="hand-history-scroll-inner">' + html + '</div>' +
-            '</div>';
-    }
-    }
+    document.getElementById('activeHandHistoryBottom').innerHTML =
+        '<div class="hand-history-scrollable">' +
+            '<h4>Hand History</h4>' +
+            '<div class="hand-history-scroll-inner">' + html + '</div>' +
+        '</div>';
 }
 
 async function editHand(handNumber, event) {
@@ -1155,37 +1141,14 @@ async function updateSessionScores() {
         '<div class="skeleton-card">' +
             '<h3 class="section-heading-blue mb-15">Calculating scores...</h3>' +
             '<div class="overflow-x-auto">' +
-                '<div class="skeleton-table-row">' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                '</div>' +
-                '<div class="skeleton-table-row">' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                '</div>' +
-                '<div class="skeleton-table-row">' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                    '<div class="shimmer-wrapper skeleton-table-cell"></div>' +
-                '</div>' +
+                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
             '</div>' +
         '</div>';
-    document.getElementById('handHistorySection').style.display = 'block';
-    document.getElementById('handHistoryList').innerHTML =
-        '<div class="p-10">' +
-            '<h4 class="section-heading-blue">Loading hand history...</h4>' +
-            '<div class="hand-item"><div class="hand-item-info"><div class="shimmer-wrapper skeleton-text skeleton-w-30 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-80"></div></div><div class="shimmer-wrapper skeleton-button skeleton-w-80 skeleton-h-40"></div></div>' +
-            '<div class="hand-item"><div class="hand-item-info"><div class="shimmer-wrapper skeleton-text skeleton-w-30 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-80"></div></div><div class="shimmer-wrapper skeleton-button skeleton-w-80 skeleton-h-40"></div></div>' +
-            '<div class="hand-item"><div class="hand-item-info"><div class="shimmer-wrapper skeleton-text skeleton-w-30 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-80"></div></div><div class="shimmer-wrapper skeleton-button skeleton-w-80 skeleton-h-40"></div></div>' +
-        '</div>';
+    document.getElementById('handHistorySection').style.display = 'none';
+    document.getElementById('handHistoryList').innerHTML = '';
+    document.getElementById('activeHandHistoryBottom').innerHTML = '';
 
     const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
     if (handsData.error) return;
@@ -1196,13 +1159,9 @@ async function updateSessionScores() {
                 '<p>🎴 No hands played yet</p>' +
                 '<p class="text-muted text-sm">Submit your first hand above to begin tracking!</p>' +
             '</div>';
-        document.getElementById('handHistorySection').style.display = 'none';
-        document.getElementById('activeHandHistoryBottom').innerHTML = '';
         document.getElementById('activeSessionCharts').innerHTML = '';
         return;
     }
-
-    displayHandHistory();
 
     const playerScores = {};
     let totalLockoutScore = 0, totalLockouts = 0, falseLockoutCount = 0;
@@ -1251,8 +1210,7 @@ async function updateSessionScores() {
 
     let html = '<h3>Scores</h3>';
     html += '<p class="text-muted text-sm mb-10">💡 Click column headers to sort</p>';
-    html += '<div class="overflow-x-auto"><table class="scores-table" id="activeSessionTable">';
-    html += '<tr>';
+    html += '<div class="overflow-x-auto"><table class="scores-table" id="activeSessionTable"><tr>';
     html += '<th onclick="sortActiveSessionTable(0)" style="cursor: pointer; user-select: none;">Player ⇅</th>';
     html += '<th onclick="sortActiveSessionTable(1)" style="cursor: pointer; user-select: none;">Total ⇅</th>';
     html += '<th onclick="sortActiveSessionTable(2)" style="cursor: pointer; user-select: none;">Hands ⇅</th>';
@@ -1323,6 +1281,8 @@ async function updateSessionScores() {
         }
         setTimeout(function() { drawActiveWormChart(playerHandsData, playerIdsArray); drawActiveManhattanChart(playerHandsData, playerIdsArray); }, 100);
     }
+
+    displayHandHistory();
 }
 
 // ============================================
