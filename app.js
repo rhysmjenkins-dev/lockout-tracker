@@ -491,6 +491,14 @@ async function checkActiveSessions() {
         return !dateEnded || dateEnded === '' || dateEnded.toString().trim() === '';
     });
 
+    if (activeSessions.length === 0) {
+        document.getElementById('activeSessionsSection').innerHTML =
+            '<div class="no-active-sessions-box">' +
+                '<p>🎴 No active sessions</p>' +
+                '<p class="text-muted text-sm">Start a new session to begin tracking!</p>' +
+            '</div>';
+        return;
+    }
     if (activeSessions.length > 0) {
         let html = '<div class="active-session-box">';
         html += '<h3>Active Sessions</h3>';
