@@ -124,10 +124,18 @@ async function displayEloLeaderboard() {
         html += '<span class="elo-change-pill" style="background:' + (p.change >= 0 ? '#e8f5e9' : '#ffebee') + '; color:' + pChangeColor + '">' + pChangeSign + p.change + '</span>';
         html += '</div>';
     }
-    html += '<p class="elo-footnote">? = provisional (under 50 hands). Change = last session.</p>';
+    html += '<p class="elo-footnote">? = provisional (under 50 hands). Change = last session. <a class="elo-footnote-link" onclick="showEloHowTo()">What is ELO?</a></p>';
     html += '</div>';
     html += '</div>';
     document.getElementById('eloLeaderboardSection').innerHTML = html;
+}
+
+function showEloHowTo() {
+    showScreen('appInstructionsScreen');
+    setTimeout(function() {
+        const target = document.getElementById('eloHowToSection');
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
 }
 
 function toggleEloDropdown() {
