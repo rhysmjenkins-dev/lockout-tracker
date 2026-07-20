@@ -373,3 +373,42 @@ label { display: block; margin-top: 15px; font-weight: 600; color: #555; }
     border-radius: 8px;
     margin: 15px 0;
 }
+
+/* === ELO STYLES === */
+.elo-leaderboard-box {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-radius: 12px; padding: 20px; margin: 15px 0; color: white;
+}
+.elo-leaderboard-box h3 { color: #ffd700; margin-bottom: 15px; font-size: 1.2em; }
+.elo-leaderboard-list { display: flex; flex-direction: column; gap: 10px; }
+.elo-leaderboard-row {
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(255,255,255,0.08); padding: 12px 15px;
+    border-radius: 8px;
+}
+.elo-rank { font-size: 1.3em; min-width: 30px; }
+.elo-name { flex: 1; font-weight: 600; font-size: 1em; }
+.elo-rating { font-size: 1.3em; font-weight: bold; color: #ffd700; min-width: 55px; text-align: right; }
+.elo-change-pill {
+    padding: 3px 10px; border-radius: 12px;
+    font-size: 0.85em; font-weight: 600; min-width: 45px; text-align: center;
+}
+.elo-footnote { color: rgba(255,255,255,0.5); font-size: 0.75em; margin-top: 12px; text-align: center; }
+.elo-badge {
+    display: inline-block; background: #1a1a2e; color: #ffd700;
+    padding: 2px 8px; border-radius: 8px; font-size: 0.8em;
+    font-weight: 600; margin-left: 4px;
+}
+.elo-change { font-size: 0.8em; margin-left: 3px; font-weight: 600; }
+.elo-provisional-badge {
+    display: inline-block; background: #ff9800; color: white;
+    padding: 1px 6px; border-radius: 6px; font-size: 0.7em;
+    font-weight: 600; margin-left: 5px; vertical-align: middle;
+}
+.elo-established-badge {
+    display: inline-block; background: #4caf50; color: white;
+    padding: 1px 6px; border-radius: 6px; font-size: 0.7em;
+    font-weight: 600; margin-left: 5px; vertical-align: middle;
+}
+.elo-history-section { margin-top: 20px; }
+.stats-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
