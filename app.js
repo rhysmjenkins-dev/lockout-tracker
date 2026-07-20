@@ -1176,6 +1176,16 @@ async function updateSessionScores() {
     const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
     if (handsData.error) return;
 
+    if (handsData.length === 0) {
+        document.getElementById('sessionScores').innerHTML =
+            '<div class="no-active-sessions-box">' +
+                '<p>🎴 No hands played yet</p>' +
+                '<p class="text-muted text-sm">Submit your first hand above to begin tracking!</p>' +
+            '</div>';
+        document.getElementById('activeHandHistoryBottom').innerHTML = '';
+        return;
+    }
+
     displayHandHistory();
 
     const playerScores = {};
