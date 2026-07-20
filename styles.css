@@ -446,3 +446,12 @@ label { display: block; margin-top: 15px; font-weight: 600; color: #555; }
     font-size: 1em;
     margin-bottom: 12px;
 }
+.no-active-sessions-box {
+    text-align: center;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    margin: 15px 0;
+    border: 2px dashed #e0e0e0;
+    color: #666;
+}
