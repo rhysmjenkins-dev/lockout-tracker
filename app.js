@@ -774,12 +774,15 @@ async function endSession() {
     const scores = Object.values(playerTotals).sort((a, b) => a.total - b.total);
     const winner = scores[0];
     const isTie = scores.length > 1 && scores[1].total === winner.total;
-    alert('Session ended!\n\n🏆 ' + (isTie ? 'Tie game!' : winner.username + ' wins!') + ' (' + winner.total + ' pts)');
     hapticFeedback('success');
     if (!isTie) celebrateWinner(winner.username);
-    currentSession = null;
-    showScreen('homeScreen');
-    checkActiveSessions();
+    setTimeout(function() {
+        alert('Session ended!\n\n🏆 ' + (isTie ? 'Tie game!' : winner.username + ' wins!') + ' (' + winner.total + ' pts)');
+        setButtonLoading(endBtn, false);
+        currentSession = null;
+        showScreen('homeScreen');
+        checkActiveSessions();
+    }, 500);
 }
 
 // ============================================
