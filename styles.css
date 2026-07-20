@@ -708,3 +708,102 @@
     color: #667eea;
     font-size: 0.9em;
 }
+
+/* === BATCH 3 ADDITIONS === */
+
+.active-session-card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin: 12px 0;
+    border: 2px solid #e8e9ff;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.active-session-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 15px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.active-session-card-title {
+    flex: 1;
+}
+
+.active-session-card-title strong {
+    font-size: 1.15em;
+    color: #667eea;
+}
+
+.active-session-resume-btn {
+    margin: 0;
+    flex-shrink: 0;
+    padding: 8px 16px;
+    font-size: 0.9em;
+}
+
+.active-session-stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.active-session-stat-cell {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 0.85em;
+}
+
+.active-session-stat-label {
+    color: #999;
+    font-size: 0.75em;
+    margin-bottom: 3px;
+}
+
+.active-session-stat-value {
+    color: #333;
+    font-weight: 600;
+}
+
+.active-session-leader-box {
+    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border-left: 3px solid #4caf50;
+}
+
+.active-session-leader-name {
+    font-size: 0.85em;
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+.active-session-leader-score {
+    font-size: 0.9em;
+    color: #1b5e20;
+    font-weight: bold;
+    margin-top: 3px;
+}
+
+.active-session-streak-box {
+    background: #fff3e0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    color: #e65100;
+    border-left: 3px solid #ff9800;
+    margin-top: 8px;
+}
+
+.active-sessions-scroll {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
