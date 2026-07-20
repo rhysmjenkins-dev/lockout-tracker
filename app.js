@@ -1376,16 +1376,19 @@ async function loadPreviousSessions() {
         return;
     }
 
-    const completedSessions = [];
-    for (let i = 0; i < sessionsWithHands.length; i++) {
-        const item = sessionsWithHands[i];
-        if (!item.session.notes) item.session.notes = '';
-        if (!item.session.tags) item.session.tags = '';
-        if (!item.session.player_join_info) item.session.player_join_info = '{}';
-        if (item.session.date_ended && item.session.date_ended !== '') {
-            completedSessions.push({ session: item.session, hands: item.hands, index: i });
-        }
+const completedSessions = [];
+for (let i = 0; i < sessionsWithHands.length; i++) {
+    const item = sessionsWithHands[i];
+    if (!item.session.notes) item.session.notes = '';
+    if (!item.session.tags) item.session.tags = '';
+    if (!item.session.player_join_info) item.session.player_join_info = '{}';
+    if (item.session.date_ended && item.session.date_ended !== '') {
+        completedSessions.push({ session: item.session, hands: item.hands, index: i });
     }
+}
+completedSessions.sort(function(a, b) {
+    return new Date(b.session.date_started) - new Date(a.session.date_started);
+});
 
     allSessions = completedSessions.map(item => item.session);
     window.sessionsHandsCache = {};
