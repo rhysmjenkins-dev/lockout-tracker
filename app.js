@@ -581,8 +581,9 @@ function showActiveSession() {
     document.getElementById('activeSessionTitle').textContent = currentSession.title;
     let playerNames = sessionPlayers.map(p => {
         const joinHand = getPlayerJoinHand(p.player_id);
-        if (joinHand > 1) return p.username + ' <span class="late-join-badge">Joined H' + joinHand + '</span>';
-        return p.username;
+        const eloBadge = formatEloBadge(p.player_id);
+        if (joinHand > 1) return p.username + ' <span class="late-join-badge">Joined H' + joinHand + '</span> ' + eloBadge;
+        return p.username + ' ' + eloBadge;
     }).join(', ');
     document.getElementById('activeSessionInfo').innerHTML =
         '<p><strong>Session ID:</strong> ' + currentSession.session_id + '</p>' +
