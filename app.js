@@ -362,6 +362,7 @@ function showScreen(screenId, skipHistory) {
         currentScreen.style.opacity = '0';
         currentScreen.style.transform = 'translateY(-10px)';
     }
+    window.scrollTo(0, 0);
     setTimeout(function() {
         for (let i = 0; i < screens.length; i++) {
             screens[i].classList.remove('active');
