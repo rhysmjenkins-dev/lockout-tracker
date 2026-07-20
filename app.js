@@ -1502,9 +1502,7 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
         const avgFalseLockoutScore = stats.falseLockoutScores.length > 0 ? (stats.falseLockoutScores.reduce((sum, s) => sum + s, 0) / stats.falseLockoutScores.length).toFixed(2) : 'N/A';
         html += '<tr><td><strong>' + getPlayerName(playerId) + '</strong></td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
     }
-    html += '</table></div>';
-document.getElementById('sessionDetailContent').innerHTML = html;
-let handHistoryHtml = '<div class="hand-history-scrollable"><h4>Hand-by-Hand Breakdown</h4><div class="hand-history-scroll-inner">';
+document.getElementById('sessionDetailContent').innerHTML = html; '<div class="hand-history-scrollable"><h4>Hand-by-Hand Breakdown</h4><div class="hand-history-scroll-inner">';
 for (let i = 0; i < handNumbers.length; i++) {
     const handNum = handNumbers[i], hands = handsByNumber[handNum];
     let scoreText = '', lockoutPlayer = '', isFalseLockout = false, handComment = '';
