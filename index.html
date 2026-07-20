@@ -964,6 +964,16 @@
         </div>
     </div>
 
+    <!-- SESSION END POPUP -->
+    <div id="sessionEndPopup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:15px; padding:30px; max-width:340px; width:90%; text-align:center; box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+            <div style="font-size:3em; margin-bottom:10px;">🏆</div>
+            <h2 id="sessionEndTitle" style="color:#667eea; margin-bottom:10px;"></h2>
+            <p id="sessionEndScore" style="color:#666; margin-bottom:20px;"></p>
+            <button class="btn btn-success" onclick="closeSessionEndPopup()">🎉 Nice one!</button>
+        </div>
+    </div>
     <script src="app.js"></script>
 </body>
+
 </html>
