@@ -417,10 +417,14 @@ label { display: block; margin-top: 15px; font-weight: 600; color: #555; }
     cursor: pointer; padding: 5px 0 12px 0;
     border-bottom: 1px solid rgba(255,255,255,0.15);
     margin-bottom: 5px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    min-height: 48px;
 }
 .elo-dropdown-header span:first-child { color: #ffd700; font-size: 1.2em; font-weight: bold; }
-.elo-dropdown-preview { color: rgba(255,255,255,0.8); font-size: 0.9em; }
-.elo-dropdown-arrow { color: #ffd700; font-size: 0.85em; }
+.elo-dropdown-preview { color: rgba(255,255,255,0.8); font-size: 0.9em; max-width: 55%; text-align: right; }
+.elo-dropdown-arrow { color: #ffd700; font-size: 0.85em; margin-left: 6px; }
+.elo-leaderboard-list { padding-top: 10px; }
 .elo-chart-container {
     position: relative;
     height: 300px;
