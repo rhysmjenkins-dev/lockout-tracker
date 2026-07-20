@@ -677,6 +677,7 @@ function showActiveSession() {
     document.getElementById('sessionScores').innerHTML = '';
     document.getElementById('handHistorySection').style.display = 'none';
     document.getElementById('activeSessionCharts').innerHTML = '';
+    document.getElementById('activeHandHistoryBottom').innerHTML = '';
     updateSessionScores();
     showScreen('activeSessionScreen');
 }
@@ -912,8 +913,6 @@ async function submitHand() {
 // HAND HISTORY & EDITING
 // ============================================
 async function displayHandHistory() {
-    const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
-    if (handsData.error || handsData.length === 0) { document.getElementById('handHistorySection').style.display = 'none'; return; }
     const handsByNumber = {};
     for (let i = 0; i < handsData.length; i++) {
         const hand = handsData[i];
@@ -956,8 +955,17 @@ async function displayHandHistory() {
         if (i === 0) html += '<button class="btn btn-danger btn-small" onclick="deleteHand(' + handNum + ', event)">Delete</button>';
         html += '</div></div>';
     }
-    document.getElementById('handHistoryList').innerHTML = html;
-    document.getElementById('handHistorySection').style.display = 'block';
+    const bottomContainer = document.getElementById('activeHandHistoryBottom');
+    if (bottomContainer) {
+        bottomContainer.innerHTML =
+            '<div class="hand-history-scrollable">' +
+                '<h4>Hand History</h4>' +
+                '<div class="hand-history-scroll-inner">' + html + '</div>' +
+            '</div>';
+    } else {
+        document.getElementById('handHistoryList').innerHTML = html;
+        document.getElementById('handHistorySection').style.display = 'block';
+    }
 }
 
 async function editHand(handNumber, event) {
@@ -1168,7 +1176,7 @@ async function updateSessionScores() {
     const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
     if (handsData.error) return;
 
-    displayHandHistory();
+    // hand history rendered after charts — see bottom of updateSessionScores
 
     const playerScores = {};
     let totalLockoutScore = 0, totalLockouts = 0, falseLockoutCount = 0;
@@ -1289,6 +1297,7 @@ async function updateSessionScores() {
         }
         setTimeout(function() { drawActiveWormChart(playerHandsData, playerIdsArray); drawActiveManhattanChart(playerHandsData, playerIdsArray); }, 100);
     }
+    displayHandHistory();
 }
 
 // ============================================
@@ -1509,7 +1518,7 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
         html += '<tr><td><strong>' + getPlayerName(playerId) + '</strong></td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
     }
     html += '</table></div>';
-    html += '<h3 class="mt-20">Hand-by-Hand Breakdown</h3><div class="hand-history">';
+    html += '<h3 class="mt-20">Hand-by-Hand Breakdown</h3><div class="hand-history-scrollable"><div class="hand-history-scroll-inner">';
 
     const handsByNumber = {};
     for (let i = 0; i < handsData.length; i++) {
@@ -1539,7 +1548,7 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
         if (handComment) html += '<br><small class="comment-text">💬 ' + handComment + '</small>';
         html += '</div></div>';
     }
-    html += '</div>';
+    html += '</div></div>';
     document.getElementById('sessionDetailContent').innerHTML = html;
 
     let graphsHtml = '<h3>Graphs</h3>';
