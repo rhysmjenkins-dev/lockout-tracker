@@ -106,26 +106,45 @@ async function displayEloLeaderboard() {
     const data = await loadEloRatings();
     if (!data || data.length === 0) return;
     const medals = ['🥇', '🥈', '🥉'];
+    const top = data[0];
+    const changeColor = top.change >= 0 ? '#4caf50' : '#f44336';
+    const changeSign = top.change >= 0 ? '+' : '';
+
     let html = '<div class="elo-leaderboard-box">';
-    html += '<h3>⚡ ELO Rankings</h3>';
-    html += '<div class="elo-leaderboard-list">';
+    html += '<div class="elo-dropdown-header" onclick="toggleEloDropdown()">';
+    html += '<span>⚡ ELO Rankings</span>';
+    html += '<span class="elo-dropdown-preview">';
+    html += '🥇 ' + top.username + ' ' + top.rating + (top.provisional ? '?' : '');
+    html += '<span class="elo-dropdown-arrow" id="eloDropdownArrow"> ▼</span>';
+    html += '</span>';
+    html += '</div>';
+    html += '<div class="elo-leaderboard-list" id="eloDropdownContent" style="display:none;">';
     for (let i = 0; i < data.length; i++) {
         const p = data[i];
         const medal = medals[i] || (i + 1) + '.';
-        const provisional = '';
-        const changeColor = p.change >= 0 ? '#4caf50' : '#f44336';
-        const changeSign = p.change >= 0 ? '+' : '';
+        const pChangeColor = p.change >= 0 ? '#4caf50' : '#f44336';
+        const pChangeSign = p.change >= 0 ? '+' : '';
         html += '<div class="elo-leaderboard-row">';
         html += '<span class="elo-rank">' + medal + '</span>';
-        html += '<span class="elo-name">' + p.username + provisional + '</span>';
+        html += '<span class="elo-name">' + p.username + '</span>';
         html += '<span class="elo-rating">' + p.rating + (p.provisional ? '?' : '') + '</span>';
-        html += '<span class="elo-change-pill" style="background:' + (p.change >= 0 ? '#e8f5e9' : '#ffebee') + '; color:' + changeColor + '">' + changeSign + p.change + '</span>';
+        html += '<span class="elo-change-pill" style="background:' + (p.change >= 0 ? '#e8f5e9' : '#ffebee') + '; color:' + pChangeColor + '">' + pChangeSign + p.change + '</span>';
         html += '</div>';
     }
-    html += '</div>';
     html += '<p class="elo-footnote">? = provisional (under 50 hands). Change = last session.</p>';
     html += '</div>';
+    html += '</div>';
     document.getElementById('eloLeaderboardSection').innerHTML = html;
+}
+
+function toggleEloDropdown() {
+    const content = document.getElementById('eloDropdownContent');
+    const arrow = document.getElementById('eloDropdownArrow');
+    if (!content) return;
+    const isOpen = content.style.display !== 'none';
+    content.style.display = isOpen ? 'none' : 'block';
+    if (arrow) arrow.textContent = isOpen ? ' ▼' : ' ▲';
+    hapticFeedback('light');
 }
 
 async function showEloStats() {
@@ -168,7 +187,7 @@ async function showEloStats() {
                 '<div class="shimmer-wrapper skeleton-text skeleton-w-60 mb-10" style="height:20px;"></div>' +
                 '<div class="shimmer-wrapper" style="height:250px; border-radius:8px;"></div>' +
             '</div>';
-    html += '<div class="chart-container" id="eloChartContainer" style="display:none;"><canvas id="eloHistoryChart"></canvas></div>';
+    html += '<div class="elo-chart-container" id="eloChartContainer" style="display:none;"><canvas id="eloHistoryChart"></canvas></div>';
     html += '</div>';
     contentDiv.innerHTML = html;
     setTimeout(drawEloHistoryChart, 100);
@@ -2016,8 +2035,7 @@ async function viewSessionDetailFromComparison(sessionId, buttonElement) {
 window.addEventListener('DOMContentLoaded', function() {
     console.log('Lockout Tracker v4.1 🚀');
     ensurePlayersLoaded();
-    checkActiveSessions();
-    displayEloLeaderboard();
+    Promise.all([checkActiveSessions(), displayEloLeaderboard()]);
     history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
     showDictionarySection('lingo');
 });
