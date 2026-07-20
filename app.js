@@ -304,6 +304,10 @@ function hapticFeedback(style) {
 // ============================================
 // CONFETTI CELEBRATION
 // ============================================
+function closeSessionEndPopup() {
+    document.getElementById('sessionEndPopup').style.display = 'none';
+}
+
 function celebrateWinner(winnerName) {
     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
     setTimeout(function() { confetti({ particleCount: 50, angle: 60, spread: 55, origin: { x: 0 } }); }, 250);
@@ -775,14 +779,17 @@ async function endSession() {
     const winner = scores[0];
     const isTie = scores.length > 1 && scores[1].total === winner.total;
     hapticFeedback('success');
+    setButtonLoading(endBtn, false);
+    currentSession = null;
+    showScreen('homeScreen');
+    checkActiveSessions();
     setTimeout(function() {
-        alert('Session ended!\n\n🏆 ' + (isTie ? 'Tie game!' : winner.username + ' wins!') + ' (' + winner.total + ' pts)');
-        setButtonLoading(endBtn, false);
-        currentSession = null;
-        showScreen('homeScreen');
-        checkActiveSessions();
-        if (!isTie) setTimeout(function() { celebrateWinner(winner.username); }, 300);
-    }, 500);
+        const popup = document.getElementById('sessionEndPopup');
+        document.getElementById('sessionEndTitle').textContent = isTie ? 'Tie game!' : winner.username + ' wins!';
+        document.getElementById('sessionEndScore').textContent = winner.total + ' points';
+        popup.style.display = 'flex';
+        if (!isTie) celebrateWinner(winner.username);
+    }, 300);
 }
 
 // ============================================
