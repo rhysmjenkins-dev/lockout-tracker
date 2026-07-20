@@ -97,13 +97,11 @@ function formatEloBadge(playerId) {
 
 async function displayEloLeaderboard() {
     document.getElementById('eloLeaderboardSection').innerHTML =
-        '<div class="elo-leaderboard-box">' +
-            '<h3>⚡ ELO Rankings</h3>' +
-            '<div class="elo-leaderboard-list">' +
-                '<div class="elo-leaderboard-row"><div class="shimmer-wrapper skeleton-text skeleton-w-80" style="height:24px;"></div></div>' +
-                '<div class="elo-leaderboard-row"><div class="shimmer-wrapper skeleton-text skeleton-w-70" style="height:24px;"></div></div>' +
-                '<div class="elo-leaderboard-row"><div class="shimmer-wrapper skeleton-text skeleton-w-60" style="height:24px;"></div></div>' +
-            '</div>' +
+        '<div class="skeleton-card">' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-30 mb-10" style="height:22px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10" style="height:36px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-60" style="height:36px;"></div>' +
         '</div>';
     const data = await loadEloRatings();
     if (!data || data.length === 0) return;
@@ -147,7 +145,7 @@ async function showEloStats() {
     let html = '<h3>⚡ ELO Ratings</h3>';
     html += '<p class="text-muted text-sm mb-20">Rank-based ELO. All players start at 1000. ? = provisional (under 50 hands played).</p>';
     html += '<div class="overflow-x-auto"><table class="scores-table"><tr>';
-    html += '<th>Rank</th><th>Player</th><th>Rating</th><th>Last Change</th><th>Hands Played</th><th>Status</th>';
+    html += '<th>Rank</th><th>Player</th><th>Rating</th><th>Last Change</th><th>Hands Played</th>';
     html += '</tr>';
     const medals = ['🥇', '🥈', '🥉'];
     for (let i = 0; i < eloCache.length; i++) {
@@ -161,19 +159,24 @@ async function showEloStats() {
         html += '<td><strong>' + p.rating + (p.provisional ? '?' : '') + '</strong></td>';
         html += '<td style="color:' + changeColor + '; font-weight:600;">' + changeSign + p.change + '</td>';
         html += '<td>' + p.hands_played + '</td>';
-        html += '<td>' + (p.provisional ? '?' : '✅') + '</td>';
         html += '</tr>';
     }
     html += '</table></div>';
     html += '<div class="elo-history-section mt-20">';
     html += '<h3>📈 Rating History</h3>';
-    html += '<div class="chart-container"><canvas id="eloHistoryChart"></canvas></div>';
+    html += '<div id="eloChartShimmer" class="skeleton-card">' +
+                '<div class="shimmer-wrapper skeleton-text skeleton-w-60 mb-10" style="height:20px;"></div>' +
+                '<div class="shimmer-wrapper" style="height:250px; border-radius:8px;"></div>' +
+            '</div>';
+    html += '<div class="chart-container" id="eloChartContainer" style="display:none;"><canvas id="eloHistoryChart"></canvas></div>';
     html += '</div>';
     contentDiv.innerHTML = html;
     setTimeout(drawEloHistoryChart, 100);
 }
 
 async function drawEloHistoryChart() {
+    const shimmer = document.getElementById('eloChartShimmer');
+    const container = document.getElementById('eloChartContainer');
     const ctx = document.getElementById('eloHistoryChart');
     if (!ctx) return;
     const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
@@ -231,6 +234,8 @@ async function drawEloHistoryChart() {
         });
     }
 
+    if (shimmer) shimmer.style.display = 'none';
+    if (container) container.style.display = 'block';
     new Chart(ctx.getContext('2d'), {
         type: 'line',
         data: { labels, datasets },
