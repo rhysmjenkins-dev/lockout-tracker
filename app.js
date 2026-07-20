@@ -1282,7 +1282,7 @@ async function updateSessionScores() {
         setTimeout(function() { drawActiveWormChart(playerHandsData, playerIdsArray); drawActiveManhattanChart(playerHandsData, playerIdsArray); }, 100);
     }
 
-    displayHandHistory();
+    await displayHandHistory();
 }
 
 // ============================================
@@ -1503,38 +1503,31 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
         html += '<tr><td><strong>' + getPlayerName(playerId) + '</strong></td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
     }
     html += '</table></div>';
-    html += '<h3 class="mt-20">Hand-by-Hand Breakdown</h3><div class="hand-history-scrollable"><div class="hand-history-scroll-inner">';
-
-    const handsByNumber = {};
-    for (let i = 0; i < handsData.length; i++) {
-        const hand = handsData[i];
-        if (!handsByNumber[hand.hand_number]) handsByNumber[hand.hand_number] = [];
-        handsByNumber[hand.hand_number].push(hand);
-    }
-    const handNumbers = Object.keys(handsByNumber).sort((a, b) => Number(a) - Number(b));
-    for (let i = 0; i < handNumbers.length; i++) {
-        const handNum = handNumbers[i], hands = handsByNumber[handNum];
-        let scoreText = '', lockoutPlayer = '', isFalseLockout = false, handComment = '';
-        for (let j = 0; j < hands.length; j++) {
-            const h = hands[j];
-            if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
-                if (h.lockout_score) {
-                    scoreText += getPlayerName(h.player_id) + ': ' + h.score + (h.false_lockout == 1 || h.false_lockout === true ? ' (' + h.lockout_score + ' + ' + (h.score - h.lockout_score) + ' penalty)' : ' (' + h.lockout_score + ')') + ' | ';
-                } else { scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | '; }
-                lockoutPlayer = getPlayerName(h.player_id);
-                isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
+document.getElementById('sessionDetailContent').innerHTML = html;
+let handHistoryHtml = '<div class="hand-history-scrollable"><h4>Hand-by-Hand Breakdown</h4><div class="hand-history-scroll-inner">';
+for (let i = 0; i < handNumbers.length; i++) {
+    const handNum = handNumbers[i], hands = handsByNumber[handNum];
+    let scoreText = '', lockoutPlayer = '', isFalseLockout = false, handComment = '';
+    for (let j = 0; j < hands.length; j++) {
+        const h = hands[j];
+        if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
+            if (h.lockout_score) {
+                scoreText += getPlayerName(h.player_id) + ': ' + h.score + (h.false_lockout == 1 || h.false_lockout === true ? ' (' + h.lockout_score + ' + ' + (h.score - h.lockout_score) + ' penalty)' : ' (' + h.lockout_score + ')') + ' | ';
             } else { scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | '; }
-            if (h.comment && !handComment) handComment = h.comment;
-        }
-        scoreText = scoreText.slice(0, -3);
-        html += '<div class="hand-item"><div class="hand-item-info">';
-        html += '<strong>Hand ' + handNum + '</strong><br><small>' + scoreText + '</small><br>';
-        html += '<small>Lockout: ' + lockoutPlayer + (isFalseLockout ? ' (FALSE)' : '') + '</small>';
-        if (handComment) html += '<br><small class="comment-text">💬 ' + handComment + '</small>';
-        html += '</div></div>';
+            lockoutPlayer = getPlayerName(h.player_id);
+            isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
+        } else { scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | '; }
+        if (h.comment && !handComment) handComment = h.comment;
     }
-    html += '</div></div>';
-    document.getElementById('sessionDetailContent').innerHTML = html;
+    scoreText = scoreText.slice(0, -3);
+    handHistoryHtml += '<div class="hand-item"><div class="hand-item-info">';
+    handHistoryHtml += '<strong>Hand ' + handNum + '</strong><br><small>' + scoreText + '</small><br>';
+    handHistoryHtml += '<small>Lockout: ' + lockoutPlayer + (isFalseLockout ? ' (FALSE)' : '') + '</small>';
+    if (handComment) handHistoryHtml += '<br><small class="comment-text">💬 ' + handComment + '</small>';
+    handHistoryHtml += '</div></div>';
+}
+handHistoryHtml += '</div></div>';
+document.getElementById('sessionDetailHandHistory').innerHTML = handHistoryHtml;
 
     let graphsHtml = '<h3>Graphs</h3>';
     graphsHtml += '<div class="chart-container"><canvas id="wormChart"></canvas></div>';
