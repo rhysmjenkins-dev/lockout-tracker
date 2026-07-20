@@ -11,6 +11,7 @@ let currentEditingHand = null;
 let selectedPlayerToAdd = null;
 let playersLoaded = false;
 let playerCache = {};
+let eloCache = [];
 
 // ============================================
 // BUTTON LOADING STATE HELPER
@@ -65,8 +66,144 @@ async function ensurePlayersLoaded() {
 }
 
 // ============================================
+// ELO FUNCTIONS
+// ============================================
+async function loadEloRatings() {
+    const data = await apiCall('getEloRatings', {});
+    if (!data.error) {
+        eloCache = data;
+    }
+    return eloCache;
+}
+
+function getPlayerElo(playerId) {
+    for (let i = 0; i < eloCache.length; i++) {
+        if (String(eloCache[i].player_id) === String(playerId)) {
+            return eloCache[i];
+        }
+    }
+    return null;
+}
+
+function formatEloBadge(playerId) {
+    const elo = getPlayerElo(playerId);
+    if (!elo) return '';
+    const provisional = elo.provisional ? '?' : '';
+    const changeColor = elo.change >= 0 ? '#4caf50' : '#f44336';
+    const changeSign = elo.change >= 0 ? '+' : '';
+    return '<span class="elo-badge">⚡ ' + elo.rating + provisional + '</span>' +
+           '<span class="elo-change" style="color:' + changeColor + '">(' + changeSign + elo.change + ')</span>';
+}
+
+async function displayEloLeaderboard() {
+    const data = await loadEloRatings();
+    if (!data || data.length === 0) return;
+    const medals = ['🥇', '🥈', '🥉'];
+    let html = '<div class="elo-leaderboard-box">';
+    html += '<h3>⚡ ELO Rankings</h3>';
+    html += '<div class="elo-leaderboard-list">';
+    for (let i = 0; i < data.length; i++) {
+        const p = data[i];
+        const medal = medals[i] || (i + 1) + '.';
+        const provisional = p.provisional ? '<span class="elo-provisional-badge">PROVISIONAL</span>' : '';
+        const changeColor = p.change >= 0 ? '#4caf50' : '#f44336';
+        const changeSign = p.change >= 0 ? '+' : '';
+        html += '<div class="elo-leaderboard-row">';
+        html += '<span class="elo-rank">' + medal + '</span>';
+        html += '<span class="elo-name">' + p.username + provisional + '</span>';
+        html += '<span class="elo-rating">' + p.rating + (p.provisional ? '?' : '') + '</span>';
+        html += '<span class="elo-change-pill" style="background:' + (p.change >= 0 ? '#e8f5e9' : '#ffebee') + '; color:' + changeColor + '">' + changeSign + p.change + '</span>';
+        html += '</div>';
+    }
+    html += '</div>';
+    html += '<p class="elo-footnote">? = provisional (under 50 hands). Change = last session.</p>';
+    html += '</div>';
+    document.getElementById('eloLeaderboardSection').innerHTML = html;
+}
+
+async function showEloStats() {
+    const contentDiv = document.getElementById('statsContent');
+    contentDiv.innerHTML = '<div class="loading">Loading ELO ratings...</div>';
+    await loadEloRatings();
+    if (eloCache.length === 0) {
+        contentDiv.innerHTML = '<div class="error">No ELO data found.</div>';
+        return;
+    }
+    let html = '<h3>⚡ ELO Ratings</h3>';
+    html += '<p class="text-muted text-sm mb-20">Rank-based ELO. All players start at 1000. ? = provisional (under 50 hands played).</p>';
+    html += '<div class="overflow-x-auto"><table class="scores-table"><tr>';
+    html += '<th>Rank</th><th>Player</th><th>Rating</th><th>Last Change</th><th>Hands Played</th><th>Status</th>';
+    html += '</tr>';
+    const medals = ['🥇', '🥈', '🥉'];
+    for (let i = 0; i < eloCache.length; i++) {
+        const p = eloCache[i];
+        const medal = medals[i] || (i + 1);
+        const changeColor = p.change >= 0 ? '#4caf50' : '#f44336';
+        const changeSign = p.change >= 0 ? '+' : '';
+        html += '<tr>';
+        html += '<td>' + medal + '</td>';
+        html += '<td><strong>' + p.username + '</strong></td>';
+        html += '<td><strong>' + p.rating + (p.provisional ? '?' : '') + '</strong></td>';
+        html += '<td style="color:' + changeColor + '; font-weight:600;">' + changeSign + p.change + '</td>';
+        html += '<td>' + p.hands_played + '</td>';
+        html += '<td>' + (p.provisional ? '<span class="elo-provisional-badge">Provisional</span>' : '<span class="elo-established-badge">Established</span>') + '</td>';
+        html += '</tr>';
+    }
+    html += '</table></div>';
+    html += '<div class="elo-history-section mt-20">';
+    html += '<h3>📈 Rating History</h3>';
+    html += '<div class="chart-container"><canvas id="eloHistoryChart"></canvas></div>';
+    html += '</div>';
+    contentDiv.innerHTML = html;
+    setTimeout(drawEloHistoryChart, 100);
+}
+
+async function drawEloHistoryChart() {
+    const ctx = document.getElementById('eloHistoryChart');
+    if (!ctx) return;
+    const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+    const datasets = [];
+    for (let i = 0; i < eloCache.length; i++) {
+        const p = eloCache[i];
+        const history = await apiCall('getEloHistory', { player_id: p.player_id });
+        if (history.error || history.length === 0) continue;
+        const dataPoints = [{ x: 0, y: 1000 }];
+        for (let j = 0; j < history.length; j++) {
+            dataPoints.push({ x: j + 1, y: history[j].new_rating });
+        }
+        datasets.push({
+            label: p.username,
+            data: dataPoints,
+            borderColor: colors[i % colors.length],
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            tension: 0.1,
+            pointRadius: 4
+        });
+    }
+    new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: { datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            parsing: false,
+            plugins: {
+                title: { display: true, text: 'ELO Rating History' },
+                legend: { display: true, position: 'top' }
+            },
+            scales: {
+                x: { type: 'linear', title: { display: true, text: 'Session' } },
+                y: { title: { display: true, text: 'Rating' } }
+            }
+        }
+    });
+}
+
+// ============================================
 // HAPTIC FEEDBACK
 // ============================================
+
 function hapticFeedback(style) {
     if ('vibrate' in navigator) {
         switch(style) {
@@ -1571,6 +1708,21 @@ async function showOverallStats() {
     await loadStats();
 }
 
+async function recalculateElo() {
+    if (!confirm('Recalculate all ELO ratings from scratch? This may take a moment.')) return;
+    const btn = event.target;
+    setButtonLoading(btn, true);
+    const data = await apiCall('recalculateAllElo', {});
+    if (data.error) {
+        alert('Error: ' + data.error);
+    } else {
+        eloCache = [];
+        await displayEloLeaderboard();
+        alert('✅ ELO recalculated! ' + data.sessions_processed + ' sessions processed.');
+    }
+    setButtonLoading(btn, false);
+}
+
 // ============================================
 // HEAD-TO-HEAD STATS
 // ============================================
@@ -1810,6 +1962,7 @@ window.addEventListener('DOMContentLoaded', function() {
     console.log('Lockout Tracker v4.1 🚀');
     ensurePlayersLoaded();
     checkActiveSessions();
+    displayEloLeaderboard();
     history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
     showDictionarySection('lingo');
 });
