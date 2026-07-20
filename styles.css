@@ -90,6 +90,26 @@ label { display: block; margin-top: 15px; font-weight: 600; color: #555; }
 .placeholder-content p { margin-bottom: 20px; }
 .hand-history { background: #fff; padding: 15px; border-radius: 8px; margin: 15px 0; }
 .hand-history h4 { color: #667eea; margin-bottom: 10px; }
+.hand-history-scrollable {
+    background: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+}
+.hand-history-scrollable h4 {
+    color: #667eea;
+    margin-bottom: 10px;
+}
+.hand-history-scroll-inner {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+@media (max-width: 600px) {
+    .hand-history-scroll-inner {
+        max-height: 300px;
+    }
+}
 .hand-item {
     background: #f8f9fa; padding: 12px; border-radius: 6px; margin: 8px 0;
     display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
