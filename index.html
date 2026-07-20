@@ -185,6 +185,10 @@
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Win Rate</h4><p class="p-muted">Percentage of sessions won (sessions won ÷ sessions played).</p></div>
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Session Tags</h4><p class="p-muted">Categories applied to sessions (e.g., Casual, Holiday, Pub, Tournament) for filtering and organization.</p></div>
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Edit History</h4><p class="p-muted">A log of all changes made to sessions and hands, tracking who edited what and when.</p></div>
+                            <div class="content-card-sm"><h4 class="heading-blue-sm">ELO Rating</h4><p class="p-muted">A number representing a player's skill level. All players start at 1000. Goes up when you finish higher than expected, down when you finish lower. Visible on the home screen and stats page.</p></div>
+                            <div class="content-card-sm"><h4 class="heading-blue-sm">Provisional Rating (?)</h4><p class="p-muted">A rating marked with ? meaning the player has played fewer than 50 hands. Provisional ratings move faster to help find your true level quickly. Once you hit 50 hands the ? disappears and your rating stabilises.</p></div>
+                            <div class="content-card-sm"><h4 class="heading-blue-sm">K-Factor</h4><p class="p-muted">Controls how much your ELO changes per session. Provisional players use K=40 (bigger swings), established players use K=24 (more stable). Named after the chess rating system it's borrowed from.</p></div>
+                            <div class="content-card-sm"><h4 class="heading-blue-sm">Rank-Based ELO</h4><p class="p-muted">ELO calculated from finishing position (1st, 2nd, 3rd etc.) rather than head-to-head results. Handles any number of players fairly — total rating change always sums to zero across all players in a session.</p></div>
                         </div>
                     </div>
                 </div>
@@ -481,6 +485,49 @@
                         <div class="content-card-sm"><p class="p-question">Q: What if two players tie for lowest after a lockout?</p><p>A: The locked-out player gets a false lockout penalty. The other tied player keeps their original score (not reset to 0).</p></div>
                         <div class="content-card-sm"><p class="p-question">Q: How are late joiner starting scores calculated?</p><p>A: Average of all current players' cumulative totals at the hand they join.</p></div>
                         <div class="content-card-sm"><p class="p-question">Q: Why does the app ask for lockout scores, not final scores?</p><p>A: The app calculates final scores automatically based on lockout validity. You only input the score the player called lockout with.</p></div>
+                    </div>
+
+                    <!-- ELO RATINGS -->
+                    <div class="section-box section-box-blue" id="eloHowToSection">
+                        <h3 class="section-heading-blue">⚡ ELO RATINGS</h3>
+                        <div class="content-card">
+                            <h4 class="heading-blue">What is ELO?</h4>
+                            <ul class="list-indented">
+                                <li>A skill rating system borrowed from chess</li>
+                                <li>All players <strong>start at 1000</strong></li>
+                                <li>Goes <strong>up</strong> when you finish higher than expected</li>
+                                <li>Goes <strong>down</strong> when you finish lower than expected</li>
+                                <li>Total rating change always <strong>sums to zero</strong> across all players in a session</li>
+                                <li><strong>Testing sessions</strong> are excluded from ELO calculations</li>
+                            </ul>
+                        </div>
+                        <div class="content-card">
+                            <h4 class="heading-blue">Provisional Ratings (?)</h4>
+                            <ul class="list-indented">
+                                <li>New players show a <strong>?</strong> next to their rating (e.g. <strong>1045?</strong>)</li>
+                                <li>Provisional = under 50 hands played</li>
+                                <li>Provisional ratings move faster (K=40) to find your true level quickly</li>
+                                <li>Once you hit 50 hands the ? disappears and rating stabilises (K=24)</li>
+                                <li>The 50-hand threshold is checked at the <strong>start of each session</strong> — K won't switch mid-session</li>
+                            </ul>
+                        </div>
+                        <div class="content-card">
+                            <h4 class="heading-blue">Where to Find ELO</h4>
+                            <ul class="list-indented">
+                                <li><strong>Home screen</strong> — collapsible ELO leaderboard widget (tap ⚡ ELO Rankings to expand)</li>
+                                <li><strong>Active session</strong> — rating badge shown next to each player's name</li>
+                                <li><strong>Stats → ⚡ ELO Rankings</strong> — full table and rating history graph</li>
+                            </ul>
+                        </div>
+                        <div class="content-card">
+                            <h4 class="heading-blue">Reading the Rating History Graph</h4>
+                            <ul class="list-indented">
+                                <li>Each line represents one player's rating over time</li>
+                                <li>X-axis = sessions in date order</li>
+                                <li>If a player <strong>missed a session</strong> their line stays flat for that session</li>
+                                <li>Steeper rises = consistently outperforming expectations</li>
+                            </ul>
+                        </div>
                     </div>
 
                     <!-- DATA & PRIVACY -->
