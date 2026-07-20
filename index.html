@@ -780,11 +780,13 @@
     <button class="btn btn-small btn-success" onclick="showEloStats()">⚡ ELO Rankings</button>
 </div>
                 <div id="statsContent" class="loading">Loading...</div>
-                <button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
-            </div>
-        </div>
+<button id="adminRecalcBtn" class="btn btn-danger mt-20" onclick="recalculateElo()" style="display:none;">🔧 Admin: Recalculate All ELO</button>
+<button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
+</div>
+</div>
 
-        <!-- START SESSION SCREEN -->
+<!-- START SESSION SCREEN -->
+
         <div id="startSessionScreen" class="screen">
             <div class="card">
                 <h2>Start New Session</h2>
