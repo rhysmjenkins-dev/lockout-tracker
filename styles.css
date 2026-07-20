@@ -356,3 +356,20 @@ label { display: block; margin-top: 15px; font-weight: 600; color: #555; }
 .session-history-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .session-history-title { font-weight: 600; color: #333; font-size: 1.05em; }
 .session-history-scores { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; }
+
+/* === TIDY-UP ADDITIONS === */
+
+.hand-instructions {
+    background: #fff3cd;
+    padding: 10px;
+    border-radius: 5px;
+    margin: 10px 0;
+    font-size: 0.9em;
+}
+
+.confirm-box {
+    background: #fff3cd;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+}
