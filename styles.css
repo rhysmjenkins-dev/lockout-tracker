@@ -666,3 +666,45 @@
 .skeleton-w-100 { width: 100%; }
 .skeleton-h-8 { height: 8px; }
 .skeleton-h-40 { height: 40px; }
+
+/* === BATCH 2 ADDITIONS === */
+
+.overflow-x-auto {
+    overflow-x: auto;
+}
+
+.stats-summary-box {
+    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    padding: 20px;
+    border-radius: 10px;
+    margin-top: 20px;
+    border-left: 4px solid #4caf50;
+}
+
+.heading-dark-green {
+    color: #2e7d32;
+    margin-bottom: 15px;
+}
+
+.stats-summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.lockout-perf-box {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.p-10 {
+    padding: 10px;
+}
+
+.comment-text {
+    color: #667eea;
+    font-size: 0.9em;
+}
