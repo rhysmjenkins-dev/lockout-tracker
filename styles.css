@@ -308,6 +308,7 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
 .heading-purple { color: var(--purple); margin-bottom: 10px; }
 .heading-red { color: var(--danger); margin-bottom: 10px; }
 .heading-cyan { color: var(--cyan); margin-bottom: 10px; }
+.heading-orange { color: var(--orange); margin-bottom: 10px; }
 .heading-sm { font-size: 1em; margin: 0 0 5px 0; }
 .heading-banner { margin: 0 0 10px 0; font-size: 1.3em; }
 .p-muted { margin: 0; font-size: 0.9em; color: var(--text-medium); }
@@ -518,3 +519,19 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
     border: 2px dashed var(--border);
     color: var(--text-muted);
 }
+/* === MISSING UTILITY CLASSES === */
+.p-banner-sm { margin: 0; font-size: 0.8em; opacity: 0.85; }
+.banner-body-lg { margin: 10px 0 0 0; font-size: 0.95em; line-height: 1.6; }
+.p-bold-dark { font-weight: 600; color: var(--text-dark); margin: 10px 0; }
+.p-mt-15 { margin-top: 15px; }
+.heading-lockout { margin: 0 0 10px 0; font-size: 1.4em; }
+.p-lockout-intro { margin: 0 0 15px 0; font-size: 1em; opacity: 0.9; }
+.p-italic-top { margin-top: 10px; font-style: italic; font-size: 0.9em; }
+.heading-banner-lg { margin: 0 0 15px 0; font-size: 1.4em; }
+.heading-success { color: var(--success); margin-bottom: 10px; }
+.list-nested { margin-left: 20px; line-height: 1.8; list-style: disc; }
+.list-nested-tight { margin-left: 20px; line-height: 1.6; list-style: circle; }
+.min-height-120 { min-height: 120px; }
+.display-block { display: block; }
+.color-666 { color: var(--text-muted); }
+.term-heading-blue { color: var(--primary); font-weight: 600; }
