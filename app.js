@@ -828,7 +828,7 @@ async function displayHandHistory() {
         html += '<small>' + scoreText + '</small><br>';
         html += '<small>Lockout: ' + lockoutPlayer + (isFalseLockout ? ' (FALSE)' : '') + '</small>';
         if (handComment) {
-            html += '<br><small style="color: #667eea;">💬 ' + handComment + '</small>';
+            html += '<br><small class="comment-text">💬 ' + handComment + '</small>';
         }
         html += '</div>';
         html += '<div class="hand-item-actions">';
@@ -1078,7 +1078,7 @@ async function updateSessionScores() {
         '</div>';
     document.getElementById('handHistorySection').style.display = 'block';
     document.getElementById('handHistoryList').innerHTML =
-        '<div style="padding: 10px;">' +
+        '<div class="p-10">' +
             '<h4 class="section-heading-blue">Loading hand history...</h4>' +
             '<div class="hand-item">' +
                 '<div class="hand-item-info">' +
@@ -1169,8 +1169,8 @@ async function updateSessionScores() {
 
     let html = '<h3>Scores</h3>';
     html += '<p class="text-muted text-sm mb-10">💡 Click column headers to sort</p>';
-    html += '<div style="overflow-x: auto;">';
-    html += '<table class="scores-table" id="activeSessionTable">';
+html += '<div class="overflow-x-auto">';
+html += '<table class="scores-table" id="activeSessionTable">';
     html += '<tr>';
     html += '<th onclick="sortActiveSessionTable(0)" style="cursor: pointer; user-select: none;">Player ⇅</th>';
     html += '<th onclick="sortActiveSessionTable(1)" style="cursor: pointer; user-select: none;">Total ⇅</th>';
@@ -1208,9 +1208,9 @@ async function updateSessionScores() {
 
     html += '</table></div>';
 
-    html += '<div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 20px; border-radius: 10px; margin-top: 20px; border-left: 4px solid #4caf50;">';
-    html += '<h3 style="color: #2e7d32; margin-bottom: 15px;">📊 Session Statistics</h3>';
-    html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">';
+    html += '<div class="stats-summary-box">';
+    html += '<h3 class="heading-dark-green">📊 Session Statistics</h3>';
+    html += '<div class="stats-summary-grid">';
     html += '<div><strong>🎴 Total Hands:</strong> ' + (new Set(handsData.map(h => h.hand_number)).size) + '</div>';
     html += '<div><strong>📈 Avg Score/Hand:</strong> ' + avgScorePerHand.toFixed(2) + '</div>';
     html += '<div><strong>🏆 Current Leader:</strong> ' + leader.username + ' (' + leader.total + ' pts)</div>';
@@ -1218,9 +1218,9 @@ async function updateSessionScores() {
     html += '<div><strong>🎯 Most Lockouts:</strong> ' + mostLockoutsPlayer.username + ' (' + mostLockoutsPlayer.lockouts + ')</div>';
     html += '<div><strong>⚠️ False Lockouts:</strong> ' + falseLockoutCount + '</div>';
     html += '</div>';
-    html += '<div style="background: white; padding: 15px; border-radius: 8px; margin-top: 10px;">';
-    html += '<strong style="color: #667eea;">Lockout Performance:</strong><br>';
-    html += '<div style="margin-top: 10px;">• <strong>Overall Avg:</strong> ' + overallAvgLockout + '</div>';
+html += '<div class="lockout-perf-box">';
+html += '<strong class="term-heading-blue">Lockout Performance:</strong><br>';
+html += '<div class="mt-10">• <strong>Overall Avg:</strong> ' + overallAvgLockout + '</div>';
 
     for (let i = 0; i < scores.length; i++) {
         const p = scores[i];
@@ -1238,7 +1238,7 @@ async function updateSessionScores() {
 
     const chartSection = document.getElementById('activeSessionCharts');
     if (chartSection && handsData.length > 0) {
-        let chartsHtml = '<h3 style="margin-top: 30px;">Session Graphs</h3>';
+        let chartsHtml = '<h3 class="mt-20">Session Graphs</h3>';
         chartsHtml += '<div class="chart-container"><canvas id="activeWormChart"></canvas></div>';
         chartsHtml += '<div class="chart-container"><canvas id="activeManhattanChart"></canvas></div>';
         chartSection.innerHTML = chartsHtml;
@@ -1614,7 +1614,7 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
 
     let html = '<h3>Final Scores</h3>';
     html += '<p class="text-muted text-sm mb-10">💡 Click column headers to sort</p>';
-    html += '<div style="overflow-x: auto;"><table class="scores-table" id="sessionDetailTable">';
+    html += '<div class="overflow-x-auto"><table class="scores-table" id="sessionDetailTable">';
     html += '<tr>';
     html += '<th onclick="sortSessionTable(0)" style="cursor: pointer; user-select: none;">Player ⇅</th>';
     html += '<th onclick="sortSessionTable(1)" style="cursor: pointer; user-select: none;">Total ⇅</th>';
@@ -1689,7 +1689,7 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
         html += '<small>' + scoreText + '</small><br>';
         html += '<small>Lockout: ' + lockoutPlayer + (isFalseLockout ? ' (FALSE)' : '') + '</small>';
         if (handComment) {
-            html += '<br><small style="color: #667eea;">💬 ' + handComment + '</small>';
+            html += '<br><small class="comment-text">💬 ' + handComment + '</small>';
         }
         html += '</div>';
         html += '</div>';
@@ -2139,7 +2139,7 @@ html += '</div>';
 
     html += '<h3 class="mt-20">Player Breakdown</h3>';
     html += '<p class="text-muted text-sm mb-10">💡 Click column headers to sort</p>';
-    html += '<div style="overflow-x: auto;"><table class="scores-table" id="playerBreakdownTable">';
+    html += '<div class="overflow-x-auto"><table class="scores-table" id="playerBreakdownTable">';
     html += '<tr>';
     html += '<th onclick="sortStatsTable(0)" style="cursor: pointer; user-select: none;">Player ⇅</th>';
     html += '<th onclick="sortStatsTable(1)" style="cursor: pointer; user-select: none;">Sessions ⇅</th>';
@@ -2373,9 +2373,9 @@ async function showPlayerComparison() {
     if (ts.total_sessions === 0) {
         html += '<div style="background: white; padding: 15px; border-radius: 6px; color: #666; text-align: center;">These players have never played together</div>';
     } else {
-        html += '<div style="overflow-x: auto;"><table class="scores-table">';
-        html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + p1Name + '</th><th style="color: white; background: #f5576c;">' + p2Name + '</th></tr>';
-        html += '<tr><td><strong>Wins</strong></td><td>' + ts.p1_wins + '</td><td>' + ts.p2_wins + '</td></tr>';
+html += '<div class="overflow-x-auto"><table class="scores-table">';
+html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + p1Name + '</th><th style="color: white; background: #f5576c;">' + p2Name + '</th></tr>';
+html += '<tr><td><strong>Wins</strong></td><td>' + ts.p1_wins +
         html += '<tr><td><strong>Win Rate</strong></td><td>' + ts.p1_win_rate + '%</td><td>' + ts.p2_win_rate + '%</td></tr>';
         html += '<tr><td><strong>Total Score</strong></td><td>' + ts.p1_total_score + '</td><td>' + ts.p2_total_score + '</td></tr>';
         html += '<tr><td><strong>Hands Played</strong></td><td>' + ts.p1_total_hands + '</td><td>' + ts.p2_total_hands + '</td></tr>';
