@@ -290,6 +290,7 @@ function closeAddPlayerModal() {
 // SESSION MANAGEMENT
 // ============================================
 async function checkActiveSessions() {
+    await ensurePlayersLoaded();
     document.getElementById('activeSessionsSection').innerHTML =
         '<div class="skeleton-card">' +
             '<h3 class="section-heading-blue">Loading active sessions...</h3>' +
