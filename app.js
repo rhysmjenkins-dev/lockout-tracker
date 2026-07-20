@@ -151,10 +151,11 @@ async function showEloStats() {
     const contentDiv = document.getElementById('statsContent');
     contentDiv.innerHTML =
         '<div class="skeleton-card">' +
-            '<h3 class="section-heading-blue mb-15">Loading ELO ratings...</h3>' +
-            '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
-            '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
-            '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-50 mb-10" style="height:22px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10" style="height:36px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-60 mb-10" style="height:36px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
         '</div>';
     await loadEloRatings();
     if (eloCache.length === 0) {
@@ -200,8 +201,12 @@ async function drawEloHistoryChart() {
     if (!ctx) return;
     const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
 
-    // Get all completed sessions in date order
-    const sessionsData = await apiCall('getSessionsWithHands', {});
+    // Fetch sessions and all player histories in parallel
+    const [sessionsData, ...allHistories] = await Promise.all([
+        apiCall('getSessionsWithHands', {}),
+        ...eloCache.map(p => apiCall('getEloHistory', { player_id: p.player_id }))
+    ]);
+
     const completedSessions = sessionsData
         .filter(s => s.session.date_ended && s.session.date_ended !== '')
         .filter(s => !String(s.session.tags || '').toLowerCase().includes('testing'))
@@ -209,36 +214,25 @@ async function drawEloHistoryChart() {
 
     if (completedSessions.length === 0) return;
 
-    // Build x-axis labels from session titles
     const labels = ['Start', ...completedSessions.map(s => s.session.title)];
-
     const datasets = [];
+
     for (let i = 0; i < eloCache.length; i++) {
         const p = eloCache[i];
-        const history = await apiCall('getEloHistory', { player_id: p.player_id });
+        const history = allHistories[i];
         if (history.error) continue;
 
-        // Map session_id to rating after that session
         const ratingBySession = {};
         for (let j = 0; j < history.length; j++) {
             ratingBySession[String(history[j].session_id)] = Number(history[j].new_rating);
         }
 
-        // Build data points — flat line if player missed session
-        const dataPoints = [1000];
-        let lastRating = 1000;
-        // Find their actual starting rating
-        if (history.length > 0) {
-            lastRating = Number(history[0].old_rating);
-            dataPoints[0] = lastRating;
-        }
+        let lastRating = history.length > 0 ? Number(history[0].old_rating) : 1000;
+        const dataPoints = [lastRating];
 
         for (let j = 0; j < completedSessions.length; j++) {
             const sid = String(completedSessions[j].session.session_id);
-            if (ratingBySession[sid] !== undefined) {
-                lastRating = ratingBySession[sid];
-            }
-            // If player didn't play this session, lastRating stays the same (flat line)
+            if (ratingBySession[sid] !== undefined) lastRating = ratingBySession[sid];
             dataPoints.push(lastRating);
         }
 
@@ -255,6 +249,7 @@ async function drawEloHistoryChart() {
 
     if (shimmer) shimmer.style.display = 'none';
     if (container) container.style.display = 'block';
+
     new Chart(ctx.getContext('2d'), {
         type: 'line',
         data: { labels, datasets },
@@ -266,7 +261,10 @@ async function drawEloHistoryChart() {
                 legend: { display: true, position: 'top' }
             },
             scales: {
-                x: { title: { display: true, text: 'Session' } },
+                x: {
+                    title: { display: true, text: 'Session' },
+                    ticks: { maxRotation: 45, font: { size: 11 } }
+                },
                 y: { title: { display: true, text: 'Rating' } }
             }
         }
@@ -478,11 +476,10 @@ async function checkActiveSessions() {
     await ensurePlayersLoaded();
     document.getElementById('activeSessionsSection').innerHTML =
         '<div class="skeleton-card">' +
-            '<h3 class="section-heading-blue">Loading active sessions...</h3>' +
-            '<div class="shimmer-wrapper skeleton-text large skeleton-w-60"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mt-20"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-70"></div>' +
-            '<div class="shimmer-wrapper skeleton-button mt-20"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-50 mb-10" style="height:22px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10" style="height:36px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-60" style="height:36px;"></div>' +
         '</div>';
 
     const sessionsWithHands = await apiCall('getSessionsWithHands', {});
