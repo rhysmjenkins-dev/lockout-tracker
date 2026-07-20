@@ -1997,6 +1997,18 @@ function handleHeaderClick(event) {
     if (headerTapCount >= 7) {
         headerTapCount = 0;
         triggerEasterEgg();
+    } else if (headerTapCount === 3) {
+        headerTapTimeout = setTimeout(function() {
+            if (headerTapCount === 3) {
+                const adminBtn = document.getElementById('adminRecalcBtn');
+                if (adminBtn) {
+                    const isVisible = adminBtn.style.display !== 'none';
+                    adminBtn.style.display = isVisible ? 'none' : 'block';
+                    if (!isVisible) hapticFeedback('medium');
+                }
+            }
+            headerTapCount = 0;
+        }, 800);
     } else {
         headerTapTimeout = setTimeout(function() {
             if (headerTapCount < 7) showScreen('homeScreen');
