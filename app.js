@@ -1148,7 +1148,12 @@ async function updateSessionScores() {
         '</div>';
     document.getElementById('handHistorySection').style.display = 'none';
     document.getElementById('handHistoryList').innerHTML = '';
-    document.getElementById('activeHandHistoryBottom').innerHTML = '';
+document.getElementById('activeHandHistoryBottom').innerHTML =
+    '<div class="skeleton-card">' +
+        '<div class="shimmer-wrapper skeleton-text skeleton-w-50 mb-10" style="height:18px;"></div>' +
+        '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:40px;"></div>' +
+        '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:40px;"></div>' +
+    '</div>';
 
     const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
     if (handsData.error) return;
