@@ -96,6 +96,15 @@ function formatEloBadge(playerId) {
 }
 
 async function displayEloLeaderboard() {
+    document.getElementById('eloLeaderboardSection').innerHTML =
+        '<div class="elo-leaderboard-box">' +
+            '<h3>⚡ ELO Rankings</h3>' +
+            '<div class="elo-leaderboard-list">' +
+                '<div class="elo-leaderboard-row"><div class="shimmer-wrapper skeleton-text skeleton-w-80" style="height:24px;"></div></div>' +
+                '<div class="elo-leaderboard-row"><div class="shimmer-wrapper skeleton-text skeleton-w-70" style="height:24px;"></div></div>' +
+                '<div class="elo-leaderboard-row"><div class="shimmer-wrapper skeleton-text skeleton-w-60" style="height:24px;"></div></div>' +
+            '</div>' +
+        '</div>';
     const data = await loadEloRatings();
     if (!data || data.length === 0) return;
     const medals = ['🥇', '🥈', '🥉'];
@@ -105,7 +114,7 @@ async function displayEloLeaderboard() {
     for (let i = 0; i < data.length; i++) {
         const p = data[i];
         const medal = medals[i] || (i + 1) + '.';
-        const provisional = p.provisional ? '<span class="elo-provisional-badge">PROVISIONAL</span>' : '';
+        const provisional = '';
         const changeColor = p.change >= 0 ? '#4caf50' : '#f44336';
         const changeSign = p.change >= 0 ? '+' : '';
         html += '<div class="elo-leaderboard-row">';
@@ -123,7 +132,13 @@ async function displayEloLeaderboard() {
 
 async function showEloStats() {
     const contentDiv = document.getElementById('statsContent');
-    contentDiv.innerHTML = '<div class="loading">Loading ELO ratings...</div>';
+    contentDiv.innerHTML =
+        '<div class="skeleton-card">' +
+            '<h3 class="section-heading-blue mb-15">Loading ELO ratings...</h3>' +
+            '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+            '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+            '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+        '</div>';
     await loadEloRatings();
     if (eloCache.length === 0) {
         contentDiv.innerHTML = '<div class="error">No ELO data found.</div>';
@@ -146,7 +161,7 @@ async function showEloStats() {
         html += '<td><strong>' + p.rating + (p.provisional ? '?' : '') + '</strong></td>';
         html += '<td style="color:' + changeColor + '; font-weight:600;">' + changeSign + p.change + '</td>';
         html += '<td>' + p.hands_played + '</td>';
-        html += '<td>' + (p.provisional ? '<span class="elo-provisional-badge">Provisional</span>' : '<span class="elo-established-badge">Established</span>') + '</td>';
+        html += '<td>' + (p.provisional ? '?' : '✅') + '</td>';
         html += '</tr>';
     }
     html += '</table></div>';
@@ -162,17 +177,51 @@ async function drawEloHistoryChart() {
     const ctx = document.getElementById('eloHistoryChart');
     if (!ctx) return;
     const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+
+    // Get all completed sessions in date order
+    const sessionsData = await apiCall('getSessionsWithHands', {});
+    const completedSessions = sessionsData
+        .filter(s => s.session.date_ended && s.session.date_ended !== '')
+        .filter(s => !String(s.session.tags || '').toLowerCase().includes('testing'))
+        .sort((a, b) => new Date(a.session.date_started) - new Date(b.session.date_started));
+
+    if (completedSessions.length === 0) return;
+
+    // Build x-axis labels from session titles
+    const labels = ['Start', ...completedSessions.map(s => s.session.title)];
+
     const datasets = [];
     for (let i = 0; i < eloCache.length; i++) {
         const p = eloCache[i];
         const history = await apiCall('getEloHistory', { player_id: p.player_id });
-        if (history.error || history.length === 0) continue;
-        const dataPoints = [{ x: 0, y: 1000 }];
+        if (history.error) continue;
+
+        // Map session_id to rating after that session
+        const ratingBySession = {};
         for (let j = 0; j < history.length; j++) {
-            dataPoints.push({ x: j + 1, y: history[j].new_rating });
+            ratingBySession[String(history[j].session_id)] = Number(history[j].new_rating);
         }
+
+        // Build data points — flat line if player missed session
+        const dataPoints = [1000];
+        let lastRating = 1000;
+        // Find their actual starting rating
+        if (history.length > 0) {
+            lastRating = Number(history[0].old_rating);
+            dataPoints[0] = lastRating;
+        }
+
+        for (let j = 0; j < completedSessions.length; j++) {
+            const sid = String(completedSessions[j].session.session_id);
+            if (ratingBySession[sid] !== undefined) {
+                lastRating = ratingBySession[sid];
+            }
+            // If player didn't play this session, lastRating stays the same (flat line)
+            dataPoints.push(lastRating);
+        }
+
         datasets.push({
-            label: p.username,
+            label: p.username + (p.provisional ? '?' : ''),
             data: dataPoints,
             borderColor: colors[i % colors.length],
             backgroundColor: 'transparent',
@@ -181,19 +230,19 @@ async function drawEloHistoryChart() {
             pointRadius: 4
         });
     }
+
     new Chart(ctx.getContext('2d'), {
         type: 'line',
-        data: { datasets },
+        data: { labels, datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            parsing: false,
             plugins: {
                 title: { display: true, text: 'ELO Rating History' },
                 legend: { display: true, position: 'top' }
             },
             scales: {
-                x: { type: 'linear', title: { display: true, text: 'Session' } },
+                x: { title: { display: true, text: 'Session' } },
                 y: { title: { display: true, text: 'Rating' } }
             }
         }
