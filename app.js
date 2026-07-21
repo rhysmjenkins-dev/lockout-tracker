@@ -1386,6 +1386,16 @@ async function loadPreviousSessions() {
 
     if (completedSessions.length === 0) { contentDiv.innerHTML = '<div class="placeholder-content"><h3>No Completed Sessions</h3><p>Complete a session to see it here!</p></div>'; return; }
 
+    const eloHistoryAll = await apiCall('getEloHistoryAll', {});
+    const eloHistoryMap = {};
+    if (!eloHistoryAll.error) {
+        for (let i = 0; i < eloHistoryAll.length; i++) {
+            const entry = eloHistoryAll[i];
+            const key = String(entry.session_id) + '_' + String(entry.player_id);
+            eloHistoryMap[key] = entry;
+        }
+    }
+
     let html = '<div class="mb-20"><input type="text" id="sessionSearchInput" placeholder="🔍 Search sessions by title, player, or tag..." style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em;" oninput="filterSessions()"></div>';
     html += '<div id="sessionListContainer" style="max-height: 600px; overflow-y: auto; padding-right: 5px;"><ul class="session-list" id="sessionList">';
 
@@ -1425,6 +1435,18 @@ async function loadPreviousSessions() {
                 const changeStr = winnerElo.change >= 0 ? '+' + winnerElo.change : String(winnerElo.change);
                 const changeColor = winnerElo.change > 0 ? '#4caf50' : winnerElo.change < 0 ? '#f5576c' : '#666';
                 winnerEloBadge = ' <span class="elo-badge" style="background:#1a1a2e; color:#ffd700; font-size:0.75em;">⚡ ' + winnerElo.rating + (winnerElo.provisional ? '?' : '') + '</span>' +
+                                 '<span style="color:' + changeColor + '; font-weight:600; font-size:0.8em;"> (' + changeStr + ')</span>';
+            }
+        }
+        let winnerEloBadge = '';
+        if (winnerId) {
+            const eloEntry = eloHistoryMap[String(session.session_id) + '_' + String(winnerId)];
+            if (eloEntry) {
+                const newRating = Math.round(Number(eloEntry.new_rating));
+                const change = Math.round(Number(eloEntry.change));
+                const changeStr = change >= 0 ? '+' + change : String(change);
+                const changeColor = change > 0 ? '#4caf50' : change < 0 ? '#f5576c' : '#666';
+                winnerEloBadge = ' <span class="elo-badge" style="background:#1a1a2e; color:#ffd700; font-size:0.75em;">⚡ ' + newRating + '</span>' +
                                  '<span style="color:' + changeColor + '; font-weight:600; font-size:0.8em;"> (' + changeStr + ')</span>';
             }
         }
