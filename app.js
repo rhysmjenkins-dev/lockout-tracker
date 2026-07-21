@@ -1418,7 +1418,18 @@ async function loadPreviousSessions() {
         html += '<div class="session-item-header">' + session.title + '</div>';
         html += '<div class="session-item-info" style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">';
         html += '<div>📅 ' + cleanDate + ' • ' + handCount + ' hands • ' + playerIds.length + ' players</div>';
-        html += '<div style="color: #4caf50; font-weight: 600;">🏆 ' + winnerName + ' (' + lowestScore + ' pts)</div>';
+         let winnerEloBadge = '';
+        if (winnerId) {
+            const winnerElo = getPlayerElo(winnerId);
+            if (winnerElo) {
+                const changeStr = winnerElo.change >= 0 ? '+' + winnerElo.change : String(winnerElo.change);
+                const changeColor = winnerElo.change > 0 ? '#4caf50' : winnerElo.change < 0 ? '#f5576c' : '#666';
+                winnerEloBadge = ' <span class="elo-badge" style="background:#1a1a2e; color:#ffd700; font-size:0.75em;">⚡ ' + winnerElo.rating + (winnerElo.provisional ? '?' : '') + '</span>' +
+                                 '<span style="color:' + changeColor + '; font-weight:600; font-size:0.8em;"> (' + changeStr + ')</span>';
+            }
+        }
+        html += '<div style="color: #4caf50; font-weight: 600;">🏆 ' + winnerName + ' (' + lowestScore + ' pts)' + winnerEloBadge + '</div>';
+
         if (session.tags && session.tags !== '') {
             var tagsArray = session.tags.split(',').filter(function(t) { return t.trim(); });
             if (tagsArray.length > 0) {
@@ -1502,7 +1513,25 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
         }
     }
 
-    const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return playerTotals[a] - playerTotals[b]; });
+const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return playerTotals[a] - playerTotals[b]; });
+
+    const sessionElo = {};
+    for (let i = 0; i < sortedPlayers.length; i++) {
+        const pid = sortedPlayers[i];
+        const history = await apiCall('getEloHistory', { player_id: pid });
+        if (!history.error) {
+            for (let j = 0; j < history.length; j++) {
+                if (String(history[j].session_id) === String(session.session_id)) {
+                    sessionElo[pid] = {
+                        new_rating: Math.round(Number(history[j].new_rating)),
+                        change: Math.round(Number(history[j].change))
+                    };
+                    break;
+                }
+            }
+        }
+    }
+    const hasElo = Object.keys(sessionElo).length > 0;
 
     let html = '<h3>Final Scores</h3>';
     html += '<p class="text-muted text-sm mb-10">💡 Click column headers to sort</p>';
@@ -1528,8 +1557,16 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
         const avgLockoutScore = stats.lockoutScores.length > 0 ? (stats.lockoutScores.reduce((sum, s) => sum + s, 0) / stats.lockoutScores.length).toFixed(2) : 'N/A';
         const falseLockoutRate = stats.totalLockouts > 0 ? ((stats.falseLockouts / stats.totalLockouts) * 100).toFixed(1) : '0';
         const avgFalseLockoutScore = stats.falseLockoutScores.length > 0 ? (stats.falseLockoutScores.reduce((sum, s) => sum + s, 0) / stats.falseLockoutScores.length).toFixed(2) : 'N/A';
-        html += '<tr><td><strong>' + getPlayerName(playerId) + '</strong></td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
-    }
+        let eloBadge = '';
+        if (hasElo && sessionElo[playerId]) {
+            const change = sessionElo[playerId].change;
+            const changeStr = change >= 0 ? '+' + change : String(change);
+            const changeColor = change > 0 ? '#4caf50' : change < 0 ? '#f5576c' : '#666';
+            eloBadge = ' <span class="elo-badge" style="background:#1a1a2e; color:#ffd700; font-size:0.75em;">⚡ ' + sessionElo[playerId].new_rating + '</span>' +
+                       '<span style="color:' + changeColor + '; font-weight:600; font-size:0.8em;"> (' + changeStr + ')</span>';
+        }
+        html += '<tr><td><strong>' + getPlayerName(playerId) + '</strong>' + eloBadge + '</td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
+}
 html += '</table></div>';
 document.getElementById('sessionDetailContent').innerHTML = html;
 
@@ -1566,7 +1603,7 @@ for (let i = 0; i < handNumbers.length; i++) {
 handHistoryHtml += '</div></div>';
 document.getElementById('sessionDetailHandHistory').innerHTML = handHistoryHtml;
 
-    let graphsHtml = '<h3>Graphs</h3>';
+    let graphsHtml = '<h3 class="mt-20">Graphs</h3>';
     graphsHtml += '<div class="chart-container"><canvas id="wormChart"></canvas></div>';
     graphsHtml += '<div class="chart-container"><canvas id="manhattanChart"></canvas></div>';
     document.getElementById('sessionDetailGraphs').innerHTML = graphsHtml;
