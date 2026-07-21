@@ -30,8 +30,8 @@
                 <div id="activeSessionsSection">
                     <div class="loading">Loading active sessions...</div>
                 </div>
-<div id="eloLeaderboardSection"></div>
-<button class="btn" onclick="showScreen('startSessionScreen')">🎮 Start New Session</button>
+                <div id="eloLeaderboardSection"></div>
+                <button class="btn" onclick="showScreen('startSessionScreen')">🎮 Start New Session</button>
                 <button class="btn btn-secondary" onclick="showScreen('previousSessionsScreen'); loadPreviousSessions();">📊 View Previous Sessions</button>
                 <button class="btn btn-secondary" onclick="showScreen('statsScreen'); loadStats();">📈 View Stats</button>
                 <button class="btn btn-secondary" onclick="showScreen('addPlayerScreen')">➕ Add New Player</button>
@@ -152,43 +152,43 @@
                         <!-- Game Terms -->
                         <div class="section-box section-box-green">
                             <h3 class="section-heading-green">🎴 Game Terms</h3>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Lockout</h4><p class="p-muted">Declaring that you have 5 points or less at the start of your turn. If successful (strictly lowest score), you score 0 for the hand.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">False Lockout</h4><p class="p-muted">A failed lockout attempt where either your score is greater than 5, or you're tied/higher than another player. Results in your lockout score + penalty.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Lockout Score</h4><p class="p-muted">The actual hand total you had when you declared lockout (e.g., 3 points). Recorded separately for statistics even if you score 0.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Hand</h4><p class="p-muted">A single round of play, from deal to lockout reveal. Multiple hands make up a session.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Session</h4><p class="p-muted">A complete game consisting of multiple hands. Ends when players decide (fixed hands, score target, or event end).</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Formation</h4><p class="p-muted">The arrangement of your face-down cards (typically 2×2 or 1×4). Cards must stay in their original positions for memory tracking.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Magic Cards</h4><p class="p-muted">Cards with special abilities when drawn from the deck: 7 (look at own card), 8 (look at opponent's card), 9 (blind swap), 10 (open swap), Red Jack (swap between two opponents).</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Slam</h4><p class="p-muted">An out-of-turn action where you match a discarded card with one in your hand or an opponent's hand. Reduces hand size or penalizes opponents.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Penalty Card</h4><p class="p-muted">A face-down card added to your hand (without looking) as punishment for incorrect slams or being correctly slammed by an opponent.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Defense</h4><p class="p-muted">Protecting your card from being slammed by placing your finger on it first when you see an opponent approaching.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Late Joiner</h4><p class="p-muted">A player who joins mid-session. Their starting score equals the average of all current players' totals at the hand they join.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Cumulative Score</h4><p class="p-muted">Your total score across all hands in a session. Lowest cumulative score wins.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Red King</h4><p class="p-muted">The only card worth -1 points (King of Hearts or Diamonds). Cannot be slammed.</p></div>
+                            <div class="content-card-sm" id="glossaryLockout"><h4 class="heading-blue-sm">Lockout</h4><p class="p-muted">Declaring that you have 5 points or less at the start of your turn. If successful (strictly lowest score), you score 0 for the hand.</p></div>
+                            <div class="content-card-sm" id="glossaryFalseLockout"><h4 class="heading-blue-sm">False Lockout</h4><p class="p-muted">A failed lockout attempt where either your score is greater than 5, or you're tied/higher than another player. Results in your lockout score + penalty.</p></div>
+                            <div class="content-card-sm" id="glossaryLockoutScore"><h4 class="heading-blue-sm">Lockout Score</h4><p class="p-muted">The actual hand total you had when you declared lockout (e.g., 3 points). Recorded separately for statistics even if you score 0.</p></div>
+                            <div class="content-card-sm" id="glossaryHand"><h4 class="heading-blue-sm">Hand</h4><p class="p-muted">A single round of play, from deal to lockout reveal. Multiple hands make up a session.</p></div>
+                            <div class="content-card-sm" id="glossarySession"><h4 class="heading-blue-sm">Session</h4><p class="p-muted">A complete game consisting of multiple hands. Ends when players decide (fixed hands, score target, or event end).</p></div>
+                            <div class="content-card-sm" id="glossaryFormation"><h4 class="heading-blue-sm">Formation</h4><p class="p-muted">The arrangement of your face-down cards (typically 2×2 or 1×4). Cards must stay in their original positions for memory tracking.</p></div>
+                            <div class="content-card-sm" id="glossaryMagicCards"><h4 class="heading-blue-sm">Magic Cards</h4><p class="p-muted">Cards with special abilities when drawn from the deck: 7 (look at own card), 8 (look at opponent's card), 9 (blind swap), 10 (open swap), Red Jack (swap between two opponents).</p></div>
+                            <div class="content-card-sm" id="glossarySlam"><h4 class="heading-blue-sm">Slam</h4><p class="p-muted">An out-of-turn action where you match a discarded card with one in your hand or an opponent's hand. Reduces hand size or penalizes opponents.</p></div>
+                            <div class="content-card-sm" id="glossaryPenaltyCard"><h4 class="heading-blue-sm">Penalty Card</h4><p class="p-muted">A face-down card added to your hand (without looking) as punishment for incorrect slams or being correctly slammed by an opponent.</p></div>
+                            <div class="content-card-sm" id="glossaryDefense"><h4 class="heading-blue-sm">Defense</h4><p class="p-muted">Protecting your card from being slammed by placing your finger on it first when you see an opponent approaching.</p></div>
+                            <div class="content-card-sm" id="glossaryLateJoiner"><h4 class="heading-blue-sm">Late Joiner</h4><p class="p-muted">A player who joins mid-session. Their starting score equals the average of all current players' totals at the hand they join.</p></div>
+                            <div class="content-card-sm" id="glossaryCumulativeScore"><h4 class="heading-blue-sm">Cumulative Score</h4><p class="p-muted">Your total score across all hands in a session. Lowest cumulative score wins.</p></div>
+                            <div class="content-card-sm" id="glossaryRedKing"><h4 class="heading-blue-sm">Red King</h4><p class="p-muted">The only card worth -1 points (King of Hearts or Diamonds). Cannot be slammed.</p></div>
                         </div>
                         <!-- App Terms -->
                         <div class="section-box section-box-purple">
                             <h3 class="section-heading-purple">📱 App-Specific Terms</h3>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Active Session</h4><p class="p-muted">A session currently in progress (not yet ended). Can be resumed from the home screen.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Previous Sessions</h4><p class="p-muted">Completed sessions that have been ended. Viewable with full stats and graphs.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Worm Chart (Cricket Worm)</h4><p class="p-muted">A line graph showing cumulative scores over time for all players in a session.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Manhattan Chart</h4><p class="p-muted">A bar chart showing hand-by-hand scores for all players in a session.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Head-to-Head Record</h4><p class="p-muted">Direct win/loss record between two players when they compete in the same session (who finished with lower score).</p></div>
+                            <div class="content-card-sm" id="glossaryActiveSession"><h4 class="heading-blue-sm">Active Session</h4><p class="p-muted">A session currently in progress (not yet ended). Can be resumed from the home screen.</p></div>
+                            <div class="content-card-sm" id="glossaryPreviousSessions"><h4 class="heading-blue-sm">Previous Sessions</h4><p class="p-muted">Completed sessions that have been ended. Viewable with full stats and graphs.</p></div>
+                            <div class="content-card-sm" id="glossaryWormChart"><h4 class="heading-blue-sm">Worm Chart (Cricket Worm)</h4><p class="p-muted">A line graph showing cumulative scores over time for all players in a session.</p></div>
+                            <div class="content-card-sm" id="glossaryManhattanChart"><h4 class="heading-blue-sm">Manhattan Chart</h4><p class="p-muted">A bar chart showing hand-by-hand scores for all players in a session.</p></div>
+                            <div class="content-card-sm" id="glossaryH2H"><h4 class="heading-blue-sm">Head-to-Head Record</h4><p class="p-muted">Direct win/loss record between two players when they compete in the same session (who finished with lower score).</p></div>
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Sessions Together</h4><p class="p-muted">Statistics for two players when they both participated in the same session.</p></div>
                             <div class="content-card-sm"><h4 class="heading-blue-sm">All Sessions</h4><p class="p-muted">Individual statistics for a player across every session they've played (regardless of opponents).</p></div>
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Performance Context</h4><p class="p-muted">How a player's head-to-head record against another player varies depending on who else is playing.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Lockout Rate</h4><p class="p-muted">Percentage of hands where a player successfully locked out (successful lockouts ÷ total hands played).</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">False Lockout Rate</h4><p class="p-muted">Percentage of lockout attempts that were false (false lockouts ÷ total lockout attempts).</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Average Lockout Score</h4><p class="p-muted">The mean score of all successful lockouts by a player. Lower is better (indicates locking out with minimal points).</p></div>
+                            <div class="content-card-sm" id="glossaryLockoutRate"><h4 class="heading-blue-sm">Lockout Rate</h4><p class="p-muted">Percentage of hands where a player successfully locked out (successful lockouts ÷ total hands played).</p></div>
+                            <div class="content-card-sm" id="glossaryFalseLockoutRate"><h4 class="heading-blue-sm">False Lockout Rate</h4><p class="p-muted">Percentage of lockout attempts that were false (false lockouts ÷ total lockout attempts).</p></div>
+                            <div class="content-card-sm" id="glossaryAvgLockoutScore"><h4 class="heading-blue-sm">Average Lockout Score</h4><p class="p-muted">The mean score of all successful lockouts by a player. Lower is better (indicates locking out with minimal points).</p></div>
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Average Hand</h4><p class="p-muted">Mean score per hand played (total score ÷ hands played). Excludes starting scores for late joiners.</p></div>
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Hand Streak</h4><p class="p-muted">Consecutive hands won (successful lockouts). Resets on false lockout or non-lockout hand.</p></div>
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Win Rate</h4><p class="p-muted">Percentage of sessions won (sessions won ÷ sessions played).</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Session Tags</h4><p class="p-muted">Categories applied to sessions (e.g., Casual, Holiday, Pub, Tournament) for filtering and organization.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Edit History</h4><p class="p-muted">A log of all changes made to sessions and hands, tracking who edited what and when.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">ELO Rating</h4><p class="p-muted">A number representing a player's skill level. All players start at 1000. Goes up when you finish higher than expected, down when you finish lower. Visible on the home screen and stats page.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Provisional Rating (?)</h4><p class="p-muted">A rating marked with ? meaning the player has played fewer than 50 hands. Provisional ratings move faster to help find your true level quickly. Once you hit 50 hands the ? disappears and your rating stabilises.</p></div>
+                            <div class="content-card-sm" id="glossarySessionTags"><h4 class="heading-blue-sm">Session Tags</h4><p class="p-muted">Categories applied to sessions (e.g., Casual, Holiday, Pub, Tournament) for filtering and organization.</p></div>
+                            <div class="content-card-sm" id="glossaryEditHistory"><h4 class="heading-blue-sm">Edit History</h4><p class="p-muted">A log of all changes made to sessions and hands, tracking who edited what and when.</p></div>
+                            <div class="content-card-sm" id="glossaryEloRating"><h4 class="heading-blue-sm">ELO Rating</h4><p class="p-muted">A number representing a player's skill level. All players start at 1000. Goes up when you finish higher than expected, down when you finish lower. Visible on the home screen and stats page.</p></div>
+                            <div class="content-card-sm" id="glossaryProvisionalRating"><h4 class="heading-blue-sm">Provisional Rating (?)</h4><p class="p-muted">A rating marked with ? meaning the player has played fewer than 50 hands. Provisional ratings move faster to help find your true level quickly. Once you hit 50 hands the ? disappears and your rating stabilises.</p></div>
                             <div class="content-card-sm" id="kFactorEntry"><h4 class="heading-blue-sm">K-Factor</h4><p class="p-muted">Controls how much your ELO changes per session. Provisional players use K=40 (bigger swings), established players use K=24 (more stable). Named after the chess rating system it's borrowed from.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Rank-Based ELO</h4><p class="p-muted">ELO calculated from finishing position (1st, 2nd, 3rd etc.) rather than head-to-head results. Handles any number of players fairly — total rating change always sums to zero across all players in a session.</p></div>
+                            <div class="content-card-sm" id="glossaryRankBasedElo"><h4 class="heading-blue-sm">Rank-Based ELO</h4><p class="p-muted">ELO calculated from finishing position (1st, 2nd, 3rd etc.) rather than head-to-head results. Handles any number of players fairly — total rating change always sums to zero across all players in a session.</p></div>
                         </div>
                     </div>
                 </div>
@@ -228,7 +228,7 @@
                                         <li><strong>Session Title</strong> (e.g., "Magaluf 2024", "Friday Night")</li>
                                         <li><strong>Host</strong> (who's organizing/tracking)</li>
                                         <li><strong>Session Notes</strong> (optional - e.g., "Playing at John's house")</li>
-                                        <li><strong>Session Type</strong> (optional tags - Casual, Holiday, Pub, etc.)</li>
+                                        <li><strong>Session Type</strong> (optional <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossarySessionTags').scrollIntoView({behavior:'smooth'}); return false;">tags</a> - Casual, Holiday, Pub, etc.)</li>
                                         <li><strong>False Lockout Penalty</strong> (default: 10 points)</li>
                                         <li><strong>Select Players</strong> (check all players participating)</li>
                                     </ul>
@@ -247,7 +247,7 @@
                             <ol class="list-indented">
                                 <li><strong>Enter Lockout Scores</strong>
                                     <ul class="list-nested">
-                                        <li>Input the <strong>lockout score</strong> for each player (the score they called lockout with)</li>
+                                        <li>Input the <strong><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryLockoutScore').scrollIntoView({behavior:'smooth'}); return false;">lockout score</a></strong> for each player (the score they called lockout with)</li>
                                         <li>Example: If a player locked out with 3 points, enter <strong>3</strong></li>
                                     </ul>
                                 </li>
@@ -256,7 +256,7 @@
                                         <li>Tap the radio button next to the player who declared lockout</li>
                                     </ul>
                                 </li>
-                                <li><strong>False Lockout Detection</strong>
+                                <li><strong><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryFalseLockout').scrollIntoView({behavior:'smooth'}); return false;">False Lockout</a> Detection</strong>
                                     <ul class="list-nested">
                                         <li>The app automatically checks if the lockout is valid:
                                             <ul class="list-nested-tight">
@@ -292,14 +292,14 @@
                             <ul class="list-indented">
                                 <li>✅ Successful lockout → 0 points (negative scores preserved)</li>
                                 <li>✅ False lockout → lockout score + penalty</li>
-                                <li>✅ Cumulative session scores</li>
+                                <li>✅ <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryCumulativeScore').scrollIntoView({behavior:'smooth'}); return false;">Cumulative</a> session scores</li>
                                 <li>✅ Hand-by-hand history</li>
-                                <li>✅ Live statistics (avg hand, lockout rate, etc.)</li>
-                                <li>✅ Real-time graphs (Worm chart, Manhattan chart)</li>
+                                <li>✅ Live statistics (avg hand, <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryLockoutRate').scrollIntoView({behavior:'smooth'}); return false;">lockout rate</a>, etc.)</li>
+                                <li>✅ Real-time graphs (<a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryWormChart').scrollIntoView({behavior:'smooth'}); return false;">Worm chart</a>, <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryManhattanChart').scrollIntoView({behavior:'smooth'}); return false;">Manhattan chart</a>)</li>
                             </ul>
                         </div>
                         <div class="content-card">
-                            <h4 class="heading-blue">Adding a Late Joiner</h4>
+                            <h4 class="heading-blue">Adding a <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryLateJoiner').scrollIntoView({behavior:'smooth'}); return false;">Late Joiner</a></h4>
                             <p class="mb-10">If a player joins mid-session:</p>
                             <ol class="list-indented">
                                 <li>Tap <strong>"➕ Add Player"</strong> button (in active session)</li>
@@ -336,10 +336,10 @@
                             <h4 class="heading-blue">Viewing Live Stats</h4>
                             <p class="mb-10">During an active session, scroll down to see:</p>
                             <ul class="list-indented">
-                                <li><strong>Current Scores Table</strong> (total, avg hand, lockout rate, etc.)</li>
+                                <li><strong>Current Scores Table</strong> (total, avg hand, <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryLockoutRate').scrollIntoView({behavior:'smooth'}); return false;">lockout rate</a>, etc.)</li>
                                 <li><strong>Session Statistics</strong> (total hands, avg score/hand, leader, biggest gap)</li>
-                                <li><strong>Lockout Performance</strong> (who has the best avg lockout score)</li>
-                                <li><strong>Graphs</strong> (Worm chart shows cumulative scores, Manhattan shows hand-by-hand)</li>
+                                <li><strong>Lockout Performance</strong> (who has the best <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryAvgLockoutScore').scrollIntoView({behavior:'smooth'}); return false;">avg lockout score</a>)</li>
+                                <li><strong>Graphs</strong> (<a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryWormChart').scrollIntoView({behavior:'smooth'}); return false;">Worm chart</a> shows cumulative scores, <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryManhattanChart').scrollIntoView({behavior:'smooth'}); return false;">Manhattan</a> shows hand-by-hand)</li>
                             </ul>
                         </div>
                         <div class="content-card">
@@ -362,7 +362,7 @@
                                     <ul class="list-nested">
                                         <li>Final scores table</li>
                                         <li>Hand-by-hand breakdown</li>
-                                        <li>Graphs (Worm, Manhattan)</li>
+                                        <li>Graphs (<a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryWormChart').scrollIntoView({behavior:'smooth'}); return false;">Worm</a>, <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryManhattanChart').scrollIntoView({behavior:'smooth'}); return false;">Manhattan</a>)</li>
                                         <li>Session notes/tags</li>
                                     </ul>
                                 </li>
@@ -383,16 +383,16 @@
                                         <li>Most sessions/hands won</li>
                                         <li>Best win rates (session & hand level)</li>
                                         <li>Lowest avg score/hand</li>
-                                        <li>Best avg lockout score</li>
+                                        <li>Best <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryAvgLockoutScore').scrollIntoView({behavior:'smooth'}); return false;">avg lockout score</a></li>
                                         <li>Longest hand streak</li>
-                                        <li>Most false lockouts</li>
+                                        <li>Most <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryFalseLockout').scrollIntoView({behavior:'smooth'}); return false;">false lockouts</a></li>
                                         <li><strong>Player Breakdown Table</strong> (all stats per player)</li>
                                     </ul>
                                 </li>
                             </ul>
                         </div>
                         <div class="content-card">
-                            <h4 class="heading-purple">Head-to-Head Records</h4>
+                            <h4 class="heading-purple"><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryH2H').scrollIntoView({behavior:'smooth'}); return false;">Head-to-Head</a> Records</h4>
                             <ul class="list-indented">
                                 <li>Tap <strong>"📈 View Stats"</strong> → <strong>"Head-to-Head Records"</strong></li>
                                 <li>See direct records when two players compete in the same session</li>
@@ -421,7 +421,7 @@
                     <div class="section-box section-box-cyan">
                         <h3 class="section-heading-cyan">⭐ KEY FEATURES</h3>
                         <div class="content-card">
-                            <h4 class="heading-cyan">Late Joiner Support</h4>
+                            <h4 class="heading-cyan"><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryLateJoiner').scrollIntoView({behavior:'smooth'}); return false;">Late Joiner</a> Support</h4>
                             <ul class="list-indented">
                                 <li>Players can join mid-session</li>
                                 <li>Starting score = average of all current players' totals at join hand</li>
@@ -430,15 +430,15 @@
                             </ul>
                         </div>
                         <div class="content-card">
-                            <h4 class="heading-cyan">Lockout Score Tracking</h4>
+                            <h4 class="heading-cyan"><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryLockoutScore').scrollIntoView({behavior:'smooth'}); return false;">Lockout Score</a> Tracking</h4>
                             <ul class="list-indented">
                                 <li>The app records <strong>lockout scores</strong> separately for stats purposes</li>
                                 <li>Even if a successful lockout scores 0, the lockout score (e.g., 3) is saved</li>
-                                <li>Used to calculate <strong>Avg Lockout Score</strong> statistics</li>
+                                <li>Used to calculate <strong><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryAvgLockoutScore').scrollIntoView({behavior:'smooth'}); return false;">Avg Lockout Score</a></strong> statistics</li>
                             </ul>
                         </div>
                         <div class="content-card">
-                            <h4 class="heading-cyan">False Lockout Penalties</h4>
+                            <h4 class="heading-cyan"><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryFalseLockout').scrollIntoView({behavior:'smooth'}); return false;">False Lockout</a> Penalties</h4>
                             <ul class="list-indented">
                                 <li>Customizable per session (set during session creation)</li>
                                 <li>Default: 10 points</li>
@@ -448,8 +448,8 @@
                         <div class="content-card">
                             <h4 class="heading-cyan">Graphs</h4>
                             <ul class="list-indented">
-                                <li><strong>Worm Chart</strong> (Cricket Worm): Cumulative scores over time</li>
-                                <li><strong>Manhattan Chart:</strong> Hand-by-hand scores (bar chart)</li>
+                                <li><strong><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryWormChart').scrollIntoView({behavior:'smooth'}); return false;">Worm Chart</a></strong> (Cricket Worm): Cumulative scores over time</li>
+                                <li><strong><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryManhattanChart').scrollIntoView({behavior:'smooth'}); return false;">Manhattan Chart</a>:</strong> Hand-by-hand scores (bar chart)</li>
                                 <li>Both handle late joiners (show nulls before join)</li>
                             </ul>
                         </div>
@@ -457,7 +457,7 @@
                             <h4 class="heading-cyan">Session Metadata</h4>
                             <ul class="list-indented">
                                 <li><strong>Notes:</strong> Add context (e.g., "Playing at John's house")</li>
-                                <li><strong>Tags:</strong> Categorize sessions (Casual, Holiday, Pub, Tournament, etc.)</li>
+                                <li><strong><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossarySessionTags').scrollIntoView({behavior:'smooth'}); return false;">Tags</a>:</strong> Categorize sessions (Casual, Holiday, Pub, Tournament, etc.)</li>
                                 <li><strong>Clickable Session Links:</strong> In comparisons, tap session names to view details</li>
                             </ul>
                         </div>
@@ -482,8 +482,8 @@
                         <div class="content-card-sm"><p class="p-question">Q: Can I edit a hand after submitting?</p><p>A: Yes! Tap "Edit" next to any hand in the history. Only the most recent hand can be deleted.</p></div>
                         <div class="content-card-sm"><p class="p-question">Q: What if I accidentally end a session?</p><p>A: Ended sessions cannot be reopened. Start a new session if needed.</p></div>
                         <div class="content-card-sm"><p class="p-question">Q: Can I remove a player from a session?</p><p>A: No, once a player is added (either at start or mid-session), they cannot be removed. Plan carefully!</p></div>
-                        <div class="content-card-sm"><p class="p-question">Q: What if two players tie for lowest after a lockout?</p><p>A: The locked-out player gets a false lockout penalty. The other tied player keeps their original score (not reset to 0).</p></div>
-                        <div class="content-card-sm"><p class="p-question">Q: How are late joiner starting scores calculated?</p><p>A: Average of all current players' cumulative totals at the hand they join.</p></div>
+                        <div class="content-card-sm"><p class="p-question">Q: What if two players tie for lowest after a lockout?</p><p>A: The locked-out player gets a <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryFalseLockout').scrollIntoView({behavior:'smooth'}); return false;">false lockout</a> penalty. The other tied player keeps their original score (not reset to 0).</p></div>
+                        <div class="content-card-sm"><p class="p-question">Q: How are <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryLateJoiner').scrollIntoView({behavior:'smooth'}); return false;">late joiner</a> starting scores calculated?</p><p>A: Average of all current players' cumulative totals at the hand they join.</p></div>
                         <div class="content-card-sm"><p class="p-question">Q: Why does the app ask for lockout scores, not final scores?</p><p>A: The app calculates final scores automatically based on lockout validity. You only input the score the player called lockout with.</p></div>
                     </div>
 
@@ -493,21 +493,21 @@
                         <div class="content-card">
                             <h4 class="heading-blue">What is ELO?</h4>
                             <ul class="list-indented">
-                                <li>A skill rating system borrowed from chess</li>
+                                <li>A skill rating system borrowed from chess — <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryEloRating').scrollIntoView({behavior:'smooth'}); return false;">see ELO Rating in glossary</a></li>
                                 <li>All players <strong>start at 1000</strong></li>
                                 <li>Goes <strong>up</strong> when you finish higher than expected</li>
                                 <li>Goes <strong>down</strong> when you finish lower than expected</li>
-                                <li>Total rating change always <strong>sums to zero</strong> across all players in a session</li>
+                                <li>Total rating change always <strong>sums to zero</strong> across all players in a session — <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryRankBasedElo').scrollIntoView({behavior:'smooth'}); return false;">see Rank-Based ELO</a></li>
                                 <li><strong>Testing sessions</strong> are excluded from ELO calculations</li>
                             </ul>
                         </div>
                         <div class="content-card">
-                            <h4 class="heading-blue">Provisional Ratings (?)</h4>
+                            <h4 class="heading-blue"><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryProvisionalRating').scrollIntoView({behavior:'smooth'}); return false;">Provisional Ratings</a> (?)</h4>
                             <ul class="list-indented">
                                 <li>New players show a <strong>?</strong> next to their rating (e.g. <strong>1045?</strong>)</li>
                                 <li>Provisional = under 50 hands played</li>
-<li>Provisional ratings move faster (K=40) to find your true level quickly — <a href="#" class="p-muted" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('kFactorEntry').scrollIntoView({behavior:'smooth'}); return false;">what is K-Factor?</a></li>
-<li>Once you hit 50 hands the ? disappears and rating stabilises (K=24)</li>
+                                <li>Provisional ratings move faster (K=40) to find your true level quickly — <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('kFactorEntry').scrollIntoView({behavior:'smooth'}); return false;">what is K-Factor?</a></li>
+                                <li>Once you hit 50 hands the ? disappears and rating stabilises (K=24)</li>
                                 <li>The 50-hand threshold is checked at the <strong>start of each session</strong> — K won't switch mid-session</li>
                             </ul>
                         </div>
@@ -536,7 +536,7 @@
                         <ul class="list-indented">
                             <li>All data is stored in <strong>Google Sheets</strong> (your own spreadsheet)</li>
                             <li>No data is shared with third parties</li>
-                            <li>Edit history tracks all changes (who edited what and when)</li>
+                            <li><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryEditHistory').scrollIntoView({behavior:'smooth'}); return false;">Edit history</a> tracks all changes (who edited what and when)</li>
                         </ul>
                     </div>
 
@@ -551,7 +551,7 @@
                 <h2>📜 Lockout - Official Rules</h2>
                 <div class="banner-purple banner-center">
                     <h3 class="heading-banner">🎯 OBJECTIVE</h3>
-                    <p class="banner-body-lg">Be the player with the <strong>lowest cumulative score</strong> at the end of the session by winning hands through successful lockouts.</p>
+                    <p class="banner-body-lg">Be the player with the lowest <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryCumulativeScore').scrollIntoView({behavior:'smooth'}); return false;">cumulative score</a> at the end of the session by winning hands through successful lockouts.</p>
                 </div>
                 <div class="scroll-container-lg">
 
@@ -564,7 +564,7 @@
                         <ol class="list-indented">
                             <li>Choose a dealer (rotates clockwise each hand)</li>
                             <li>Deal 4 cards <strong>face down</strong> to each player</li>
-                            <li>Players arrange their 4 cards in a formation in front of them (common: 2×2 grid or 1×4 row)</li>
+                            <li>Players arrange their 4 cards in a <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryFormation').scrollIntoView({behavior:'smooth'}); return false;">formation</a> in front of them (common: 2×2 grid or 1×4 row)</li>
                             <li>Each player may <strong>secretly look at any 2</strong> of their 4 cards, then place them back face down</li>
                             <li>Place remaining deck face down in the center (draw pile)</li>
                             <li>Player to the dealer's left goes first</li>
@@ -595,7 +595,7 @@
                                 <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">10</td>
                             </tr>
                             <tr style="background: #ffe8e8;">
-                                <td style="padding: 10px; font-weight: bold;">Red King ♥️ ♦️</td>
+                                <td style="padding: 10px; font-weight: bold;"><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryRedKing').scrollIntoView({behavior:'smooth'}); return false;">Red King</a> ♥️ ♦️</td>
                                 <td style="padding: 10px; font-weight: bold;">-1</td>
                             </tr>
                         </table>
@@ -630,7 +630,7 @@
 
                     <!-- MAGIC CARDS -->
                     <div class="section-box section-box-purple">
-                        <h3 class="section-heading-purple">✨ MAGIC CARDS</h3>
+                        <h3 class="section-heading-purple">✨ <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryMagicCards').scrollIntoView({behavior:'smooth'}); return false;">MAGIC CARDS</a></h3>
                         <p class="mb-15">When you <strong>draw</strong> these cards from the <strong>draw pile</strong> (not discard), you may use their special ability before deciding to swap or discard:</p>
                         <table class="rules-table">
                             <tr style="background: #9c27b0; color: white;">
@@ -665,7 +665,7 @@
 
                     <!-- SLAMS -->
                     <div class="section-box section-box-orange">
-                        <h3 class="section-heading-orange">👊 SLAMS</h3>
+                        <h3 class="section-heading-orange">👊 <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossarySlam').scrollIntoView({behavior:'smooth'}); return false;">SLAMS</a></h3>
                         <div class="alert-box-red">
                             <strong>⚡ Slams can happen at any time, out of turn!</strong>
                         </div>
@@ -675,7 +675,7 @@
                             <ol class="list-indented">
                                 <li>Quickly turn over the matching card from your hand</li>
                                 <li><strong>If correct:</strong> Place it on the discard pile (you now have one fewer card = lower score!)</li>
-                                <li><strong>If incorrect:</strong> Take a 1-card penalty from the draw pile (place face down in your hand without looking)</li>
+                                <li><strong>If incorrect:</strong> Take a 1-card <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryPenaltyCard').scrollIntoView({behavior:'smooth'}); return false;">penalty card</a> from the draw pile (place face down in your hand without looking)</li>
                             </ol>
                         </div>
                         <div class="content-card">
@@ -683,23 +683,23 @@
                             <ol class="list-indented">
                                 <li>Quickly place your finger on their card</li>
                                 <li>Turn it over to reveal</li>
-                                <li><strong>If correct:</strong> They take a 1-card penalty from the draw pile (placed face down without looking)</li>
-                                <li><strong>If incorrect:</strong> You take a 1-card penalty</li>
+                                <li><strong>If correct:</strong> They take a 1-card <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryPenaltyCard').scrollIntoView({behavior:'smooth'}); return false;">penalty card</a> from the draw pile (placed face down without looking)</li>
+                                <li><strong>If incorrect:</strong> You take a 1-card <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryPenaltyCard').scrollIntoView({behavior:'smooth'}); return false;">penalty card</a></li>
                             </ol>
                         </div>
                         <div class="content-card">
                             <h4 class="heading-orange">Slam Rules</h4>
                             <ul class="list-indented">
                                 <li><strong>Suits don't matter</strong> (only card values)</li>
-                                <li><strong>Red Kings cannot be slammed</strong></li>
+                                <li><strong><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryRedKing').scrollIntoView({behavior:'smooth'}); return false;">Red Kings</a> cannot be slammed</strong></li>
                                 <li><strong>You cannot slam on a card you just discarded</strong> — BUT if another player slams before the next discard, the top card becomes "fresh" and you may slam</li>
                                 <li><strong>Once the next player discards</strong>, the card below is no longer slammable</li>
                                 <li><strong>Multiple players can slam simultaneously</strong> (4 of each card type exist in the deck)</li>
-                                <li><strong>Defense:</strong> You may protect your card by placing your finger on it first when you see someone approaching to slam</li>
+                                <li><strong><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryDefense').scrollIntoView({behavior:'smooth'}); return false;">Defense</a>:</strong> You may protect your card by placing your finger on it first when you see someone approaching to slam</li>
                             </ul>
                         </div>
                         <div class="info-box">
-                            <strong>ℹ️ Penalty Cards:</strong> Drawn from the draw pile, placed face down in your hand without looking. Added to your formation (formations can grow beyond 4 cards). Cannot be rearranged or moved (unless removed via slam).
+                            <strong>ℹ️ <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryPenaltyCard').scrollIntoView({behavior:'smooth'}); return false;">Penalty Cards</a>:</strong> Drawn from the draw pile, placed face down in your hand without looking. Added to your formation (formations can grow beyond 4 cards). Cannot be rearranged or moved (unless removed via slam).
                         </div>
                     </div>
 
@@ -711,7 +711,7 @@
                             <h4 class="mb-10">When to Lockout</h4>
                             <ul class="list-indented">
                                 <li><strong>Only at the start of your turn</strong> (before drawing)</li>
-                                <li>Your hand total must be <strong>5 or less</strong> (minimum: -2 with two Red Kings)</li>
+                                <li>Your hand total must be <strong>5 or less</strong> (minimum: -2 with two <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryRedKing').scrollIntoView({behavior:'smooth'}); return false;">Red Kings</a>)</li>
                                 <li><strong>Only one player can lockout per hand</strong></li>
                             </ul>
                         </div>
@@ -734,7 +734,7 @@
                             <p class="p-italic-top"><strong>Exception:</strong> If your total is negative, you keep the negative score (it's a benefit!)</p>
                         </div>
                         <div class="lockout-box-white">
-                            <h4 class="heading-red-sm">❌ False Lockout</h4>
+                            <h4 class="heading-red-sm">❌ <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryFalseLockout').scrollIntoView({behavior:'smooth'}); return false;">False Lockout</a></h4>
                             <p class="mb-10">You score <strong>your hand total + penalty</strong> if:</p>
                             <ul class="list-indented">
                                 <li>Your hand total is <strong>greater than 5</strong>, OR</li>
@@ -752,7 +752,7 @@
                     <div class="section-box section-box-yellow">
                         <h3 class="section-heading-yellow">🏆 WINNING THE GAME</h3>
                         <ul class="list-indented">
-                            <li><strong>Lowest cumulative score</strong> across all hands wins the session</li>
+                            <li><strong>Lowest <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryCumulativeScore').scrollIntoView({behavior:'smooth'}); return false;">cumulative score</a></strong> across all hands wins the session</li>
                             <li>Sessions end when players decide (fixed number of hands, score target, end of event, etc.)</li>
                         </ul>
                     </div>
@@ -770,8 +770,8 @@
                         <div class="content-card">
                             <h4 class="heading-cyan">Memory is Key</h4>
                             <ul class="list-indented">
-                                <li>Cards never move positions (except when removed via slam)</li>
-                                <li>Track what you've seen through magic cards and discards</li>
+                                <li>Cards never move positions (except when removed via <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossarySlam').scrollIntoView({behavior:'smooth'}); return false;">slam</a>)</li>
+                                <li>Track what you've seen through <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryMagicCards').scrollIntoView({behavior:'smooth'}); return false;">magic cards</a> and discards</li>
                                 <li>Remember what other players know about your hand</li>
                             </ul>
                         </div>
@@ -781,9 +781,9 @@
                     <div class="banner-orange">
                         <h3 class="heading-banner-lg">💡 STRATEGY TIPS</h3>
                         <ul class="list-indented">
-                            <li>✅ <strong>Use magic cards wisely</strong> — knowing card locations is powerful</li>
-                            <li>✅ <strong>Slam aggressively</strong> — reducing your hand size lowers your score</li>
-                            <li>✅ <strong>Defend your cards</strong> — be ready to protect when you see opponents approaching</li>
+                            <li>✅ <strong>Use <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryMagicCards').scrollIntoView({behavior:'smooth'}); return false;">magic cards</a> wisely</strong> — knowing card locations is powerful</li>
+                            <li>✅ <strong><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossarySlam').scrollIntoView({behavior:'smooth'}); return false;">Slam</a> aggressively</strong> — reducing your hand size lowers your score</li>
+                            <li>✅ <strong><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); document.getElementById('glossaryDefense').scrollIntoView({behavior:'smooth'}); return false;">Defend</a> your cards</strong> — be ready to protect when you see opponents approaching</li>
                             <li>✅ <strong>Bluff strategically</strong> — mislead opponents about what you know</li>
                             <li>✅ <strong>Time your lockout</strong> — ensure you're strictly lowest before declaring</li>
                         </ul>
@@ -810,9 +810,9 @@
             <div class="card">
                 <h2 id="sessionDetailTitle">Session Details</h2>
                 <div id="sessionDetailMetadata"></div>
-<div id="sessionDetailContent"></div>
-<div id="sessionDetailGraphs"></div>
-<div id="sessionDetailHandHistory"></div>
+                <div id="sessionDetailContent"></div>
+                <div id="sessionDetailGraphs"></div>
+                <div id="sessionDetailHandHistory"></div>
                 <button class="btn btn-secondary" onclick="showScreen('previousSessionsScreen'); loadPreviousSessions();">Back to Sessions</button>
             </div>
         </div>
@@ -821,20 +821,19 @@
         <div id="statsScreen" class="screen">
             <div class="card">
                 <h2>📊 Statistics</h2>
-<div id="statsNav" class="stats-nav">
-    <button class="btn btn-small btn-info" onclick="showOverallStats()">Overall Stats</button>
-    <button class="btn btn-small btn-info" onclick="showHeadToHeadList()">Head-to-Head Records</button>
-    <button class="btn btn-small btn-info" onclick="showPlayerComparisonUI()">Detailed Comparison</button>
-    <button class="btn btn-small btn-success" onclick="showEloStats()">⚡ ELO Rankings</button>
-</div>
+                <div id="statsNav" class="stats-nav">
+                    <button class="btn btn-small btn-info" onclick="showOverallStats()">Overall Stats</button>
+                    <button class="btn btn-small btn-info" onclick="showHeadToHeadList()">Head-to-Head Records</button>
+                    <button class="btn btn-small btn-info" onclick="showPlayerComparisonUI()">Detailed Comparison</button>
+                    <button class="btn btn-small btn-success" onclick="showEloStats()">⚡ ELO Rankings</button>
+                </div>
                 <div id="statsContent" class="loading">Loading...</div>
-<button id="adminRecalcBtn" class="btn btn-danger mt-20" onclick="recalculateElo()" style="display:none;">🔧 Admin: Recalculate All ELO</button>
-<button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
-</div>
-</div>
+                <button id="adminRecalcBtn" class="btn btn-danger mt-20" onclick="recalculateElo()" style="display:none;">🔧 Admin: Recalculate All ELO</button>
+                <button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
+            </div>
+        </div>
 
-<!-- START SESSION SCREEN -->
-
+        <!-- START SESSION SCREEN -->
         <div id="startSessionScreen" class="screen">
             <div class="card">
                 <h2>Start New Session</h2>
@@ -975,5 +974,4 @@
     </div>
     <script src="app.js"></script>
 </body>
-
 </html>
