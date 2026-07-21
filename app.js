@@ -964,15 +964,15 @@ async function displayHandHistory(handsData) {
         for (let j = 0; j < hands.length; j++) {
             const h = hands[j];
             if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
-                if (h.lockout_score) {
-                    if (h.false_lockout == 1 || h.false_lockout === true) {
-                        scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + (h.score - h.lockout_score) + ' penalty) | ';
-                    } else {
-                        scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ') | ';
-                    }
-                } else {
-                    scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
-                }
+if (h.lockout_score !== null && h.lockout_score !== undefined && h.lockout_score !== '') {
+    if (h.false_lockout == 1 || h.false_lockout === true) {
+        scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ' + ' + (h.score - h.lockout_score) + ' penalty) | ';
+    } else {
+        scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' (' + h.lockout_score + ') | ';
+    }
+} else {
+    scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | ';
+}
                 lockoutPlayer = getPlayerName(h.player_id);
                 isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
             } else {
@@ -1611,9 +1611,9 @@ for (let i = 0; i < handNumbers.length; i++) {
     for (let j = 0; j < hands.length; j++) {
         const h = hands[j];
         if (h.lockout_player_id && String(h.lockout_player_id) === String(h.player_id)) {
-            if (h.lockout_score) {
-                scoreText += getPlayerName(h.player_id) + ': ' + h.score + (h.false_lockout == 1 || h.false_lockout === true ? ' (' + h.lockout_score + ' + ' + (h.score - h.lockout_score) + ' penalty)' : ' (' + h.lockout_score + ')') + ' | ';
-            } else { scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | '; }
+if (h.lockout_score !== null && h.lockout_score !== undefined && h.lockout_score !== '') {
+    scoreText += getPlayerName(h.player_id) + ': ' + h.score + (h.false_lockout == 1 || h.false_lockout === true ? ' (' + h.lockout_score + ' + ' + (h.score - h.lockout_score) + ' penalty)' : ' (' + h.lockout_score + ')') + ' | ';
+} else { scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | '; }
             lockoutPlayer = getPlayerName(h.player_id);
             isFalseLockout = (h.false_lockout == 1 || h.false_lockout === true);
         } else { scoreText += getPlayerName(h.player_id) + ': ' + h.score + ' | '; }
