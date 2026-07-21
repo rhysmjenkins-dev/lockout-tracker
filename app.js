@@ -2042,13 +2042,19 @@ async function showPlayerComparison() {
 // ============================================
 // DICTIONARY SECTION TOGGLE
 // ============================================
-function showDictionarySection(section) {
+function showDictionarySection(section, targetId) {
     if (section === 'lingo') {
         document.getElementById('lingoSection').style.display = 'block';
         document.getElementById('glossarySection').style.display = 'none';
     } else {
         document.getElementById('lingoSection').style.display = 'none';
         document.getElementById('glossarySection').style.display = 'block';
+    }
+    if (targetId) {
+        setTimeout(function() {
+            var el = document.getElementById(targetId);
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
     }
 }
 
