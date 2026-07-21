@@ -535,3 +535,11 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
 .display-block { display: block; }
 .color-666 { color: var(--text-muted); }
 .term-heading-blue { color: var(--primary); font-weight: 600; }
+.inline-link {
+    color: var(--primary);
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+.inline-link:hover { color: var(--primary-dark); }
