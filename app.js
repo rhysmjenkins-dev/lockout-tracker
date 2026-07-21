@@ -89,10 +89,7 @@ function formatEloBadge(playerId) {
     const elo = getPlayerElo(playerId);
     if (!elo) return '';
     const provisional = elo.provisional ? '?' : '';
-    const changeColor = elo.change >= 0 ? '#4caf50' : '#f44336';
-    const changeSign = elo.change >= 0 ? '+' : '';
-    return '<span class="elo-badge">⚡ ' + elo.rating + provisional + '</span>' +
-           '<span class="elo-change" style="color:' + changeColor + '">(' + changeSign + elo.change + ')</span>';
+    return '<span class="elo-badge">⚡ ' + elo.rating + provisional + '</span>';
 }
 
 async function displayEloLeaderboard() {
