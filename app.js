@@ -1502,9 +1502,27 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
         }
     }
 
-    const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return playerTotals[a] - playerTotals[b]; });
+const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return playerTotals[a] - playerTotals[b]; });
 
-    let html = '<h3>Final Scores</h3>';
+const sessionElo = {};
+for (let i = 0; i < sortedPlayers.length; i++) {
+    const pid = sortedPlayers[i];
+    const history = await apiCall('getEloHistory', { player_id: pid });
+    if (!history.error) {
+        for (let j = 0; j < history.length; j++) {
+            if (String(history[j].session_id) === String(session.session_id)) {
+                sessionElo[pid] = {
+                    new_rating: Math.round(Number(history[j].new_rating)),
+                    change: Math.round(Number(history[j].change))
+                };
+                break;
+            }
+        }
+    }
+}
+const hasElo = Object.keys(sessionElo).length > 0;
+
+let html = '<h3>Final Scores</h3>';
     html += '<p class="text-muted text-sm mb-10">💡 Click column headers to sort</p>';
     html += '<div class="overflow-x-auto"><table class="scores-table" id="sessionDetailTable"><tr>';
     html += '<th onclick="sortSessionTable(0)" style="cursor: pointer; user-select: none;">Player ⇅</th>';
@@ -1516,8 +1534,12 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
     html += '<th onclick="sortSessionTable(6)" style="cursor: pointer; user-select: none;">Avg LO Score ⇅</th>';
     html += '<th onclick="sortSessionTable(7)" style="cursor: pointer; user-select: none;">False LO ⇅</th>';
     html += '<th onclick="sortSessionTable(8)" style="cursor: pointer; user-select: none;">False LO Rate ⇅</th>';
-    html += '<th onclick="sortSessionTable(9)" style="cursor: pointer; user-select: none;">Avg False LO Score ⇅</th>';
-    html += '</tr>';
+html += '<th onclick="sortSessionTable(9)" style="cursor: pointer; user-select: none;">Avg False LO Score ⇅</th>';
+if (hasElo) {
+    html += '<th onclick="sortSessionTable(10)" style="cursor: pointer; user-select: none;">ELO ⇅</th>';
+    html += '<th onclick="sortSessionTable(11)" style="cursor: pointer; user-select: none;">ELO Change ⇅</th>';
+}
+html += '</tr>';
 
     for (let i = 0; i < sortedPlayers.length; i++) {
         const playerId = sortedPlayers[i], total = playerTotals[playerId];
@@ -1528,7 +1550,20 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
         const avgLockoutScore = stats.lockoutScores.length > 0 ? (stats.lockoutScores.reduce((sum, s) => sum + s, 0) / stats.lockoutScores.length).toFixed(2) : 'N/A';
         const falseLockoutRate = stats.totalLockouts > 0 ? ((stats.falseLockouts / stats.totalLockouts) * 100).toFixed(1) : '0';
         const avgFalseLockoutScore = stats.falseLockoutScores.length > 0 ? (stats.falseLockoutScores.reduce((sum, s) => sum + s, 0) / stats.falseLockoutScores.length).toFixed(2) : 'N/A';
-        html += '<tr><td><strong>' + getPlayerName(playerId) + '</strong></td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
+let rowHtml = '<tr><td><strong>' + getPlayerName(playerId) + '</strong></td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td>';
+if (hasElo) {
+    if (sessionElo[playerId]) {
+        const change = sessionElo[playerId].change;
+        const changeStr = change >= 0 ? '+' + change : String(change);
+        const changeColor = change > 0 ? 'color:#4caf50;' : change < 0 ? 'color:#f5576c;' : 'color:#666;';
+        rowHtml += '<td>' + sessionElo[playerId].new_rating + ' <span style="' + changeColor + 'font-weight:600;">(' + changeStr + ')</span></td>';
+        rowHtml += '<td style="' + changeColor + 'font-weight:600;">' + changeStr + '</td>';
+    } else {
+        rowHtml += '<td>—</td><td>—</td>';
+    }
+}
+rowHtml += '</tr>';
+html += rowHtml;
     }
 html += '</table></div>';
 document.getElementById('sessionDetailContent').innerHTML = html;
