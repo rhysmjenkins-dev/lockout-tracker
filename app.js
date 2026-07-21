@@ -1428,16 +1428,24 @@ async function loadPreviousSessions() {
         html += '<div class="session-item-header">' + session.title + '</div>';
         html += '<div class="session-item-info" style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">';
         html += '<div>📅 ' + cleanDate + ' • ' + handCount + ' hands • ' + playerIds.length + ' players</div>';
-         let winnerEloBadge = '';
+        let winnerLine = '🏆 ' + winnerName;
         if (winnerId) {
-            const winnerElo = getPlayerElo(winnerId);
-            if (winnerElo) {
-                const changeStr = winnerElo.change >= 0 ? '+' + winnerElo.change : String(winnerElo.change);
-                const changeColor = winnerElo.change > 0 ? '#4caf50' : winnerElo.change < 0 ? '#f5576c' : '#666';
-                winnerEloBadge = ' <span class="elo-badge" style="background:#1a1a2e; color:#ffd700; font-size:0.75em;">⚡ ' + winnerElo.rating + (winnerElo.provisional ? '?' : '') + '</span>' +
-                                 '<span style="color:' + changeColor + '; font-weight:600; font-size:0.8em;"> (' + changeStr + ')</span>';
+            const eloEntry = eloHistoryMap[String(session.session_id) + '_' + String(winnerId)];
+            if (eloEntry) {
+                const newRating = Math.round(Number(eloEntry.new_rating));
+                const change = Math.round(Number(eloEntry.change));
+                const changeStr = change >= 0 ? '+' + change : String(change);
+                const changeColor = change > 0 ? '#4caf50' : change < 0 ? '#f5576c' : '#666';
+                winnerLine += ' <span class="elo-badge" style="background:#1a1a2e; color:#ffd700; font-size:0.75em;">⚡ ' + newRating + '</span>' +
+                              ' <span style="color:' + changeColor + '; font-weight:600; font-size:0.8em;">(' + changeStr + ')</span>' +
+                              ' <span style="color:#888; font-size:0.85em;">• ' + lowestScore + ' pts</span>';
+            } else {
+                winnerLine += ' <span style="color:#888; font-size:0.85em;">• ' + lowestScore + ' pts</span>';
             }
+        } else {
+            winnerLine += ' <span style="color:#888; font-size:0.85em;">• ' + lowestScore + ' pts</span>';
         }
+        html += '<div style="color: #4caf50; font-weight: 600;">' + winnerLine + '</div>';
 
         if (session.tags && session.tags !== '') {
             var tagsArray = session.tags.split(',').filter(function(t) { return t.trim(); });
