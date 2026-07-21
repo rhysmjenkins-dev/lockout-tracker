@@ -2,6 +2,18 @@
 // CONFIGURATION & STATE
 // ============================================
 const API_URL = 'https://script.google.com/macros/s/AKfycbzcbiMfkq6D6PcySY2O-80NTHHmQplU0xzi1kzQG8OFuAYuw0F-YdI2IONkA3DVOhlH/exec';
+
+// ============================================
+// CONSTANTS
+// ============================================
+const CHART_COLORS = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+const DEFAULT_ELO = 1000;
+const PROVISIONAL_HANDS = 50;
+const PROVISIONAL_K = 40;
+const STANDARD_K = 24;
+const DEFAULT_FALSE_LOCKOUT_PENALTY = 10;
+const MIN_SCORE = -2;
+
 let currentSession = null;
 let currentHandNumber = 1;
 let allPlayers = [];
@@ -197,7 +209,7 @@ async function drawEloHistoryChart() {
     const container = document.getElementById('eloChartContainer');
     const ctx = document.getElementById('eloHistoryChart');
     if (!ctx) return;
-    const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+    const colors = CHART_COLORS;
 
     // Fetch sessions and all player histories in parallel
     const [sessionsData, ...allHistories] = await Promise.all([
@@ -884,7 +896,7 @@ async function submitHand() {
             const scoreVal = scoreInput.value.trim();
             if (scoreVal === '') { messageDiv.innerHTML = '<div class="error">Please enter all scores</div>'; setButtonLoading(submitBtn, false); return; }
             const scoreNum = parseFloat(scoreVal);
-            if (scoreNum < -2) { messageDiv.innerHTML = '<div class="error">Minimum score is -2 (two Red Kings)</div>'; hapticFeedback('error'); setButtonLoading(submitBtn, false); return; }
+            if (scoreNum < MIN_SCORE) { messageDiv.innerHTML = '<div class="error">Minimum score is -2 (two Red Kings)</div>'; hapticFeedback('error'); setButtonLoading(submitBtn, false); return; }
             scores.push({ player_id: player.player_id, score: scoreNum });
         }
     }
@@ -1087,7 +1099,7 @@ async function saveEditedHand() {
             const scoreVal = scoreInput.value.trim();
             if (scoreVal === '') { messageDiv.innerHTML = '<div class="error">Please enter all scores</div>'; setButtonLoading(saveBtn, false); return; }
             const scoreNum = parseFloat(scoreVal);
-            if (scoreNum < -2) { messageDiv.innerHTML = '<div class="error">Minimum score is -2 (two Red Kings)</div>'; hapticFeedback('error'); setButtonLoading(saveBtn, false); return; }
+            if (scoreNum < MIN_SCORE) { messageDiv.innerHTML = '<div class="error">Minimum score is -2 (two Red Kings)</div>'; hapticFeedback('error'); setButtonLoading(saveBtn, false); return; }
             scores.push({ player_id: player.player_id, score: scoreNum });
         }
     }
@@ -1335,7 +1347,7 @@ function drawActiveWormChart(playerHands, playerIds) {
 function drawActiveManhattanChart(playerHands, playerIds) {
     const ctx = document.getElementById('activeManhattanChart');
     if (!ctx) return;
-    const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+    const colors = CHART_COLORS;
     const maxHands = Math.max.apply(null, Object.keys(playerHands).map(k => playerHands[k].length));
     const labels = [];
     for (let i = 1; i <= maxHands; i++) labels.push('Hand ' + i);
@@ -1654,7 +1666,7 @@ function drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playe
 function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session) {
     const ctx = document.getElementById('manhattanChart');
     if (!ctx) return;
-    const colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
+    const colors = CHART_COLORS;
     let maxHand = 0;
     for (let playerId in playerHandScores) for (let i = 0; i < playerHandScores[playerId].length; i++) if (playerHandScores[playerId][i].handNum > maxHand) maxHand = playerHandScores[playerId][i].handNum;
     const labels = [];
