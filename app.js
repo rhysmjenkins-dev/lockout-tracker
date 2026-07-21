@@ -1286,7 +1286,7 @@ if (handsData.length === 0) {
         const falseLockoutRate = p.totalLockouts > 0 ? ((p.falseLockouts / p.totalLockouts) * 100).toFixed(1) : '0';
         const avgFalseLockoutScore = p.falseLockoutScores.length > 0 ? (p.falseLockoutScores.reduce((sum, s) => sum + s, 0) / p.falseLockoutScores.length).toFixed(2) : 'N/A';
         html += '<tr>';
-        html += '<td><strong>' + p.username + '</strong>' + (p.joinHand > 1 ? ' <span class="late-join-badge">H' + p.joinHand + '</span>' : '') + '</td>';
+        html += '<td><strong>' + p.username + '</strong>' + (p.joinHand > 1 ? ' <span class="late-join-badge">H' + p.joinHand + '</span>' : '') + ' ' + formatEloBadge(sessionPlayers.find(sp => sp.username === p.username).player_id) + '</td>';
         html += '<td>' + p.total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td>';
         html += '<td>' + p.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td>';
         html += '<td>' + p.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td>';
@@ -1885,7 +1885,7 @@ function displayOverallStats(stats, totalSessions) {
         const falseLockoutRate = ps.totalLockouts > 0 ? ((ps.falseLockouts / ps.totalLockouts) * 100).toFixed(1) : '0';
         const avgLockoutScore = ps.lockoutScores.length > 0 ? (ps.lockoutScores.reduce((sum, score) => sum + score, 0) / ps.lockoutScores.length).toFixed(2) : 'N/A';
         const avgFalseLockoutScore = ps.falseLockoutScores.length > 0 ? (ps.falseLockoutScores.reduce((sum, score) => sum + score, 0) / ps.falseLockoutScores.length).toFixed(2) : 'N/A';
-        html += '<tr><td>' + ps.username + '</td><td>' + ps.sessionsPlayed + '</td><td>' + ps.sessionsWon.toFixed(1) + '</td><td>' + sessionWinRate + '%</td><td>' + ps.handsPlayed + '</td><td>' + avgScore + '</td><td>' + ps.handsWon + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + ps.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
+        html += '<tr><td>' + ps.username + formatEloBadge(playerId) + '</td><td>' + ps.sessionsPlayed + '</td><td>' + ps.sessionsWon.toFixed(1) + '</td><td>' + sessionWinRate + '%</td><td>' + ps.handsPlayed + '</td><td>' + avgScore + '</td><td>' + ps.handsWon + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + ps.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
     }
     html += '</table></div>';
     document.getElementById('statsContent').innerHTML = html;
@@ -2029,7 +2029,7 @@ async function showPlayerComparison() {
     const p1Name = getPlayerName(p1Id), p2Name = getPlayerName(p2Id);
     let html = '';
 
-    html += '<div class="comparison-vs-header"><h2 class="comparison-vs-title">' + p1Name + ' vs ' + p2Name + '</h2></div>';
+    html += '<div class="comparison-vs-header"><h2 class="comparison-vs-title">' + p1Name + ' ' + formatEloBadge(p1Id) + ' vs ' + p2Name + ' ' + formatEloBadge(p2Id) + '</h2></div>';
     html += '<button class="btn btn-info mb-20" onclick="showPlayerComparisonUI()" style="width: 100%;">← Change Players</button>';
 
     const ts = data.sessions_together_stats;
