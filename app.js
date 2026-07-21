@@ -547,14 +547,31 @@ async function checkActiveSessions() {
                 playerFalseLockouts[pid] = 0;
             }
 
+            const handsByNumber = {};
             for (let h = 0; h < handsData.length; h++) {
                 const hand = handsData[h];
                 if (playerScores[hand.player_id] !== undefined) playerScores[hand.player_id] += Number(hand.score);
-                if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
-                    if (hand.false_lockout == 1 || hand.false_lockout === true) {
-                        playerFalseLockouts[hand.player_id]++;
+                if (!handsByNumber[hand.hand_number]) handsByNumber[hand.hand_number] = [];
+                handsByNumber[hand.hand_number].push(hand);
+            }
+            const sortedHandNumbers = Object.keys(handsByNumber).sort((a, b) => Number(a) - Number(b));
+            const currentStreaks = {};
+            for (let p = 0; p < playerIds.length; p++) currentStreaks[playerIds[p]] = 0;
+            for (let h = 0; h < sortedHandNumbers.length; h++) {
+                const hands = handsByNumber[sortedHandNumbers[h]];
+                const lockoutPlayerThisHand = hands.find(hand => hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id));
+                for (let p = 0; p < playerIds.length; p++) {
+                    const pid = playerIds[p];
+                    if (lockoutPlayerThisHand && String(lockoutPlayerThisHand.player_id) === String(pid)) {
+                        if (lockoutPlayerThisHand.false_lockout == 1 || lockoutPlayerThisHand.false_lockout === true) {
+                            playerFalseLockouts[pid]++;
+                            currentStreaks[pid] = 0;
+                        } else {
+                            playerLockouts[pid]++;
+                            currentStreaks[pid]++;
+                        }
                     } else {
-                        playerLockouts[hand.player_id]++;
+                        currentStreaks[pid] = 0;
                     }
                 }
             }
@@ -582,9 +599,9 @@ async function checkActiveSessions() {
                 html += '</div>';
             }
 
-            for (let pid in playerLockouts) {
-                if (playerLockouts[pid] >= 2) {
-                    html += '<div class="active-session-streak-box">🔥 <strong>' + getPlayerName(pid) + ':</strong> ' + playerLockouts[pid] + ' lockout streak</div>';
+            for (let pid in currentStreaks) {
+                if (currentStreaks[pid] >= 2) {
+                    html += '<div class="active-session-streak-box">🔥 <strong>' + getPlayerName(pid) + ':</strong> ' + currentStreaks[pid] + ' lockout streak</div>';
                 }
             }
 
