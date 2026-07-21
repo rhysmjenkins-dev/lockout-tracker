@@ -2050,12 +2050,12 @@ function showDictionarySection(section, targetId) {
         document.getElementById('lingoSection').style.display = 'none';
         document.getElementById('glossarySection').style.display = 'block';
     }
-    if (targetId) {
-        setTimeout(function() {
-            var el = document.getElementById(targetId);
-            if (el) el.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
-    }
+if (targetId) {
+    setTimeout(function() {
+        var el = document.getElementById(targetId);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }, 300);
+}
 }
 
 async function viewSessionDetailFromComparison(sessionId, buttonElement) {
