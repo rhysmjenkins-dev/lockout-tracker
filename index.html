@@ -30,6 +30,7 @@
                 </div>
                 <div id="eloLeaderboardSection"></div>
                 <button class="btn" onclick="showScreen('startSessionScreen')">🎮 Start New Session</button>
+                <button class="btn btn-secondary" onclick="showScreen('playersScreen'); loadPlayersScreen();">👤 Players</button>
                 <button class="btn btn-secondary" onclick="showScreen('previousSessionsScreen'); loadPreviousSessions();">📊 View Previous Sessions</button>
                 <button class="btn btn-secondary" onclick="showScreen('statsScreen'); loadStats();">📈 View Stats</button>
                 <button class="btn btn-secondary" onclick="showScreen('addPlayerScreen')">➕ Add New Player</button>
@@ -788,6 +789,23 @@
             </div>
         </div>
 
+                <!-- PLAYERS SCREEN -->
+        <div id="playersScreen" class="screen">
+            <div class="card">
+                <h2>👤 Players</h2>
+                <div id="playersScreenContent" class="loading">Loading players...</div>
+                <button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
+            </div>
+        </div>
+
+        <!-- PLAYER PROFILE SCREEN -->
+        <div id="playerProfileScreen" class="screen">
+            <div class="card">
+                <div id="playerProfileContent"></div>
+                <button class="btn btn-secondary mt-20" id="profileBackBtn" onclick="showScreen('playersScreen'); loadPlayersScreen();">← Back to Players</button>
+            </div>
+        </div>
+
         <!-- PREVIOUS SESSIONS SCREEN -->
         <div id="previousSessionsScreen" class="screen">
             <div class="card">
@@ -818,6 +836,7 @@
                     <button class="btn btn-small btn-info" onclick="showHeadToHeadList()">Head-to-Head Records</button>
                     <button class="btn btn-small btn-info" onclick="showPlayerComparisonUI()">Detailed Comparison</button>
                     <button class="btn btn-small btn-success" onclick="showEloStats()">⚡ ELO Rankings</button>
+                    <button class="btn btn-small btn-secondary" onclick="showScreen('playersScreen'); loadPlayersScreen();">👤 Players</button>
                 </div>
                 <div id="statsContent" class="loading">Loading...</div>
                 <button id="adminRecalcBtn" class="btn btn-danger mt-20" onclick="recalculateElo(event)" style="display:none;">🔧 Admin: Recalculate All ELO</button>
@@ -956,6 +975,89 @@
             <button class="btn btn-success" onclick="confirmAddPlayer()" id="confirmAddPlayerBtn" disabled>Add Player</button>
             <button class="btn btn-secondary" onclick="closeAddPlayerModal()">Cancel</button>
             <div id="addPlayerMessage"></div>
+        </div>
+    </div>
+
+        <!-- PIN SETUP MODAL -->
+    <div id="pinSetupModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔐 Set Your PIN</h3>
+                <button class="modal-close" onclick="closePinSetupModal()">&times;</button>
+            </div>
+            <p class="modal-body-text">Choose a 4-digit PIN to protect your profile. You will need this to edit your profile on any device.</p>
+            <div class="pin-entry-grid" id="pinSetupDisplay">
+                <div class="pin-dot" id="pinSetupDot0"></div>
+                <div class="pin-dot" id="pinSetupDot1"></div>
+                <div class="pin-dot" id="pinSetupDot2"></div>
+                <div class="pin-dot" id="pinSetupDot3"></div>
+            </div>
+            <div class="pin-keypad">
+                <button class="pin-key" onclick="pinSetupInput('1')">1</button>
+                <button class="pin-key" onclick="pinSetupInput('2')">2</button>
+                <button class="pin-key" onclick="pinSetupInput('3')">3</button>
+                <button class="pin-key" onclick="pinSetupInput('4')">4</button>
+                <button class="pin-key" onclick="pinSetupInput('5')">5</button>
+                <button class="pin-key" onclick="pinSetupInput('6')">6</button>
+                <button class="pin-key" onclick="pinSetupInput('7')">7</button>
+                <button class="pin-key" onclick="pinSetupInput('8')">8</button>
+                <button class="pin-key" onclick="pinSetupInput('9')">9</button>
+                <button class="pin-key pin-key-clear" onclick="pinSetupClear()">⌫</button>
+                <button class="pin-key" onclick="pinSetupInput('0')">0</button>
+                <button class="pin-key pin-key-empty"></button>
+            </div>
+            <div id="pinSetupMessage"></div>
+            <button class="btn btn-secondary" onclick="closePinSetupModal()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- PIN ENTRY MODAL -->
+    <div id="pinEntryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔐 Enter Your PIN</h3>
+                <button class="modal-close" onclick="closePinEntryModal()">&times;</button>
+            </div>
+            <p class="modal-body-text" id="pinEntryPrompt">Enter your 4-digit PIN to edit your profile.</p>
+            <div class="pin-entry-grid">
+                <div class="pin-dot" id="pinEntryDot0"></div>
+                <div class="pin-dot" id="pinEntryDot1"></div>
+                <div class="pin-dot" id="pinEntryDot2"></div>
+                <div class="pin-dot" id="pinEntryDot3"></div>
+            </div>
+            <div class="pin-keypad">
+                <button class="pin-key" onclick="pinEntryInput('1')">1</button>
+                <button class="pin-key" onclick="pinEntryInput('2')">2</button>
+                <button class="pin-key" onclick="pinEntryInput('3')">3</button>
+                <button class="pin-key" onclick="pinEntryInput('4')">4</button>
+                <button class="pin-key" onclick="pinEntryInput('5')">5</button>
+                <button class="pin-key" onclick="pinEntryInput('6')">6</button>
+                <button class="pin-key" onclick="pinEntryInput('7')">7</button>
+                <button class="pin-key" onclick="pinEntryInput('8')">8</button>
+                <button class="pin-key" onclick="pinEntryInput('9')">9</button>
+                <button class="pin-key pin-key-clear" onclick="pinEntryClear()">⌫</button>
+                <button class="pin-key" onclick="pinEntryInput('0')">0</button>
+                <button class="pin-key pin-key-empty"></button>
+            </div>
+            <div id="pinEntryMessage"></div>
+            <button class="btn btn-secondary" onclick="closePinEntryModal()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- EDIT PROFILE MODAL -->
+    <div id="editProfileModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Edit Profile</h3>
+                <button class="modal-close" onclick="closeEditProfileModal()">&times;</button>
+            </div>
+            <label>Profile Photo</label>
+            <div id="profilePhotoUpload"></div>
+            <label for="profileBioInput">Bio</label>
+            <textarea id="profileBioInput" placeholder="Tell everyone a bit about yourself..." style="min-height:80px;"></textarea>
+            <button class="btn btn-success" onclick="saveProfileEdits(event)">Save Profile</button>
+            <button class="btn btn-secondary" onclick="closeEditProfileModal()">Cancel</button>
+            <div id="editProfileMessage"></div>
         </div>
     </div>
 
