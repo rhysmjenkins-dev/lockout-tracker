@@ -543,6 +543,300 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
     font-size: 0.9em;
 }
 .inline-link:hover { color: var(--primary-dark); }
+/* === PLAYER PROFILES === */
+.players-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}
+.player-card {
+    background: var(--bg-light);
+    border-radius: 12px;
+    padding: 20px 15px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+}
+.player-card:hover, .player-card:active {
+    border-color: var(--primary);
+    background: #e8e9ff;
+    transform: translateY(-2px);
+}
+.player-card-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin: 0 auto 10px auto;
+    display: block;
+    border: 3px solid var(--primary);
+}
+.player-card-avatar-placeholder {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--gradient-primary);
+    margin: 0 auto 10px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8em;
+    color: white;
+    font-weight: bold;
+}
+.player-card-name {
+    font-weight: 700;
+    color: var(--text-dark);
+    font-size: 0.95em;
+    margin-bottom: 5px;
+}
+.player-card-elo {
+    font-size: 0.8em;
+    color: var(--text-muted);
+}
+
+/* Profile header */
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px;
+    background: var(--gradient-dark);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    color: white;
+}
+.profile-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid rgba(255,255,255,0.3);
+    flex-shrink: 0;
+}
+.profile-avatar-placeholder {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2em;
+    flex-shrink: 0;
+    border: 3px solid rgba(255,255,255,0.3);
+}
+.profile-header-info { flex: 1; min-width: 0; }
+.profile-name {
+    font-size: 1.4em;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: white;
+}
+.profile-bio {
+    font-size: 0.85em;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 8px;
+    font-style: italic;
+}
+.profile-joined {
+    font-size: 0.75em;
+    color: rgba(255,255,255,0.5);
+}
+.profile-edit-btn {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.8em;
+    cursor: pointer;
+    margin-top: 8px;
+    display: inline-block;
+    transition: background 0.2s;
+}
+.profile-edit-btn:hover { background: rgba(255,255,255,0.25); }
+
+/* Profile stats row */
+.profile-stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.profile-stat-cell {
+    background: var(--bg-light);
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+    border-left: 3px solid var(--primary);
+}
+.profile-stat-value {
+    font-size: 1.4em;
+    font-weight: 700;
+    color: var(--text-dark);
+    line-height: 1;
+    margin-bottom: 4px;
+}
+.profile-stat-label {
+    font-size: 0.7em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+@media (max-width: 600px) {
+    .profile-stats-row { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .profile-stat-value { font-size: 1.1em; }
+    .profile-header { flex-direction: column; text-align: center; }
+}
+
+/* Achievements */
+.achievements-section { margin-bottom: 20px; }
+.achievements-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+.achievement-badge {
+    background: var(--bg-light);
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+    border: 2px solid var(--border);
+    transition: all 0.2s;
+    position: relative;
+}
+.achievement-badge.earned {
+    background: linear-gradient(135deg, #fff9e6 0%, #fff3cc 100%);
+    border-color: var(--yellow);
+    box-shadow: 0 2px 8px rgba(255,193,7,0.2);
+}
+.achievement-badge.live-badge.earned {
+    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    border-color: var(--success);
+    box-shadow: 0 2px 8px rgba(76,175,80,0.2);
+}
+.achievement-badge.locked {
+    opacity: 0.35;
+    filter: grayscale(1);
+}
+.achievement-emoji { font-size: 1.8em; display: block; margin-bottom: 5px; }
+.achievement-name {
+    font-size: 0.7em;
+    font-weight: 600;
+    color: var(--text-dark);
+    line-height: 1.2;
+}
+.achievement-live-indicator {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 0.6em;
+    color: var(--success);
+    font-weight: 700;
+}
+
+/* H2H summary */
+.h2h-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--bg-light);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.h2h-summary-row:hover { background: #e8e9ff; }
+.h2h-summary-name { font-weight: 600; color: var(--primary); font-size: 0.95em; }
+.h2h-summary-record { font-size: 0.85em; color: var(--text-muted); }
+.h2h-summary-bar {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    width: 80px;
+    flex-shrink: 0;
+}
+
+/* Recent sessions on profile */
+.profile-session-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--bg-light);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.profile-session-row:hover { background: #e8e9ff; }
+.profile-session-title { font-weight: 600; color: var(--text-dark); font-size: 0.9em; }
+.profile-session-meta { font-size: 0.78em; color: var(--text-muted); margin-top: 2px; }
+.profile-session-result {
+    font-size: 0.8em;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+.profile-session-result.won { background: var(--success-light); color: var(--success-dark); }
+.profile-session-result.lost { background: #ffebee; color: #c62828; }
+
+/* Player name link — subtle, not blue underlined */
+.player-link {
+    color: var(--primary);
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 1px dotted var(--primary);
+    transition: opacity 0.15s;
+}
+.player-link:hover { opacity: 0.75; }
+
+/* PIN keypad */
+.pin-entry-grid {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin: 20px 0;
+}
+.pin-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    background: transparent;
+    transition: background 0.15s;
+}
+.pin-dot.filled { background: var(--primary); }
+.pin-keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    max-width: 240px;
+    margin: 0 auto 20px auto;
+}
+.pin-key {
+    background: var(--bg-light);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    font-size: 1.3em;
+    font-weight: 600;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--text-dark);
+    min-height: 52px;
+}
+.pin-key:hover, .pin-key:active { background: #e8e9ff; border-color: var(--primary); }
+.pin-key-clear { color: var(--danger); }
+.pin-key-empty { background: transparent; border-color: transparent; cursor: default; }
+.pin-key-empty:hover { background: transparent; border-color: transparent; }
 /* === FOOTER === */
 .app-footer {
     text-align: center;
