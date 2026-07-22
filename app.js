@@ -200,7 +200,7 @@ async function showEloStats() {
             '</div>';
     html += '<div class="elo-chart-container" id="eloChartContainer" style="display:none;"><canvas id="eloHistoryChart"></canvas></div>';
     html += '</div>';
-    contentDiv.innerHTML = html;
+    
     setTimeout(drawEloHistoryChart, 100);
 }
 
