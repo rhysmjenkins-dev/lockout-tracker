@@ -1562,6 +1562,12 @@ async function loadPreviousSessions() {
         html += '<div>📅 ' + cleanDate + ' • ' + handCount + ' hands • ' + playerIds.length + ' players</div>';
         let winnerLine = '🏆 ' + winnerName;
         if (winnerId) {
+            console.log({
+    session: session.session_id,
+    winner: winnerId,
+    key: String(session.session_id) + '_' + String(winnerId),
+    eloEntry: eloHistoryMap[String(session.session_id) + '_' + String(winnerId)]
+});
             const eloEntry = eloHistoryMap[String(session.session_id) + '_' + String(winnerId)];
             if (eloEntry) {
                 const newRating = Math.round(Number(eloEntry.new_rating));
