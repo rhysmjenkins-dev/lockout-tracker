@@ -329,11 +329,7 @@ function celebrateWinner(winnerName) {
 }
 
 function getPlayerName(playerId) {
-    if (playerCache[playerId]) return playerCache[playerId];
-    for (let i = 0; i < allPlayers.length; i++) {
-        if (allPlayers[i].player_id == playerId) return allPlayers[i].username;
-    }
-    return 'Unknown';
+    return playerCache[playerId] || 'Unknown';
 }
 
 function escapeAttr(str) {
@@ -610,8 +606,7 @@ async function checkActiveSessions() {
             '</div>';
         return;
     }
-    if (activeSessions.length > 0) {
-        let html = '<div class="active-session-box">';
+    let html = '<div class="active-session-box">';
         html += '<h3>Active Sessions</h3>';
         html += '<div class="active-sessions-scroll">';
 
@@ -694,9 +689,6 @@ async function checkActiveSessions() {
 
         html += '</div></div>';
         document.getElementById('activeSessionsSection').innerHTML = html;
-    } else {
-        document.getElementById('activeSessionsSection').innerHTML = '';
-    }
 }
 
 async function createSession(event) {
@@ -885,7 +877,7 @@ function closeEditSessionModal() {
     document.getElementById('editSessionMessage').innerHTML = '';
 }
 
-async function endSession() {
+async function endSession(event) {
     if (!confirm('End this session?')) return;
     const endBtn = event.target;
     setButtonLoading(endBtn, true);
@@ -997,7 +989,7 @@ function checkLockoutValidity() {
     }
 }
 
-async function submitHand() {
+async function submitHand(event) {
     const messageDiv = document.getElementById('handMessage');
     const submitBtn = event.target;
     setButtonLoading(submitBtn, true);
@@ -1568,12 +1560,6 @@ html += '<span>' + escapeAttr(session.title) + '</span>';
         html += '<div>📅 ' + cleanDate + ' • ' + handCount + ' hands • ' + playerIds.length + ' players</div>';
         let winnerLine = '🏆 ' + winnerName;
         if (winnerId) {
-            console.log({
-    session: session.session_id,
-    winner: winnerId,
-    key: String(session.session_id) + '_' + String(winnerId),
-    eloEntry: eloHistoryMap[String(session.session_id) + '_' + String(winnerId)]
-});
             const eloEntry = eloHistoryMap[String(session.session_id) + '_' + String(winnerId)];
             if (eloEntry) {
                 const newRating = Math.round(Number(eloEntry.new_rating));
@@ -2018,7 +2004,7 @@ async function showOverallStats() {
     await loadStats();
 }
 
-async function recalculateElo() {
+async function recalculateElo(event) {
     if (!confirm('Recalculate all ELO ratings from scratch? This may take a moment.')) return;
     const btn = event.target;
     setButtonLoading(btn, true);
