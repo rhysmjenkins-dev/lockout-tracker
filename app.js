@@ -371,6 +371,85 @@ function getPlayerJoinHand(playerId) {
 }
 
 // ============================================
+// IMGUR UPLOAD
+// ============================================
+const IMGUR_CLIENT_ID = 'YOUR_IMGUR_CLIENT_ID';
+
+async function uploadToImgur(file) {
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+        const response = await fetch('https://api.imgur.com/3/image', {
+            method: 'POST',
+            headers: { 'Authorization': 'Client-ID ' + IMGUR_CLIENT_ID },
+            body: formData
+        });
+        const data = await response.json();
+        if (data.success) return { url: data.data.link };
+        return { error: 'Upload failed' };
+    } catch(e) {
+        return { error: e.message };
+    }
+}
+
+function createPhotoUploadUI(currentPhotoUrl, onUploadComplete) {
+    let html = '<div class="photo-upload-section">';
+    if (currentPhotoUrl && currentPhotoUrl !== '') {
+        html += '<div class="photo-preview-container">';
+        html += '<img src="' + currentPhotoUrl + '" class="session-photo-preview" onclick="openPhotoFullscreen(\'' + currentPhotoUrl + '\')">';
+        html += '<button class="btn btn-danger btn-small mt-10" onclick="removeSessionPhoto()">🗑️ Remove Photo</button>';
+        html += '</div>';
+    }
+    html += '<label class="photo-upload-label">';
+    html += '<input type="file" id="photoFileInput" accept="image/*" style="display:none;" onchange="handlePhotoUpload(event)">';
+    html += '<span class="btn btn-info btn-small">📷 ' + (currentPhotoUrl ? 'Change Photo' : 'Add Photo') + '</span>';
+    html += '</label>';
+    html += '<div id="photoUploadStatus"></div>';
+    html += '</div>';
+    return html;
+}
+
+async function handlePhotoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const statusDiv = document.getElementById('photoUploadStatus');
+    statusDiv.innerHTML = '<div class="loading">⏳ Uploading photo...</div>';
+    const result = await uploadToImgur(file);
+    if (result.error) {
+        statusDiv.innerHTML = '<div class="error">❌ Upload failed: ' + result.error + '</div>';
+        return;
+    }
+    window._pendingPhotoUrl = result.url;
+    statusDiv.innerHTML = '<div class="success">✅ Photo ready</div>';
+    const preview = document.querySelector('.session-photo-preview');
+    if (preview) {
+        preview.src = result.url;
+    } else {
+        const container = document.querySelector('.photo-upload-section');
+        if (container) {
+            const previewHtml = '<div class="photo-preview-container"><img src="' + result.url + '" class="session-photo-preview" onclick="openPhotoFullscreen(\'' + result.url + '\')"></div>';
+            container.insertAdjacentHTML('afterbegin', previewHtml);
+        }
+    }
+}
+
+function removeSessionPhoto() {
+    window._pendingPhotoUrl = '';
+    const container = document.querySelector('.photo-preview-container');
+    if (container) container.remove();
+    const statusDiv = document.getElementById('photoUploadStatus');
+    if (statusDiv) statusDiv.innerHTML = '';
+}
+
+function openPhotoFullscreen(url) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:10000;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+    overlay.innerHTML = '<img src="' + url + '" style="max-width:95%;max-height:95%;border-radius:8px;object-fit:contain;">';
+    overlay.onclick = function() { document.body.removeChild(overlay); };
+    document.body.appendChild(overlay);
+}
+
+// ============================================
 // SCREEN NAVIGATION
 // ============================================
 function showScreen(screenId, skipHistory) {
