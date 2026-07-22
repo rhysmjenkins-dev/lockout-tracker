@@ -2556,9 +2556,18 @@ function makePlayerLink(playerId, displayName) {
 }
 
 async function loadPlayersScreen() {
+    const contentDiv = document.getElementById('playersScreenContent');
+    contentDiv.innerHTML =
+        '<div class="skeleton-card">' +
+            '<div class="players-grid">' +
+                '<div class="skeleton-player-card"><div class="shimmer-wrapper skeleton-avatar"></div><div class="shimmer-wrapper skeleton-text skeleton-w-70 mt-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-50 mt-10"></div></div>' +
+                '<div class="skeleton-player-card"><div class="shimmer-wrapper skeleton-avatar"></div><div class="shimmer-wrapper skeleton-text skeleton-w-70 mt-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-50 mt-10"></div></div>' +
+                '<div class="skeleton-player-card"><div class="shimmer-wrapper skeleton-avatar"></div><div class="shimmer-wrapper skeleton-text skeleton-w-70 mt-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-50 mt-10"></div></div>' +
+                '<div class="skeleton-player-card"><div class="shimmer-wrapper skeleton-avatar"></div><div class="shimmer-wrapper skeleton-text skeleton-w-70 mt-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-50 mt-10"></div></div>' +
+            '</div>' +
+        '</div>';
     await ensurePlayersLoaded();
     await loadEloRatings();
-    const contentDiv = document.getElementById('playersScreenContent');
     if (allPlayers.length === 0) {
         contentDiv.innerHTML = '<div class="placeholder-content"><p>No players found.</p></div>';
         return;
