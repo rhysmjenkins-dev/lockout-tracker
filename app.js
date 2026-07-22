@@ -830,6 +830,8 @@ function displaySessionMetadata(containerId) {
 
 function showEditSessionModal() {
     document.getElementById('editSessionNotes').value = currentSession.notes || '';
+    window._pendingPhotoUrl = currentSession.photo_url || '';
+    document.getElementById('editSessionPhotoUpload').innerHTML = createPhotoUploadUI(currentSession.photo_url || '', null);
     const tagsSelect = document.getElementById('editSessionTags');
     const currentTags = (currentSession.tags || '').split(',').filter(t => t.trim());
     for (let i = 0; i < tagsSelect.options.length; i++) {
@@ -860,6 +862,14 @@ async function saveEditedSession() {
     } else {
         currentSession.notes = notes;
         currentSession.tags = tags;
+        if (window._pendingPhotoUrl !== undefined) {
+            await apiCall('updateSessionPhoto', {
+                session_id: currentSession.session_id,
+                photo_url: window._pendingPhotoUrl,
+                editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
+            });
+            currentSession.photo_url = window._pendingPhotoUrl;
+        }
         messageDiv.innerHTML = '<div class="success">Session updated!</div>';
         displaySessionMetadata('activeSessionMetadata');
         setTimeout(function() { closeEditSessionModal(); setButtonLoading(saveBtn, false); }, 1000);
@@ -1541,7 +1551,12 @@ async function loadPreviousSessions() {
         var winnerName = winnerId ? getPlayerName(winnerId) : 'Unknown';
 
         html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
-        html += '<div class="session-item-header">' + session.title + '</div>';
+        html += '<div class="session-item-header" style="display:flex; justify-content:space-between; align-items:center;">';
+        html += '<span>' + session.title + '</span>';
+        if (session.photo_url && session.photo_url !== '') {
+            html += '<img src="' + session.photo_url + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:pointer;" onclick="event.stopPropagation(); openPhotoFullscreen(\'' + session.photo_url + '\')">';
+        }
+        html += '</div>';
         html += '<div class="session-item-info" style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">';
         html += '<div>📅 ' + cleanDate + ' • ' + handCount + ' hands • ' + playerIds.length + ' players</div>';
         let winnerLine = '🏆 ' + winnerName;
@@ -1617,6 +1632,9 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
             metadataHtml += joiners.join(', ') + '</p>';
         }
         metadataHtml += '</div>';
+    }
+    if (session.photo_url && session.photo_url !== '') {
+        metadataHtml += '<div class="session-photo-container"><img src="' + session.photo_url + '" class="session-photo-full" onclick="openPhotoFullscreen(\'' + session.photo_url + '\')"></div>';
     }
     document.getElementById('sessionDetailMetadata').innerHTML = metadataHtml;
 
