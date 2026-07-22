@@ -1551,7 +1551,6 @@ async function loadPreviousSessions() {
         var winnerName = winnerId ? getPlayerName(winnerId) : 'Unknown';
 
         html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
-        html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
         html += '<div class="session-item-header" style="display:flex; justify-content:space-between; align-items:center;">';
         html += '<span>' + session.title + '</span>';
         if (session.photo_url && session.photo_url !== '') {
