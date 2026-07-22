@@ -503,7 +503,6 @@ function showScreen(screenId, skipHistory) {
         currentScreen.style.opacity = '0';
         currentScreen.style.transform = 'translateY(-10px)';
     }
-    window.scrollTo(0, 0);
     setTimeout(function() {
         for (let i = 0; i < screens.length; i++) {
             screens[i].classList.remove('active');
@@ -2275,6 +2274,7 @@ async function viewSessionDetailFromComparison(sessionId, buttonElement) {
 // ============================================
 window.addEventListener('DOMContentLoaded', function() {
     console.log('Lockout Tracker v4.1 🚀');
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     window.scrollTo(0, 0);
 
     // Show both skeletons immediately and simultaneously
