@@ -294,6 +294,38 @@ async function drawEloHistoryChart() {
 }
 
 // ============================================
+// LOCKOUT VALIDATION
+// ============================================
+function determineFalseLockout(scores, lockoutPlayerId) {
+    const lockoutPlayer = scores.find(s => String(s.player_id) === String(lockoutPlayerId));
+    if (!lockoutPlayer) return { isFalseLockout: true, lockoutPlayerScore: 0, lowestScore: 0, playersWithLowest: [] };
+    const lockoutPlayerScore = lockoutPlayer.score;
+    const lowestScore = Math.min(...scores.map(s => s.score));
+    const playersWithLowest = scores.filter(s => s.score === lowestScore);
+    const hasStrictlyLowest = lockoutPlayerScore === lowestScore && playersWithLowest.length === 1;
+    return {
+        isFalseLockout: lockoutPlayerScore > 5 || !hasStrictlyLowest,
+        lockoutPlayerScore,
+        lowestScore,
+        playersWithLowest
+    };
+}
+
+function buildLockoutWarningMessage(playerName, lockoutPlayerScore, lowestScore, playersWithLowest, getPlayerNameFn) {
+    let message = '<strong>⚠️ Warning:</strong> ';
+    if (lockoutPlayerScore > 5) {
+        message += playerName + ' has a score of ' + lockoutPlayerScore + ' (max allowed: 5). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+    } else if (lockoutPlayerScore > lowestScore) {
+        const lowestPlayers = playersWithLowest.map(s => getPlayerNameFn(s.player_id)).join(', ');
+        message += playerName + ' does NOT have the lowest score. ' + lowestPlayers + ' has the lowest (' + lowestScore + '). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+    } else if (playersWithLowest.length > 1) {
+        const tiedPlayers = playersWithLowest.map(s => getPlayerNameFn(s.player_id)).join(', ');
+        message += playerName + ' is TIED for lowest score with ' + tiedPlayers + '. This will be marked as a <strong>FALSE LOCKOUT</strong>.';
+    }
+    return message;
+}
+
+// ============================================
 // HAPTIC FEEDBACK
 // ============================================
 
@@ -953,35 +985,17 @@ function checkLockoutValidity() {
     if (!lockoutRadio) { warningDiv.style.display = 'none'; return; }
     const lockoutPlayerId = lockoutRadio.value;
     const scores = [];
-    let allScoresEntered = true;
     for (let i = 0; i < sessionPlayers.length; i++) {
         const player = sessionPlayers[i];
-        const joinHand = getPlayerJoinHand(player.player_id);
-        if (joinHand <= currentHandNumber) {
-            const scoreInput = document.getElementById('score_' + player.player_id);
-            const scoreVal = scoreInput.value.trim();
-            if (scoreVal === '') { allScoresEntered = false; break; }
+        if (getPlayerJoinHand(player.player_id) <= currentHandNumber) {
+            const scoreVal = document.getElementById('score_' + player.player_id).value.trim();
+            if (scoreVal === '') { warningDiv.style.display = 'none'; return; }
             scores.push({ player_id: player.player_id, score: parseFloat(scoreVal) });
         }
     }
-    if (!allScoresEntered) { warningDiv.style.display = 'none'; return; }
-    const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
-    const lowestScore = Math.min(...scores.map(s => s.score));
-    const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
-    const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
-    const isFalseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
+    const { isFalseLockout, lockoutPlayerScore, lowestScore, playersWithLowest } = determineFalseLockout(scores, lockoutPlayerId);
     if (isFalseLockout) {
-        let warningMessage = '<strong>⚠️ Warning:</strong> ';
-        if (lockoutPlayerScore > 5) {
-            warningMessage += getPlayerName(lockoutPlayerId) + ' has a score of ' + lockoutPlayerScore + ' (max allowed: 5). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
-        } else if (lockoutPlayerScore > lowestScore) {
-            const lowestPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
-            warningMessage += getPlayerName(lockoutPlayerId) + ' does NOT have the lowest score. ' + lowestPlayers + ' has the lowest (' + lowestScore + '). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
-        } else if (playersWithLowestScore.length > 1) {
-            const tiedPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
-            warningMessage += getPlayerName(lockoutPlayerId) + ' is TIED for lowest score with ' + tiedPlayers + '. This will be marked as a <strong>FALSE LOCKOUT</strong>.';
-        }
-        warningDiv.innerHTML = warningMessage;
+        warningDiv.innerHTML = buildLockoutWarningMessage(getPlayerName(lockoutPlayerId), lockoutPlayerScore, lowestScore, playersWithLowest, getPlayerName);
         warningDiv.style.display = 'block';
         hapticFeedback('error');
     } else {
@@ -1013,11 +1027,8 @@ async function submitHand(event) {
             scores.push({ player_id: player.player_id, score: scoreNum });
         }
     }
-    const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
-    const lowestScore = Math.min(...scores.map(s => s.score));
-    const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
-    const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
-    let falseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
+    const { isFalseLockout, lockoutPlayerScore } = determineFalseLockout(scores, lockoutPlayerId);
+    let falseLockout = isFalseLockout;
     if (document.getElementById('lockoutWarning').style.display === 'block') {
         if (!confirm('This will be marked as a FALSE LOCKOUT. Continue?')) { setButtonLoading(submitBtn, false); return; }
     }
@@ -1160,35 +1171,17 @@ function checkEditLockoutValidity() {
     if (!lockoutRadio) { warningDiv.style.display = 'none'; return; }
     const lockoutPlayerId = lockoutRadio.value;
     const scores = [];
-    let allScoresEntered = true;
     for (let i = 0; i < sessionPlayers.length; i++) {
         const player = sessionPlayers[i];
-        const joinHand = getPlayerJoinHand(player.player_id);
-        if (joinHand <= currentEditingHand) {
-            const scoreInput = document.getElementById('edit_score_' + player.player_id);
-            const scoreVal = scoreInput.value.trim();
-            if (scoreVal === '') { allScoresEntered = false; break; }
+        if (getPlayerJoinHand(player.player_id) <= currentEditingHand) {
+            const scoreVal = document.getElementById('edit_score_' + player.player_id).value.trim();
+            if (scoreVal === '') { warningDiv.style.display = 'none'; return; }
             scores.push({ player_id: player.player_id, score: parseFloat(scoreVal) });
         }
     }
-    if (!allScoresEntered) { warningDiv.style.display = 'none'; return; }
-    const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
-    const lowestScore = Math.min(...scores.map(s => s.score));
-    const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
-    const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
-    const isFalseLockout = (lockoutPlayerScore > 5) || !hasStrictlyLowestScore;
+    const { isFalseLockout, lockoutPlayerScore, lowestScore, playersWithLowest } = determineFalseLockout(scores, lockoutPlayerId);
     if (isFalseLockout) {
-        let warningMessage = '<strong>⚠️ Warning:</strong> ';
-        if (lockoutPlayerScore > 5) {
-            warningMessage += getPlayerName(lockoutPlayerId) + ' has a score of ' + lockoutPlayerScore + ' (max allowed: 5). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
-        } else if (lockoutPlayerScore > lowestScore) {
-            const lowestPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
-            warningMessage += getPlayerName(lockoutPlayerId) + ' does NOT have the lowest score. ' + lowestPlayers + ' has the lowest (' + lowestScore + '). This will be marked as a <strong>FALSE LOCKOUT</strong>.';
-        } else if (playersWithLowestScore.length > 1) {
-            const tiedPlayers = playersWithLowestScore.map(s => getPlayerName(s.player_id)).join(', ');
-            warningMessage += getPlayerName(lockoutPlayerId) + ' is TIED for lowest score with ' + tiedPlayers + '. This will be marked as a <strong>FALSE LOCKOUT</strong>.';
-        }
-        warningDiv.innerHTML = warningMessage;
+        warningDiv.innerHTML = buildLockoutWarningMessage(getPlayerName(lockoutPlayerId), lockoutPlayerScore, lowestScore, playersWithLowest, getPlayerName);
         warningDiv.style.display = 'block';
         hapticFeedback('error');
     } else {
@@ -1216,11 +1209,8 @@ async function saveEditedHand() {
             scores.push({ player_id: player.player_id, score: scoreNum });
         }
     }
-    const lockoutPlayerScore = scores.find(s => String(s.player_id) === String(lockoutPlayerId)).score;
-    const lowestScore = Math.min(...scores.map(s => s.score));
-    const playersWithLowestScore = scores.filter(s => s.score === lowestScore);
-    const hasStrictlyLowestScore = (lockoutPlayerScore === lowestScore && playersWithLowestScore.length === 1);
-    let falseLockout = !hasStrictlyLowestScore;
+    const { isFalseLockout, lockoutPlayerScore } = determineFalseLockout(scores, lockoutPlayerId);
+    let falseLockout = isFalseLockout;
     if (document.getElementById('editLockoutWarning').style.display === 'block') {
         if (!confirm('This will be marked as a FALSE LOCKOUT. Continue?')) { setButtonLoading(saveBtn, false); return; }
     }
