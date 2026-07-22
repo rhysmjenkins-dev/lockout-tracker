@@ -45,7 +45,7 @@
                 <h2>Add New Player</h2>
                 <label for="newPlayerName">Player Name</label>
                 <input type="text" id="newPlayerName" placeholder="Enter player name">
-                <button class="btn btn-success" onclick="addPlayer()">Add Player</button>
+                <button class="btn btn-success" onclick="addPlayer(event)">Add Player</button>
                 <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back</button>
                 <div id="addPlayerMessage"></div>
             </div>
@@ -824,7 +824,7 @@
                     <button class="btn btn-small btn-success" onclick="showEloStats()">⚡ ELO Rankings</button>
                 </div>
                 <div id="statsContent" class="loading">Loading...</div>
-                <button id="adminRecalcBtn" class="btn btn-danger mt-20" onclick="recalculateElo()" style="display:none;">🔧 Admin: Recalculate All ELO</button>
+                <button id="adminRecalcBtn" class="btn btn-danger mt-20" onclick="recalculateElo(event)" style="display:none;">🔧 Admin: Recalculate All ELO</button>
                 <button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
             </div>
         </div>
@@ -858,7 +858,7 @@
                 <div id="playerSelectionList" class="loading">Loading players...</div>
                 <label>Session Photo (Optional)</label>
                 <div id="createSessionPhotoUpload"></div>
-                <button class="btn btn-success" onclick="createSession()">Start Session</button>
+                <button class="btn btn-success" onclick="createSession(event)">Start Session</button>
                 <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Cancel</button>
                 <div id="sessionMessage"></div>
             </div>
@@ -879,7 +879,7 @@
                     <div id="lockoutWarning" class="lockout-warning" style="display: none;"></div>
                     <label for="handComment" class="mt-20">Hand Note (Optional)</label>
                     <input type="text" id="handComment" placeholder="e.g. Epic comeback, close call...">
-                    <button class="btn btn-success" onclick="submitHand()">Submit Hand</button>
+                    <button class="btn btn-success" onclick="submitHand(event)">Submit Hand</button>
                     <div id="handMessage"></div>
                 </div>
                 <div id="handHistorySection" class="hand-history" style="display: none;">
@@ -893,7 +893,7 @@
                     <button class="btn btn-info btn-small" onclick="showAddPlayerModal()">➕ Add Player</button>
                     <button class="btn btn-warning btn-small" onclick="showEditSessionModal()">✏️ Edit Session</button>
                     <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
-                    <button class="btn btn-danger" onclick="endSession()">End Session</button>
+                    <button class="btn btn-danger" onclick="endSession(event)">End Session</button>
                 </div>
             </div>
         </div>
@@ -910,9 +910,9 @@
             <div id="editLockoutWarning" class="lockout-warning" style="display: none;"></div>
             <label for="editHandComment" class="mt-20">Hand Note (Optional)</label>
             <input type="text" id="editHandComment" placeholder="e.g. Epic comeback, close call...">
-            <button class="btn btn-success" onclick="saveEditedHand()">Save Changes</button>
-            <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
-            <div id="editHandMessage"></div>
+<button class="btn btn-success" onclick="saveEditedHand(event)">Save Changes</button>
+<button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+<div id="editHandMessage"></div>
         </div>
     </div>
 
@@ -937,9 +937,9 @@
                 <option value="Tournament">🏆 Tournament</option>
             </select>
             <small class="display-block color-666">Hold Ctrl (Cmd on Mac) to select multiple</small>
-            <button class="btn btn-success" onclick="saveEditedSession()">Save Changes</button>
-            <button class="btn btn-secondary" onclick="closeEditSessionModal()">Cancel</button>
-            <div id="editSessionMessage"></div>
+<button class="btn btn-success" onclick="saveEditedSession(event)">Save Changes</button>
+<button class="btn btn-secondary" onclick="closeEditSessionModal()">Cancel</button>
+<div id="editSessionMessage"></div>
         </div>
     </div>
 
