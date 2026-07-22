@@ -2779,7 +2779,7 @@ function renderAchievements(achievements) {
     for (let i = 0; i < permanent.length; i++) {
         const a = permanent[i];
         const earned = achievements[a.key];
-        html += '<div class="achievement-badge ' + (earned ? 'earned' : 'locked') + '" title="' + a.desc + '">';
+        html += '<div class="achievement-badge ' + (earned ? 'earned' : 'locked') + '" onclick="showAchievementInfo(\'' + a.name + '\', \'' + a.desc + '\', \'' + a.emoji + '\', false, ' + (earned ? 'true' : 'false') + ')">';
         html += '<span class="achievement-emoji">' + a.emoji + '</span>';
         html += '<div class="achievement-name">' + a.name + '</div>';
         html += '</div>';
@@ -2801,6 +2801,40 @@ function renderAchievements(achievements) {
     html += '</div>';
     html += '</div></div>';
     return html;
+}
+
+function showAchievementInfo(name, desc, emoji, isLive, earned) {
+    const existing = document.getElementById('achievementPopup');
+    if (existing) existing.remove();
+
+    const popup = document.createElement('div');
+    popup.id = 'achievementPopup';
+    popup.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+
+    const statusText = earned
+        ? (isLive ? '<span style="color:var(--success);font-weight:600;">✅ Currently held</span>' : '<span style="color:var(--success);font-weight:600;">✅ Earned</span>')
+        : (isLive ? '<span style="color:#999;">Not currently held</span>' : '<span style="color:#999;">Not yet earned</span>');
+
+    const liveNote = isLive
+        ? '<p style="font-size:0.8em;color:#888;margin-top:8px;font-style:italic;">↕ Live badge — can be gained or lost as your stats change</p>'
+        : '<p style="font-size:0.8em;color:#888;margin-top:8px;font-style:italic;">🏅 Permanent — once earned, never lost</p>';
+
+    popup.innerHTML =
+        '<div style="background:white;border-radius:16px;padding:30px;max-width:320px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.3);">' +
+            '<div style="font-size:3em;margin-bottom:10px;">' + emoji + '</div>' +
+            '<h3 style="color:var(--primary);margin-bottom:8px;">' + name + '</h3>' +
+            '<p style="color:var(--text-dark);font-size:0.95em;margin-bottom:12px;">' + desc + '</p>' +
+            statusText +
+            liveNote +
+            '<button class="btn btn-secondary mt-20" onclick="document.getElementById(\'achievementPopup\').remove()">Close</button>' +
+        '</div>';
+
+    popup.addEventListener('click', function(e) {
+        if (e.target === popup) popup.remove();
+    });
+
+    document.body.appendChild(popup);
+    hapticFeedback('light');
 }
 
 function drawProfileEloChart(history) {
