@@ -49,15 +49,23 @@ function setButtonLoading(buttonElement, isLoading, originalText) {
 async function apiCall(action, params) {
     const url = new URL(API_URL);
     url.searchParams.append('action', action);
-    for (let key in params) {
-        url.searchParams.append(key, params[key]);
+    for (const key in params) {
+        if (params[key] !== undefined && params[key] !== null) {
+            url.searchParams.append(key, params[key]);
+        }
     }
     try {
         const response = await fetch(url);
+        if (!response.ok) {
+            return { error: 'Network error: ' + response.status + ' ' + response.statusText };
+        }
         const data = await response.json();
+        if (data && data.error) {
+            console.warn('API [' + action + '] returned error:', data.error);
+        }
         return data;
     } catch (error) {
-        console.error('API Error:', error);
+        console.error('API [' + action + '] failed:', error.message);
         return { error: error.message };
     }
 }
@@ -2481,7 +2489,7 @@ function sortSessionTable(columnIndex) {
         const aCell = a.cells[columnIndex].textContent.trim(), bCell = b.cells[columnIndex].textContent.trim();
         const aNum = parseFloat(aCell.replace('%', '')), bNum = parseFloat(bCell.replace('%', ''));
         let comparison = (!isNaN(aNum) && !isNaN(bNum)) ? aNum - bNum : aCell.localeCompare(bCell);
-        return currentSessionSortAscending ? comparison : -comparison;
+        return currentSortAscending ? comparison : -comparison;
     });
     for (let i = 0; i < rows.length; i++) table.appendChild(rows[i]);
     const headers = table.querySelectorAll('th');
