@@ -2389,6 +2389,524 @@ function triggerEasterEgg() {
         setTimeout(function() { document.body.removeChild(message); }, 500);
     }, 3000);
 }
+// ============================================
+// PIN HELPERS
+// ============================================
+function simpleHash(str) {
+    // Simple deterministic hash — not cryptographic but sufficient for a PIN
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return String(Math.abs(hash));
+}
+
+function getStoredIdentity() {
+    try {
+        const raw = localStorage.getItem('lockout_identity');
+        return raw ? JSON.parse(raw) : null;
+    } catch(e) { return null; }
+}
+
+function storeIdentity(playerId, username) {
+    localStorage.setItem('lockout_identity', JSON.stringify({ player_id: playerId, username: username }));
+}
+
+function clearIdentity() {
+    localStorage.removeItem('lockout_identity');
+}
+
+// PIN Setup state
+let _pinSetupBuffer = '';
+let _pinSetupPlayerId = null;
+
+function openPinSetupModal(playerId) {
+    _pinSetupPlayerId = playerId;
+    _pinSetupBuffer = '';
+    updatePinDots('pinSetup', 0);
+    document.getElementById('pinSetupMessage').innerHTML = '';
+    document.getElementById('pinSetupModal').classList.add('active');
+}
+
+function closePinSetupModal() {
+    document.getElementById('pinSetupModal').classList.remove('active');
+    _pinSetupBuffer = '';
+    _pinSetupPlayerId = null;
+}
+
+function updatePinDots(prefix, count) {
+    for (let i = 0; i < 4; i++) {
+        const dot = document.getElementById(prefix + 'Dot' + i);
+        if (dot) dot.classList.toggle('filled', i < count);
+    }
+}
+
+function pinSetupInput(digit) {
+    if (_pinSetupBuffer.length >= 4) return;
+    _pinSetupBuffer += digit;
+    updatePinDots('pinSetup', _pinSetupBuffer.length);
+    hapticFeedback('light');
+    if (_pinSetupBuffer.length === 4) {
+        setTimeout(confirmPinSetup, 200);
+    }
+}
+
+function pinSetupClear() {
+    if (_pinSetupBuffer.length > 0) {
+        _pinSetupBuffer = _pinSetupBuffer.slice(0, -1);
+        updatePinDots('pinSetup', _pinSetupBuffer.length);
+        hapticFeedback('light');
+    }
+}
+
+async function confirmPinSetup() {
+    const messageDiv = document.getElementById('pinSetupMessage');
+    const hash = simpleHash(_pinSetupBuffer);
+    const data = await apiCall('setPlayerPin', { player_id: _pinSetupPlayerId, pin_hash: hash });
+    if (data.error) {
+        messageDiv.innerHTML = '<div class="error">❌ Could not save PIN. Please try again.</div>';
+        _pinSetupBuffer = '';
+        updatePinDots('pinSetup', 0);
+    } else {
+        messageDiv.innerHTML = '<div class="success">✅ PIN set!</div>';
+        const player = allPlayers.find(p => String(p.player_id) === String(_pinSetupPlayerId));
+        if (player) storeIdentity(_pinSetupPlayerId, player.username);
+        hapticFeedback('success');
+        setTimeout(function() {
+            closePinSetupModal();
+            openEditProfileModal(_pinSetupPlayerId);
+        }, 800);
+    }
+}
+
+// PIN Entry state
+let _pinEntryBuffer = '';
+let _pinEntryPlayerId = null;
+let _pinEntryCallback = null;
+
+function openPinEntryModal(playerId, callback) {
+    _pinEntryPlayerId = playerId;
+    _pinEntryCallback = callback;
+    _pinEntryBuffer = '';
+    updatePinDots('pinEntry', 0);
+    document.getElementById('pinEntryMessage').innerHTML = '';
+    document.getElementById('pinEntryModal').classList.add('active');
+}
+
+function closePinEntryModal() {
+    document.getElementById('pinEntryModal').classList.remove('active');
+    _pinEntryBuffer = '';
+    _pinEntryPlayerId = null;
+    _pinEntryCallback = null;
+}
+
+function pinEntryInput(digit) {
+    if (_pinEntryBuffer.length >= 4) return;
+    _pinEntryBuffer += digit;
+    updatePinDots('pinEntry', _pinEntryBuffer.length);
+    hapticFeedback('light');
+    if (_pinEntryBuffer.length === 4) {
+        setTimeout(submitPinEntry, 200);
+    }
+}
+
+function pinEntryClear() {
+    if (_pinEntryBuffer.length > 0) {
+        _pinEntryBuffer = _pinEntryBuffer.slice(0, -1);
+        updatePinDots('pinEntry', _pinEntryBuffer.length);
+        hapticFeedback('light');
+    }
+}
+
+async function submitPinEntry() {
+    const messageDiv = document.getElementById('pinEntryMessage');
+    const hash = simpleHash(_pinEntryBuffer);
+    const data = await apiCall('verifyPlayerPin', { player_id: _pinEntryPlayerId, pin_hash: hash });
+    if (data.error) {
+        messageDiv.innerHTML = '<div class="error">❌ Error verifying PIN.</div>';
+        _pinEntryBuffer = '';
+        updatePinDots('pinEntry', 0);
+        return;
+    }
+    if (data.success) {
+        const player = allPlayers.find(p => String(p.player_id) === String(_pinEntryPlayerId));
+        if (player) storeIdentity(_pinEntryPlayerId, player.username);
+        hapticFeedback('success');
+        const cb = _pinEntryCallback;
+        closePinEntryModal();
+        if (cb) cb();
+    } else {
+        messageDiv.innerHTML = '<div class="error">❌ Incorrect PIN. Try again.</div>';
+        hapticFeedback('error');
+        _pinEntryBuffer = '';
+        updatePinDots('pinEntry', 0);
+    }
+}
+
+// ============================================
+// PLAYER PROFILES
+// ============================================
+let _currentProfileId = null;
+let _currentProfileData = null;
+
+function makePlayerLink(playerId, displayName) {
+    return '<span class="player-link" onclick="showPlayerProfile(\'' + playerId + '\')">' + displayName + '</span>';
+}
+
+async function loadPlayersScreen() {
+    await ensurePlayersLoaded();
+    await loadEloRatings();
+    const contentDiv = document.getElementById('playersScreenContent');
+    if (allPlayers.length === 0) {
+        contentDiv.innerHTML = '<div class="placeholder-content"><p>No players found.</p></div>';
+        return;
+    }
+    let html = '<div class="players-grid">';
+    for (let i = 0; i < allPlayers.length; i++) {
+        const p = allPlayers[i];
+        const elo = getPlayerElo(p.player_id);
+        const eloText = elo ? '⚡ ' + elo.rating + (elo.provisional ? '?' : '') : '';
+        const avatarUrl = p.avatar_url || '';
+        let avatarHtml;
+        if (avatarUrl) {
+            avatarHtml = '<img src="' + avatarUrl + '" class="player-card-avatar" alt="' + p.username + '">';
+        } else {
+            avatarHtml = '<div class="player-card-avatar-placeholder">' + p.username.charAt(0).toUpperCase() + '</div>';
+        }
+        html += '<div class="player-card" onclick="showPlayerProfile(' + p.player_id + ')">';
+        html += avatarHtml;
+        html += '<div class="player-card-name">' + p.username + '</div>';
+        html += '<div class="player-card-elo">' + eloText + '</div>';
+        html += '</div>';
+    }
+    html += '</div>';
+    contentDiv.innerHTML = html;
+}
+
+async function showPlayerProfile(playerId) {
+    _currentProfileId = playerId;
+    showScreen('playerProfileScreen');
+    const contentDiv = document.getElementById('playerProfileContent');
+    contentDiv.innerHTML =
+        '<div class="skeleton-card">' +
+            '<div class="shimmer-wrapper" style="height:120px; border-radius:12px; margin-bottom:20px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:80px;"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:120px;"></div>' +
+        '</div>';
+
+    const data = await apiCall('getPlayerProfile', { player_id: playerId });
+    if (data.error) {
+        contentDiv.innerHTML = '<div class="error">Error loading profile: ' + data.error + '</div>';
+        return;
+    }
+    _currentProfileData = data;
+    renderPlayerProfile(data);
+}
+
+function renderPlayerProfile(data) {
+    const contentDiv = document.getElementById('playerProfileContent');
+    const p = data.player;
+    const stats = data.stats;
+    const elo = data.elo;
+
+    // Check if this is the logged-in player
+    const identity = getStoredIdentity();
+    const isOwnProfile = identity && String(identity.player_id) === String(p.player_id);
+
+    // Avatar
+    let avatarHtml;
+    if (p.avatar_url) {
+        avatarHtml = '<img src="' + p.avatar_url + '" class="profile-avatar" onclick="openPhotoFullscreen(\'' + p.avatar_url + '\')">';
+    } else {
+        avatarHtml = '<div class="profile-avatar-placeholder">' + p.username.charAt(0).toUpperCase() + '</div>';
+    }
+
+    // ELO badge
+    const eloText = elo.current + (elo.provisional ? '?' : '');
+    const eloChangeStr = elo.change >= 0 ? '+' + elo.change : String(elo.change);
+    const eloChangeColor = elo.change > 0 ? '#4caf50' : elo.change < 0 ? '#f5576c' : 'rgba(255,255,255,0.5)';
+
+    let html = '';
+
+    // Header
+    html += '<div class="profile-header">';
+    html += avatarHtml;
+    html += '<div class="profile-header-info">';
+    html += '<div class="profile-name">' + p.username + '</div>';
+    if (p.bio) html += '<div class="profile-bio">"' + p.bio + '"</div>';
+    html += '<div><span class="elo-badge">⚡ ' + eloText + '</span>';
+    html += ' <span style="color:' + eloChangeColor + '; font-size:0.8em;">(' + eloChangeStr + ')</span></div>';
+    html += '<div class="profile-joined">Member since ' + p.date_joined + '</div>';
+    if (isOwnProfile) {
+        html += '<button class="profile-edit-btn" onclick="handleEditProfileClick()">✏️ Edit Profile</button>';
+    } else {
+        html += '<button class="profile-edit-btn" onclick="handleEditProfileClick()">✏️ Edit Profile</button>';
+    }
+    html += '</div></div>';
+
+    // Key stats
+    html += '<div class="profile-stats-row">';
+    html += '<div class="profile-stat-cell"><div class="profile-stat-value">' + stats.sessions_played + '</div><div class="profile-stat-label">Sessions</div></div>';
+    html += '<div class="profile-stat-cell"><div class="profile-stat-value">' + stats.sessions_won + '</div><div class="profile-stat-label">Wins</div></div>';
+    html += '<div class="profile-stat-cell"><div class="profile-stat-value">' + stats.win_rate + '%</div><div class="profile-stat-label">Win Rate</div></div>';
+    html += '<div class="profile-stat-cell"><div class="profile-stat-value">' + stats.hands_played + '</div><div class="profile-stat-label">Hands</div></div>';
+    html += '<div class="profile-stat-cell"><div class="profile-stat-value">' + stats.avg_hand + '</div><div class="profile-stat-label">Avg Hand</div></div>';
+    html += '<div class="profile-stat-cell"><div class="profile-stat-value">' + (stats.avg_lockout || 'N/A') + '</div><div class="profile-stat-label">Avg LO</div></div>';
+    html += '</div>';
+
+    // Achievements
+    html += renderAchievements(data.achievements);
+
+    // ELO history chart
+    html += '<div class="section-box section-box-blue mt-20">';
+    html += '<h3 class="section-heading-blue">📈 ELO History</h3>';
+    if (elo.history.length < 2) {
+        html += '<p class="text-muted text-sm">Not enough sessions to show a chart yet.</p>';
+    } else {
+        html += '<div class="elo-chart-container" id="profileEloChart" style="height:200px;"><canvas id="profileEloCanvas"></canvas></div>';
+    }
+    html += '</div>';
+
+    // H2H summary
+    if (data.h2h_summary && data.h2h_summary.length > 0) {
+        html += '<div class="section-box section-box-red mt-20">';
+        html += '<h3 class="section-heading-red">⚔️ Head-to-Head</h3>';
+        for (let i = 0; i < data.h2h_summary.length; i++) {
+            const h = data.h2h_summary[i];
+            const total = h.total;
+            const winPct = total > 0 ? Math.round((h.wins / total) * 100) : 0;
+            const lossPct = total > 0 ? Math.round((h.losses / total) * 100) : 0;
+            const tiePct = 100 - winPct - lossPct;
+            html += '<div class="h2h-summary-row" onclick="quickCompare(' + _currentProfileId + ', ' + h.opponent_id + '); showScreen(\'statsScreen\')">';
+            html += '<div>';
+            html += '<div class="h2h-summary-name">' + getPlayerName(h.opponent_id) + '</div>';
+            html += '<div class="h2h-summary-record">' + h.wins + 'W – ' + h.ties + 'D – ' + h.losses + 'L • ' + total + ' sessions</div>';
+            html += '</div>';
+            html += '<div class="h2h-summary-bar">';
+            html += '<div style="width:' + winPct + '%;background:#667eea;"></div>';
+            html += '<div style="width:' + tiePct + '%;background:#aaa;"></div>';
+            html += '<div style="width:' + lossPct + '%;background:#f5576c;"></div>';
+            html += '</div>';
+            html += '</div>';
+        }
+        html += '</div>';
+    }
+
+    // Recent sessions
+    if (data.recent_sessions && data.recent_sessions.length > 0) {
+        html += '<div class="section-box section-box-green mt-20">';
+        html += '<h3 class="section-heading-green">🎴 Recent Sessions</h3>';
+        for (let i = 0; i < data.recent_sessions.length; i++) {
+            const s = data.recent_sessions[i];
+            const dateObj = new Date(s.date);
+            const cleanDate = String(dateObj.getDate()).padStart(2,'0') + '/' + String(dateObj.getMonth()+1).padStart(2,'0') + '/' + dateObj.getFullYear();
+            html += '<div class="profile-session-row" onclick="viewSessionFromProfile(\'' + s.session_id + '\')">';
+            html += '<div>';
+            html += '<div class="profile-session-title">' + s.title + '</div>';
+            html += '<div class="profile-session-meta">' + cleanDate + ' • ' + s.hand_count + ' hands • ' + s.player_count + ' players • ' + s.player_score + ' pts</div>';
+            html += '</div>';
+            html += '<div class="profile-session-result ' + (s.won ? 'won' : 'lost') + '">' + (s.won ? '🏆 Win' : 'Loss') + '</div>';
+            html += '</div>';
+        }
+        html += '</div>';
+    }
+
+    contentDiv.innerHTML = html;
+
+    // Draw ELO chart after DOM update
+    if (elo.history.length >= 2) {
+        setTimeout(function() { drawProfileEloChart(elo.history); }, 100);
+    }
+}
+
+function renderAchievements(achievements) {
+    const ACHIEVEMENT_DEFS = [
+        // Permanent — hands played
+        { key: 'apprentice',        emoji: '🎴',  name: 'Apprentice',        live: false, desc: '50 hands played' },
+        { key: 'centurion',         emoji: '🏛️',  name: 'Centurion',         live: false, desc: '100 hands played' },
+        { key: 'journeyman',        emoji: '⚔️',  name: 'Journeyman',        live: false, desc: '200 hands played' },
+        { key: 'veteran',           emoji: '🛡️',  name: 'Veteran',           live: false, desc: '500 hands played' },
+        { key: 'millennium',        emoji: '🌌',  name: 'Millennium',        live: false, desc: '1000 hands played' },
+        { key: 'legend',            emoji: '👑',  name: 'Legend',            live: false, desc: '2000 hands played' },
+        // Permanent — sessions won
+        { key: 'first_blood',       emoji: '🏆',  name: 'First Blood',       live: false, desc: 'Win 1 session' },
+        { key: 'ruler',             emoji: '🥇',  name: 'Ruler',             live: false, desc: 'Win 10 sessions' },
+        { key: 'dynasty',           emoji: '👑',  name: 'Dynasty',           live: false, desc: 'Win 25 sessions' },
+        { key: 'conqueror',         emoji: '🌍',  name: 'Conqueror',         live: false, desc: 'Win 50 sessions' },
+        // Permanent — lockouts
+        { key: 'picking_the_lock',  emoji: '🔑',  name: 'Picking the Lock',  live: false, desc: '50 lockouts' },
+        { key: 'the_locksmith',     emoji: '🔒',  name: 'The Locksmith',     live: false, desc: '100 lockouts' },
+        { key: 'master_of_the_lock',emoji: '🗝️',  name: 'Master of Lock',    live: false, desc: '250 lockouts' },
+        { key: 'grand_master',      emoji: '💀',  name: 'Grand Master',      live: false, desc: '500 lockouts' },
+        // Permanent — special
+        { key: 'hat_trick',         emoji: '🔥',  name: 'Hat Trick',         live: false, desc: '3 lockouts in one session' },
+        { key: 'unstoppable',       emoji: '☄️',  name: 'Unstoppable',       live: false, desc: '5 lockouts in one session' },
+        { key: 'rock_bottom',       emoji: '📉',  name: 'Rock Bottom',       live: false, desc: 'Finish a session negative' },
+        { key: 'the_hustler',       emoji: '🃏',  name: 'The Hustler',       live: false, desc: 'Win as a late joiner' },
+        { key: 'overconfident',     emoji: '😤',  name: 'Overconfident',     live: false, desc: '3+ false LOs over 5' },
+        { key: 'the_strategist',    emoji: '🧠',  name: 'The Strategist',    live: false, desc: 'Win with fewest attempts' },
+        { key: 'high_roller',       emoji: '🎰',  name: 'High Roller',       live: false, desc: '3+ lockouts at exactly 5' },
+        { key: 'bloodbath',         emoji: '🩸',  name: 'Bloodbath',         live: false, desc: 'Everyone false locked out' },
+        { key: 'slow_burner',       emoji: '🐢',  name: 'Slow Burner',       live: false, desc: 'Win without locking out' },
+        { key: 'perfect_hand',      emoji: '🎯',  name: 'Perfect Hand',      live: false, desc: 'Lockout with score ≤ 0' },
+        { key: 'the_ghost',         emoji: '👻',  name: 'The Ghost',         live: false, desc: '5 sessions, no attempts' },
+        { key: 'lightning_round',   emoji: '⚡',  name: 'Lightning Round',   live: false, desc: 'Session under 10 hands' },
+        { key: 'nemesis',           emoji: '🤝',  name: 'Nemesis',           live: false, desc: 'Beat same player 5 in a row' },
+        // Live — lockout score
+        { key: 'marksman',          emoji: '🎯',  name: 'Marksman',          live: true,  desc: 'Avg LO ≤ 3.0 (25+ LOs)' },
+        { key: 'surgeon',           emoji: '🔬',  name: 'Surgeon',           live: true,  desc: 'Avg LO ≤ 2.0 (25+ LOs)' },
+        { key: 'ice_veins',         emoji: '🧊',  name: 'Ice Veins',         live: true,  desc: 'Avg LO ≤ 1.0 (25+ LOs)' },
+        // Live — avg hand
+        { key: 'consistent',        emoji: '📊',  name: 'Consistent',        live: true,  desc: 'Avg hand ≤ 6.0 (100+ hands)' },
+        { key: 'efficient',         emoji: '📉',  name: 'Efficient',         live: true,  desc: 'Avg hand ≤ 4.5 (100+ hands)' },
+        { key: 'machine',           emoji: '🤖',  name: 'Machine',           live: true,  desc: 'Avg hand ≤ 3.0 (100+ hands)' },
+        // Live — ELO
+        { key: 'elo_climber',       emoji: '⚡',  name: 'ELO Climber',       live: true,  desc: 'Rating ≥ 1100' },
+        { key: 'elo_elite',         emoji: '🚀',  name: 'ELO Elite',         live: true,  desc: 'Rating ≥ 1200' },
+        { key: 'elo_master',        emoji: '💎',  name: 'ELO Master',        live: true,  desc: 'Rating ≥ 1300' }
+    ];
+
+    const permanent = ACHIEVEMENT_DEFS.filter(a => !a.live);
+    const live = ACHIEVEMENT_DEFS.filter(a => a.live);
+
+    let html = '<div class="achievements-section">';
+    html += '<div class="section-box section-box-yellow">';
+    html += '<h3 class="section-heading-yellow">🏅 Achievements</h3>';
+    html += '<p class="text-muted text-sm mb-10">Permanent milestones — once earned, never lost.</p>';
+    html += '<div class="achievements-grid">';
+    for (let i = 0; i < permanent.length; i++) {
+        const a = permanent[i];
+        const earned = achievements[a.key];
+        html += '<div class="achievement-badge ' + (earned ? 'earned' : 'locked') + '" title="' + a.desc + '">';
+        html += '<span class="achievement-emoji">' + a.emoji + '</span>';
+        html += '<div class="achievement-name">' + a.name + '</div>';
+        html += '</div>';
+    }
+    html += '</div>';
+
+    html += '<h3 class="section-heading-yellow mt-20">📊 Current Form</h3>';
+    html += '<p class="text-muted text-sm mb-10">Live badges — held only while you maintain the standard. <span style="color:var(--success);font-weight:600;">↕</span> = can change.</p>';
+    html += '<div class="achievements-grid">';
+    for (let i = 0; i < live.length; i++) {
+        const a = live[i];
+        const earned = achievements[a.key];
+        html += '<div class="achievement-badge live-badge ' + (earned ? 'earned' : 'locked') + '" title="' + a.desc + '">';
+        if (earned) html += '<span class="achievement-live-indicator">↕</span>';
+        html += '<span class="achievement-emoji">' + a.emoji + '</span>';
+        html += '<div class="achievement-name">' + a.name + '</div>';
+        html += '</div>';
+    }
+    html += '</div>';
+    html += '</div></div>';
+    return html;
+}
+
+function drawProfileEloChart(history) {
+    const ctx = document.getElementById('profileEloCanvas');
+    if (!ctx) return;
+    const labels = history.map(function(e, i) { return 'S' + (i + 1); });
+    const dataPoints = [Number(history[0].old_rating)];
+    for (let i = 0; i < history.length; i++) dataPoints.push(Number(history[i].new_rating));
+    labels.unshift('Start');
+    if (window._profileEloChart) window._profileEloChart.destroy();
+    window._profileEloChart = new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: dataPoints,
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102,126,234,0.1)',
+                borderWidth: 2,
+                tension: 0.1,
+                pointRadius: 3,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { title: { display: true, text: 'Rating' } },
+                x: { ticks: { font: { size: 10 } } }
+            }
+        }
+    });
+}
+
+function handleEditProfileClick() {
+    if (!_currentProfileData) return;
+    const playerId = _currentProfileData.player.player_id;
+    const hasPin = _currentProfileData.player.has_pin;
+    const identity = getStoredIdentity();
+    const alreadyVerified = identity && String(identity.player_id) === String(playerId);
+
+    if (alreadyVerified) {
+        openEditProfileModal(playerId);
+    } else if (!hasPin) {
+        openPinSetupModal(playerId);
+    } else {
+        openPinEntryModal(playerId, function() {
+            openEditProfileModal(playerId);
+        });
+    }
+}
+
+function openEditProfileModal(playerId) {
+    if (!_currentProfileData) return;
+    document.getElementById('profileBioInput').value = _currentProfileData.player.bio || '';
+    window._pendingPhotoUrl = _currentProfileData.player.avatar_url || '';
+    document.getElementById('profilePhotoUpload').innerHTML = createPhotoUploadUI(_currentProfileData.player.avatar_url || '', null);
+    document.getElementById('editProfileMessage').innerHTML = '';
+    document.getElementById('editProfileModal').classList.add('active');
+}
+
+function closeEditProfileModal() {
+    document.getElementById('editProfileModal').classList.remove('active');
+    document.getElementById('editProfileMessage').innerHTML = '';
+}
+
+async function saveProfileEdits(event) {
+    const saveBtn = event.target;
+    setButtonLoading(saveBtn, true);
+    const bio = document.getElementById('profileBioInput').value.trim();
+    const avatarUrl = window._pendingPhotoUrl !== undefined ? window._pendingPhotoUrl : (_currentProfileData.player.avatar_url || '');
+    const messageDiv = document.getElementById('editProfileMessage');
+    const data = await apiCall('updatePlayerProfile', {
+        player_id: _currentProfileData.player.player_id,
+        avatar_url: avatarUrl,
+        bio: bio
+    });
+    if (data.error) {
+        messageDiv.innerHTML = '<div class="error">❌ Could not save profile. Please try again.</div>';
+        setButtonLoading(saveBtn, false);
+    } else {
+        messageDiv.innerHTML = '<div class="success">✅ Profile updated!</div>';
+        hapticFeedback('success');
+        // Refresh player cache
+        playersLoaded = false;
+        await ensurePlayersLoaded();
+        setTimeout(function() {
+            closeEditProfileModal();
+            showPlayerProfile(_currentProfileData.player.player_id);
+            setButtonLoading(saveBtn, false);
+        }, 1000);
+    }
+}
+
+async function viewSessionFromProfile(sessionId) {
+    if (allSessions.length === 0) await loadPreviousSessions();
+    const sessionIndex = allSessions.findIndex(s => String(s.session_id) === String(sessionId));
+    if (sessionIndex !== -1) {
+        document.getElementById('profileBackBtn').onclick = function() {
+            showScreen('playerProfileScreen');
+        };
+        viewSessionDetail(sessionIndex, null);
+    }
+}
 
 // ============================================
 // FEEDBACK
