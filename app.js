@@ -1,5 +1,3 @@
-window.onerror = function(msg, src, line) { alert('JS Error line ' + line + ': ' + msg); };
-
 // ============================================
 // CONFIGURATION & STATE
 // ============================================
