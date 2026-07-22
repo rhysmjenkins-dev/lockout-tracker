@@ -371,21 +371,20 @@ function getPlayerJoinHand(playerId) {
 }
 
 // ============================================
-// IMGUR UPLOAD
+// IMAGE UPLOAD (ImgBB)
 // ============================================
-const IMGUR_CLIENT_ID = 'YOUR_IMGUR_CLIENT_ID';
+const IMGBB_API_KEY = '2b796b5794b765667ae8e38fcbce309d';
 
 async function uploadToImgur(file) {
     const formData = new FormData();
     formData.append('image', file);
     try {
-        const response = await fetch('https://api.imgur.com/3/image', {
+        const response = await fetch('https://api.imgbb.com/1/upload?key=' + IMGBB_API_KEY, {
             method: 'POST',
-            headers: { 'Authorization': 'Client-ID ' + IMGUR_CLIENT_ID },
             body: formData
         });
         const data = await response.json();
-        if (data.success) return { url: data.data.link };
+        if (data.success) return { url: data.data.url };
         return { error: 'Upload failed' };
     } catch(e) {
         return { error: e.message };
@@ -490,6 +489,8 @@ async function loadPlayersForSession() {
     }
     html += '</ul>';
     playerList.innerHTML = html;
+    window._pendingPhotoUrl = '';
+    document.getElementById('createSessionPhotoUpload').innerHTML = createPhotoUploadUI('', null);
 }
 
 async function addPlayer() {
@@ -732,8 +733,18 @@ async function createSession() {
         currentSession = {
             session_id: data.session_id, title: title, host_player_id: hostId,
             notes: notes, tags: tags, player_join_info: '{}',
-            players_involved: selectedPlayers.join(','), false_lockout_penalty: penalty
+            players_involved: selectedPlayers.join(','), false_lockout_penalty: penalty,
+            photo_url: ''
         };
+        if (window._pendingPhotoUrl) {
+            await apiCall('updateSessionPhoto', {
+                session_id: data.session_id,
+                photo_url: window._pendingPhotoUrl,
+                editor_name: hostId
+            });
+            currentSession.photo_url = window._pendingPhotoUrl;
+            window._pendingPhotoUrl = '';
+        }
         sessionPlayers = [];
         for (let i = 0; i < allPlayers.length; i++) {
             if (selectedPlayers.indexOf(String(allPlayers[i].player_id)) !== -1) sessionPlayers.push(allPlayers[i]);
