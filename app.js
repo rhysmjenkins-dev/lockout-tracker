@@ -211,11 +211,13 @@ async function drawEloHistoryChart() {
     if (!ctx) return;
     const colors = CHART_COLORS;
 
-    // Fetch sessions and all player histories in parallel
-    const [sessionsData, ...allHistories] = await Promise.all([
+    // Single call for all history instead of one per player
+    const [sessionsData, allHistoryData] = await Promise.all([
         apiCall('getSessionsWithHands', {}),
-        ...eloCache.map(p => apiCall('getEloHistory', { player_id: p.player_id }))
+        apiCall('getEloHistoryAll', {})
     ]);
+
+    if (sessionsData.error || allHistoryData.error) return;
 
     const completedSessions = sessionsData
         .filter(s => s.session.date_ended && s.session.date_ended !== '')
@@ -224,13 +226,21 @@ async function drawEloHistoryChart() {
 
     if (completedSessions.length === 0) return;
 
+    // Group history by player
+    const historyByPlayer = {};
+    for (let i = 0; i < allHistoryData.length; i++) {
+        const entry = allHistoryData[i];
+        const pid = String(entry.player_id);
+        if (!historyByPlayer[pid]) historyByPlayer[pid] = [];
+        historyByPlayer[pid].push(entry);
+    }
+
     const labels = ['Start', ...completedSessions.map(s => s.session.title)];
     const datasets = [];
 
     for (let i = 0; i < eloCache.length; i++) {
         const p = eloCache[i];
-        const history = allHistories[i];
-        if (history.error) continue;
+        const history = historyByPlayer[String(p.player_id)] || [];
 
         const ratingBySession = {};
         for (let j = 0; j < history.length; j++) {
@@ -263,7 +273,8 @@ async function drawEloHistoryChart() {
     const isMobile = window.innerWidth < 600;
     const shortLabels = labels.map(l => l.length > 8 ? l.substring(0, 8) + '…' : l);
 
-    new Chart(ctx.getContext('2d'), {
+    if (window._eloHistoryChart) window._eloHistoryChart.destroy();
+    window._eloHistoryChart = new Chart(ctx.getContext('2d'), {
         type: 'line',
         data: { labels: isMobile ? shortLabels : labels, datasets },
         options: {
@@ -1453,7 +1464,8 @@ function drawActiveWormChart(playerHands, playerIds) {
     }
     const labels = [];
     for (let i = 1; i <= maxHands; i++) labels.push('Hand ' + i);
-    new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Cricket Worm' }, legend: { display: true, position: 'top' } }, scales: { y: { title: { display: true, text: 'Cumulative Score' } } } } });
+    if (window._activeWormChart) window._activeWormChart.destroy();
+    window._activeWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Cricket Worm' }, legend: { display: true, position: 'top' } }, scales: { y: { title: { display: true, text: 'Cumulative Score' } } } } });
 }
 
 function drawActiveManhattanChart(playerHands, playerIds) {
@@ -1471,7 +1483,8 @@ function drawActiveManhattanChart(playerHands, playerIds) {
         for (let j = 0; j < hands.length; j++) dataArray.push(hands[j]);
         datasets.push({ label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''), data: dataArray, backgroundColor: colors[i % colors.length], borderColor: colors[i % colors.length], borderWidth: 1 });
     }
-    new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Manhattan' }, legend: { display: true, position: 'top' } }, scales: { x: { title: { display: true, text: 'Hand Number' } }, y: { title: { display: true, text: 'Score' }, beginAtZero: true } } } });
+    if (window._activeManhattanChart) window._activeManhattanChart.destroy();
+    window._activeManhattanChart = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Manhattan' }, legend: { display: true, position: 'top' } }, scales: { x: { title: { display: true, text: 'Hand Number' } }, y: { title: { display: true, text: 'Score' }, beginAtZero: true } } } });
 }
 
 // ============================================
@@ -1664,19 +1677,18 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
 
 const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return playerTotals[a] - playerTotals[b]; });
 
+    const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return playerTotals[a] - playerTotals[b]; });
+
     const sessionElo = {};
-    for (let i = 0; i < sortedPlayers.length; i++) {
-        const pid = sortedPlayers[i];
-        const history = await apiCall('getEloHistory', { player_id: pid });
-        if (!history.error) {
-            for (let j = 0; j < history.length; j++) {
-                if (String(history[j].session_id) === String(session.session_id)) {
-                    sessionElo[pid] = {
-                        new_rating: Math.round(Number(history[j].new_rating)),
-                        change: Math.round(Number(history[j].change))
-                    };
-                    break;
-                }
+    const eloHistoryAll = await apiCall('getEloHistoryAll', {});
+    if (!eloHistoryAll.error) {
+        for (let i = 0; i < eloHistoryAll.length; i++) {
+            const entry = eloHistoryAll[i];
+            if (String(entry.session_id) === String(session.session_id)) {
+                sessionElo[String(entry.player_id)] = {
+                    new_rating: Math.round(Number(entry.new_rating)),
+                    change: Math.round(Number(entry.change))
+                };
             }
         }
     }
@@ -1783,7 +1795,8 @@ function drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playe
     }
     const labels = [];
     for (let i = 1; i <= maxHand; i++) labels.push('Hand ' + i);
-    new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Cricket Worm' }, legend: { display: true, position: 'top' } }, scales: { y: { title: { display: true, text: 'Cumulative Score' } } } } });
+    if (window._sessionWormChart) window._sessionWormChart.destroy();
+    window._sessionWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Cricket Worm' }, legend: { display: true, position: 'top' } }, scales: { y: { title: { display: true, text: 'Cumulative Score' } } } } });
 }
 
 function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session) {
@@ -1802,7 +1815,8 @@ function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, 
         for (let j = 0; j < hands.length; j++) dataArray.push(hands[j].score);
         datasets.push({ label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''), data: dataArray, backgroundColor: colors[i % colors.length], borderColor: colors[i % colors.length], borderWidth: 1 });
     }
-    new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Manhattan' }, legend: { display: true, position: 'top' } }, scales: { x: { title: { display: true, text: 'Hand Number' } }, y: { title: { display: true, text: 'Score' }, beginAtZero: true } } } });
+    if (window._sessionManhattanChart) window._sessionManhattanChart.destroy();
+    window._sessionManhattanChart = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Manhattan' }, legend: { display: true, position: 'top' } }, scales: { x: { title: { display: true, text: 'Hand Number' } }, y: { title: { display: true, text: 'Score' }, beginAtZero: true } } } });
 }
 
 // ============================================
