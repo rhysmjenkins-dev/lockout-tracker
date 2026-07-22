@@ -497,7 +497,7 @@ async function loadPlayersForSession() {
     document.getElementById('createSessionPhotoUpload').innerHTML = createPhotoUploadUI('', null);
 }
 
-async function addPlayer() {
+async function addPlayer(event) {
     const username = document.getElementById('newPlayerName').value.trim();
     const messageDiv = document.getElementById('addPlayerMessage');
     if (!username) { messageDiv.innerHTML = '<div class="error">Please enter a player name</div>'; return; }
@@ -699,7 +699,7 @@ async function checkActiveSessions() {
     }
 }
 
-async function createSession() {
+async function createSession(event) {
     const title = document.getElementById('sessionTitle').value.trim();
     const hostId = document.getElementById('sessionHost').value;
     const checkboxes = document.querySelectorAll('.player-checkbox:checked');
@@ -844,7 +844,7 @@ function showEditSessionModal() {
     document.getElementById('editSessionModal').classList.add('active');
 }
 
-async function saveEditedSession() {
+async function saveEditedSession(event) {
     const notes = document.getElementById('editSessionNotes').value.trim();
     const tagsSelect = document.getElementById('editSessionTags');
     const selectedTags = [];
