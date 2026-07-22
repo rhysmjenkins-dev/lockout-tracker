@@ -167,11 +167,21 @@ async function showEloStats() {
             '<div class="shimmer-wrapper skeleton-text skeleton-w-60 mb-10" style="height:36px;"></div>' +
             '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
         '</div>';
-    await loadEloRatings();
-    if (eloCache.length === 0) {
-        contentDiv.innerHTML = '<div class="error">No ELO data found.</div>';
+
+    // Fetch ELO ratings and all history in parallel
+    const [ratingsData, sessionsData, allHistoryData] = await Promise.all([
+        apiCall('getEloRatings', {}),
+        apiCall('getSessionsWithHands', {}),
+        apiCall('getEloHistoryAll', {})
+    ]);
+
+    if (ratingsData.error || !ratingsData.length) {
+        contentDiv.innerHTML = '<div class="error">No ELO data found. Complete a non-testing session to generate ratings.</div>';
         return;
     }
+
+    eloCache = ratingsData;
+
     let html = '<h3>⚡ ELO Ratings</h3>';
     html += '<p class="text-muted text-sm mb-20">Rank-based ELO. All players start at 1000. ? = provisional (under 50 hands played).</p>';
     html += '<div class="overflow-x-auto"><table class="scores-table"><tr>';
@@ -194,30 +204,21 @@ async function showEloStats() {
     html += '</table></div>';
     html += '<div class="elo-history-section mt-20">';
     html += '<h3>📈 Rating History</h3>';
-    html += '<div id="eloChartShimmer" class="skeleton-card">' +
-                '<div class="shimmer-wrapper skeleton-text skeleton-w-60 mb-10" style="height:20px;"></div>' +
-                '<div class="shimmer-wrapper" style="height:250px; border-radius:8px;"></div>' +
-            '</div>';
-    html += '<div class="elo-chart-container" id="eloChartContainer" style="display:none;"><canvas id="eloHistoryChart"></canvas></div>';
+    html += '<div class="elo-chart-container" id="eloChartContainer"><canvas id="eloHistoryChart"></canvas></div>';
     html += '</div>';
-    
-    setTimeout(drawEloHistoryChart, 100);
+
+    contentDiv.innerHTML = html;
+
+    // Canvas now exists in the DOM — draw immediately with pre-fetched data
+    drawEloHistoryChart(sessionsData, allHistoryData);
 }
 
-async function drawEloHistoryChart() {
-    const shimmer = document.getElementById('eloChartShimmer');
+function drawEloHistoryChart(sessionsData, allHistoryData) {
     const container = document.getElementById('eloChartContainer');
     const ctx = document.getElementById('eloHistoryChart');
     if (!ctx) return;
+    if (!sessionsData || !allHistoryData || sessionsData.error || allHistoryData.error) return;
     const colors = CHART_COLORS;
-
-    // Single call for all history instead of one per player
-    const [sessionsData, allHistoryData] = await Promise.all([
-        apiCall('getSessionsWithHands', {}),
-        apiCall('getEloHistoryAll', {})
-    ]);
-
-    if (sessionsData.error || allHistoryData.error) return;
 
     const completedSessions = sessionsData
         .filter(s => s.session.date_ended && s.session.date_ended !== '')
@@ -267,9 +268,10 @@ async function drawEloHistoryChart() {
         });
     }
 
-    if (shimmer) shimmer.style.display = 'none';
-    if (container) container.style.display = 'block';
-
+    if (!datasets.length) {
+        if (container) container.innerHTML = '<p class="text-muted text-sm" style="padding:15px;">Not enough session data to plot a history chart yet.</p>';
+        return;
+    }
     const isMobile = window.innerWidth < 600;
     const shortLabels = labels.map(l => l.length > 8 ? l.substring(0, 8) + '…' : l);
 
