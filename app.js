@@ -2922,24 +2922,28 @@ async function handleEditProfileClick() {
     const identity = getStoredIdentity();
     const alreadyVerified = identity && String(identity.player_id) === String(playerId);
 
-    // Always re-check the sheet for current PIN status
-    // This handles the case where a PIN was deleted from the sheet
-    const check = await apiCall('verifyPlayerPin', { player_id: playerId, pin_hash: '' });
+    // Always check the sheet directly — never trust cached profile data for PIN status
+    const check = await apiCall('checkPlayerPin', { player_id: playerId });
 
-    // If sheet says no_pin, clear any stale identity and go to setup
-    if (check.reason === 'no_pin') {
+    if (check.error) {
+        alert('Could not check PIN status. Please try again.');
+        return;
+    }
+
+    if (!check.has_pin) {
+        // No PIN set — clear any stale identity and prompt setup
         clearIdentity();
         openPinSetupModal(playerId);
         return;
     }
 
-    // If already verified on this device, allow straight through
     if (alreadyVerified) {
+        // PIN exists and this device is already verified
         openEditProfileModal(playerId);
         return;
     }
 
-    // Otherwise prompt for PIN entry
+    // PIN exists but not verified on this device — prompt entry
     openPinEntryModal(playerId, function() {
         openEditProfileModal(playerId);
     });
