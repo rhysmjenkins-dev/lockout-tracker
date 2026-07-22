@@ -336,6 +336,10 @@ function getPlayerName(playerId) {
     return 'Unknown';
 }
 
+function escapeAttr(str) {
+    return String(str).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+}
+
 function parsePlayerJoinInfo(joinInfoString) {
     if (!joinInfoString || joinInfoString === '' || joinInfoString === '{}') return {};
     try {
@@ -1526,9 +1530,12 @@ async function loadPreviousSessions() {
     html += '<div id="sessionListContainer" style="max-height: 600px; overflow-y: auto; padding-right: 5px;"><ul class="session-list" id="sessionList">';
 
     for (let i = 0; i < completedSessions.length; i++) {
-        const session = completedSessions[i].session;
-        const hands = completedSessions[i].hands;
-        var dateObj = new Date(session.date_started);
+const session = completedSessions[i].session;
+if (session.title && session.title.charAt(0) === "'") {
+    session.title = session.title.substring(1);
+}
+const hands = completedSessions[i].hands;
+var dateObj = new Date(session.date_started);
         var cleanDate = String(dateObj.getDate()).padStart(2, '0') + '/' + String(dateObj.getMonth() + 1).padStart(2, '0') + '/' + dateObj.getFullYear();
         var playerIds = session.players_involved.split(',');
         var playerTotals = {}, handCount = 0, joinInfo = {};
@@ -1550,9 +1557,9 @@ async function loadPreviousSessions() {
         for (var pid in playerTotals) { if (playerTotals[pid] < lowestScore) { lowestScore = playerTotals[pid]; winnerId = pid; } }
         var winnerName = winnerId ? getPlayerName(winnerId) : 'Unknown';
 
-        html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
-        html += '<div class="session-item-header" style="display:flex; justify-content:space-between; align-items:center;">';
-        html += '<span>' + session.title + '</span>';
+html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
+html += '<div class="session-item-header" style="display:flex; justify-content:space-between; align-items:center;">';
+html += '<span>' + escapeAttr(session.title) + '</span>';
         if (session.photo_url && session.photo_url !== '') {
             html += '<img src="' + session.photo_url + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:pointer;" onclick="event.stopPropagation(); openPhotoFullscreen(\'' + session.photo_url + '\')">';
         }
