@@ -696,7 +696,12 @@ async function checkActiveSessions() {
             html += '<div class="active-session-item active-session-card">';
             html += '<div class="active-session-card-header">';
             html += '<div class="active-session-card-title"><strong>🎮 ' + session.title + '</strong></div>';
+            html += '<div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">';
+            if (session.photo_url && session.photo_url !== '') {
+                html += '<img src="' + session.photo_url + '" style="width:40px;height:40px;object-fit:cover;border-radius:6px;cursor:pointer;" onclick="event.stopPropagation(); openPhotoFullscreen(\'' + session.photo_url + '\')">';
+            }
             html += '<button class="btn btn-success btn-small active-session-resume-btn" onclick="resumeSession(' + session.session_id + ', this)">Resume</button>';
+            html += '</div>';
             html += '</div>';
             html += '<div class="active-session-stat-grid">';
             html += '<div class="active-session-stat-cell"><div class="active-session-stat-label">🎴 HAND</div><div class="active-session-stat-value">' + handCount + '</div></div>';
@@ -806,7 +811,8 @@ async function resumeSession(sessionId, buttonElement) {
         host_player_id: sessionData.host_player_id, notes: sessionData.notes || '',
         tags: sessionData.tags || '', player_join_info: sessionData.player_join_info || '{}',
         players_involved: sessionData.players_involved,
-        false_lockout_penalty: sessionData.false_lockout_penalty || 10
+        false_lockout_penalty: sessionData.false_lockout_penalty || 10,
+        photo_url: sessionData.photo_url || ''
     };
     const handsData = await apiCall('getHands', { session_id: sessionId });
     currentHandNumber = (handsData.error || handsData.length === 0) ? 1 : Math.max(...handsData.map(h => h.hand_number)) + 1;
@@ -852,6 +858,9 @@ function displaySessionMetadata(containerId) {
             }
         }
         html += '</div>';
+    }
+    if (currentSession.photo_url && currentSession.photo_url !== '') {
+        html += '<div class="session-photo-container"><img src="' + currentSession.photo_url + '" class="session-photo-full" onclick="openPhotoFullscreen(\'' + currentSession.photo_url + '\')"></div>';
     }
     container.innerHTML = html;
 }
