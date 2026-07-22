@@ -1679,8 +1679,6 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
 
 const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return playerTotals[a] - playerTotals[b]; });
 
-    const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return playerTotals[a] - playerTotals[b]; });
-
     const sessionElo = {};
     const eloHistoryAll = await apiCall('getEloHistoryAll', {});
     if (!eloHistoryAll.error) {
