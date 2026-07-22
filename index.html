@@ -963,6 +963,30 @@
         </div>
     </div>
 
+        <!-- FEEDBACK MODAL -->
+    <div id="feedbackModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>💬 Feedback or Bug Report</h3>
+                <button class="modal-close" onclick="closeFeedbackModal()">&times;</button>
+            </div>
+            <p class="modal-body-text">Found a bug or have a suggestion? Let us know and we'll look into it.</p>
+            <label for="feedbackType">Type</label>
+            <select id="feedbackType">
+                <option value="Bug">🐛 Bug report</option>
+                <option value="Suggestion">💡 Suggestion</option>
+                <option value="Other">💬 Other</option>
+            </select>
+            <label for="feedbackText">Your message</label>
+            <textarea id="feedbackText" placeholder="Describe the issue or suggestion..."></textarea>
+            <label for="feedbackName">Your name (optional)</label>
+            <input type="text" id="feedbackName" placeholder="e.g. Dave">
+            <button class="btn btn-success" onclick="submitFeedback(event)">Send Feedback</button>
+            <button class="btn btn-secondary" onclick="closeFeedbackModal()">Cancel</button>
+            <div id="feedbackMessage"></div>
+        </div>
+    </div>
+
     <!-- SESSION END POPUP -->
     <div id="sessionEndPopup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9998; align-items:center; justify-content:center;">
         <div style="background:white; border-radius:15px; padding:30px; max-width:340px; width:90%; text-align:center; box-shadow:0 10px 40px rgba(0,0,0,0.3);">
@@ -973,5 +997,8 @@
         </div>
     </div>
     <script src="app.js?v=3"></script>
+    <div class="app-footer">
+        <a class="footer-feedback-link" onclick="showFeedbackModal()">💬 Feedback or bug report</a>
+    </div>
 </body>
 </html>
