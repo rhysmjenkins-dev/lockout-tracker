@@ -543,6 +543,23 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
     font-size: 0.9em;
 }
 .inline-link:hover { color: var(--primary-dark); }
+/* === FOOTER === */
+.app-footer {
+    text-align: center;
+    padding: 15px 0 25px 0;
+    margin-top: 5px;
+}
+.footer-feedback-link {
+    color: rgba(255,255,255,0.5);
+    font-size: 0.8em;
+    cursor: pointer;
+    text-decoration: underline;
+    transition: color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+.footer-feedback-link:hover {
+    color: rgba(255,255,255,0.85);
+}
 /* === SESSION PHOTOS === */
 .photo-upload-section { margin: 10px 0; }
 .photo-upload-label { cursor: pointer; display: inline-block; }
