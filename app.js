@@ -1218,7 +1218,7 @@ function checkEditLockoutValidity() {
     }
 }
 
-async function saveEditedHand() {
+async function saveEditedHand(event) {
     const messageDiv = document.getElementById('editHandMessage');
     const saveBtn = event.target;
     setButtonLoading(saveBtn, true);
@@ -2723,63 +2723,56 @@ function renderPlayerProfile(data) {
 
 function renderAchievements(achievements) {
     const ACHIEVEMENT_DEFS = [
-        // Permanent — hands played
-        { key: 'apprentice',        emoji: '🎴',  name: 'Apprentice',        live: false, desc: '50 hands played' },
-        { key: 'centurion',         emoji: '🏛️',  name: 'Centurion',         live: false, desc: '100 hands played' },
-        { key: 'journeyman',        emoji: '⚔️',  name: 'Journeyman',        live: false, desc: '200 hands played' },
-        { key: 'veteran',           emoji: '🛡️',  name: 'Veteran',           live: false, desc: '500 hands played' },
-        { key: 'millennium',        emoji: '🌌',  name: 'Millennium',        live: false, desc: '1000 hands played' },
-        { key: 'legend',            emoji: '👑',  name: 'Legend',            live: false, desc: '2000 hands played' },
-        // Permanent — sessions won
-        { key: 'first_blood',       emoji: '🏆',  name: 'First Blood',       live: false, desc: 'Win 1 session' },
-        { key: 'ruler',             emoji: '🥇',  name: 'Ruler',             live: false, desc: 'Win 10 sessions' },
-        { key: 'dynasty',           emoji: '👑',  name: 'Dynasty',           live: false, desc: 'Win 25 sessions' },
-        { key: 'conqueror',         emoji: '🌍',  name: 'Conqueror',         live: false, desc: 'Win 50 sessions' },
-        // Permanent — lockouts
-        { key: 'picking_the_lock',  emoji: '🔑',  name: 'Picking the Lock',  live: false, desc: '50 lockouts' },
-        { key: 'the_locksmith',     emoji: '🔒',  name: 'The Locksmith',     live: false, desc: '100 lockouts' },
-        { key: 'master_of_the_lock',emoji: '🗝️',  name: 'Master of Lock',    live: false, desc: '250 lockouts' },
-        { key: 'grand_master',      emoji: '💀',  name: 'Grand Master',      live: false, desc: '500 lockouts' },
-        // Permanent — special
-        { key: 'hat_trick',         emoji: '🔥',  name: 'Hat Trick',         live: false, desc: '3 lockouts in one session' },
-        { key: 'unstoppable',       emoji: '☄️',  name: 'Unstoppable',       live: false, desc: '5 lockouts in one session' },
-        { key: 'rock_bottom',       emoji: '📉',  name: 'Rock Bottom',       live: false, desc: 'Finish a session negative' },
-        { key: 'the_hustler',       emoji: '🃏',  name: 'The Hustler',       live: false, desc: 'Win as a late joiner' },
-        { key: 'overconfident',     emoji: '😤',  name: 'Overconfident',     live: false, desc: '3+ false LOs over 5' },
-        { key: 'the_strategist',    emoji: '🧠',  name: 'The Strategist',    live: false, desc: 'Win with fewest attempts' },
-        { key: 'high_roller',       emoji: '🎰',  name: 'High Roller',       live: false, desc: '3+ lockouts at exactly 5' },
-        { key: 'bloodbath',         emoji: '🩸',  name: 'Bloodbath',         live: false, desc: 'Everyone false locked out' },
-        { key: 'slow_burner',       emoji: '🐢',  name: 'Slow Burner',       live: false, desc: 'Win without locking out' },
-        { key: 'perfect_hand',      emoji: '🎯',  name: 'Perfect Hand',      live: false, desc: 'Lockout with score ≤ 0' },
-        { key: 'the_ghost',         emoji: '👻',  name: 'The Ghost',         live: false, desc: '5 sessions, no attempts' },
-        { key: 'lightning_round',   emoji: '⚡',  name: 'Lightning Round',   live: false, desc: 'Session under 10 hands' },
-        { key: 'nemesis',           emoji: '🤝',  name: 'Nemesis',           live: false, desc: 'Beat same player 5 in a row' },
-        // Live — lockout score
-        { key: 'marksman',          emoji: '🎯',  name: 'Marksman',          live: true,  desc: 'Avg LO ≤ 3.0 (25+ LOs)' },
-        { key: 'surgeon',           emoji: '🔬',  name: 'Surgeon',           live: true,  desc: 'Avg LO ≤ 2.0 (25+ LOs)' },
-        { key: 'ice_veins',         emoji: '🧊',  name: 'Ice Veins',         live: true,  desc: 'Avg LO ≤ 1.0 (25+ LOs)' },
-        // Live — avg hand
-        { key: 'consistent',        emoji: '📊',  name: 'Consistent',        live: true,  desc: 'Avg hand ≤ 6.0 (100+ hands)' },
-        { key: 'efficient',         emoji: '📉',  name: 'Efficient',         live: true,  desc: 'Avg hand ≤ 4.5 (100+ hands)' },
-        { key: 'machine',           emoji: '🤖',  name: 'Machine',           live: true,  desc: 'Avg hand ≤ 3.0 (100+ hands)' },
-        // Live — ELO
-        { key: 'elo_climber',       emoji: '⚡',  name: 'ELO Climber',       live: true,  desc: 'Rating ≥ 1100' },
-        { key: 'elo_elite',         emoji: '🚀',  name: 'ELO Elite',         live: true,  desc: 'Rating ≥ 1200' },
-        { key: 'elo_master',        emoji: '💎',  name: 'ELO Master',        live: true,  desc: 'Rating ≥ 1300' }
+        { key: 'apprentice',         emoji: '🎴',  name: 'Apprentice',         live: false },
+        { key: 'centurion',          emoji: '🏛️',  name: 'Centurion',          live: false },
+        { key: 'journeyman',         emoji: '⚔️',  name: 'Journeyman',         live: false },
+        { key: 'veteran',            emoji: '🛡️',  name: 'Veteran',            live: false },
+        { key: 'millennium',         emoji: '🌌',  name: 'Millennium',         live: false },
+        { key: 'legend',             emoji: '👑',  name: 'Legend',             live: false },
+        { key: 'first_blood',        emoji: '🏆',  name: 'First Blood',        live: false },
+        { key: 'ruler',              emoji: '🥇',  name: 'Ruler',              live: false },
+        { key: 'dynasty',            emoji: '👑',  name: 'Dynasty',            live: false },
+        { key: 'conqueror',          emoji: '🌍',  name: 'Conqueror',          live: false },
+        { key: 'picking_the_lock',   emoji: '🔑',  name: 'Picking the Lock',   live: false },
+        { key: 'the_locksmith',      emoji: '🔒',  name: 'The Locksmith',      live: false },
+        { key: 'master_of_the_lock', emoji: '🗝️',  name: 'Master of the Lock', live: false },
+        { key: 'grand_master',       emoji: '💀',  name: 'Grand Master',       live: false },
+        { key: 'hat_trick',          emoji: '🔥',  name: 'Hat Trick',          live: false },
+        { key: 'unstoppable',        emoji: '☄️',  name: 'Unstoppable',        live: false },
+        { key: 'rock_bottom',        emoji: '📉',  name: 'Rock Bottom',        live: false },
+        { key: 'the_hustler',        emoji: '🃏',  name: 'The Hustler',        live: false },
+        { key: 'overconfident',      emoji: '😤',  name: 'Overconfident',      live: false },
+        { key: 'the_strategist',     emoji: '🧠',  name: 'The Strategist',     live: false },
+        { key: 'high_roller',        emoji: '🎰',  name: 'High Roller',        live: false },
+        { key: 'bloodbath',          emoji: '🩸',  name: 'Bloodbath',          live: false },
+        { key: 'slow_burner',        emoji: '🐢',  name: 'Slow Burner',        live: false },
+        { key: 'perfect_hand',       emoji: '🎯',  name: 'Perfect Hand',       live: false },
+        { key: 'the_ghost',          emoji: '👻',  name: 'The Ghost',          live: false },
+        { key: 'lightning_round',    emoji: '⚡',  name: 'Lightning Round',    live: false },
+        { key: 'nemesis',            emoji: '🤝',  name: 'Nemesis',            live: false },
+        { key: 'marksman',           emoji: '🎯',  name: 'Marksman',           live: true  },
+        { key: 'surgeon',            emoji: '🔬',  name: 'Surgeon',            live: true  },
+        { key: 'ice_veins',          emoji: '🧊',  name: 'Ice Veins',          live: true  },
+        { key: 'consistent',         emoji: '📊',  name: 'Consistent',         live: true  },
+        { key: 'efficient',          emoji: '📉',  name: 'Efficient',          live: true  },
+        { key: 'machine',            emoji: '🤖',  name: 'Machine',            live: true  },
+        { key: 'elo_climber',        emoji: '⚡',  name: 'ELO Climber',        live: true  },
+        { key: 'elo_elite',          emoji: '🚀',  name: 'ELO Elite',          live: true  },
+        { key: 'elo_master',         emoji: '💎',  name: 'ELO Master',         live: true  }
     ];
 
-    const permanent = ACHIEVEMENT_DEFS.filter(a => !a.live);
-    const live = ACHIEVEMENT_DEFS.filter(a => a.live);
+    const permanent = ACHIEVEMENT_DEFS.filter(function(a) { return !a.live; });
+    const live = ACHIEVEMENT_DEFS.filter(function(a) { return a.live; });
 
     let html = '<div class="achievements-section">';
     html += '<div class="section-box section-box-yellow">';
     html += '<h3 class="section-heading-yellow">🏅 Achievements</h3>';
-    html += '<p class="text-muted text-sm mb-10">Permanent milestones — once earned, never lost.</p>';
+    html += '<p class="text-muted text-sm mb-10">Permanent milestones — once earned, never lost. Tap any badge for details.</p>';
     html += '<div class="achievements-grid">';
     for (let i = 0; i < permanent.length; i++) {
         const a = permanent[i];
-        const earned = achievements[a.key];
-        html += '<div class="achievement-badge ' + (earned ? 'earned' : 'locked') + '" onclick="showAchievementInfo(\'' + a.name + '\', \'' + a.desc + '\', \'' + a.emoji + '\', false, ' + (earned ? 'true' : 'false') + ')">';
+        const earned = achievements[a.key] ? true : false;
+        html += '<div class="achievement-badge ' + (earned ? 'earned' : 'locked') + '" onclick="showAchievementInfo(\'' + a.key + '\')">';
         html += '<span class="achievement-emoji">' + a.emoji + '</span>';
         html += '<div class="achievement-name">' + a.name + '</div>';
         html += '</div>';
@@ -2787,12 +2780,12 @@ function renderAchievements(achievements) {
     html += '</div>';
 
     html += '<h3 class="section-heading-yellow mt-20">📊 Current Form</h3>';
-    html += '<p class="text-muted text-sm mb-10">Live badges — held only while you maintain the standard. <span style="color:var(--success);font-weight:600;">↕</span> = can change.</p>';
+    html += '<p class="text-muted text-sm mb-10">Live badges — held only while you maintain the standard. <span style="color:var(--success);font-weight:600;">↕</span> = can change. Tap any badge for details.</p>';
     html += '<div class="achievements-grid">';
     for (let i = 0; i < live.length; i++) {
         const a = live[i];
-        const earned = achievements[a.key];
-        html += '<div class="achievement-badge live-badge ' + (earned ? 'earned' : 'locked') + '" title="' + a.desc + '">';
+        const earned = achievements[a.key] ? true : false;
+        html += '<div class="achievement-badge live-badge ' + (earned ? 'earned' : 'locked') + '" onclick="showAchievementInfo(\'' + a.key + '\')">';
         if (earned) html += '<span class="achievement-live-indicator">↕</span>';
         html += '<span class="achievement-emoji">' + a.emoji + '</span>';
         html += '<div class="achievement-name">' + a.name + '</div>';
@@ -2803,36 +2796,79 @@ function renderAchievements(achievements) {
     return html;
 }
 
-function showAchievementInfo(name, desc, emoji, isLive, earned) {
+function showAchievementInfo(key) {
     const existing = document.getElementById('achievementPopup');
     if (existing) existing.remove();
+
+    const ALL_ACHIEVEMENTS = {
+        apprentice:         { emoji: '🎴',  name: 'Apprentice',         live: false, desc: '50 hands played' },
+        centurion:          { emoji: '🏛️',  name: 'Centurion',          live: false, desc: '100 hands played' },
+        journeyman:         { emoji: '⚔️',  name: 'Journeyman',         live: false, desc: '200 hands played' },
+        veteran:            { emoji: '🛡️',  name: 'Veteran',            live: false, desc: '500 hands played' },
+        millennium:         { emoji: '🌌',  name: 'Millennium',         live: false, desc: '1000 hands played' },
+        legend:             { emoji: '👑',  name: 'Legend',             live: false, desc: '2000 hands played' },
+        first_blood:        { emoji: '🏆',  name: 'First Blood',        live: false, desc: 'Win your first session' },
+        ruler:              { emoji: '🥇',  name: 'Ruler',              live: false, desc: 'Win 10 sessions' },
+        dynasty:            { emoji: '👑',  name: 'Dynasty',            live: false, desc: 'Win 25 sessions' },
+        conqueror:          { emoji: '🌍',  name: 'Conqueror',          live: false, desc: 'Win 50 sessions' },
+        picking_the_lock:   { emoji: '🔑',  name: 'Picking the Lock',   live: false, desc: '50 successful lockouts' },
+        the_locksmith:      { emoji: '🔒',  name: 'The Locksmith',      live: false, desc: '100 successful lockouts' },
+        master_of_the_lock: { emoji: '🗝️',  name: 'Master of the Lock', live: false, desc: '250 successful lockouts' },
+        grand_master:       { emoji: '💀',  name: 'Grand Master',       live: false, desc: '500 successful lockouts' },
+        hat_trick:          { emoji: '🔥',  name: 'Hat Trick',          live: false, desc: '3 successful lockouts in a single session' },
+        unstoppable:        { emoji: '☄️',  name: 'Unstoppable',        live: false, desc: '5 successful lockouts in a single session' },
+        rock_bottom:        { emoji: '📉',  name: 'Rock Bottom',        live: false, desc: 'Finish a session with a negative total score' },
+        the_hustler:        { emoji: '🃏',  name: 'The Hustler',        live: false, desc: 'Win a session having joined as a late joiner' },
+        overconfident:      { emoji: '😤',  name: 'Overconfident',      live: false, desc: '3 or more false lockouts where your score was over 5' },
+        the_strategist:     { emoji: '🧠',  name: 'The Strategist',     live: false, desc: 'Win a session with the fewest lockout attempts of any player' },
+        high_roller:        { emoji: '🎰',  name: 'High Roller',        live: false, desc: 'Attempt a lockout with a score of exactly 5, three or more times' },
+        bloodbath:          { emoji: '🩸',  name: 'Bloodbath',          live: false, desc: 'Play a session where every player had at least one false lockout' },
+        slow_burner:        { emoji: '🐢',  name: 'Slow Burner',        live: false, desc: 'Win a session without attempting a single lockout' },
+        perfect_hand:       { emoji: '🎯',  name: 'Perfect Hand',       live: false, desc: 'Successfully lock out with a score of 0 or less' },
+        the_ghost:          { emoji: '👻',  name: 'The Ghost',          live: false, desc: 'Play 5 sessions without ever attempting a lockout' },
+        lightning_round:    { emoji: '⚡',  name: 'Lightning Round',    live: false, desc: 'Play a session that ends in under 10 hands' },
+        nemesis:            { emoji: '🤝',  name: 'Nemesis',            live: false, desc: 'Beat the same player in 5 consecutive head-to-head sessions' },
+        marksman:           { emoji: '🎯',  name: 'Marksman',           live: true,  desc: 'Average lockout score of 3.0 or under (minimum 25 lockouts)' },
+        surgeon:            { emoji: '🔬',  name: 'Surgeon',            live: true,  desc: 'Average lockout score of 2.0 or under (minimum 25 lockouts)' },
+        ice_veins:          { emoji: '🧊',  name: 'Ice Veins',          live: true,  desc: 'Average lockout score of 1.0 or under (minimum 25 lockouts)' },
+        consistent:         { emoji: '📊',  name: 'Consistent',         live: true,  desc: 'Average hand score of 6.0 or under (minimum 100 hands)' },
+        efficient:          { emoji: '📉',  name: 'Efficient',          live: true,  desc: 'Average hand score of 4.5 or under (minimum 100 hands)' },
+        machine:            { emoji: '🤖',  name: 'Machine',            live: true,  desc: 'Average hand score of 3.0 or under (minimum 100 hands)' },
+        elo_climber:        { emoji: '⚡',  name: 'ELO Climber',        live: true,  desc: 'Reach an ELO rating of 1100 or above' },
+        elo_elite:          { emoji: '🚀',  name: 'ELO Elite',          live: true,  desc: 'Reach an ELO rating of 1200 or above' },
+        elo_master:         { emoji: '💎',  name: 'ELO Master',         live: true,  desc: 'Reach an ELO rating of 1300 or above' }
+    };
+
+    const def = ALL_ACHIEVEMENTS[key];
+    if (!def) return;
+
+    const earned = _currentProfileData && _currentProfileData.achievements
+        ? !!_currentProfileData.achievements[key]
+        : false;
+
+    const statusText = earned
+        ? (def.live ? '<span style="color:var(--success);font-weight:600;">✅ Currently held</span>'
+                    : '<span style="color:var(--success);font-weight:600;">✅ Earned</span>')
+        : (def.live ? '<span style="color:#999;">Not currently held</span>'
+                    : '<span style="color:#999;">Not yet earned</span>');
+
+    const liveNote = def.live
+        ? '<p style="font-size:0.8em;color:#888;margin-top:8px;font-style:italic;">↕ Live badge — can be gained or lost as your stats change</p>'
+        : '<p style="font-size:0.8em;color:#888;margin-top:8px;font-style:italic;">🏅 Permanent — once earned, never lost</p>';
 
     const popup = document.createElement('div');
     popup.id = 'achievementPopup';
     popup.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
-
-    const statusText = earned
-        ? (isLive ? '<span style="color:var(--success);font-weight:600;">✅ Currently held</span>' : '<span style="color:var(--success);font-weight:600;">✅ Earned</span>')
-        : (isLive ? '<span style="color:#999;">Not currently held</span>' : '<span style="color:#999;">Not yet earned</span>');
-
-    const liveNote = isLive
-        ? '<p style="font-size:0.8em;color:#888;margin-top:8px;font-style:italic;">↕ Live badge — can be gained or lost as your stats change</p>'
-        : '<p style="font-size:0.8em;color:#888;margin-top:8px;font-style:italic;">🏅 Permanent — once earned, never lost</p>';
-
     popup.innerHTML =
         '<div style="background:white;border-radius:16px;padding:30px;max-width:320px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.3);">' +
-            '<div style="font-size:3em;margin-bottom:10px;">' + emoji + '</div>' +
-            '<h3 style="color:var(--primary);margin-bottom:8px;">' + name + '</h3>' +
-            '<p style="color:var(--text-dark);font-size:0.95em;margin-bottom:12px;">' + desc + '</p>' +
-            statusText +
-            liveNote +
+            '<div style="font-size:3em;margin-bottom:10px;">' + def.emoji + '</div>' +
+            '<h3 style="color:var(--primary);margin-bottom:8px;">' + def.name + '</h3>' +
+            '<p style="color:var(--text-dark);font-size:0.95em;margin-bottom:12px;">' + def.desc + '</p>' +
+            statusText + liveNote +
             '<button class="btn btn-secondary mt-20" onclick="document.getElementById(\'achievementPopup\').remove()">Close</button>' +
         '</div>';
 
-    popup.addEventListener('click', function(e) {
-        if (e.target === popup) popup.remove();
-    });
-
+    popup.addEventListener('click', function(e) { if (e.target === popup) popup.remove(); });
     document.body.appendChild(popup);
     hapticFeedback('light');
 }
