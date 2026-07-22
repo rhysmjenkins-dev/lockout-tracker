@@ -2370,6 +2370,52 @@ function triggerEasterEgg() {
 }
 
 // ============================================
+// FEEDBACK
+// ============================================
+function showFeedbackModal() {
+    document.getElementById('feedbackText').value = '';
+    document.getElementById('feedbackName').value = '';
+    document.getElementById('feedbackType').value = 'Bug';
+    document.getElementById('feedbackMessage').innerHTML = '';
+    document.getElementById('feedbackModal').classList.add('active');
+    hapticFeedback('light');
+}
+
+function closeFeedbackModal() {
+    document.getElementById('feedbackModal').classList.remove('active');
+    document.getElementById('feedbackMessage').innerHTML = '';
+}
+
+async function submitFeedback(event) {
+    const type = document.getElementById('feedbackType').value;
+    const text = document.getElementById('feedbackText').value.trim();
+    const name = document.getElementById('feedbackName').value.trim();
+    const messageDiv = document.getElementById('feedbackMessage');
+    const submitBtn = event.target;
+
+    if (!text) {
+        messageDiv.innerHTML = '<div class="error">Please enter a message before sending.</div>';
+        return;
+    }
+
+    setButtonLoading(submitBtn, true);
+    const data = await apiCall('submitFeedback', {
+        type: type,
+        message: text,
+        submitted_by: name || 'Anonymous'
+    });
+
+    if (data.error) {
+        messageDiv.innerHTML = '<div class="error">❌ Could not send feedback. Please try again.</div>';
+        setButtonLoading(submitBtn, false);
+    } else {
+        messageDiv.innerHTML = '<div class="success">✅ Thanks! Your feedback has been sent.</div>';
+        hapticFeedback('success');
+        setTimeout(function() { closeFeedbackModal(); setButtonLoading(submitBtn, false); }, 1500);
+    }
+}
+
+// ============================================
 // SESSION SEARCH FILTER
 // ============================================
 function filterSessions() {
