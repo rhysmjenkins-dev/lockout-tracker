@@ -2837,22 +2837,33 @@ function drawProfileEloChart(history) {
     });
 }
 
-function handleEditProfileClick() {
+async function handleEditProfileClick() {
     if (!_currentProfileData) return;
     const playerId = _currentProfileData.player.player_id;
-    const hasPin = _currentProfileData.player.has_pin;
     const identity = getStoredIdentity();
     const alreadyVerified = identity && String(identity.player_id) === String(playerId);
 
+    // Always re-check the sheet for current PIN status
+    // This handles the case where a PIN was deleted from the sheet
+    const check = await apiCall('verifyPlayerPin', { player_id: playerId, pin_hash: '' });
+
+    // If sheet says no_pin, clear any stale identity and go to setup
+    if (check.reason === 'no_pin') {
+        clearIdentity();
+        openPinSetupModal(playerId);
+        return;
+    }
+
+    // If already verified on this device, allow straight through
     if (alreadyVerified) {
         openEditProfileModal(playerId);
-    } else if (!hasPin) {
-        openPinSetupModal(playerId);
-    } else {
-        openPinEntryModal(playerId, function() {
-            openEditProfileModal(playerId);
-        });
+        return;
     }
+
+    // Otherwise prompt for PIN entry
+    openPinEntryModal(playerId, function() {
+        openEditProfileModal(playerId);
+    });
 }
 
 function openEditProfileModal(playerId) {
