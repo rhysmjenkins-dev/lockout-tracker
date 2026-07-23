@@ -1,7 +1,14 @@
 <html lang="en">
 <head>
+    <script>
+        // ============================================
+        // APP VERSION — increment this when deploying
+        // changes to app.js or styles.css
+        // ============================================
+        const APP_VERSION = '10';
+        document.write('<link rel="stylesheet" href="styles.css?v=' + APP_VERSION + '">');
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <link rel="stylesheet" href="styles.css?v=9">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lockout Tracker v4.1</title>
@@ -836,7 +843,6 @@
                     <button class="btn btn-small btn-info" onclick="showHeadToHeadList()">Head-to-Head Records</button>
                     <button class="btn btn-small btn-info" onclick="showPlayerComparisonUI()">Detailed Comparison</button>
                     <button class="btn btn-small btn-success" onclick="showEloStats()">⚡ ELO Rankings</button>
-                    <button class="btn btn-small btn-secondary" onclick="showScreen('playersScreen'); loadPlayersScreen();">👤 Players</button>
                 </div>
                 <div id="statsContent" class="loading">Loading...</div>
                 <button id="adminRecalcBtn" class="btn btn-danger mt-20" onclick="recalculateElo(event)" style="display:none;">🔧 Admin: Recalculate All ELO</button>
@@ -1096,7 +1102,9 @@
             <button class="btn btn-success" onclick="closeSessionEndPopup()">🎉 Nice one!</button>
         </div>
     </div>
-    <script src="app.js?9"></script>
+     <script>
+        document.write('<script src="app.js?v=' + APP_VERSION + '"><\/script>');
+    </script>
     <div class="app-footer">
         <a class="footer-feedback-link" onclick="showFeedbackModal()">💬 Feedback or bug report</a>
     </div>
