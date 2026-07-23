@@ -2934,20 +2934,41 @@ async function handleEditProfileClick() {
     const identity = getStoredIdentity();
     const alreadyVerified = identity && String(identity.player_id) === String(playerId);
 
+    // Show loading state on the button
+    const editBtn = document.querySelector('.profile-edit-btn');
+    if (editBtn) {
+        editBtn.textContent = '⏳ Loading...';
+        editBtn.style.opacity = '0.6';
+        editBtn.style.pointerEvents = 'none';
+    }
+
+    const restoreBtn = function() {
+        if (editBtn) {
+            editBtn.textContent = '✏️ Edit Profile';
+            editBtn.style.opacity = '';
+            editBtn.style.pointerEvents = '';
+        }
+    };
+
     const check = await apiCall('checkPlayerPin', { player_id: playerId });
+
     if (check.error) {
+        restoreBtn();
         alert('Could not check PIN status. Please try again.');
         return;
     }
     if (!check.has_pin) {
         clearIdentity();
+        restoreBtn();
         openPinSetupModal(playerId);
         return;
     }
     if (alreadyVerified) {
+        restoreBtn();
         openEditProfileModal(playerId);
         return;
     }
+    restoreBtn();
     openPinEntryModal(playerId, function() {
         openEditProfileModal(playerId);
     });
