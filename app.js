@@ -385,6 +385,15 @@ function getPlayerName(playerId) {
     return playerCache[playerId] || 'Unknown';
 }
 
+function formatUKDate(dateStr) {
+    if (!dateStr || dateStr === '') return 'Unknown';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return String(dateStr);
+    return String(d.getDate()).padStart(2, '0') + '/' +
+           String(d.getMonth() + 1).padStart(2, '0') + '/' +
+           d.getFullYear();
+}
+
 function escapeAttr(str) {
     return String(str).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
 }
@@ -2656,7 +2665,7 @@ function renderPlayerProfile(data) {
     if (p.bio) html += '<div class="profile-bio">"' + p.bio + '"</div>';
     html += '<div><span class="elo-badge">⚡ ' + eloText + '</span>';
     html += ' <span style="color:' + eloChangeColor + '; font-size:0.8em;">(' + eloChangeStr + ')</span></div>';
-    html += '<div class="profile-joined">Member since ' + p.date_joined + '</div>';
+    html += '<div class="profile-joined">Member since ' + formatUKDate(p.date_joined) + '</div>';
     if (isOwnProfile) {
         html += '<button class="profile-edit-btn" onclick="handleEditProfileClick()">✏️ Edit Profile</button>';
     } else {
