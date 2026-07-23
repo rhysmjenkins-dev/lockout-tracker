@@ -1,4 +1,3 @@
-<!doctype html>
 <html lang="en">
 <head>
     <script>
@@ -6,28 +5,27 @@
         // APP VERSION — increment this when deploying
         // changes to app.js or styles.css
         // ============================================
-        const APP_VERSION = '20-beta-4';
+        const APP_VERSION = '14';
         document.write('<link rel="stylesheet" href="styles.css?v=' + APP_VERSION + '">');
     </script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lockout Tracker — BETA</title>
+    <title>Lockout Tracker v4.1</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎴</text></svg>">
     <meta name="theme-color" content="#667eea">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Lockout Beta">
+    <meta name="apple-mobile-web-app-title" content="Lockout Tracker">
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎴</text></svg>">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1 class="header-title" onclick="handleHeaderClick(event)">🎴 Lockout Tracker</h1>
             <p>Track your games, dominate the leaderboard</p>
-            <div id="editingStatus" class="editing-status" aria-live="polite"></div>
         </div>
 
         <!-- HOME SCREEN -->
@@ -190,7 +188,7 @@
                             <div class="content-card-sm" id="glossaryEloRating"><h4 class="heading-blue-sm">ELO Rating</h4><p class="p-muted">A number representing a player's skill level. All players start at 1000. Goes up when you finish higher than expected, down when you finish lower. Visible on the home screen and stats page.</p></div>
                             <div class="content-card-sm" id="glossaryProvisionalRating"><h4 class="heading-blue-sm">Provisional Rating (?)</h4><p class="p-muted">A rating marked with ? meaning the player has played fewer than 50 hands. Provisional ratings move faster to help find your true level quickly. Once you hit 50 hands the ? disappears and your rating stabilises.</p></div>
                             <div class="content-card-sm" id="kFactorEntry"><h4 class="heading-blue-sm">K-Factor</h4><p class="p-muted">Controls how much your ELO changes per session. Provisional players use K=40 (bigger swings), established players use K=24 (more stable). Named after the chess rating system it's borrowed from.</p></div>
-                            <div class="content-card-sm" id="glossaryRankBasedElo"><h4 class="heading-blue-sm">Rank-Based ELO</h4><p class="p-muted">ELO calculated from finishing position (1st, 2nd, 3rd etc.) rather than raw score. It handles any number of players; provisional K-factors and whole-number rounding mean a session's displayed changes may not add up to exactly zero.</p></div>
+                            <div class="content-card-sm" id="glossaryRankBasedElo"><h4 class="heading-blue-sm">Rank-Based ELO</h4><p class="p-muted">ELO calculated from finishing position (1st, 2nd, 3rd etc.) rather than head-to-head results. Handles any number of players fairly — total rating change always sums to zero across all players in a session.</p></div>
                         </div>
                     </div>
                 </div>
@@ -537,9 +535,7 @@
                         <h3>🔒 DATA & PRIVACY</h3>
                         <ul class="list-indented">
                             <li>All data is stored in <strong>Google Sheets</strong> (your own spreadsheet)</li>
-                            <li>Game data is stored in the administrator's <strong>Google Sheet</strong> and is visible to anyone with this public app link</li>
-                            <li>Optional photos are sent to <strong>ImgBB</strong>; chart and celebration libraries load from jsDelivr</li>
-                            <li>The app does not sell personal data or use advertising trackers</li>
+                            <li>No data is shared with third parties</li>
                             <li><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryEditHistory'); return false;">Edit history</a> tracks all changes (who edited what and when)</li>
                         </ul>
                     </div>
@@ -849,6 +845,7 @@
                     <button class="btn btn-small btn-success" onclick="showEloStats()">⚡ ELO Rankings</button>
                 </div>
                 <div id="statsContent" class="loading">Loading...</div>
+                <button id="adminRecalcBtn" class="btn btn-danger mt-20" onclick="recalculateElo(event)" style="display:none;">🔧 Admin: Recalculate All ELO</button>
                 <button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
             </div>
         </div>
@@ -924,10 +921,10 @@
     </div>
 
     <!-- EDIT HAND MODAL -->
-    <div id="editHandModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="editHandHeading">
+    <div id="editHandModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 id="editHandHeading">Edit Hand <span id="editHandNumber"></span></h3>
+                <h3>Edit Hand <span id="editHandNumber"></span></h3>
                 <button class="modal-close" onclick="closeEditModal()">&times;</button>
             </div>
             <div id="editHandInputs"></div>
@@ -941,10 +938,10 @@
     </div>
 
     <!-- EDIT SESSION MODAL -->
-    <div id="editSessionModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="editSessionHeading">
+    <div id="editSessionModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 id="editSessionHeading">Edit Session Details</h3>
+                <h3>Edit Session Details</h3>
                 <button class="modal-close" onclick="closeEditSessionModal()">&times;</button>
             </div>
             <label for="editSessionNotes">Session Notes</label>
@@ -968,10 +965,10 @@
     </div>
 
     <!-- ADD PLAYER TO SESSION MODAL -->
-    <div id="addPlayerModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="addPlayerModalHeading">
+    <div id="addPlayerModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 id="addPlayerModalHeading">Add Player to Session</h3>
+                <h3>Add Player to Session</h3>
                 <button class="modal-close" onclick="closeAddPlayerModal()">&times;</button>
             </div>
             <p class="modal-body-text">Select a player to add to this session. They will join from the next hand onwards.</p>
@@ -983,45 +980,24 @@
             </div>
             <button class="btn btn-success" onclick="confirmAddPlayer()" id="confirmAddPlayerBtn" disabled>Add Player</button>
             <button class="btn btn-secondary" onclick="closeAddPlayerModal()">Cancel</button>
-            <div id="addPlayerToSessionMessage"></div>
-        </div>
-    </div>
-
-    <!-- EDITING ACCESS MODAL -->
-    <div id="accessModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="accessModalHeading">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="accessModalHeading">Editing access</h3>
-                <button type="button" class="modal-close" onclick="finishAccessModal(false)" aria-label="Close">&times;</button>
-            </div>
-            <p class="modal-body-text" id="accessModalMessage"></p>
-            <label id="accessPrimaryLabel" for="accessPrimaryInput">Code</label>
-            <input id="accessPrimaryInput" type="text" autocomplete="off">
-            <div id="accessSecondaryGroup" style="display:none;">
-                <label id="accessSecondaryLabel" for="accessSecondaryInput">Your name</label>
-                <input id="accessSecondaryInput" type="text" maxlength="50" autocomplete="name">
-            </div>
-            <button id="accessModalConfirm" type="button" class="btn btn-success" onclick="finishAccessModal(true)">Continue</button>
-            <button id="accessModalCancel" type="button" class="btn btn-secondary" onclick="finishAccessModal(false)">Cancel</button>
+            <div id="addPlayerMessage"></div>
         </div>
     </div>
 
         <!-- PIN SETUP MODAL -->
-    <div id="pinSetupModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="pinSetupHeading">
+    <div id="pinSetupModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 id="pinSetupHeading">🔐 Set Your PIN</h3>
+                <h3>🔐 Set Your PIN</h3>
                 <button class="modal-close" onclick="closePinSetupModal()">&times;</button>
             </div>
-            <p class="modal-body-text">Choose a 6-digit PIN to protect your profile. You will need this to edit your profile on any device.</p>
+            <p class="modal-body-text">Choose a 4-digit PIN to protect your profile. You will need this to edit your profile on any device.</p>
             <div class="warning-box mb-10">⚠️ <strong>Only set a PIN if this is your own profile.</strong> Each player manages their own PIN — do not set or enter a PIN on someone else's behalf.</div>
             <div class="pin-entry-grid" id="pinSetupDisplay">
                 <div class="pin-dot" id="pinSetupDot0"></div>
                 <div class="pin-dot" id="pinSetupDot1"></div>
                 <div class="pin-dot" id="pinSetupDot2"></div>
                 <div class="pin-dot" id="pinSetupDot3"></div>
-                <div class="pin-dot" id="pinSetupDot4"></div>
-                <div class="pin-dot" id="pinSetupDot5"></div>
             </div>
             <div class="pin-keypad">
                 <button class="pin-key" onclick="pinSetupInput('1')">1</button>
@@ -1035,7 +1011,7 @@
                 <button class="pin-key" onclick="pinSetupInput('9')">9</button>
                 <button class="pin-key pin-key-clear" onclick="pinSetupClear()">⌫</button>
                 <button class="pin-key" onclick="pinSetupInput('0')">0</button>
-                <button class="pin-key pin-key-empty" type="button" aria-hidden="true" disabled></button>
+                <button class="pin-key pin-key-empty"></button>
             </div>
             <div id="pinSetupMessage"></div>
             <button class="btn btn-secondary" onclick="closePinSetupModal()">Cancel</button>
@@ -1043,21 +1019,19 @@
     </div>
 
     <!-- PIN ENTRY MODAL -->
-    <div id="pinEntryModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="pinEntryHeading">
+    <div id="pinEntryModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 id="pinEntryHeading">🔐 Enter Your PIN</h3>
+                <h3>🔐 Enter Your PIN</h3>
                 <button class="modal-close" onclick="closePinEntryModal()">&times;</button>
             </div>
-            <p class="modal-body-text" id="pinEntryPrompt">Enter your PIN to edit your profile. Existing 4-digit PINs still work; new PINs use 6 digits.</p>
+            <p class="modal-body-text" id="pinEntryPrompt">Enter your 4-digit PIN to edit your profile.</p>
             <div class="warning-box mb-10">⚠️ <strong>Only enter your PIN if this is your own profile.</strong></div>
             <div class="pin-entry-grid">
                 <div class="pin-dot" id="pinEntryDot0"></div>
                 <div class="pin-dot" id="pinEntryDot1"></div>
                 <div class="pin-dot" id="pinEntryDot2"></div>
                 <div class="pin-dot" id="pinEntryDot3"></div>
-                <div class="pin-dot" id="pinEntryDot4"></div>
-                <div class="pin-dot" id="pinEntryDot5"></div>
             </div>
             <div class="pin-keypad">
                 <button class="pin-key" onclick="pinEntryInput('1')">1</button>
@@ -1071,7 +1045,7 @@
                 <button class="pin-key" onclick="pinEntryInput('9')">9</button>
                 <button class="pin-key pin-key-clear" onclick="pinEntryClear()">⌫</button>
                 <button class="pin-key" onclick="pinEntryInput('0')">0</button>
-                <button class="pin-key pin-key-submit" type="button" onclick="submitPinEntry()" aria-label="Submit PIN">✓</button>
+                <button class="pin-key pin-key-empty"></button>
             </div>
             <div id="pinEntryMessage"></div>
             <button class="btn btn-secondary" onclick="closePinEntryModal()">Cancel</button>
@@ -1079,10 +1053,10 @@
     </div>
 
     <!-- EDIT PROFILE MODAL -->
-    <div id="editProfileModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="editProfileHeading">
+    <div id="editProfileModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 id="editProfileHeading">✏️ Edit Profile</h3>
+                <h3>✏️ Edit Profile</h3>
                 <button class="modal-close" onclick="closeEditProfileModal()">&times;</button>
             </div>
             <label>Profile Photo</label>
@@ -1096,10 +1070,10 @@
     </div>
 
         <!-- FEEDBACK MODAL -->
-    <div id="feedbackModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="feedbackHeading">
+    <div id="feedbackModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 id="feedbackHeading">💬 Feedback or Bug Report</h3>
+                <h3>💬 Feedback or Bug Report</h3>
                 <button class="modal-close" onclick="closeFeedbackModal()">&times;</button>
             </div>
             <p class="modal-body-text">Found a bug or have a suggestion? Let us know and we'll look into it.</p>
@@ -1128,12 +1102,11 @@
             <button class="btn btn-success" onclick="closeSessionEndPopup()">🎉 Nice one!</button>
         </div>
     </div>
-     <script src="config.js"></script>
      <script>
         document.write('<script src="app.js?v=' + APP_VERSION + '"><\/script>');
     </script>
     <div class="app-footer">
-        <button type="button" class="footer-feedback-link footer-feedback-button" onclick="showFeedbackModal()">💬 Feedback or bug report</button>
+        <a class="footer-feedback-link" onclick="showFeedbackModal()">💬 Feedback or bug report</a>
     </div>
 </body>
 </html>
