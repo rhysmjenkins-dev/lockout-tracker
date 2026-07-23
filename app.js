@@ -2949,6 +2949,18 @@ async function handleEditProfileClick() {
     });
 }
 
+    if (alreadyVerified) {
+        // PIN exists and this device is already verified
+        openEditProfileModal(playerId);
+        return;
+    }
+
+    // PIN exists but not verified on this device — prompt entry
+    openPinEntryModal(playerId, function() {
+        openEditProfileModal(playerId);
+    });
+}
+
 function openEditProfileModal(playerId) {
     if (!_currentProfileData) return;
     document.getElementById('profileBioInput').value = _currentProfileData.player.bio || '';
