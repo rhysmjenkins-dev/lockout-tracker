@@ -794,6 +794,12 @@ function showScreen(screenId, skipHistory) {
     }, 150);
     if (!skipHistory) history.pushState({ screen: screenId }, '', '#' + screenId);
     if (screenId === 'startSessionScreen') setTimeout(function() { loadPlayersForSession(); }, 150);
+    if (screenId === 'homeScreen') {
+        setTimeout(function() {
+            checkActiveSessions();
+            displayEloLeaderboard();
+        }, 150);
+    }
 }
 
 // ============================================
