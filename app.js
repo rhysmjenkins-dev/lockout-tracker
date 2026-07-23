@@ -739,7 +739,7 @@ async function checkActiveSessions() {
 
             if (leaderId) {
                 html += '<div class="active-session-leader-box">';
-                html += '<div class="active-session-leader-name">🏆 ' + getPlayerName(leaderId) + ' leading</div>';
+                html += '<div class="active-session-leader-name">🏆 <span class="player-link" style="color:var(--success-dark);" onclick="event.stopPropagation(); showPlayerProfile(' + leaderId + ')">' + getPlayerName(leaderId) + '</span> leading</div>';
                 html += '<div class="active-session-leader-score">' + playerScores[leaderId] + ' points</div>';
                 html += '</div>';
             }
@@ -1410,7 +1410,8 @@ if (handsData.length === 0) {
         const falseLockoutRate = p.totalLockouts > 0 ? ((p.falseLockouts / p.totalLockouts) * 100).toFixed(1) : '0';
         const avgFalseLockoutScore = p.falseLockoutScores.length > 0 ? (p.falseLockoutScores.reduce((sum, s) => sum + s, 0) / p.falseLockoutScores.length).toFixed(2) : 'N/A';
         html += '<tr>';
-        html += '<td><strong>' + p.username + '</strong>' + (p.joinHand > 1 ? ' <span class="late-join-badge">H' + p.joinHand + '</span>' : '') + ' ' + formatEloBadge(sessionPlayers.find(sp => sp.username === p.username).player_id) + '</td>';
+        const _pid = sessionPlayers.find(sp => sp.username === p.username).player_id;
+        html += '<td><strong><span class="player-link" onclick="showPlayerProfile(' + _pid + ')">' + p.username + '</span></strong>' + (p.joinHand > 1 ? ' <span class="late-join-badge">H' + p.joinHand + '</span>' : '') + ' ' + formatEloBadge(_pid) + '</td>';
         html += '<td>' + p.total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td>';
         html += '<td>' + p.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td>';
         html += '<td>' + p.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td>';
@@ -1577,7 +1578,9 @@ var dateObj = new Date(session.date_started);
         handCount = handNumbers.size;
         var lowestScore = Infinity, winnerId = null;
         for (var pid in playerTotals) { if (playerTotals[pid] < lowestScore) { lowestScore = playerTotals[pid]; winnerId = pid; } }
-        var winnerName = winnerId ? getPlayerName(winnerId) : 'Unknown';
+        var winnerName = winnerId
+            ? '<span class="player-link" onclick="event.stopPropagation(); showPlayerProfile(' + winnerId + ')">' + getPlayerName(winnerId) + '</span>'
+            : 'Unknown';
 
 html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
 html += '<div class="session-item-header" style="display:flex; justify-content:space-between; align-items:center;">';
@@ -2731,10 +2734,17 @@ function renderPlayerProfile(data) {
             const s = data.recent_sessions[i];
             const dateObj = new Date(s.date);
             const cleanDate = String(dateObj.getDate()).padStart(2,'0') + '/' + String(dateObj.getMonth()+1).padStart(2,'0') + '/' + dateObj.getFullYear();
+            let eloHtml = '';
+            if (s.elo_after !== null && s.elo_after !== undefined) {
+                const eloChangeStr = s.elo_change >= 0 ? '+' + s.elo_change : String(s.elo_change);
+                const eloChangeColor = s.elo_change > 0 ? '#4caf50' : s.elo_change < 0 ? '#f5576c' : '#888';
+                eloHtml = ' <span class="elo-badge" style="font-size:0.72em;">⚡ ' + s.elo_after + '</span>' +
+                          ' <span style="color:' + eloChangeColor + ';font-weight:600;font-size:0.78em;">(' + eloChangeStr + ')</span>';
+            }
             html += '<div class="profile-session-row" data-title="' + escapeAttr(s.title) + '" onclick="viewSessionFromProfileWithLoading(this, \'' + s.session_id + '\')">';
-            html += '<div>';
+            html += '<div style="flex:1;min-width:0;">';
             html += '<div class="profile-session-title">' + s.title + '</div>';
-            html += '<div class="profile-session-meta">' + cleanDate + ' • ' + s.hand_count + ' hands • ' + s.player_count + ' players • ' + s.player_score + ' pts</div>';
+            html += '<div class="profile-session-meta">' + cleanDate + ' • ' + s.hand_count + ' hands • ' + s.player_count + ' players • ' + s.player_score + ' pts' + eloHtml + '</div>';
             html += '</div>';
             html += '<div class="profile-session-result ' + (s.won ? 'won' : 'lost') + '">' + (s.won ? '🏆 Win' : 'Loss') + '</div>';
             html += '</div>';
@@ -3037,33 +3047,35 @@ async function viewSessionFromProfile(sessionId) {
 }
 
 async function viewSessionFromProfileWithLoading(rowElement, sessionId) {
-    const resultDiv = rowElement.querySelector('.profile-session-result');
-    const originalContent = resultDiv ? resultDiv.innerHTML : '';
-    const originalClass = resultDiv ? resultDiv.className : '';
-    if (resultDiv) {
-        resultDiv.innerHTML = '⏳';
-        resultDiv.className = 'profile-session-result';
-        resultDiv.style.background = 'var(--bg-light)';
-        resultDiv.style.color = 'var(--text-muted)';
+    // Disable all rows and show loading on the tapped row
+    const allRows = document.querySelectorAll('#profileSessionList .profile-session-row');
+    for (let i = 0; i < allRows.length; i++) {
+        allRows[i].style.pointerEvents = 'none';
+        allRows[i].style.opacity = '0.4';
     }
-    rowElement.style.opacity = '0.7';
-    rowElement.style.pointerEvents = 'none';
+    rowElement.style.opacity = '1';
+    rowElement.style.background = '#e8e9ff';
+    rowElement.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 0;width:100%;">' +
+            '<span style="font-size:1.1em;">⏳</span>' +
+            '<span style="color:var(--primary);font-weight:600;font-size:0.9em;">Loading session...</span>' +
+        '</div>';
+
     if (allSessions.length === 0) await loadPreviousSessions();
     const sessionIndex = allSessions.findIndex(s => String(s.session_id) === String(sessionId));
+
     if (sessionIndex !== -1) {
         document.getElementById('profileBackBtn').onclick = function() {
             showScreen('playerProfileScreen');
         };
         viewSessionDetail(sessionIndex, null);
     } else {
-        if (resultDiv) {
-            resultDiv.innerHTML = originalContent;
-            resultDiv.className = originalClass;
-            resultDiv.style.background = '';
-            resultDiv.style.color = '';
+        // Restore all rows if not found
+        for (let i = 0; i < allRows.length; i++) {
+            allRows[i].style.pointerEvents = '';
+            allRows[i].style.opacity = '';
+            allRows[i].style.background = '';
         }
-        rowElement.style.opacity = '';
-        rowElement.style.pointerEvents = '';
         alert('Session not found. Try viewing Previous Sessions first.');
     }
 }
