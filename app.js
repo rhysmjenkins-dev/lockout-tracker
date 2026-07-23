@@ -2605,6 +2605,15 @@ async function showPlayerProfile(playerId) {
             '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:120px;"></div>' +
         '</div>';
 
+    // Validate stored identity against sheet on every load
+    const identity = getStoredIdentity();
+    if (identity && String(identity.player_id) === String(playerId)) {
+        const pinCheck = await apiCall('checkPlayerPin', { player_id: playerId });
+        if (pinCheck.error || !pinCheck.has_pin) {
+            clearIdentity();
+        }
+    }
+
     const data = await apiCall('getPlayerProfile', { player_id: playerId });
     if (data.error) {
         contentDiv.innerHTML = '<div class="error">Error loading profile: ' + data.error + '</div>';
@@ -2703,15 +2712,17 @@ function renderPlayerProfile(data) {
         html += '</div>';
     }
 
-    // Recent sessions
+    // All sessions — scrollable and searchable
     if (data.recent_sessions && data.recent_sessions.length > 0) {
         html += '<div class="section-box section-box-green mt-20">';
-        html += '<h3 class="section-heading-green">🎴 Recent Sessions</h3>';
+        html += '<h3 class="section-heading-green">🎴 Sessions (' + data.recent_sessions.length + ')</h3>';
+        html += '<input type="text" id="profileSessionSearch" placeholder="🔍 Search sessions..." style="margin-bottom:10px;" oninput="filterProfileSessions()">';
+        html += '<div id="profileSessionList" class="profile-session-list">';
         for (let i = 0; i < data.recent_sessions.length; i++) {
             const s = data.recent_sessions[i];
             const dateObj = new Date(s.date);
             const cleanDate = String(dateObj.getDate()).padStart(2,'0') + '/' + String(dateObj.getMonth()+1).padStart(2,'0') + '/' + dateObj.getFullYear();
-            html += '<div class="profile-session-row" onclick="viewSessionFromProfile(\'' + s.session_id + '\')">';
+            html += '<div class="profile-session-row" data-title="' + escapeAttr(s.title) + '" onclick="viewSessionFromProfileWithLoading(this, \'' + s.session_id + '\')">';
             html += '<div>';
             html += '<div class="profile-session-title">' + s.title + '</div>';
             html += '<div class="profile-session-meta">' + cleanDate + ' • ' + s.hand_count + ' hands • ' + s.player_count + ' players • ' + s.player_score + ' pts</div>';
@@ -2719,6 +2730,7 @@ function renderPlayerProfile(data) {
             html += '<div class="profile-session-result ' + (s.won ? 'won' : 'lost') + '">' + (s.won ? '🏆 Win' : 'Loss') + '</div>';
             html += '</div>';
         }
+        html += '</div>';
         html += '</div>';
     }
 
@@ -2991,6 +3003,50 @@ async function viewSessionFromProfile(sessionId) {
             showScreen('playerProfileScreen');
         };
         viewSessionDetail(sessionIndex, null);
+    }
+}
+
+async function viewSessionFromProfileWithLoading(rowElement, sessionId) {
+    const resultDiv = rowElement.querySelector('.profile-session-result');
+    const originalContent = resultDiv ? resultDiv.innerHTML : '';
+    const originalClass = resultDiv ? resultDiv.className : '';
+    if (resultDiv) {
+        resultDiv.innerHTML = '⏳';
+        resultDiv.className = 'profile-session-result';
+        resultDiv.style.background = 'var(--bg-light)';
+        resultDiv.style.color = 'var(--text-muted)';
+    }
+    rowElement.style.opacity = '0.7';
+    rowElement.style.pointerEvents = 'none';
+    if (allSessions.length === 0) await loadPreviousSessions();
+    const sessionIndex = allSessions.findIndex(s => String(s.session_id) === String(sessionId));
+    if (sessionIndex !== -1) {
+        document.getElementById('profileBackBtn').onclick = function() {
+            showScreen('playerProfileScreen');
+        };
+        viewSessionDetail(sessionIndex, null);
+    } else {
+        if (resultDiv) {
+            resultDiv.innerHTML = originalContent;
+            resultDiv.className = originalClass;
+            resultDiv.style.background = '';
+            resultDiv.style.color = '';
+        }
+        rowElement.style.opacity = '';
+        rowElement.style.pointerEvents = '';
+        alert('Session not found. Try viewing Previous Sessions first.');
+    }
+}
+
+function filterProfileSessions() {
+    const search = document.getElementById('profileSessionSearch');
+    if (!search) return;
+    const term = search.value.toLowerCase();
+    const rows = document.querySelectorAll('#profileSessionList .profile-session-row');
+    for (let i = 0; i < rows.length; i++) {
+        const title = (rows[i].dataset.title || '').toLowerCase();
+        const text = rows[i].textContent.toLowerCase();
+        rows[i].style.display = (title.includes(term) || text.includes(term)) ? '' : 'none';
     }
 }
 
