@@ -54,6 +54,27 @@ body {
 .container { max-width: 800px; margin: 0 auto; }
 .header { text-align: center; color: var(--white); margin-bottom: 30px; }
 .header h1 { font-size: 2.5em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+.editing-status {
+    min-height: 24px;
+    margin-top: 8px;
+    font-size: 0.85rem;
+}
+.editing-unlocked {
+    display: inline-block;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+}
+.link-button {
+    border: 0;
+    background: transparent;
+    color: #fff;
+    text-decoration: underline;
+    cursor: pointer;
+    font: inherit;
+    padding: 4px 6px;
+}
 .card { background: var(--white); border-radius: var(--card-radius); padding: 25px; margin-bottom: 20px; box-shadow: var(--card-shadow); }
 .btn {
     background: var(--gradient-primary);
@@ -797,6 +818,12 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
     transition: opacity 0.15s;
 }
 .player-link:hover { opacity: 0.75; }
+.player-card {
+    width: 100%;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
 
 /* PIN keypad */
 .pin-entry-grid {
@@ -835,6 +862,7 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
 }
 .pin-key:hover, .pin-key:active { background: #e8e9ff; border-color: var(--primary); }
 .pin-key-clear { color: var(--danger); }
+.pin-key-submit { color: var(--success-dark); }
 .pin-key-empty { background: transparent; border-color: transparent; cursor: default; }
 .pin-key-empty:hover { background: transparent; border-color: transparent; }
 /* === PLAYER CARD SKELETON === */
@@ -875,6 +903,31 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
 }
 .footer-feedback-link:hover {
     color: rgba(255,255,255,0.85);
+}
+.footer-feedback-button {
+    border: 0;
+    background: transparent;
+    padding: 4px;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+    outline: 3px solid #ffd54f;
+    outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
 }
 /* === SESSION PHOTOS === */
 .photo-upload-section { margin: 10px 0; }

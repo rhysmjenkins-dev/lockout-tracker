@@ -1,7 +1,9 @@
 // ============================================
 // CONFIGURATION & STATE
 // ============================================
-const API_URL = 'https://script.google.com/macros/s/AKfycbzcbiMfkq6D6PcySY2O-80NTHHmQplU0xzi1kzQG8OFuAYuw0F-YdI2IONkA3DVOhlH/exec';
+const API_URL = window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.apiUrl
+    ? window.LOCKOUT_CONFIG.apiUrl
+    : 'PASTE_BETA_APPS_SCRIPT_EXEC_URL_HERE';
 
 // ============================================
 // CONSTANTS
@@ -24,6 +26,214 @@ let selectedPlayerToAdd = null;
 let playersLoaded = false;
 let playerCache = {};
 let eloCache = [];
+let navigationIntentId = 0;
+let screenTransitionTimer = null;
+
+function beginNavigationIntent() {
+    navigationIntentId++;
+    if (screenTransitionTimer) {
+        clearTimeout(screenTransitionTimer);
+        screenTransitionTimer = null;
+    }
+    return navigationIntentId;
+}
+
+function getNavigationIntent() {
+    return navigationIntentId;
+}
+
+function isCurrentNavigationIntent(intentId) {
+    return intentId === navigationIntentId;
+}
+
+const READ_ACTIONS = new Set([
+    'getPlayers', 'getSessions', 'getRecentSessions', 'getSession', 'getHands',
+    'getEditHistory', 'getSessionsWithHands', 'getHeadToHeadMatrix',
+    'getPlayerComparisonDetailed', 'getEloRatings', 'getEloHistory',
+    'getEloHistoryAll', 'getPlayerProfile', 'checkPlayerPin', 'getPublicConfig'
+]);
+const SESSION_ACTIONS = new Set([
+    'updateSession', 'updateSessionPhoto', 'addPlayerToSession', 'closeSession',
+    'addHand', 'updateHand', 'deleteHand'
+]);
+const MEMBER_ACTIONS = new Set([
+    'addPlayer', 'createSession', 'submitFeedback', 'setPlayerPin'
+]);
+
+function getDeviceId() {
+    let id = localStorage.getItem('lockout_device_id');
+    if (!id) {
+        id = (window.crypto && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : 'device-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+        localStorage.setItem('lockout_device_id', id);
+    }
+    return id;
+}
+
+function getMemberToken() {
+    return localStorage.getItem('lockout_member_token') || '';
+}
+
+function setMemberToken(token) {
+    if (token) localStorage.setItem('lockout_member_token', token);
+    else localStorage.removeItem('lockout_member_token');
+    updateEditingStatus();
+}
+
+function getSessionToken(sessionId) {
+    return localStorage.getItem('lockout_session_token_' + sessionId) || '';
+}
+
+function setSessionToken(sessionId, token) {
+    if (token) localStorage.setItem('lockout_session_token_' + sessionId, token);
+}
+
+function getProfileToken(playerId) {
+    return sessionStorage.getItem('lockout_profile_token_' + playerId) || '';
+}
+
+function setProfileToken(playerId, token) {
+    if (token) sessionStorage.setItem('lockout_profile_token_' + playerId, token);
+}
+
+function editingDisplayName() {
+    const identity = getStoredIdentity();
+    return identity && identity.username ? identity.username : (localStorage.getItem('lockout_editor_name') || 'Friend');
+}
+
+async function unlockEditing(forcePrompt) {
+    if (getMemberToken() && !forcePrompt) return getMemberToken();
+    const suggested = editingDisplayName() === 'Friend' ? '' : editingDisplayName();
+    const input = await requestAccessInput({
+        title: 'Unlock editing',
+        message: 'Enter the friends editing code. You only need to do this once on this device.',
+        primaryLabel: 'Friends editing code',
+        primaryType: 'password',
+        primaryAutocomplete: 'current-password',
+        secondaryLabel: 'Your name for the edit history',
+        secondaryValue: suggested,
+        confirmText: 'Unlock editing'
+    });
+    if (!input) return '';
+    const passphrase = input.primary;
+    const displayName = input.secondary || 'Friend';
+    const data = await rawApiRequest('unlockMember', {
+        passphrase: passphrase,
+        device_id: getDeviceId(),
+        display_name: displayName
+    }, false);
+    if (data.error) {
+        alert(data.error);
+        return '';
+    }
+    localStorage.setItem('lockout_editor_name', displayName);
+    setMemberToken(data.member_token);
+    return data.member_token;
+}
+
+function lockEditing() {
+    setMemberToken('');
+}
+
+function updateEditingStatus() {
+    const status = document.getElementById('editingStatus');
+    if (!status) return;
+    if (getMemberToken()) {
+        status.innerHTML = '<span class="editing-unlocked">Editing unlocked</span> <button type="button" class="link-button" onclick="lockEditing()">Lock</button>';
+    } else {
+        status.innerHTML = '<button type="button" class="link-button" onclick="unlockEditing(true)">Unlock editing</button>';
+    }
+}
+
+async function ensureSessionToken(sessionId) {
+    let token = getSessionToken(sessionId);
+    if (token) return token;
+    const memberToken = await unlockEditing(false);
+    if (!memberToken) return '';
+    const input = await requestAccessInput({
+        title: 'Unlock this session',
+        message: 'Enter the six-digit editing code shown when the session began.',
+        primaryLabel: 'Session editing code',
+        primaryType: 'text',
+        primaryInputMode: 'numeric',
+        primaryMaxLength: 6,
+        confirmText: 'Unlock session'
+    });
+    if (!input) return '';
+    const code = input.primary;
+    const data = await rawApiRequest('claimSession', {
+        member_token: memberToken,
+        session_id: sessionId,
+        edit_code: code
+    }, false);
+    if (data.error) {
+        alert(data.error);
+        return '';
+    }
+    token = data.session_token;
+    setSessionToken(sessionId, token);
+    if (currentSession && String(currentSession.session_id) === String(sessionId) && data.revision) {
+        currentSession.revision = Number(data.revision);
+    }
+    return token;
+}
+
+let _accessModalResolver = null;
+
+function requestAccessInput(options) {
+    return new Promise(function(resolve) {
+        _accessModalResolver = resolve;
+        document.getElementById('accessModalHeading').textContent = options.title || 'Editing access';
+        document.getElementById('accessModalMessage').textContent = options.message || '';
+        const primary = document.getElementById('accessPrimaryInput');
+        const primaryLabel = document.getElementById('accessPrimaryLabel');
+        primaryLabel.textContent = options.primaryLabel || 'Code';
+        primary.type = options.primaryType || 'text';
+        primary.value = options.primaryValue || '';
+        primary.readOnly = Boolean(options.primaryReadOnly);
+        primary.maxLength = options.primaryMaxLength || 200;
+        primary.inputMode = options.primaryInputMode || 'text';
+        primary.autocomplete = options.primaryAutocomplete || 'off';
+
+        const secondaryGroup = document.getElementById('accessSecondaryGroup');
+        const secondary = document.getElementById('accessSecondaryInput');
+        if (options.secondaryLabel) {
+            secondaryGroup.style.display = 'block';
+            document.getElementById('accessSecondaryLabel').textContent = options.secondaryLabel;
+            secondary.value = options.secondaryValue || '';
+        } else {
+            secondaryGroup.style.display = 'none';
+            secondary.value = '';
+        }
+        document.getElementById('accessModalConfirm').textContent = options.confirmText || 'Continue';
+        document.getElementById('accessModalCancel').style.display = options.hideCancel ? 'none' : '';
+        document.getElementById('accessModal').classList.add('active');
+        setTimeout(function() { primary.focus(); primary.select(); }, 0);
+    });
+}
+
+function finishAccessModal(confirmed) {
+    const modal = document.getElementById('accessModal');
+    const primary = document.getElementById('accessPrimaryInput');
+    const secondary = document.getElementById('accessSecondaryInput');
+    const result = confirmed ? { primary: primary.value.trim(), secondary: secondary.value.trim() } : null;
+    modal.classList.remove('active');
+    if (_accessModalResolver) _accessModalResolver(result);
+    _accessModalResolver = null;
+}
+
+async function showSessionEditCode(code) {
+    await requestAccessInput({
+        title: 'Session editing code',
+        message: 'Keep this code with the group. Another trusted device needs it only if it takes over scoring.',
+        primaryLabel: 'Six-digit code',
+        primaryValue: String(code),
+        primaryReadOnly: true,
+        confirmText: 'Done',
+        hideCancel: true
+    });
+}
 
 // ============================================
 // BUTTON LOADING STATE HELPER
@@ -46,16 +256,26 @@ function setButtonLoading(buttonElement, isLoading, originalText) {
 // ============================================
 // API & UTILITY FUNCTIONS
 // ============================================
-async function apiCall(action, params) {
-    const url = new URL(API_URL);
-    url.searchParams.append('action', action);
-    for (const key in params) {
-        if (params[key] !== undefined && params[key] !== null) {
-            url.searchParams.append(key, params[key]);
-        }
+async function rawApiRequest(action, params, isRead) {
+    if (!API_URL || API_URL.includes('PASTE_BETA_')) {
+        return { error: 'The beta backend has not been connected yet.', code: 'BETA_NOT_CONFIGURED' };
     }
     try {
-        const response = await fetch(url);
+        let response;
+        if (isRead) {
+            const url = new URL(API_URL);
+            url.searchParams.append('action', action);
+            for (const key in params) {
+                if (params[key] !== undefined && params[key] !== null) url.searchParams.append(key, params[key]);
+            }
+            response = await fetch(url, { method: 'GET', cache: 'no-store' });
+        } else {
+            response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(Object.assign({ action: action }, params || {}))
+            });
+        }
         if (!response.ok) {
             return { error: 'Network error: ' + response.status + ' ' + response.statusText };
         }
@@ -68,6 +288,42 @@ async function apiCall(action, params) {
         console.error('API [' + action + '] failed:', error.message);
         return { error: error.message };
     }
+}
+
+async function apiCall(action, params) {
+    params = Object.assign({}, params || {});
+    const isRead = READ_ACTIONS.has(action);
+    if (!isRead) {
+        if (MEMBER_ACTIONS.has(action)) {
+            params.member_token = getMemberToken() || await unlockEditing(false);
+            if (!params.member_token) return { error: 'Editing was not unlocked.', code: 'AUTH_REQUIRED' };
+        }
+        if (SESSION_ACTIONS.has(action)) {
+            const sessionId = params.session_id || (currentSession && currentSession.session_id);
+            params.session_token = await ensureSessionToken(sessionId);
+            if (!params.session_token) return { error: 'Session editing was not unlocked.', code: 'SESSION_AUTH_REQUIRED' };
+            params.revision = currentSession && String(currentSession.session_id) === String(sessionId)
+                ? Number(currentSession.revision || 1)
+                : Number(params.revision || 1);
+        }
+        if (action === 'updatePlayerProfile') {
+            params.profile_token = getProfileToken(params.player_id);
+        }
+        if (action === 'uploadPhoto') {
+            if (params.scope === 'new_session') params.member_token = getMemberToken() || await unlockEditing(false);
+            if (params.scope === 'session') params.session_token = await ensureSessionToken(params.session_id);
+            if (params.scope === 'profile') params.profile_token = getProfileToken(params.player_id);
+        }
+    }
+    const data = await rawApiRequest(action, params, isRead);
+    if (data && data.code === 'AUTH_EXPIRED' && MEMBER_ACTIONS.has(action)) setMemberToken('');
+    if (data && data.code === 'SESSION_AUTH_REQUIRED' && params.session_id) {
+        localStorage.removeItem('lockout_session_token_' + params.session_id);
+    }
+    if (data && data.revision && currentSession && String(currentSession.session_id) === String(params.session_id)) {
+        currentSession.revision = Number(data.revision);
+    }
+    return data;
 }
 
 async function ensurePlayersLoaded() {
@@ -148,8 +404,9 @@ async function displayEloLeaderboard() {
 }
 
 function showEloHowTo() {
-    showScreen('appInstructionsScreen');
+    const intentId = showScreen('appInstructionsScreen');
     setTimeout(function() {
+        if (!isCurrentNavigationIntent(intentId)) return;
         const target = document.getElementById('eloHowToSection');
         if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 300);
@@ -165,7 +422,10 @@ function toggleEloDropdown() {
     hapticFeedback('light');
 }
 
-async function showEloStats() {
+async function showEloStats(requestedIntentId) {
+    const intentId = typeof requestedIntentId === 'number'
+        ? requestedIntentId
+        : beginNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
     contentDiv.innerHTML =
         '<div class="skeleton-card">' +
@@ -182,6 +442,7 @@ async function showEloStats() {
         apiCall('getSessionsWithHands', {}),
         apiCall('getEloHistoryAll', {})
     ]);
+    if (!isCurrentNavigationIntent(intentId)) return;
 
     if (ratingsData.error || !ratingsData.length) {
         contentDiv.innerHTML = '<div class="error">No ELO data found. Complete a non-testing session to generate ratings.</div>';
@@ -395,7 +656,21 @@ function formatUKDate(dateStr) {
 }
 
 function escapeAttr(str) {
-    return String(str).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+    return escapeHtml(str);
+}
+
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function decodeHtml(str) {
+    const doc = new DOMParser().parseFromString(String(str || ''), 'text/html');
+    return doc.documentElement.textContent || '';
 }
 
 function parsePlayerJoinInfo(joinInfoString) {
@@ -433,21 +708,29 @@ function getPlayerJoinHand(playerId) {
 }
 
 // ============================================
-// IMAGE UPLOAD (ImgBB)
+// IMAGE UPLOAD (proxied by Apps Script; the provider key never reaches the browser)
 // ============================================
-const IMGBB_API_KEY = '2b796b5794b765667ae8e38fcbce309d';
 
 async function uploadToImgur(file) {
-    const formData = new FormData();
-    formData.append('image', file);
     try {
-        const response = await fetch('https://api.imgbb.com/1/upload?key=' + IMGBB_API_KEY, {
-            method: 'POST',
-            body: formData
+        if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+            return { error: 'Use a JPEG, PNG, WebP, or GIF image.' };
+        }
+        if (file.size > 2 * 1024 * 1024) return { error: 'Image must be smaller than 2 MB.' };
+        const dataUrl = await new Promise(function(resolve, reject) {
+            const reader = new FileReader();
+            reader.onload = function() { resolve(reader.result); };
+            reader.onerror = function() { reject(new Error('Could not read the image.')); };
+            reader.readAsDataURL(file);
         });
-        const data = await response.json();
-        if (data.success) return { url: data.data.url };
-        return { error: 'Upload failed' };
+        const context = window._photoUploadContext || { scope: 'new_session' };
+        const result = await apiCall('uploadPhoto', Object.assign({}, context, {
+            image_base64: String(dataUrl).split(',')[1],
+            mime_type: file.type,
+            file_name: file.name
+        }));
+        if (result.error) return { error: result.error };
+        return { url: result.url };
     } catch(e) {
         return { error: e.message };
     }
@@ -505,7 +788,11 @@ function removeSessionPhoto() {
 function openPhotoFullscreen(url) {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:10000;display:flex;align-items:center;justify-content:center;cursor:pointer;';
-    overlay.innerHTML = '<img src="' + url + '" style="max-width:95%;max-height:95%;border-radius:8px;object-fit:contain;">';
+    const image = document.createElement('img');
+    image.src = url;
+    image.alt = 'Full-size uploaded photo';
+    image.style.cssText = 'max-width:95%;max-height:95%;border-radius:8px;object-fit:contain;';
+    overlay.appendChild(image);
     overlay.onclick = function() { document.body.removeChild(overlay); };
     document.body.appendChild(overlay);
 }
@@ -513,24 +800,48 @@ function openPhotoFullscreen(url) {
 // ============================================
 // SCREEN NAVIGATION
 // ============================================
-function showScreen(screenId, skipHistory) {
+function showScreen(screenId, skipHistory, requestedIntentId) {
+    const intentId = typeof requestedIntentId === 'number'
+        ? requestedIntentId
+        : beginNavigationIntent();
+    if (!isCurrentNavigationIntent(intentId)) return false;
+
     const screens = document.querySelectorAll('.screen');
     const currentScreen = document.querySelector('.screen.active');
     if (currentScreen) {
         currentScreen.style.opacity = '0';
         currentScreen.style.transform = 'translateY(-10px)';
     }
-    setTimeout(function() {
+
+    if (screenTransitionTimer) clearTimeout(screenTransitionTimer);
+    screenTransitionTimer = setTimeout(function() {
+        if (!isCurrentNavigationIntent(intentId)) return;
         for (let i = 0; i < screens.length; i++) {
             screens[i].classList.remove('active');
             screens[i].style.opacity = '';
             screens[i].style.transform = '';
         }
-        document.getElementById(screenId).classList.add('active');
+        const destination = document.getElementById(screenId);
+        if (!destination) return;
+        destination.classList.add('active');
         window.scrollTo(0, 0);
+        screenTransitionTimer = null;
     }, 150);
+
     if (!skipHistory) history.pushState({ screen: screenId }, '', '#' + screenId);
-    if (screenId === 'startSessionScreen') setTimeout(function() { loadPlayersForSession(); }, 150);
+    if (screenId === 'startSessionScreen') {
+        setTimeout(function() {
+            if (isCurrentNavigationIntent(intentId)) loadPlayersForSession();
+        }, 150);
+    }
+    if (screenId === 'homeScreen') {
+        setTimeout(function() {
+            if (!isCurrentNavigationIntent(intentId)) return;
+            checkActiveSessions();
+            displayEloLeaderboard();
+        }, 150);
+    }
+    return intentId;
 }
 
 // ============================================
@@ -551,6 +862,7 @@ async function loadPlayersForSession() {
     html += '</ul>';
     playerList.innerHTML = html;
     window._pendingPhotoUrl = '';
+    window._photoUploadContext = { scope: 'new_session' };
     document.getElementById('createSessionPhotoUpload').innerHTML = createPhotoUploadUI('', null);
 }
 
@@ -558,6 +870,7 @@ async function addPlayer(event) {
     const username = document.getElementById('newPlayerName').value.trim();
     const messageDiv = document.getElementById('addPlayerMessage');
     if (!username) { messageDiv.innerHTML = '<div class="error">Please enter a player name</div>'; return; }
+    const intentId = beginNavigationIntent();
     const addBtn = event.target;
     setButtonLoading(addBtn, true);
 const data = await apiCall('addPlayer', { username: username, editor_name: username });
@@ -568,7 +881,10 @@ const data = await apiCall('addPlayer', { username: username, editor_name: usern
         messageDiv.innerHTML = '<div class="success">Player added!</div>';
         document.getElementById('newPlayerName').value = '';
         playersLoaded = false;
-        setTimeout(function() { showScreen('homeScreen'); setButtonLoading(addBtn, false); }, 1500);
+        setTimeout(function() {
+            showScreen('homeScreen', false, intentId);
+            setButtonLoading(addBtn, false);
+        }, 1500);
     }
 }
 
@@ -591,7 +907,7 @@ async function showAddPlayerModal() {
     selectedPlayerToAdd = null;
     document.getElementById('confirmAddPlayerBtn').disabled = true;
     document.getElementById('addPlayerConfirm').style.display = 'none';
-    document.getElementById('addPlayerMessage').innerHTML = '';
+    document.getElementById('addPlayerToSessionMessage').innerHTML = '';
     document.getElementById('addPlayerModal').classList.add('active');
 }
 
@@ -606,7 +922,7 @@ function selectPlayerToAdd(playerId, playerName) {
 
 async function confirmAddPlayer() {
     if (!selectedPlayerToAdd) return;
-    const messageDiv = document.getElementById('addPlayerMessage');
+    const messageDiv = document.getElementById('addPlayerToSessionMessage');
     const addBtn = document.getElementById('confirmAddPlayerBtn');
     if (addBtn) setButtonLoading(addBtn, true);
     messageDiv.innerHTML = '<div class="loading">Adding player...</div>';
@@ -638,7 +954,7 @@ async function confirmAddPlayer() {
 
 function closeAddPlayerModal() {
     document.getElementById('addPlayerModal').classList.remove('active');
-    document.getElementById('addPlayerMessage').innerHTML = '';
+    document.getElementById('addPlayerToSessionMessage').innerHTML = '';
     selectedPlayerToAdd = null;
 }
 
@@ -680,9 +996,14 @@ async function checkActiveSessions() {
             const playerLockouts = {};
             const playerFalseLockouts = {};
 
+            let fullJoinInfo = {};
+            try { fullJoinInfo = JSON.parse(session.player_join_info || '{}'); } catch (e) {}
             for (let p = 0; p < playerIds.length; p++) {
                 const pid = playerIds[p];
-                playerScores[pid] = 0;
+                const joinRecord = fullJoinInfo[pid];
+                playerScores[pid] = joinRecord && typeof joinRecord === 'object'
+                    ? Number(joinRecord.starting_score || 0)
+                    : 0;
                 playerLockouts[pid] = 0;
                 playerFalseLockouts[pid] = 0;
             }
@@ -780,7 +1101,7 @@ async function createSession(event) {
     setButtonLoading(createBtn, true);
     const existingTitles = allSessions.map(s => s.title.toLowerCase().trim());
     if (existingTitles.includes(title.toLowerCase().trim())) {
-        messageDiv.innerHTML = '<div class="error">⚠️ A session named "' + title + '" already exists.</div>';
+        messageDiv.innerHTML = '<div class="error">⚠️ A session named "' + escapeHtml(title) + '" already exists.</div>';
         setButtonLoading(createBtn, false);
         return;
     }
@@ -792,21 +1113,24 @@ async function createSession(event) {
         messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
         setButtonLoading(createBtn, false);
     } else {
+        setSessionToken(data.session_id, data.session_token);
         currentSession = {
             session_id: data.session_id, title: title, host_player_id: hostId,
-            notes: notes, tags: tags, player_join_info: '{}',
+            notes: escapeHtml(notes), tags: escapeHtml(tags), player_join_info: '{}',
             players_involved: selectedPlayers.join(','), false_lockout_penalty: penalty,
-            photo_url: ''
+            photo_url: '', revision: Number(data.revision || 1)
         };
         if (window._pendingPhotoUrl) {
-            await apiCall('updateSessionPhoto', {
+            const photoData = await apiCall('updateSessionPhoto', {
                 session_id: data.session_id,
                 photo_url: window._pendingPhotoUrl,
                 editor_name: hostId
             });
-            currentSession.photo_url = window._pendingPhotoUrl;
+            if (!photoData.error) currentSession.photo_url = window._pendingPhotoUrl;
+            else messageDiv.innerHTML = '<div class="error">Session created, but the photo could not be attached: ' + photoData.error + '</div>';
             window._pendingPhotoUrl = '';
         }
+        if (data.edit_code) await showSessionEditCode(data.edit_code);
         sessionPlayers = [];
         for (let i = 0; i < allPlayers.length; i++) {
             if (selectedPlayers.indexOf(String(allPlayers[i].player_id)) !== -1) sessionPlayers.push(allPlayers[i]);
@@ -820,15 +1144,26 @@ async function createSession(event) {
     }
 }
 
-async function resumeSession(sessionId, buttonElement) {
+async function resumeSession(sessionId, buttonElement, requestedIntentId) {
+    const intentId = typeof requestedIntentId === 'number'
+        ? requestedIntentId
+        : beginNavigationIntent();
     if (buttonElement) setButtonLoading(buttonElement, true);
     const sessionData = await apiCall('getSession', { session_id: sessionId });
+    if (!isCurrentNavigationIntent(intentId)) {
+        if (buttonElement) setButtonLoading(buttonElement, false);
+        return;
+    }
     if (sessionData.error) {
         alert('Error loading session: ' + sessionData.error);
         if (buttonElement) setButtonLoading(buttonElement, false);
         return;
     }
     await ensurePlayersLoaded();
+    if (!isCurrentNavigationIntent(intentId)) {
+        if (buttonElement) setButtonLoading(buttonElement, false);
+        return;
+    }
     const playerIds = sessionData.players_involved.split(',');
     sessionPlayers = [];
     for (let i = 0; i < playerIds.length; i++) {
@@ -841,16 +1176,21 @@ async function resumeSession(sessionId, buttonElement) {
         tags: sessionData.tags || '', player_join_info: sessionData.player_join_info || '{}',
         players_involved: sessionData.players_involved,
         false_lockout_penalty: sessionData.false_lockout_penalty || 10,
-        photo_url: sessionData.photo_url || ''
+        photo_url: sessionData.photo_url || '',
+        revision: Number(sessionData.revision || 1)
     };
     const handsData = await apiCall('getHands', { session_id: sessionId });
+    if (!isCurrentNavigationIntent(intentId)) {
+        if (buttonElement) setButtonLoading(buttonElement, false);
+        return;
+    }
     currentHandNumber = (handsData.error || handsData.length === 0) ? 1 : Math.max(...handsData.map(h => h.hand_number)) + 1;
-    showActiveSession();
+    showActiveSession(intentId);
     updateSessionScores();
     if (buttonElement) setButtonLoading(buttonElement, false);
 }
 
-function showActiveSession() {
+function showActiveSession(requestedIntentId) {
     document.getElementById('activeSessionTitle').textContent = currentSession.title;
     let playerNames = sessionPlayers.map(p => {
         const joinHand = getPlayerJoinHand(p.player_id);
@@ -868,7 +1208,7 @@ function showActiveSession() {
     document.getElementById('activeSessionCharts').innerHTML = '';
     document.getElementById('activeHandHistoryBottom').innerHTML = '';
     updateSessionScores();
-    showScreen('activeSessionScreen');
+    showScreen('activeSessionScreen', false, requestedIntentId);
 }
 
 function displaySessionMetadata(containerId) {
@@ -895,8 +1235,9 @@ function displaySessionMetadata(containerId) {
 }
 
 function showEditSessionModal() {
-    document.getElementById('editSessionNotes').value = currentSession.notes || '';
+    document.getElementById('editSessionNotes').value = decodeHtml(currentSession.notes || '');
     window._pendingPhotoUrl = currentSession.photo_url || '';
+    window._photoUploadContext = { scope: 'session', session_id: currentSession.session_id };
     document.getElementById('editSessionPhotoUpload').innerHTML = createPhotoUploadUI(currentSession.photo_url || '', null);
     const tagsSelect = document.getElementById('editSessionTags');
     const currentTags = (currentSession.tags || '').split(',').filter(t => t.trim());
@@ -926,14 +1267,19 @@ async function saveEditedSession(event) {
         messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
         setButtonLoading(saveBtn, false);
     } else {
-        currentSession.notes = notes;
-        currentSession.tags = tags;
+        currentSession.notes = escapeHtml(notes);
+        currentSession.tags = escapeHtml(tags);
         if (window._pendingPhotoUrl !== undefined) {
-            await apiCall('updateSessionPhoto', {
+            const photoData = await apiCall('updateSessionPhoto', {
                 session_id: currentSession.session_id,
                 photo_url: window._pendingPhotoUrl,
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
+            if (photoData.error) {
+                messageDiv.innerHTML = '<div class="error">Details saved, but the photo could not be updated: ' + photoData.error + '</div>';
+                setButtonLoading(saveBtn, false);
+                return;
+            }
             currentSession.photo_url = window._pendingPhotoUrl;
         }
         messageDiv.innerHTML = '<div class="success">Session updated!</div>';
@@ -949,6 +1295,7 @@ function closeEditSessionModal() {
 
 async function endSession(event) {
     if (!confirm('End this session?')) return;
+    const intentId = beginNavigationIntent();
     const endBtn = event.target;
     setButtonLoading(endBtn, true);
     let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
@@ -962,7 +1309,17 @@ async function endSession(event) {
         setButtonLoading(endBtn, false);
         return;
     }
+    if (!isCurrentNavigationIntent(intentId)) {
+        currentSession = null;
+        setButtonLoading(endBtn, false);
+        return;
+    }
     const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
+    if (!isCurrentNavigationIntent(intentId)) {
+        currentSession = null;
+        setButtonLoading(endBtn, false);
+        return;
+    }
     const playerTotals = {};
     for (let i = 0; i < sessionPlayers.length; i++) {
         const player = sessionPlayers[i];
@@ -978,7 +1335,7 @@ async function endSession(event) {
     hapticFeedback('success');
     setButtonLoading(endBtn, false);
     currentSession = null;
-    showScreen('homeScreen');
+    showScreen('homeScreen', false, intentId);
     checkActiveSessions();
     setTimeout(function() {
         eloCache = [];
@@ -1008,9 +1365,9 @@ function setupHandInputs() {
         const joinHand = getPlayerJoinHand(player.player_id);
         if (joinHand <= currentHandNumber) {
             html += '<div class="player-hand-row">' +
-                '<label>' + player.username + (joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '') + '</label>' +
-                '<input type="number" id="score_' + player.player_id + '" placeholder="Score" min="-2" oninput="checkLockoutValidity()">' +
-                '<label style="display: flex; align-items: center; gap: 5px; margin: 0;"><input type="radio" name="lockout_player" value="' + player.player_id + '" onchange="checkLockoutValidity()"> Locked Out</label>' +
+                '<label for="score_' + player.player_id + '">' + player.username + (joinHand > 1 ? ' <span class="late-join-badge">H' + joinHand + '</span>' : '') + '</label>' +
+                '<input type="number" id="score_' + player.player_id + '" aria-label="Score for ' + escapeAttr(decodeHtml(player.username)) + '" placeholder="Score" min="-2" oninput="checkLockoutValidity()">' +
+                '<label style="display: flex; align-items: center; gap: 5px; margin: 0;"><input type="radio" name="lockout_player" aria-label="' + escapeAttr(decodeHtml(player.username)) + ' locked out" value="' + player.player_id + '" onchange="checkLockoutValidity()"> Locked Out</label>' +
                 '</div>';
         }
     }
@@ -1190,14 +1547,14 @@ async function editHand(handNumber, event) {
             }
             const isLockout = (lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id));
             html += '<div class="player-hand-row">';
-            html += '<label>' + player.username + '</label>';
-            html += '<input type="number" id="edit_score_' + player.player_id + '" value="' + displayScore + '" placeholder="Score" min="-2" oninput="checkEditLockoutValidity()">';
-            html += '<label style="display: flex; align-items: center; gap: 5px; margin: 0;"><input type="radio" name="edit_lockout_player" value="' + player.player_id + '" ' + (isLockout ? 'checked' : '') + ' onchange="checkEditLockoutValidity()"> Locked Out</label>';
+            html += '<label for="edit_score_' + player.player_id + '">' + player.username + '</label>';
+            html += '<input type="number" id="edit_score_' + player.player_id + '" aria-label="Edit score for ' + escapeAttr(decodeHtml(player.username)) + '" value="' + displayScore + '" placeholder="Score" min="-2" oninput="checkEditLockoutValidity()">';
+            html += '<label style="display: flex; align-items: center; gap: 5px; margin: 0;"><input type="radio" name="edit_lockout_player" aria-label="' + escapeAttr(decodeHtml(player.username)) + ' locked out" value="' + player.player_id + '" ' + (isLockout ? 'checked' : '') + ' onchange="checkEditLockoutValidity()"> Locked Out</label>';
             html += '</div>';
         }
     }
     document.getElementById('editHandInputs').innerHTML = html;
-    document.getElementById('editHandComment').value = handComment;
+    document.getElementById('editHandComment').value = decodeHtml(handComment);
     document.getElementById('editHandModal').classList.add('active');
     setTimeout(checkEditLockoutValidity, 100);
     if (event && event.target) setButtonLoading(event.target, false);
@@ -1509,7 +1866,10 @@ function drawActiveManhattanChart(playerHands, playerIds) {
 // ============================================
 // PREVIOUS SESSIONS & SESSION DETAIL
 // ============================================
-async function loadPreviousSessions() {
+async function loadPreviousSessions(requestedIntentId) {
+    const intentId = typeof requestedIntentId === 'number'
+        ? requestedIntentId
+        : getNavigationIntent();
     const contentDiv = document.getElementById('previousSessionsContent');
     contentDiv.innerHTML =
         '<div class="skeleton-card">' +
@@ -1520,7 +1880,9 @@ async function loadPreviousSessions() {
         '</div>';
 
     await ensurePlayersLoaded();
+    if (!isCurrentNavigationIntent(intentId)) return false;
     const sessionsWithHands = await apiCall('getSessionsWithHands', {});
+    if (!isCurrentNavigationIntent(intentId)) return false;
     if (sessionsWithHands.error) { contentDiv.innerHTML = '<div class="error">Error loading sessions: ' + sessionsWithHands.error + '</div>'; return; }
 
     const completedSessions = [];
@@ -1540,6 +1902,7 @@ async function loadPreviousSessions() {
     if (completedSessions.length === 0) { contentDiv.innerHTML = '<div class="placeholder-content"><h3>No Completed Sessions</h3><p>Complete a session to see it here!</p></div>'; return; }
 
     const eloHistoryAll = await apiCall('getEloHistoryAll', {});
+    if (!isCurrentNavigationIntent(intentId)) return false;
     const eloHistoryMap = {};
     if (!eloHistoryAll.error) {
         for (let i = 0; i < eloHistoryAll.length; i++) {
@@ -1622,11 +1985,19 @@ html += '<span>' + escapeAttr(session.title) + '</span>';
     }
     html += '</ul></div>';
     contentDiv.innerHTML = html;
+    return true;
 }
 
-async function viewSessionDetail(sessionIndex, buttonElement) {
+async function viewSessionDetail(sessionIndex, buttonElement, requestedIntentId) {
+    const intentId = typeof requestedIntentId === 'number'
+        ? requestedIntentId
+        : beginNavigationIntent();
     if (buttonElement) setButtonLoading(buttonElement, true);
     const session = allSessions[sessionIndex];
+    if (!session) {
+        if (buttonElement) setButtonLoading(buttonElement, false);
+        return;
+    }
     document.getElementById('sessionDetailContent').innerHTML =
         '<div class="skeleton-card">' +
             '<h3 class="section-heading-blue mb-15">Loading session details...</h3>' +
@@ -1639,6 +2010,10 @@ async function viewSessionDetail(sessionIndex, buttonElement) {
         '</div>';
 
     let handsData = await apiCall('getHands', { session_id: session.session_id });
+    if (!isCurrentNavigationIntent(intentId)) {
+        if (buttonElement) setButtonLoading(buttonElement, false);
+        return;
+    }
     if (handsData.error) { alert('Error loading session details'); if (buttonElement) setButtonLoading(buttonElement, false); return; }
     for (let i = 0; i < handsData.length; i++) { if (!handsData[i].comment) handsData[i].comment = ''; }
 
@@ -1700,6 +2075,10 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return pla
 
     const sessionElo = {};
     const eloHistoryAll = await apiCall('getEloHistoryAll', {});
+    if (!isCurrentNavigationIntent(intentId)) {
+        if (buttonElement) setButtonLoading(buttonElement, false);
+        return;
+    }
     if (!eloHistoryAll.error) {
         for (let i = 0; i < eloHistoryAll.length; i++) {
             const entry = eloHistoryAll[i];
@@ -1787,8 +2166,12 @@ document.getElementById('sessionDetailHandHistory').innerHTML = handHistoryHtml;
     graphsHtml += '<div class="chart-container"><canvas id="wormChart"></canvas></div>';
     graphsHtml += '<div class="chart-container"><canvas id="manhattanChart"></canvas></div>';
     document.getElementById('sessionDetailGraphs').innerHTML = graphsHtml;
-    showScreen('sessionDetailScreen');
-    setTimeout(function() { drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session); drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session); }, 100);
+    showScreen('sessionDetailScreen', false, intentId);
+    setTimeout(function() {
+        if (!isCurrentNavigationIntent(intentId)) return;
+        drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
+        drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
+    }, 100);
 }
 
 // ============================================
@@ -1841,7 +2224,10 @@ function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, 
 // ============================================
 // OVERALL STATS
 // ============================================
-async function loadStats() {
+async function loadStats(requestedIntentId) {
+    const intentId = typeof requestedIntentId === 'number'
+        ? requestedIntentId
+        : getNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
     contentDiv.innerHTML =
         '<div class="skeleton-card">' +
@@ -1857,7 +2243,9 @@ async function loadStats() {
         '</div>';
 
     await ensurePlayersLoaded();
+    if (!isCurrentNavigationIntent(intentId)) return false;
     const sessionsWithHands = await apiCall('getSessionsWithHands', {});
+    if (!isCurrentNavigationIntent(intentId)) return false;
     if (sessionsWithHands.error) { contentDiv.innerHTML = '<div class="error">Error loading stats</div>'; return; }
 
     const completedSessionsData = [], allSessionsData = [];
@@ -1869,7 +2257,9 @@ async function loadStats() {
         if (isCompleted) completedSessionsData.push(sessionData);
     }
     const stats = calculateOverallStats(completedSessionsData, allSessionsData, allPlayers);
+    if (!isCurrentNavigationIntent(intentId)) return false;
     displayOverallStats(stats, completedSessionsData.length);
+    return true;
 }
 
 function calculateOverallStats(completedSessionsData, allSessionsData, playersData) {
@@ -2031,30 +2421,23 @@ function displayOverallStats(stats, totalSessions) {
 }
 
 async function showOverallStats() {
+    const intentId = beginNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
     contentDiv.innerHTML = '<div class="loading">Loading overall stats...</div>';
-    await loadStats();
+    await loadStats(intentId);
 }
 
 async function recalculateElo(event) {
-    if (!confirm('Recalculate all ELO ratings from scratch? This may take a moment.')) return;
-    const btn = event.target;
-    setButtonLoading(btn, true);
-    const data = await apiCall('recalculateAllElo', {});
-    if (data.error) {
-        alert('Error: ' + data.error);
-    } else {
-        eloCache = [];
-        await displayEloLeaderboard();
-        alert('✅ ELO recalculated! ' + data.sessions_processed + ' sessions processed.');
-    }
-    setButtonLoading(btn, false);
+    alert('Elo recalculation is available only from the private “Lockout Admin” menu in the Google Sheet.');
 }
 
 // ============================================
 // HEAD-TO-HEAD STATS
 // ============================================
-async function showHeadToHeadList() {
+async function showHeadToHeadList(requestedIntentId) {
+    const intentId = typeof requestedIntentId === 'number'
+        ? requestedIntentId
+        : beginNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
     contentDiv.innerHTML =
         '<div class="skeleton-card">' +
@@ -2065,7 +2448,9 @@ async function showHeadToHeadList() {
         '</div>';
 
     await ensurePlayersLoaded();
+    if (!isCurrentNavigationIntent(intentId)) return;
     const data = await apiCall('getHeadToHeadMatrix', {});
+    if (!isCurrentNavigationIntent(intentId)) return;
     if (data.error) { contentDiv.innerHTML = '<div class="error">Error loading data: ' + data.error + '</div>'; return; }
     if (data.length === 0) { contentDiv.innerHTML = '<div class="placeholder-content"><h3>Not Enough Data</h3><p>Play more sessions to see head-to-head records!</p></div>'; return; }
 
@@ -2108,20 +2493,28 @@ async function showHeadToHeadList() {
     contentDiv.innerHTML = html;
 }
 
-function quickCompare(p1Id, p2Id) {
-    showPlayerComparisonUI();
-    setTimeout(function() {
-        document.getElementById('comparisonPlayer1').value = p1Id;
-        document.getElementById('comparisonPlayer2').value = p2Id;
-        showPlayerComparison();
-    }, 100);
+async function quickCompare(p1Id, p2Id) {
+    const intentId = beginNavigationIntent();
+    showScreen('statsScreen', false, intentId);
+    await showPlayerComparisonUI(intentId);
+    if (!isCurrentNavigationIntent(intentId)) return;
+    const player1 = document.getElementById('comparisonPlayer1');
+    const player2 = document.getElementById('comparisonPlayer2');
+    if (!player1 || !player2) return;
+    player1.value = p1Id;
+    player2.value = p2Id;
+    showPlayerComparison(intentId);
 }
 
 // ============================================
 // PLAYER COMPARISON
 // ============================================
-async function showPlayerComparisonUI() {
+async function showPlayerComparisonUI(requestedIntentId) {
+    const intentId = typeof requestedIntentId === 'number'
+        ? requestedIntentId
+        : beginNavigationIntent();
     await ensurePlayersLoaded();
+    if (!isCurrentNavigationIntent(intentId)) return false;
     const contentDiv = document.getElementById('statsContent');
     let html = '<h3 class="mb-20">⚔️ Compare Two Players</h3>';
     html += '<div class="comparison-player-grid">';
@@ -2136,11 +2529,20 @@ async function showPlayerComparisonUI() {
     html += '</div>';
     html += '<button class="btn btn-success" id="comparePlayersBtn" style="width: 100%;">Compare Players</button>';
     contentDiv.innerHTML = html;
-    setTimeout(function() { const btn = document.getElementById('comparePlayersBtn'); if (btn) btn.addEventListener('click', showPlayerComparison); }, 50);
+    setTimeout(function() {
+        if (!isCurrentNavigationIntent(intentId)) return;
+        const btn = document.getElementById('comparePlayersBtn');
+        if (btn) btn.addEventListener('click', showPlayerComparison);
+    }, 50);
+    return true;
 }
 
-async function showPlayerComparison() {
+async function showPlayerComparison(requestedIntentId) {
+    const intentId = typeof requestedIntentId === 'number'
+        ? requestedIntentId
+        : beginNavigationIntent();
     await ensurePlayersLoaded();
+    if (!isCurrentNavigationIntent(intentId)) return;
     const contentDiv = document.getElementById('statsContent');
     const p1Select = document.getElementById('comparisonPlayer1');
     const p2Select = document.getElementById('comparisonPlayer2');
@@ -2161,8 +2563,9 @@ async function showPlayerComparison() {
             '</div>' +
         '</div>';
 
-    showScreen('statsScreen');
+    showScreen('statsScreen', false, intentId);
     const data = await apiCall('getPlayerComparisonDetailed', { player1_id: p1Id, player2_id: p2Id });
+    if (!isCurrentNavigationIntent(intentId)) return;
     if (data.error) { contentDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>'; return; }
 
     const p1Name = getPlayerName(p1Id), p2Name = getPlayerName(p2Id);
@@ -2262,6 +2665,7 @@ async function showPlayerComparison() {
 // DICTIONARY SECTION TOGGLE
 // ============================================
 function showDictionarySection(section, targetId) {
+    const intentId = getNavigationIntent();
     if (section === 'lingo') {
         document.getElementById('lingoSection').style.display = 'block';
         document.getElementById('glossarySection').style.display = 'none';
@@ -2271,6 +2675,7 @@ function showDictionarySection(section, targetId) {
     }
 if (targetId) {
     setTimeout(function() {
+        if (!isCurrentNavigationIntent(intentId)) return;
         var el = document.getElementById(targetId);
         if (el) el.scrollIntoView({ behavior: 'smooth' });
     }, 300);
@@ -2278,11 +2683,16 @@ if (targetId) {
 }
 
 async function viewSessionDetailFromComparison(sessionId, buttonElement) {
+    const intentId = beginNavigationIntent();
     if (buttonElement) setButtonLoading(buttonElement, true);
-    if (allSessions.length === 0) await loadPreviousSessions();
+    if (allSessions.length === 0) await loadPreviousSessions(intentId);
+    if (!isCurrentNavigationIntent(intentId)) {
+        if (buttonElement) setButtonLoading(buttonElement, false);
+        return;
+    }
     const sessionIndex = allSessions.findIndex(s => String(s.session_id) === String(sessionId));
     if (sessionIndex !== -1) {
-        viewSessionDetail(sessionIndex, buttonElement);
+        viewSessionDetail(sessionIndex, buttonElement, intentId);
     } else {
         alert('Session not found');
         if (buttonElement) setButtonLoading(buttonElement, false);
@@ -2293,9 +2703,10 @@ async function viewSessionDetailFromComparison(sessionId, buttonElement) {
 // INITIALIZATION
 // ============================================
 window.addEventListener('DOMContentLoaded', function() {
-    console.log('Lockout Tracker v4.1 🚀');
+    console.log('Lockout Tracker ' + (window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || 'v2 beta'));
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     window.scrollTo(0, 0);
+    updateEditingStatus();
 
     // Show both skeletons immediately and simultaneously
     document.getElementById('activeSessionsSection').innerHTML =
@@ -2347,6 +2758,7 @@ let headerTapCount = 0;
 let headerTapTimeout;
 
 function handleHeaderClick(event) {
+    const intentId = getNavigationIntent();
     headerTapCount++;
     clearTimeout(headerTapTimeout);
     if (headerTapCount >= 7) {
@@ -2366,7 +2778,7 @@ function handleHeaderClick(event) {
         }, 800);
     } else {
         headerTapTimeout = setTimeout(function() {
-            if (headerTapCount < 7) showScreen('homeScreen');
+            if (headerTapCount < 7) showScreen('homeScreen', false, intentId);
             headerTapCount = 0;
         }, 800);
     }
@@ -2404,17 +2816,6 @@ function triggerEasterEgg() {
 // ============================================
 // PIN HELPERS
 // ============================================
-function simpleHash(str) {
-    // Simple deterministic hash — not cryptographic but sufficient for a PIN
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash;
-    }
-    return String(Math.abs(hash));
-}
-
 function getStoredIdentity() {
     try {
         const raw = localStorage.getItem('lockout_identity');
@@ -2449,18 +2850,18 @@ function closePinSetupModal() {
 }
 
 function updatePinDots(prefix, count) {
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 6; i++) {
         const dot = document.getElementById(prefix + 'Dot' + i);
         if (dot) dot.classList.toggle('filled', i < count);
     }
 }
 
 function pinSetupInput(digit) {
-    if (_pinSetupBuffer.length >= 4) return;
+    if (_pinSetupBuffer.length >= 6) return;
     _pinSetupBuffer += digit;
     updatePinDots('pinSetup', _pinSetupBuffer.length);
     hapticFeedback('light');
-    if (_pinSetupBuffer.length === 4) {
+    if (_pinSetupBuffer.length === 6) {
         setTimeout(confirmPinSetup, 200);
     }
 }
@@ -2475,8 +2876,11 @@ function pinSetupClear() {
 
 async function confirmPinSetup() {
     const messageDiv = document.getElementById('pinSetupMessage');
-    const hash = simpleHash(_pinSetupBuffer);
-    const data = await apiCall('setPlayerPin', { player_id: _pinSetupPlayerId, pin_hash: hash });
+    if (!/^\d{6}$/.test(_pinSetupBuffer)) {
+        messageDiv.innerHTML = '<div class="error">Enter all six digits.</div>';
+        return;
+    }
+    const data = await apiCall('setPlayerPin', { player_id: _pinSetupPlayerId, pin: _pinSetupBuffer });
     if (data.error) {
         messageDiv.innerHTML = '<div class="error">❌ Could not save PIN. Please try again.</div>';
         _pinSetupBuffer = '';
@@ -2485,6 +2889,7 @@ async function confirmPinSetup() {
         messageDiv.innerHTML = '<div class="success">✅ PIN set!</div>';
         const player = allPlayers.find(p => String(p.player_id) === String(_pinSetupPlayerId));
         if (player) storeIdentity(_pinSetupPlayerId, player.username);
+        if (data.profile_token) setProfileToken(_pinSetupPlayerId, data.profile_token);
         hapticFeedback('success');
         setTimeout(function() {
             closePinSetupModal();
@@ -2515,11 +2920,11 @@ function closePinEntryModal() {
 }
 
 function pinEntryInput(digit) {
-    if (_pinEntryBuffer.length >= 4) return;
+    if (_pinEntryBuffer.length >= 6) return;
     _pinEntryBuffer += digit;
     updatePinDots('pinEntry', _pinEntryBuffer.length);
     hapticFeedback('light');
-    if (_pinEntryBuffer.length === 4) {
+    if (_pinEntryBuffer.length === 6) {
         setTimeout(submitPinEntry, 200);
     }
 }
@@ -2534,8 +2939,11 @@ function pinEntryClear() {
 
 async function submitPinEntry() {
     const messageDiv = document.getElementById('pinEntryMessage');
-    const hash = simpleHash(_pinEntryBuffer);
-    const data = await apiCall('verifyPlayerPin', { player_id: _pinEntryPlayerId, pin_hash: hash });
+    if (!/^\d{4}(\d{2})?$/.test(_pinEntryBuffer)) {
+        messageDiv.innerHTML = '<div class="error">Enter your four- or six-digit PIN.</div>';
+        return;
+    }
+    const data = await apiCall('verifyPlayerPin', { player_id: _pinEntryPlayerId, pin: _pinEntryBuffer });
     if (data.error) {
         messageDiv.innerHTML = '<div class="error">❌ Error verifying PIN.</div>';
         _pinEntryBuffer = '';
@@ -2545,6 +2953,7 @@ async function submitPinEntry() {
     if (data.success) {
         const player = allPlayers.find(p => String(p.player_id) === String(_pinEntryPlayerId));
         if (player) storeIdentity(_pinEntryPlayerId, player.username);
+        if (data.profile_token) setProfileToken(_pinEntryPlayerId, data.profile_token);
         hapticFeedback('success');
         const cb = _pinEntryCallback;
         closePinEntryModal();
@@ -2567,7 +2976,10 @@ function makePlayerLink(playerId, displayName) {
     return '<span class="player-link" onclick="showPlayerProfile(\'' + playerId + '\')">' + displayName + '</span>';
 }
 
-async function loadPlayersScreen() {
+async function loadPlayersScreen(requestedIntentId) {
+    const intentId = typeof requestedIntentId === 'number'
+        ? requestedIntentId
+        : getNavigationIntent();
     const contentDiv = document.getElementById('playersScreenContent');
     contentDiv.innerHTML =
         '<div class="skeleton-card">' +
@@ -2579,7 +2991,9 @@ async function loadPlayersScreen() {
             '</div>' +
         '</div>';
     await ensurePlayersLoaded();
+    if (!isCurrentNavigationIntent(intentId)) return false;
     await loadEloRatings();
+    if (!isCurrentNavigationIntent(intentId)) return false;
     if (allPlayers.length === 0) {
         contentDiv.innerHTML = '<div class="placeholder-content"><p>No players found.</p></div>';
         return;
@@ -2596,19 +3010,20 @@ async function loadPlayersScreen() {
         } else {
             avatarHtml = '<div class="player-card-avatar-placeholder">' + p.username.charAt(0).toUpperCase() + '</div>';
         }
-        html += '<div class="player-card" onclick="showPlayerProfile(' + p.player_id + ')">';
+        html += '<button type="button" class="player-card" onclick="showPlayerProfile(' + p.player_id + ')" aria-label="View ' + escapeAttr(decodeHtml(p.username)) + ' profile">';
         html += avatarHtml;
         html += '<div class="player-card-name">' + p.username + '</div>';
         html += '<div class="player-card-elo">' + eloText + '</div>';
-        html += '</div>';
+        html += '</button>';
     }
     html += '</div>';
     contentDiv.innerHTML = html;
+    return true;
 }
 
-async function showPlayerProfile(playerId) {
+async function showPlayerProfile(playerId, requestedIntentId) {
     _currentProfileId = playerId;
-    showScreen('playerProfileScreen');
+    const intentId = showScreen('playerProfileScreen', false, requestedIntentId);
     const contentDiv = document.getElementById('playerProfileContent');
     contentDiv.innerHTML =
         '<div class="skeleton-card">' +
@@ -2621,12 +3036,14 @@ async function showPlayerProfile(playerId) {
     const identity = getStoredIdentity();
     if (identity && String(identity.player_id) === String(playerId)) {
         const pinCheck = await apiCall('checkPlayerPin', { player_id: playerId });
+        if (!isCurrentNavigationIntent(intentId)) return;
         if (pinCheck.error || !pinCheck.has_pin) {
             clearIdentity();
         }
     }
 
     const data = await apiCall('getPlayerProfile', { player_id: playerId });
+    if (!isCurrentNavigationIntent(intentId)) return;
     if (data.error) {
         contentDiv.innerHTML = '<div class="error">Error loading profile: ' + data.error + '</div>';
         return;
@@ -2709,7 +3126,7 @@ function renderPlayerProfile(data) {
             const winPct = total > 0 ? Math.round((h.wins / total) * 100) : 0;
             const lossPct = total > 0 ? Math.round((h.losses / total) * 100) : 0;
             const tiePct = 100 - winPct - lossPct;
-            html += '<div class="h2h-summary-row" onclick="quickCompare(' + _currentProfileId + ', ' + h.opponent_id + '); showScreen(\'statsScreen\')">';
+            html += '<div class="h2h-summary-row" onclick="quickCompare(' + _currentProfileId + ', ' + h.opponent_id + ')">';
             html += '<div>';
             html += '<div class="h2h-summary-name">' + getPlayerName(h.opponent_id) + '</div>';
             html += '<div class="h2h-summary-record">' + h.wins + 'W – ' + h.ties + 'D – ' + h.losses + 'L • ' + total + ' sessions</div>';
@@ -2951,7 +3368,9 @@ async function handleEditProfileClick() {
     if (!_currentProfileData) return;
     const playerId = _currentProfileData.player.player_id;
     const identity = getStoredIdentity();
-    const alreadyVerified = identity && String(identity.player_id) === String(playerId);
+    const alreadyVerified = identity &&
+        String(identity.player_id) === String(playerId) &&
+        Boolean(getProfileToken(playerId));
 
     // Show loading state on the button
     const editBtn = document.querySelector('.profile-edit-btn');
@@ -2995,8 +3414,9 @@ async function handleEditProfileClick() {
 
 function openEditProfileModal(playerId) {
     if (!_currentProfileData) return;
-    document.getElementById('profileBioInput').value = _currentProfileData.player.bio || '';
+    document.getElementById('profileBioInput').value = decodeHtml(_currentProfileData.player.bio || '');
     window._pendingPhotoUrl = _currentProfileData.player.avatar_url || '';
+    window._photoUploadContext = { scope: 'profile', player_id: playerId };
     document.getElementById('profilePhotoUpload').innerHTML = createPhotoUploadUI(_currentProfileData.player.avatar_url || '', null);
     document.getElementById('editProfileMessage').innerHTML = '';
     document.getElementById('editProfileModal').classList.add('active');
@@ -3008,6 +3428,7 @@ function closeEditProfileModal() {
 }
 
 async function saveProfileEdits(event) {
+    const intentId = beginNavigationIntent();
     const saveBtn = event.target;
     setButtonLoading(saveBtn, true);
     const bio = document.getElementById('profileBioInput').value.trim();
@@ -3028,25 +3449,32 @@ async function saveProfileEdits(event) {
         playersLoaded = false;
         await ensurePlayersLoaded();
         setTimeout(function() {
+            if (!isCurrentNavigationIntent(intentId)) {
+                setButtonLoading(saveBtn, false);
+                return;
+            }
             closeEditProfileModal();
-            showPlayerProfile(_currentProfileData.player.player_id);
+            showPlayerProfile(_currentProfileData.player.player_id, intentId);
             setButtonLoading(saveBtn, false);
         }, 1000);
     }
 }
 
 async function viewSessionFromProfile(sessionId) {
-    if (allSessions.length === 0) await loadPreviousSessions();
+    const intentId = beginNavigationIntent();
+    if (allSessions.length === 0) await loadPreviousSessions(intentId);
+    if (!isCurrentNavigationIntent(intentId)) return;
     const sessionIndex = allSessions.findIndex(s => String(s.session_id) === String(sessionId));
     if (sessionIndex !== -1) {
         document.getElementById('profileBackBtn').onclick = function() {
             showScreen('playerProfileScreen');
         };
-        viewSessionDetail(sessionIndex, null);
+        viewSessionDetail(sessionIndex, null, intentId);
     }
 }
 
 async function viewSessionFromProfileWithLoading(rowElement, sessionId) {
+    const intentId = beginNavigationIntent();
     // Disable all rows and show loading on the tapped row
     const allRows = document.querySelectorAll('#profileSessionList .profile-session-row');
     for (let i = 0; i < allRows.length; i++) {
@@ -3061,14 +3489,15 @@ async function viewSessionFromProfileWithLoading(rowElement, sessionId) {
             '<span style="color:var(--primary);font-weight:600;font-size:0.9em;">Loading session...</span>' +
         '</div>';
 
-    if (allSessions.length === 0) await loadPreviousSessions();
+    if (allSessions.length === 0) await loadPreviousSessions(intentId);
+    if (!isCurrentNavigationIntent(intentId)) return;
     const sessionIndex = allSessions.findIndex(s => String(s.session_id) === String(sessionId));
 
     if (sessionIndex !== -1) {
         document.getElementById('profileBackBtn').onclick = function() {
             showScreen('playerProfileScreen');
         };
-        viewSessionDetail(sessionIndex, null);
+        viewSessionDetail(sessionIndex, null, intentId);
     } else {
         // Restore all rows if not found
         for (let i = 0; i < allRows.length; i++) {
