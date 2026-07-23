@@ -2922,40 +2922,20 @@ async function handleEditProfileClick() {
     const identity = getStoredIdentity();
     const alreadyVerified = identity && String(identity.player_id) === String(playerId);
 
-    // Always check the sheet directly — never trust cached profile data for PIN status
     const check = await apiCall('checkPlayerPin', { player_id: playerId });
-
     if (check.error) {
         alert('Could not check PIN status. Please try again.');
         return;
     }
-
     if (!check.has_pin) {
-        // No PIN set — clear any stale identity and prompt setup
         clearIdentity();
         openPinSetupModal(playerId);
         return;
     }
-
     if (alreadyVerified) {
-        // PIN exists and this device is already verified
         openEditProfileModal(playerId);
         return;
     }
-
-    // PIN exists but not verified on this device — prompt entry
-    openPinEntryModal(playerId, function() {
-        openEditProfileModal(playerId);
-    });
-}
-
-    if (alreadyVerified) {
-        // PIN exists and this device is already verified
-        openEditProfileModal(playerId);
-        return;
-    }
-
-    // PIN exists but not verified on this device — prompt entry
     openPinEntryModal(playerId, function() {
         openEditProfileModal(playerId);
     });
