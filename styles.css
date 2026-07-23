@@ -851,6 +851,14 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
     border-radius: 50%;
     margin: 0 auto 10px auto;
 }
+.profile-session-list {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+@media (max-width: 600px) {
+    .profile-session-list { max-height: 300px; }
+}
 /* === FOOTER === */
 .app-footer {
     text-align: center;
