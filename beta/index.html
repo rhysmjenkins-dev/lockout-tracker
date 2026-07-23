@@ -6,7 +6,7 @@
         // APP VERSION — increment this when deploying
         // changes to app.js or styles.css
         // ============================================
-        const APP_VERSION = '20-beta-4';
+        const APP_VERSION = '20-beta-5';
         document.write('<link rel="stylesheet" href="styles.css?v=' + APP_VERSION + '">');
     </script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -928,7 +928,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="editHandHeading">Edit Hand <span id="editHandNumber"></span></h3>
-                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+                <button class="modal-close" onclick="closeEditModal()" aria-label="Close edit hand dialog">&times;</button>
             </div>
             <div id="editHandInputs"></div>
             <div id="editLockoutWarning" class="lockout-warning" style="display: none;"></div>
@@ -945,7 +945,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="editSessionHeading">Edit Session Details</h3>
-                <button class="modal-close" onclick="closeEditSessionModal()">&times;</button>
+                <button class="modal-close" onclick="closeEditSessionModal()" aria-label="Close edit session dialog">&times;</button>
             </div>
             <label for="editSessionNotes">Session Notes</label>
             <textarea id="editSessionNotes" placeholder="e.g. Playing at John's house"></textarea>
@@ -972,7 +972,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="addPlayerModalHeading">Add Player to Session</h3>
-                <button class="modal-close" onclick="closeAddPlayerModal()">&times;</button>
+                <button class="modal-close" onclick="closeAddPlayerModal()" aria-label="Close add player dialog">&times;</button>
             </div>
             <p class="modal-body-text">Select a player to add to this session. They will join from the next hand onwards.</p>
             <label>Select Player</label>
@@ -1011,7 +1011,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="pinSetupHeading">🔐 Set Your PIN</h3>
-                <button class="modal-close" onclick="closePinSetupModal()">&times;</button>
+                <button class="modal-close" onclick="closePinSetupModal()" aria-label="Close PIN setup dialog">&times;</button>
             </div>
             <p class="modal-body-text">Choose a 6-digit PIN to protect your profile. You will need this to edit your profile on any device.</p>
             <div class="warning-box mb-10">⚠️ <strong>Only set a PIN if this is your own profile.</strong> Each player manages their own PIN — do not set or enter a PIN on someone else's behalf.</div>
@@ -1047,7 +1047,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="pinEntryHeading">🔐 Enter Your PIN</h3>
-                <button class="modal-close" onclick="closePinEntryModal()">&times;</button>
+                <button class="modal-close" onclick="closePinEntryModal()" aria-label="Close PIN entry dialog">&times;</button>
             </div>
             <p class="modal-body-text" id="pinEntryPrompt">Enter your PIN to edit your profile. Existing 4-digit PINs still work; new PINs use 6 digits.</p>
             <div class="warning-box mb-10">⚠️ <strong>Only enter your PIN if this is your own profile.</strong></div>
@@ -1083,7 +1083,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="editProfileHeading">✏️ Edit Profile</h3>
-                <button class="modal-close" onclick="closeEditProfileModal()">&times;</button>
+                <button class="modal-close" onclick="closeEditProfileModal()" aria-label="Close profile editor">&times;</button>
             </div>
             <label>Profile Photo</label>
             <div id="profilePhotoUpload"></div>
@@ -1100,7 +1100,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="feedbackHeading">💬 Feedback or Bug Report</h3>
-                <button class="modal-close" onclick="closeFeedbackModal()">&times;</button>
+                <button class="modal-close" onclick="closeFeedbackModal()" aria-label="Close feedback dialog">&times;</button>
             </div>
             <p class="modal-body-text">Found a bug or have a suggestion? Let us know and we'll look into it.</p>
             <label for="feedbackType">Type</label>

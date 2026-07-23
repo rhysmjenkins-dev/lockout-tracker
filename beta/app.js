@@ -492,7 +492,7 @@ function drawEloHistoryChart(sessionsData, allHistoryData) {
     const completedSessions = sessionsData
         .filter(s => s.session.date_ended && s.session.date_ended !== '')
         .filter(s => !String(s.session.tags || '').toLowerCase().includes('testing'))
-        .sort((a, b) => new Date(a.session.date_started) - new Date(b.session.date_started));
+        .sort((a, b) => lockoutDateValue(a.session.date_started) - lockoutDateValue(b.session.date_started));
 
     if (completedSessions.length === 0) return;
 
@@ -646,13 +646,54 @@ function getPlayerName(playerId) {
     return playerCache[playerId] || 'Unknown';
 }
 
-function formatUKDate(dateStr) {
-    if (!dateStr || dateStr === '') return 'Unknown';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return String(dateStr);
+function parseLockoutDate(value) {
+    if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+    if (typeof value === 'number') {
+        const numericDate = new Date(value);
+        return isNaN(numericDate.getTime()) ? null : numericDate;
+    }
+    const text = String(value === undefined || value === null ? '' : value).trim();
+    if (!text || text === '[object Object]') return null;
+    const ukMatch = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (ukMatch) {
+        const localDate = new Date(
+            Number(ukMatch[3]),
+            Number(ukMatch[2]) - 1,
+            Number(ukMatch[1]),
+            Number(ukMatch[4] || 0),
+            Number(ukMatch[5] || 0),
+            Number(ukMatch[6] || 0)
+        );
+        return isNaN(localDate.getTime()) ? null : localDate;
+    }
+    const parsedDate = new Date(text);
+    return isNaN(parsedDate.getTime()) ? null : parsedDate;
+}
+
+function lockoutDateValue(value) {
+    const date = parseLockoutDate(value);
+    return date ? date.getTime() : 0;
+}
+
+function formatUKDate(value) {
+    const d = parseLockoutDate(value);
+    if (!d) return 'Unknown';
     return String(d.getDate()).padStart(2, '0') + '/' +
            String(d.getMonth() + 1).padStart(2, '0') + '/' +
            d.getFullYear();
+}
+
+function calculateAverageHand(handScores) {
+    const scores = (handScores || [])
+        .map(function(item) { return Number(item && typeof item === 'object' ? item.score : item); })
+        .filter(function(score) { return Number.isFinite(score); });
+    if (scores.length === 0) return '0';
+    return (scores.reduce(function(total, score) { return total + score; }, 0) / scores.length).toFixed(2);
+}
+
+function formatPoints(value) {
+    const number = Number(value);
+    return String(value) + (number === 1 ? ' point' : ' points');
 }
 
 function escapeAttr(str) {
@@ -1061,7 +1102,7 @@ async function checkActiveSessions() {
             if (leaderId) {
                 html += '<div class="active-session-leader-box">';
                 html += '<div class="active-session-leader-name">🏆 <span class="player-link" style="color:var(--success-dark);" onclick="event.stopPropagation(); showPlayerProfile(' + leaderId + ')">' + getPlayerName(leaderId) + '</span> leading</div>';
-                html += '<div class="active-session-leader-score">' + playerScores[leaderId] + ' points</div>';
+                html += '<div class="active-session-leader-score">' + formatPoints(playerScores[leaderId]) + '</div>';
                 html += '</div>';
             }
 
@@ -1344,7 +1385,7 @@ async function endSession(event) {
     setTimeout(function() {
         const popup = document.getElementById('sessionEndPopup');
         document.getElementById('sessionEndTitle').textContent = isTie ? 'Tie game!' : winner.username + ' wins!';
-        document.getElementById('sessionEndScore').textContent = winner.total + ' points';
+        document.getElementById('sessionEndScore').textContent = formatPoints(winner.total);
         popup.style.display = 'flex';
         if (!isTie) celebrateWinner(winner.username);
     }, 300);
@@ -1761,7 +1802,7 @@ if (handsData.length === 0) {
     for (let i = 0; i < scores.length; i++) {
         const p = scores[i];
         const handsPlayed = p.hands.length;
-        const avgHand = handsPlayed > 0 ? ((p.total - p.startingScore) / handsPlayed).toFixed(2) : '0';
+        const avgHand = calculateAverageHand(p.hands);
         const lockoutRate = handsPlayed > 0 ? ((p.lockouts / handsPlayed) * 100).toFixed(1) : '0';
         const avgLockoutScore = p.lockoutScores.length > 0 ? (p.lockoutScores.reduce((sum, s) => sum + s, 0) / p.lockoutScores.length).toFixed(2) : 'N/A';
         const falseLockoutRate = p.totalLockouts > 0 ? ((p.falseLockouts / p.totalLockouts) * 100).toFixed(1) : '0';
@@ -1893,7 +1934,7 @@ async function loadPreviousSessions(requestedIntentId) {
         if (!item.session.player_join_info) item.session.player_join_info = '{}';
         if (item.session.date_ended && item.session.date_ended !== '') completedSessions.push({ session: item.session, hands: item.hands, index: i });
     }
-    completedSessions.sort(function(a, b) { return new Date(b.session.date_started) - new Date(a.session.date_started); });
+    completedSessions.sort(function(a, b) { return lockoutDateValue(b.session.date_started) - lockoutDateValue(a.session.date_started); });
 
     allSessions = completedSessions.map(item => item.session);
     window.sessionsHandsCache = {};
@@ -1921,8 +1962,7 @@ if (session.title && session.title.charAt(0) === "'") {
     session.title = session.title.substring(1);
 }
 const hands = completedSessions[i].hands;
-var dateObj = new Date(session.date_started);
-        var cleanDate = String(dateObj.getDate()).padStart(2, '0') + '/' + String(dateObj.getMonth() + 1).padStart(2, '0') + '/' + dateObj.getFullYear();
+        var cleanDate = formatUKDate(session.date_started);
         var playerIds = session.players_involved.split(',');
         var playerTotals = {}, handCount = 0, joinInfo = {};
         try {
@@ -2110,7 +2150,7 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return pla
     for (let i = 0; i < sortedPlayers.length; i++) {
         const playerId = sortedPlayers[i], total = playerTotals[playerId];
         const handsPlayed = playerHandScores[playerId].length;
-        const avgHand = handsPlayed > 0 ? (total / handsPlayed).toFixed(2) : '0';
+        const avgHand = calculateAverageHand(playerHandScores[playerId]);
         const stats = playerStats[playerId];
         const lockoutRate = handsPlayed > 0 ? ((stats.lockouts / handsPlayed) * 100).toFixed(1) : '0';
         const avgLockoutScore = stats.lockoutScores.length > 0 ? (stats.lockoutScores.reduce((sum, s) => sum + s, 0) / stats.lockoutScores.length).toFixed(2) : 'N/A';
@@ -2641,8 +2681,7 @@ async function showPlayerComparison(requestedIntentId) {
             const s = data.sessions_together[i];
             const winner = s.p1_won && !s.p2_won ? p1Name : s.p2_won && !s.p1_won ? p2Name : 'Tie';
             const winnerColor = s.p1_won && !s.p2_won ? '#667eea' : s.p2_won && !s.p1_won ? '#f5576c' : '#ff9800';
-            var dateObj = new Date(s.date);
-            var cleanDate = String(dateObj.getDate()).padStart(2, '0') + '/' + String(dateObj.getMonth() + 1).padStart(2, '0') + '/' + dateObj.getFullYear();
+            var cleanDate = formatUKDate(s.date);
 
             html += '<div class="session-history-card" onclick="viewSessionDetailFromComparison(' + s.session_id + ', this)">';
             html += '<div class="session-history-card-header">';
@@ -3149,8 +3188,7 @@ function renderPlayerProfile(data) {
         html += '<div id="profileSessionList" class="profile-session-list">';
         for (let i = 0; i < data.recent_sessions.length; i++) {
             const s = data.recent_sessions[i];
-            const dateObj = new Date(s.date);
-            const cleanDate = String(dateObj.getDate()).padStart(2,'0') + '/' + String(dateObj.getMonth()+1).padStart(2,'0') + '/' + dateObj.getFullYear();
+            const cleanDate = formatUKDate(s.date);
             let eloHtml = '';
             if (s.elo_after !== null && s.elo_after !== undefined) {
                 const eloChangeStr = s.elo_change >= 0 ? '+' + s.elo_change : String(s.elo_change);

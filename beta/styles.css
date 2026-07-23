@@ -97,7 +97,16 @@ input, select, textarea {
     border-radius: 8px; font-size: 1em; min-height: 48px; font-family: inherit;
 }
 textarea { min-height: 80px; resize: vertical; }
-input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
+input:focus, select:focus, textarea:focus {
+    outline: 3px solid rgba(102, 126, 234, 0.28);
+    outline-offset: 1px;
+    border-color: var(--primary);
+}
+
+button:focus-visible, [role="button"]:focus-visible, a:focus-visible {
+    outline: 3px solid #ffd54f;
+    outline-offset: 3px;
+}
 label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-medium); }
 .hidden { display: none; }
 .screen { display: none; animation: fadeIn 0.3s ease-in-out; transition: opacity 0.15s ease-out, transform 0.15s ease-out; }
