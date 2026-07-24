@@ -6,7 +6,7 @@
         // APP VERSION — increment this when deploying
         // changes to app.js or styles.css
         // ============================================
-        const APP_VERSION = '20-beta-5';
+        const APP_VERSION = '20-beta-6';
         document.write('<link rel="stylesheet" href="styles.css?v=' + APP_VERSION + '">');
     </script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -184,8 +184,8 @@
                             <div class="content-card-sm" id="glossaryAvgLockoutScore"><h4 class="heading-blue-sm">Average Lockout Score</h4><p class="p-muted">The mean score of all successful lockouts by a player. Lower is better (indicates locking out with minimal points).</p></div>
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Average Hand</h4><p class="p-muted">Mean score per hand played (total score ÷ hands played). Excludes starting scores for late joiners.</p></div>
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Hand Streak</h4><p class="p-muted">Consecutive hands won (successful lockouts). Resets on false lockout or non-lockout hand.</p></div>
-                            <div class="content-card-sm"><h4 class="heading-blue-sm">Win Rate</h4><p class="p-muted">Percentage of sessions won (sessions won ÷ sessions played).</p></div>
-                            <div class="content-card-sm" id="glossarySessionTags"><h4 class="heading-blue-sm">Session Tags</h4><p class="p-muted">Categories applied to sessions (e.g., Casual, Holiday, Pub, Tournament) for filtering and organization.</p></div>
+                            <div class="content-card-sm"><h4 class="heading-blue-sm">Win Rate</h4><p class="p-muted">Percentage of sessions won (sessions won ÷ sessions played). A tied session shares one win equally between its tied winners; win-based achievements still require an outright win.</p></div>
+                            <div class="content-card-sm" id="glossarySessionTags"><h4 class="heading-blue-sm">Session Tags</h4><p class="p-muted">Categories applied to sessions (e.g., Casual, Holiday, Pub, Tournament) for filtering and organization. Sessions tagged Testing remain visible in history but are excluded from official statistics, profiles, comparisons, achievements and ELO.</p></div>
                             <div class="content-card-sm" id="glossaryEditHistory"><h4 class="heading-blue-sm">Edit History</h4><p class="p-muted">A log of all changes made to sessions and hands, tracking who edited what and when.</p></div>
                             <div class="content-card-sm" id="glossaryEloRating"><h4 class="heading-blue-sm">ELO Rating</h4><p class="p-muted">A number representing a player's skill level. All players start at 1000. Goes up when you finish higher than expected, down when you finish lower. Visible on the home screen and stats page.</p></div>
                             <div class="content-card-sm" id="glossaryProvisionalRating"><h4 class="heading-blue-sm">Provisional Rating (?)</h4><p class="p-muted">A rating marked with ? meaning the player has played fewer than 50 hands. Provisional ratings move faster to help find your true level quickly. Once you hit 50 hands the ? disappears and your rating stabilises.</p></div>

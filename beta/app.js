@@ -491,7 +491,7 @@ function drawEloHistoryChart(sessionsData, allHistoryData) {
 
     const completedSessions = sessionsData
         .filter(s => s.session.date_ended && s.session.date_ended !== '')
-        .filter(s => !String(s.session.tags || '').toLowerCase().includes('testing'))
+        .filter(s => !hasSessionTag(s.session, 'testing'))
         .sort((a, b) => lockoutDateValue(a.session.date_started) - lockoutDateValue(b.session.date_started));
 
     if (completedSessions.length === 0) return;
@@ -681,6 +681,14 @@ function formatUKDate(value) {
     return String(d.getDate()).padStart(2, '0') + '/' +
            String(d.getMonth() + 1).padStart(2, '0') + '/' +
            d.getFullYear();
+}
+
+function hasSessionTag(session, tag) {
+    const wanted = String(tag || '').trim().toLowerCase();
+    if (!wanted) return false;
+    return String(session && session.tags || '').split(',').some(value =>
+        String(value).trim().toLowerCase() === wanted
+    );
 }
 
 function calculateAverageHand(handScores) {
@@ -883,6 +891,30 @@ function showScreen(screenId, skipHistory, requestedIntentId) {
         }, 150);
     }
     return intentId;
+}
+
+function getRestorableScreenFromHash() {
+    const requested = String(window.location.hash || '').replace(/^#/, '');
+    const restorable = [
+        'homeScreen',
+        'startSessionScreen',
+        'playersScreen',
+        'previousSessionsScreen',
+        'statsScreen',
+        'addPlayerScreen',
+        'appInstructionsScreen',
+        'dictionaryScreen',
+        'rulesScreen'
+    ];
+    return restorable.indexOf(requested) !== -1 && document.getElementById(requested)
+        ? requested
+        : 'homeScreen';
+}
+
+function loadRestoredScreen(screenId, intentId) {
+    if (screenId === 'playersScreen') loadPlayersScreen();
+    else if (screenId === 'previousSessionsScreen') loadPreviousSessions();
+    else if (screenId === 'statsScreen') loadStats(intentId);
 }
 
 // ============================================
@@ -1760,15 +1792,15 @@ if (handsData.length === 0) {
             if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
                 playerScores[hand.player_id].totalLockouts++;
                 const lockoutScoreToUse = (hand.lockout_score !== null && hand.lockout_score !== undefined && hand.lockout_score !== '') ? Number(hand.lockout_score) : Number(hand.score);
-                playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
-                totalLockoutScore += lockoutScoreToUse;
-                totalLockouts++;
                 if (hand.false_lockout == 1 || hand.false_lockout === true) {
                     falseLockoutCount++;
                     playerScores[hand.player_id].falseLockouts++;
                     playerScores[hand.player_id].falseLockoutScores.push(lockoutScoreToUse);
                 } else {
                     playerScores[hand.player_id].lockouts++;
+                    playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
+                    totalLockoutScore += lockoutScoreToUse;
+                    totalLockouts++;
                 }
             }
         }
@@ -1793,7 +1825,7 @@ if (handsData.length === 0) {
     html += '<th onclick="sortActiveSessionTable(3)" style="cursor: pointer; user-select: none;">Avg Hand ⇅</th>';
     html += '<th onclick="sortActiveSessionTable(4)" style="cursor: pointer; user-select: none;">Lockouts ⇅</th>';
     html += '<th onclick="sortActiveSessionTable(5)" style="cursor: pointer; user-select: none;">LO Rate ⇅</th>';
-    html += '<th onclick="sortActiveSessionTable(6)" style="cursor: pointer; user-select: none;">Avg LO Score (All) ⇅</th>';
+    html += '<th onclick="sortActiveSessionTable(6)" style="cursor: pointer; user-select: none;">Avg LO Score ⇅</th>';
     html += '<th onclick="sortActiveSessionTable(7)" style="cursor: pointer; user-select: none;">False LO ⇅</th>';
     html += '<th onclick="sortActiveSessionTable(8)" style="cursor: pointer; user-select: none;">False LO Rate ⇅</th>';
     html += '<th onclick="sortActiveSessionTable(9)" style="cursor: pointer; user-select: none;">Avg False LO Score ⇅</th>';
@@ -1833,8 +1865,8 @@ if (handsData.length === 0) {
     for (let i = 0; i < scores.length; i++) {
         const p = scores[i];
         if (p.lockouts > 0) {
-            const avgLockout = (p.lockoutScores.reduce((sum, s) => sum + s, 0) / p.lockouts).toFixed(2);
-            const isBest = (totalLockouts > 0 && avgLockout === Math.min(...scores.filter(s => s.lockouts > 0).map(s => (s.lockoutScores.reduce((sum, sc) => sum + sc, 0) / s.lockouts).toFixed(2))));
+            const avgLockout = (p.lockoutScores.reduce((sum, s) => sum + s, 0) / p.lockoutScores.length).toFixed(2);
+            const isBest = (totalLockouts > 0 && Number(avgLockout) === Math.min(...scores.filter(s => s.lockoutScores.length > 0).map(s => s.lockoutScores.reduce((sum, sc) => sum + sc, 0) / s.lockoutScores.length)));
             html += '<div>• <strong>' + p.username + ':</strong> ' + avgLockout + ' (' + p.lockouts + ' lockouts)' + (isBest ? ' ⭐ Best!' : '') + '</div>';
         } else {
             html += '<div>• <strong>' + p.username + ':</strong> No lockouts yet</div>';
@@ -2105,9 +2137,8 @@ async function viewSessionDetail(sessionIndex, buttonElement, requestedIntentId)
         if (hand.lockout_player_id && String(hand.lockout_player_id) === String(pid)) {
             playerStats[pid].totalLockouts++;
             const lockoutScoreToUse = (hand.lockout_score !== null && hand.lockout_score !== undefined && hand.lockout_score !== '') ? Number(hand.lockout_score) : Number(hand.score);
-            playerStats[pid].lockoutScores.push(lockoutScoreToUse);
             if (hand.false_lockout == 1 || hand.false_lockout === true) { playerStats[pid].falseLockouts++; playerStats[pid].falseLockoutScores.push(lockoutScoreToUse); }
-            else { playerStats[pid].lockouts++; }
+            else { playerStats[pid].lockouts++; playerStats[pid].lockoutScores.push(lockoutScoreToUse); }
         }
     }
 
@@ -2292,6 +2323,7 @@ async function loadStats(requestedIntentId) {
     for (let i = 0; i < sessionsWithHands.length; i++) {
         const item = sessionsWithHands[i];
         const isCompleted = (item.session.date_ended && item.session.date_ended !== '');
+        if (hasSessionTag(item.session, 'testing')) continue;
         const sessionData = { session_id: item.session.session_id, title: item.session.title, hands: item.hands, is_completed: isCompleted, player_join_info: item.session.player_join_info || '{}' };
         allSessionsData.push(sessionData);
         if (isCompleted) completedSessionsData.push(sessionData);
@@ -2323,12 +2355,12 @@ function calculateOverallStats(completedSessionsData, allSessionsData, playersDa
                 if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
                     playerStats[hand.player_id].totalLockouts++;
                     const lockoutScoreToUse = (hand.lockout_score !== null && hand.lockout_score !== undefined && hand.lockout_score !== '') ? Number(hand.lockout_score) : Number(hand.score);
-                    playerStats[hand.player_id].lockoutScores.push(lockoutScoreToUse);
                     if (hand.false_lockout == 1 || hand.false_lockout === true) {
                         playerStats[hand.player_id].falseLockouts++;
                         playerStats[hand.player_id].falseLockoutScores.push(lockoutScoreToUse);
                         playerStats[hand.player_id].currentHandStreak = 0;
                     } else {
+                        playerStats[hand.player_id].lockoutScores.push(lockoutScoreToUse);
                         playerStats[hand.player_id].handsWon++;
                         playerStats[hand.player_id].currentHandStreak++;
                         if (playerStats[hand.player_id].currentHandStreak > playerStats[hand.player_id].maxHandStreak) playerStats[hand.player_id].maxHandStreak = playerStats[hand.player_id].currentHandStreak;
@@ -2428,7 +2460,7 @@ function displayOverallStats(stats, totalSessions) {
     html += '<div class="stat-card"><h4>Longest Hand Streak</h4><p class="stat-value">' + longestHandStreak.names + '</p><p>' + longestHandStreak.value + '</p></div>';
     html += '<div class="stat-card"><h4>Most False Lockouts</h4><p class="stat-value">' + mostFalseLockouts.names + '</p><p>' + mostFalseLockouts.value + '</p></div>';
     html += '</div>';
-    html += '<div class="warning-box mt-15 mb-15 text-sm"><strong>ℹ️ Note:</strong> Hand-level stats include active sessions. Session-level stats only include completed sessions. <strong>LO Rate</strong> = successful lockouts ÷ hands played. <strong>False LO Rate</strong> = false lockouts ÷ total lockout attempts.</div>';
+    html += '<div class="warning-box mt-15 mb-15 text-sm"><strong>ℹ️ Note:</strong> Testing sessions are excluded. Hand-level stats include active non-testing sessions; session-level stats only include completed non-testing sessions. <strong>Avg LO Score</strong> uses successful lockouts only. <strong>LO Rate</strong> = successful lockouts ÷ hands played. <strong>False LO Rate</strong> = false lockouts ÷ total lockout attempts.</div>';
     html += '<h3 class="mt-20">Player Breakdown</h3>';
     html += '<p class="text-muted text-sm mb-10">💡 Click column headers to sort</p>';
     html += '<div class="overflow-x-auto"><table class="scores-table" id="playerBreakdownTable"><tr>';
@@ -2766,9 +2798,15 @@ window.addEventListener('DOMContentLoaded', function() {
             '<div class="shimmer-wrapper skeleton-text skeleton-w-60" style="height:36px;"></div>' +
         '</div>';
 
-    ensurePlayersLoaded();
-    Promise.all([checkActiveSessions(), displayEloLeaderboard()]);
-    history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
+    const initialScreen = getRestorableScreenFromHash();
+    history.replaceState({ screen: initialScreen }, '', '#' + initialScreen);
+    if (initialScreen === 'homeScreen') {
+        ensurePlayersLoaded();
+        Promise.all([checkActiveSessions(), displayEloLeaderboard()]);
+    } else {
+        const intentId = showScreen(initialScreen, true);
+        loadRestoredScreen(initialScreen, intentId);
+    }
     showDictionarySection('lingo');
 });
 
