@@ -946,7 +946,7 @@ async function addPlayer(event) {
     const intentId = beginNavigationIntent();
     const addBtn = event.target;
     setButtonLoading(addBtn, true);
-const data = await apiCall('addPlayer', { username: username, editor_name: username });
+    const data = await apiCall('addPlayer', { username: username });
     if (data.error) {
         messageDiv.innerHTML = '<div class="error">⚠️ ' + data.error + '</div>';
         setButtonLoading(addBtn, false);
@@ -1989,11 +1989,8 @@ async function loadPreviousSessions(requestedIntentId) {
     html += '<div id="sessionListContainer" style="max-height: 600px; overflow-y: auto; padding-right: 5px;"><ul class="session-list" id="sessionList">';
 
     for (let i = 0; i < completedSessions.length; i++) {
-const session = completedSessions[i].session;
-if (session.title && session.title.charAt(0) === "'") {
-    session.title = session.title.substring(1);
-}
-const hands = completedSessions[i].hands;
+        const session = completedSessions[i].session;
+        const hands = completedSessions[i].hands;
         var cleanDate = formatUKDate(session.date_started);
         var playerIds = session.players_involved.split(',');
         var playerTotals = {}, handCount = 0, joinInfo = {};
@@ -3016,8 +3013,8 @@ function pinEntryClear() {
 
 async function submitPinEntry() {
     const messageDiv = document.getElementById('pinEntryMessage');
-    if (!/^\d{4}(\d{2})?$/.test(_pinEntryBuffer)) {
-        messageDiv.innerHTML = '<div class="error">Enter your four- or six-digit PIN.</div>';
+    if (!/^\d{6}$/.test(_pinEntryBuffer)) {
+        messageDiv.innerHTML = '<div class="error">Enter your six-digit PIN.</div>';
         return;
     }
     const data = await apiCall('verifyPlayerPin', { player_id: _pinEntryPlayerId, pin: _pinEntryBuffer });
@@ -3696,7 +3693,7 @@ function sortSessionTable(columnIndex) {
         const aCell = a.cells[columnIndex].textContent.trim(), bCell = b.cells[columnIndex].textContent.trim();
         const aNum = parseFloat(aCell.replace('%', '')), bNum = parseFloat(bCell.replace('%', ''));
         let comparison = (!isNaN(aNum) && !isNaN(bNum)) ? aNum - bNum : aCell.localeCompare(bCell);
-        return currentSortAscending ? comparison : -comparison;
+        return currentSessionSortAscending ? comparison : -comparison;
     });
     for (let i = 0; i < rows.length; i++) table.appendChild(rows[i]);
     const headers = table.querySelectorAll('th');

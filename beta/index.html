@@ -6,7 +6,7 @@
         // APP VERSION — increment this when deploying
         // changes to app.js or styles.css
         // ============================================
-        const APP_VERSION = '20-beta-6';
+        const APP_VERSION = '20-beta-7';
         document.write('<link rel="stylesheet" href="styles.css?v=' + APP_VERSION + '">');
     </script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -1049,7 +1049,7 @@
                 <h3 id="pinEntryHeading">🔐 Enter Your PIN</h3>
                 <button class="modal-close" onclick="closePinEntryModal()" aria-label="Close PIN entry dialog">&times;</button>
             </div>
-            <p class="modal-body-text" id="pinEntryPrompt">Enter your PIN to edit your profile. Existing 4-digit PINs still work; new PINs use 6 digits.</p>
+            <p class="modal-body-text" id="pinEntryPrompt">Enter your 6-digit PIN to edit your profile.</p>
             <div class="warning-box mb-10">⚠️ <strong>Only enter your PIN if this is your own profile.</strong></div>
             <div class="pin-entry-grid">
                 <div class="pin-dot" id="pinEntryDot0"></div>
