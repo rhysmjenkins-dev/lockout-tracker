@@ -29,7 +29,7 @@ let eloCache = [];
 let eloHistoryAllCache = null;
 let eloHistoryAllCachedAt = 0;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.0.0-rc.2',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.0.0-rc.3',
     photos_enabled: false
 };
 let navigationIntentId = 0;
@@ -182,7 +182,7 @@ async function loadPublicConfig() {
         publicConfig = Object.assign({}, publicConfig, data);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Release Candidate 2 · ' + publicConfig.version;
+    if (version) version.textContent = 'Release Candidate 3 · ' + publicConfig.version;
     return publicConfig;
 }
 
@@ -283,11 +283,13 @@ function setButtonLoading(buttonElement, isLoading, originalText) {
         buttonElement.disabled = true;
         buttonElement.dataset.originalText = buttonElement.textContent;
         buttonElement.textContent = '⏳ Loading...';
+        buttonElement.setAttribute('aria-busy', 'true');
         buttonElement.style.opacity = '0.6';
         buttonElement.style.cursor = 'not-allowed';
     } else {
         buttonElement.disabled = false;
         buttonElement.textContent = originalText || buttonElement.dataset.originalText || 'Submit';
+        buttonElement.removeAttribute('aria-busy');
         buttonElement.style.opacity = '1';
         buttonElement.style.cursor = 'pointer';
     }
@@ -851,7 +853,7 @@ function createPhotoUploadUI(currentPhotoUrl, onUploadComplete) {
     let html = '<div class="photo-upload-section">';
     if (currentPhotoUrl && currentPhotoUrl !== '') {
         html += '<div class="photo-preview-container">';
-        html += '<img src="' + currentPhotoUrl + '" class="session-photo-preview" onclick="openPhotoFullscreen(\'' + currentPhotoUrl + '\')">';
+        html += '<img src="' + currentPhotoUrl + '" class="session-photo-preview" alt="Current uploaded photo" onclick="openPhotoFullscreen(\'' + currentPhotoUrl + '\')">';
         html += '<button class="btn btn-danger btn-small mt-10" onclick="removeSessionPhoto()">🗑️ Remove Photo</button>';
         html += '</div>';
     }
@@ -891,7 +893,7 @@ async function handlePhotoUpload(event) {
     } else {
         const container = document.querySelector('.photo-upload-section');
         if (container) {
-            const previewHtml = '<div class="photo-preview-container"><img src="' + result.url + '" class="session-photo-preview" onclick="openPhotoFullscreen(\'' + result.url + '\')"></div>';
+            const previewHtml = '<div class="photo-preview-container"><img src="' + result.url + '" class="session-photo-preview" alt="Newly uploaded photo" onclick="openPhotoFullscreen(\'' + result.url + '\')"></div>';
             container.insertAdjacentHTML('afterbegin', previewHtml);
         }
     }
@@ -1397,7 +1399,7 @@ function displaySessionMetadata(containerId) {
         html += '</div>';
     }
     if (currentSession.photo_url && currentSession.photo_url !== '') {
-        html += '<div class="session-photo-container"><img src="' + currentSession.photo_url + '" class="session-photo-full" onclick="openPhotoFullscreen(\'' + currentSession.photo_url + '\')"></div>';
+        html += '<div class="session-photo-container"><img src="' + currentSession.photo_url + '" class="session-photo-full" alt="Current session photo" onclick="openPhotoFullscreen(\'' + currentSession.photo_url + '\')"></div>';
     }
     container.innerHTML = html;
 }
@@ -2112,7 +2114,7 @@ html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">'
 html += '<div class="session-item-header" style="display:flex; justify-content:space-between; align-items:center;">';
 html += '<span>' + escapeAttr(session.title) + '</span>';
         if (session.photo_url && session.photo_url !== '') {
-            html += '<img src="' + session.photo_url + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:pointer;" onclick="event.stopPropagation(); openPhotoFullscreen(\'' + session.photo_url + '\')">';
+            html += '<img src="' + session.photo_url + '" alt="Session thumbnail" style="width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:pointer;" onclick="event.stopPropagation(); openPhotoFullscreen(\'' + session.photo_url + '\')">';
         }
         html += '</div>';
         html += '<div class="session-item-info" style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">';
@@ -2204,7 +2206,7 @@ async function viewSessionDetail(sessionIndex, buttonElement, requestedIntentId)
         metadataHtml += '</div>';
     }
     if (session.photo_url && session.photo_url !== '') {
-        metadataHtml += '<div class="session-photo-container"><img src="' + session.photo_url + '" class="session-photo-full" onclick="openPhotoFullscreen(\'' + session.photo_url + '\')"></div>';
+        metadataHtml += '<div class="session-photo-container"><img src="' + session.photo_url + '" class="session-photo-full" alt="Session photo" onclick="openPhotoFullscreen(\'' + session.photo_url + '\')"></div>';
     }
     document.getElementById('sessionDetailMetadata').innerHTML = metadataHtml;
 
@@ -3004,16 +3006,24 @@ function clearIdentity() {
 // PIN Setup state
 let _pinSetupBuffer = '';
 let _pinSetupPlayerId = null;
+let _pinSetupSubmitting = false;
 
 function openPinSetupModal(playerId) {
     _pinSetupPlayerId = playerId;
     _pinSetupBuffer = '';
+    _pinSetupSubmitting = false;
+    setPinKeypadBusy('pinSetup', false);
     updatePinDots('pinSetup', 0);
     document.getElementById('pinSetupMessage').innerHTML = '';
     document.getElementById('pinSetupModal').classList.add('active');
+    setTimeout(function() {
+        const firstKey = document.querySelector('#pinSetupKeypad .pin-key:not(:disabled)');
+        if (firstKey) firstKey.focus();
+    }, 0);
 }
 
 function closePinSetupModal() {
+    if (_pinSetupSubmitting) return;
     document.getElementById('pinSetupModal').classList.remove('active');
     _pinSetupBuffer = '';
     _pinSetupPlayerId = null;
@@ -3024,10 +3034,26 @@ function updatePinDots(prefix, count) {
         const dot = document.getElementById(prefix + 'Dot' + i);
         if (dot) dot.classList.toggle('filled', i < count);
     }
+    const display = document.getElementById(prefix + 'Display');
+    if (display) display.setAttribute('aria-label', count + ' of 6 PIN digits entered');
+}
+
+function setPinKeypadBusy(prefix, isBusy) {
+    const keypad = document.getElementById(prefix + 'Keypad');
+    const modal = document.getElementById(prefix + 'Modal');
+    if (!keypad || !modal) return;
+    keypad.classList.toggle('is-busy', isBusy);
+    keypad.setAttribute('aria-busy', isBusy ? 'true' : 'false');
+    keypad.querySelectorAll('button:not(.pin-key-empty)').forEach(function(button) {
+        button.disabled = isBusy;
+    });
+    modal.querySelectorAll('.modal-close, .modal-cancel').forEach(function(button) {
+        button.disabled = isBusy;
+    });
 }
 
 function pinSetupInput(digit) {
-    if (_pinSetupBuffer.length >= 6) return;
+    if (_pinSetupSubmitting || _pinSetupBuffer.length >= 6) return;
     _pinSetupBuffer += digit;
     updatePinDots('pinSetup', _pinSetupBuffer.length);
     hapticFeedback('light');
@@ -3037,6 +3063,7 @@ function pinSetupInput(digit) {
 }
 
 function pinSetupClear() {
+    if (_pinSetupSubmitting) return;
     if (_pinSetupBuffer.length > 0) {
         _pinSetupBuffer = _pinSetupBuffer.slice(0, -1);
         updatePinDots('pinSetup', _pinSetupBuffer.length);
@@ -3046,15 +3073,21 @@ function pinSetupClear() {
 
 async function confirmPinSetup() {
     const messageDiv = document.getElementById('pinSetupMessage');
+    if (_pinSetupSubmitting) return;
     if (!/^\d{6}$/.test(_pinSetupBuffer)) {
         messageDiv.innerHTML = '<div class="error">Enter all six digits.</div>';
         return;
     }
+    _pinSetupSubmitting = true;
+    setPinKeypadBusy('pinSetup', true);
+    messageDiv.innerHTML = '<div class="pin-progress"><span class="loading-spinner" aria-hidden="true"></span><span>Saving your PIN…</span></div>';
     const data = await apiCall('setPlayerPin', { player_id: _pinSetupPlayerId, pin: _pinSetupBuffer });
     if (data.error) {
         messageDiv.innerHTML = '<div class="error">❌ Could not save PIN. Please try again.</div>';
         _pinSetupBuffer = '';
         updatePinDots('pinSetup', 0);
+        _pinSetupSubmitting = false;
+        setPinKeypadBusy('pinSetup', false);
     } else {
         messageDiv.innerHTML = '<div class="success">✅ PIN set!</div>';
         const player = allPlayers.find(p => String(p.player_id) === String(_pinSetupPlayerId));
@@ -3063,6 +3096,8 @@ async function confirmPinSetup() {
         hapticFeedback('success');
         setTimeout(function() {
             const playerId = _pinSetupPlayerId;
+            _pinSetupSubmitting = false;
+            setPinKeypadBusy('pinSetup', false);
             closePinSetupModal();
             openEditProfileModal(playerId);
         }, 800);
@@ -3073,17 +3108,25 @@ async function confirmPinSetup() {
 let _pinEntryBuffer = '';
 let _pinEntryPlayerId = null;
 let _pinEntryCallback = null;
+let _pinEntrySubmitting = false;
 
 function openPinEntryModal(playerId, callback) {
     _pinEntryPlayerId = playerId;
     _pinEntryCallback = callback;
     _pinEntryBuffer = '';
+    _pinEntrySubmitting = false;
+    setPinKeypadBusy('pinEntry', false);
     updatePinDots('pinEntry', 0);
     document.getElementById('pinEntryMessage').innerHTML = '';
     document.getElementById('pinEntryModal').classList.add('active');
+    setTimeout(function() {
+        const firstKey = document.querySelector('#pinEntryKeypad .pin-key:not(:disabled)');
+        if (firstKey) firstKey.focus();
+    }, 0);
 }
 
 function closePinEntryModal() {
+    if (_pinEntrySubmitting) return;
     document.getElementById('pinEntryModal').classList.remove('active');
     _pinEntryBuffer = '';
     _pinEntryPlayerId = null;
@@ -3091,7 +3134,7 @@ function closePinEntryModal() {
 }
 
 function pinEntryInput(digit) {
-    if (_pinEntryBuffer.length >= 6) return;
+    if (_pinEntrySubmitting || _pinEntryBuffer.length >= 6) return;
     _pinEntryBuffer += digit;
     updatePinDots('pinEntry', _pinEntryBuffer.length);
     hapticFeedback('light');
@@ -3101,6 +3144,7 @@ function pinEntryInput(digit) {
 }
 
 function pinEntryClear() {
+    if (_pinEntrySubmitting) return;
     if (_pinEntryBuffer.length > 0) {
         _pinEntryBuffer = _pinEntryBuffer.slice(0, -1);
         updatePinDots('pinEntry', _pinEntryBuffer.length);
@@ -3110,10 +3154,14 @@ function pinEntryClear() {
 
 async function submitPinEntry() {
     const messageDiv = document.getElementById('pinEntryMessage');
+    if (_pinEntrySubmitting) return;
     if (!/^\d{6}$/.test(_pinEntryBuffer)) {
         messageDiv.innerHTML = '<div class="error">Enter your six-digit PIN.</div>';
         return;
     }
+    _pinEntrySubmitting = true;
+    setPinKeypadBusy('pinEntry', true);
+    messageDiv.innerHTML = '<div class="pin-progress"><span class="loading-spinner" aria-hidden="true"></span><span>Checking your PIN…</span></div>';
     const data = await apiCall('verifyPlayerPin', {
         player_id: _pinEntryPlayerId,
         pin: _pinEntryBuffer,
@@ -3123,6 +3171,8 @@ async function submitPinEntry() {
         messageDiv.innerHTML = '<div class="error">❌ Error verifying PIN.</div>';
         _pinEntryBuffer = '';
         updatePinDots('pinEntry', 0);
+        _pinEntrySubmitting = false;
+        setPinKeypadBusy('pinEntry', false);
         return;
     }
     if (data.success) {
@@ -3131,6 +3181,8 @@ async function submitPinEntry() {
         if (data.profile_token) setProfileToken(_pinEntryPlayerId, data.profile_token);
         hapticFeedback('success');
         const cb = _pinEntryCallback;
+        _pinEntrySubmitting = false;
+        setPinKeypadBusy('pinEntry', false);
         closePinEntryModal();
         if (cb) cb();
     } else {
@@ -3138,6 +3190,8 @@ async function submitPinEntry() {
         hapticFeedback('error');
         _pinEntryBuffer = '';
         updatePinDots('pinEntry', 0);
+        _pinEntrySubmitting = false;
+        setPinKeypadBusy('pinEntry', false);
     }
 }
 
@@ -3181,7 +3235,7 @@ async function loadPlayersScreen(requestedIntentId) {
         const avatarUrl = p.avatar_url || '';
         let avatarHtml;
         if (avatarUrl) {
-            avatarHtml = '<img src="' + avatarUrl + '" class="player-card-avatar" alt="' + p.username + '">';
+            avatarHtml = '<img src="' + avatarUrl + '" class="player-card-avatar" alt="Profile photo for ' + escapeAttr(p.username) + '">';
         } else {
             avatarHtml = '<div class="player-card-avatar-placeholder">' + p.username.charAt(0).toUpperCase() + '</div>';
         }
@@ -3240,7 +3294,7 @@ function renderPlayerProfile(data) {
     // Avatar
     let avatarHtml;
     if (p.avatar_url) {
-        avatarHtml = '<img src="' + p.avatar_url + '" class="profile-avatar" onclick="openPhotoFullscreen(\'' + p.avatar_url + '\')">';
+        avatarHtml = '<img src="' + p.avatar_url + '" class="profile-avatar" alt="Profile photo for ' + escapeAttr(p.username) + '" onclick="openPhotoFullscreen(\'' + p.avatar_url + '\')">';
     } else {
         avatarHtml = '<div class="profile-avatar-placeholder">' + p.username.charAt(0).toUpperCase() + '</div>';
     }
@@ -3548,18 +3602,10 @@ async function handleEditProfileClick() {
 
     // Show loading state on the button
     const editBtn = document.querySelector('.profile-edit-btn');
-    if (editBtn) {
-        editBtn.textContent = '⏳ Loading...';
-        editBtn.style.opacity = '0.6';
-        editBtn.style.pointerEvents = 'none';
-    }
+    if (editBtn) setButtonLoading(editBtn, true);
 
     const restoreBtn = function() {
-        if (editBtn) {
-            editBtn.textContent = '✏️ Edit Profile';
-            editBtn.style.opacity = '';
-            editBtn.style.pointerEvents = '';
-        }
+        if (editBtn) setButtonLoading(editBtn, false, '✏️ Edit Profile');
     };
 
     const check = await apiCall('checkPlayerPin', { player_id: playerId });

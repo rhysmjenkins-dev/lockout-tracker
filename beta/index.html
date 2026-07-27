@@ -6,7 +6,7 @@
         // APP VERSION — increment this when deploying
         // changes to app.js or styles.css
         // ============================================
-        const APP_VERSION = '22-rc-2';
+        const APP_VERSION = '23-rc-3';
         document.write('<link rel="stylesheet" href="styles.css?v=' + APP_VERSION + '">');
     </script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -63,7 +63,7 @@
                 <p class="text-muted text-sm">If it is yours, you will next choose a six-digit PIN, then be prompted for an optional bio and picture. If it belongs to someone else, they can claim it later.</p>
                 <button class="btn btn-success" onclick="addPlayer(event)">Add Player</button>
                 <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back</button>
-                <div id="addPlayerMessage"></div>
+                <div id="addPlayerMessage" role="status" aria-live="polite"></div>
             </div>
         </div>
 
@@ -904,7 +904,7 @@
                 <div id="createSessionPhotoUpload"></div>
                 <button class="btn btn-success" onclick="createSession(event)">Start Session</button>
                 <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Cancel</button>
-                <div id="sessionMessage"></div>
+                <div id="sessionMessage" role="status" aria-live="polite"></div>
             </div>
         </div>
 
@@ -924,7 +924,7 @@
                     <label for="handComment" class="mt-20">Hand Note (Optional)</label>
                     <input type="text" id="handComment" placeholder="e.g. Epic comeback, close call...">
                     <button class="btn btn-success" onclick="submitHand(event)">Submit Hand</button>
-                    <div id="handMessage"></div>
+                    <div id="handMessage" role="status" aria-live="polite"></div>
                 </div>
                 <div id="handHistorySection" class="hand-history" style="display: none;">
                     <h4>Hand History</h4>
@@ -954,9 +954,11 @@
             <div id="editLockoutWarning" class="lockout-warning" style="display: none;"></div>
             <label for="editHandComment" class="mt-20">Hand Note (Optional)</label>
             <input type="text" id="editHandComment" placeholder="e.g. Epic comeback, close call...">
-<button class="btn btn-success" onclick="saveEditedHand(event)">Save Changes</button>
-<button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
-<div id="editHandMessage"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-success" onclick="saveEditedHand(event)">Save Changes</button>
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+            </div>
+            <div id="editHandMessage" role="status" aria-live="polite"></div>
         </div>
     </div>
 
@@ -980,9 +982,11 @@
                 <label class="tag-option"><input type="checkbox" name="editSessionTags" value="Late Night"> <span>🌙 Late Night</span></label>
                 <label class="tag-option"><input type="checkbox" name="editSessionTags" value="Tournament"> <span>🏆 Tournament</span></label>
             </fieldset>
-<button class="btn btn-success" onclick="saveEditedSession(event)">Save Changes</button>
-<button class="btn btn-secondary" onclick="closeEditSessionModal()">Cancel</button>
-<div id="editSessionMessage"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-success" onclick="saveEditedSession(event)">Save Changes</button>
+                <button type="button" class="btn btn-secondary" onclick="closeEditSessionModal()">Cancel</button>
+            </div>
+            <div id="editSessionMessage" role="status" aria-live="polite"></div>
         </div>
     </div>
 
@@ -1000,9 +1004,11 @@
                 <p><strong>⚠️ Confirmation:</strong></p>
                 <p id="addPlayerConfirmText"></p>
             </div>
-            <button class="btn btn-success" onclick="confirmAddPlayer()" id="confirmAddPlayerBtn" disabled>Add Player</button>
-            <button class="btn btn-secondary" onclick="closeAddPlayerModal()">Cancel</button>
-            <div id="addPlayerToSessionMessage"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-success" onclick="confirmAddPlayer()" id="confirmAddPlayerBtn" disabled>Add Player</button>
+                <button type="button" class="btn btn-secondary" onclick="closeAddPlayerModal()">Cancel</button>
+            </div>
+            <div id="addPlayerToSessionMessage" role="status" aria-live="polite"></div>
         </div>
     </div>
 
@@ -1020,8 +1026,10 @@
                 <label id="accessSecondaryLabel" for="accessSecondaryInput">Your name</label>
                 <input id="accessSecondaryInput" type="text" maxlength="50" autocomplete="name">
             </div>
-            <button id="accessModalConfirm" type="button" class="btn btn-success" onclick="finishAccessModal(true)">Continue</button>
-            <button id="accessModalCancel" type="button" class="btn btn-secondary" onclick="finishAccessModal(false)">Cancel</button>
+            <div class="modal-actions">
+                <button id="accessModalConfirm" type="button" class="btn btn-success" onclick="finishAccessModal(true)">Continue</button>
+                <button id="accessModalCancel" type="button" class="btn btn-secondary" onclick="finishAccessModal(false)">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -1034,7 +1042,7 @@
             </div>
             <p class="modal-body-text">Choose a 6-digit PIN to protect your profile. You will need this to edit your profile on any device.</p>
             <div class="warning-box mb-10">⚠️ <strong>Only set a PIN if this is your own profile.</strong> Each player manages their own PIN — do not set or enter a PIN on someone else's behalf.</div>
-            <div class="pin-entry-grid" id="pinSetupDisplay">
+            <div class="pin-entry-grid" id="pinSetupDisplay" aria-label="PIN entry progress">
                 <div class="pin-dot" id="pinSetupDot0"></div>
                 <div class="pin-dot" id="pinSetupDot1"></div>
                 <div class="pin-dot" id="pinSetupDot2"></div>
@@ -1042,22 +1050,22 @@
                 <div class="pin-dot" id="pinSetupDot4"></div>
                 <div class="pin-dot" id="pinSetupDot5"></div>
             </div>
-            <div class="pin-keypad">
-                <button class="pin-key" onclick="pinSetupInput('1')">1</button>
-                <button class="pin-key" onclick="pinSetupInput('2')">2</button>
-                <button class="pin-key" onclick="pinSetupInput('3')">3</button>
-                <button class="pin-key" onclick="pinSetupInput('4')">4</button>
-                <button class="pin-key" onclick="pinSetupInput('5')">5</button>
-                <button class="pin-key" onclick="pinSetupInput('6')">6</button>
-                <button class="pin-key" onclick="pinSetupInput('7')">7</button>
-                <button class="pin-key" onclick="pinSetupInput('8')">8</button>
-                <button class="pin-key" onclick="pinSetupInput('9')">9</button>
-                <button class="pin-key pin-key-clear" onclick="pinSetupClear()">⌫</button>
-                <button class="pin-key" onclick="pinSetupInput('0')">0</button>
+            <div class="pin-keypad" id="pinSetupKeypad">
+                <button type="button" class="pin-key" onclick="pinSetupInput('1')">1</button>
+                <button type="button" class="pin-key" onclick="pinSetupInput('2')">2</button>
+                <button type="button" class="pin-key" onclick="pinSetupInput('3')">3</button>
+                <button type="button" class="pin-key" onclick="pinSetupInput('4')">4</button>
+                <button type="button" class="pin-key" onclick="pinSetupInput('5')">5</button>
+                <button type="button" class="pin-key" onclick="pinSetupInput('6')">6</button>
+                <button type="button" class="pin-key" onclick="pinSetupInput('7')">7</button>
+                <button type="button" class="pin-key" onclick="pinSetupInput('8')">8</button>
+                <button type="button" class="pin-key" onclick="pinSetupInput('9')">9</button>
+                <button type="button" class="pin-key pin-key-clear" onclick="pinSetupClear()" aria-label="Delete last digit">⌫</button>
+                <button type="button" class="pin-key" onclick="pinSetupInput('0')">0</button>
                 <button class="pin-key pin-key-empty" type="button" aria-hidden="true" disabled></button>
             </div>
-            <div id="pinSetupMessage"></div>
-            <button class="btn btn-secondary" onclick="closePinSetupModal()">Cancel</button>
+            <div id="pinSetupMessage" class="pin-message" role="status" aria-live="polite" aria-atomic="true"></div>
+            <button type="button" class="btn btn-secondary modal-cancel" onclick="closePinSetupModal()">Cancel</button>
         </div>
     </div>
 
@@ -1070,7 +1078,7 @@
             </div>
             <p class="modal-body-text" id="pinEntryPrompt">Enter your 6-digit PIN to edit your profile.</p>
             <div class="warning-box mb-10">⚠️ <strong>Only enter your PIN if this is your own profile.</strong></div>
-            <div class="pin-entry-grid">
+            <div class="pin-entry-grid" id="pinEntryDisplay" aria-label="PIN entry progress">
                 <div class="pin-dot" id="pinEntryDot0"></div>
                 <div class="pin-dot" id="pinEntryDot1"></div>
                 <div class="pin-dot" id="pinEntryDot2"></div>
@@ -1078,22 +1086,22 @@
                 <div class="pin-dot" id="pinEntryDot4"></div>
                 <div class="pin-dot" id="pinEntryDot5"></div>
             </div>
-            <div class="pin-keypad">
-                <button class="pin-key" onclick="pinEntryInput('1')">1</button>
-                <button class="pin-key" onclick="pinEntryInput('2')">2</button>
-                <button class="pin-key" onclick="pinEntryInput('3')">3</button>
-                <button class="pin-key" onclick="pinEntryInput('4')">4</button>
-                <button class="pin-key" onclick="pinEntryInput('5')">5</button>
-                <button class="pin-key" onclick="pinEntryInput('6')">6</button>
-                <button class="pin-key" onclick="pinEntryInput('7')">7</button>
-                <button class="pin-key" onclick="pinEntryInput('8')">8</button>
-                <button class="pin-key" onclick="pinEntryInput('9')">9</button>
-                <button class="pin-key pin-key-clear" onclick="pinEntryClear()">⌫</button>
-                <button class="pin-key" onclick="pinEntryInput('0')">0</button>
+            <div class="pin-keypad" id="pinEntryKeypad">
+                <button type="button" class="pin-key" onclick="pinEntryInput('1')">1</button>
+                <button type="button" class="pin-key" onclick="pinEntryInput('2')">2</button>
+                <button type="button" class="pin-key" onclick="pinEntryInput('3')">3</button>
+                <button type="button" class="pin-key" onclick="pinEntryInput('4')">4</button>
+                <button type="button" class="pin-key" onclick="pinEntryInput('5')">5</button>
+                <button type="button" class="pin-key" onclick="pinEntryInput('6')">6</button>
+                <button type="button" class="pin-key" onclick="pinEntryInput('7')">7</button>
+                <button type="button" class="pin-key" onclick="pinEntryInput('8')">8</button>
+                <button type="button" class="pin-key" onclick="pinEntryInput('9')">9</button>
+                <button type="button" class="pin-key pin-key-clear" onclick="pinEntryClear()" aria-label="Delete last digit">⌫</button>
+                <button type="button" class="pin-key" onclick="pinEntryInput('0')">0</button>
                 <button class="pin-key pin-key-submit" type="button" onclick="submitPinEntry()" aria-label="Submit PIN">✓</button>
             </div>
-            <div id="pinEntryMessage"></div>
-            <button class="btn btn-secondary" onclick="closePinEntryModal()">Cancel</button>
+            <div id="pinEntryMessage" class="pin-message" role="status" aria-live="polite" aria-atomic="true"></div>
+            <button type="button" class="btn btn-secondary modal-cancel" onclick="closePinEntryModal()">Cancel</button>
         </div>
     </div>
 
@@ -1108,9 +1116,11 @@
             <div id="profilePhotoUpload"></div>
             <label for="profileBioInput">Bio</label>
             <textarea id="profileBioInput" placeholder="Tell everyone a bit about yourself..." style="min-height:80px;"></textarea>
-            <button class="btn btn-success" onclick="saveProfileEdits(event)">Save Profile</button>
-            <button class="btn btn-secondary" onclick="closeEditProfileModal()">Cancel</button>
-            <div id="editProfileMessage"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-success" onclick="saveProfileEdits(event)">Save Profile</button>
+                <button type="button" class="btn btn-secondary" onclick="closeEditProfileModal()">Cancel</button>
+            </div>
+            <div id="editProfileMessage" role="status" aria-live="polite"></div>
         </div>
     </div>
 
@@ -1132,19 +1142,21 @@
             <textarea id="feedbackText" placeholder="Describe the issue or suggestion..."></textarea>
             <label for="feedbackName">Your name (optional)</label>
             <input type="text" id="feedbackName" placeholder="e.g. John">
-            <button class="btn btn-success" onclick="submitFeedback(event)">Send Feedback</button>
-            <button class="btn btn-secondary" onclick="closeFeedbackModal()">Cancel</button>
-            <div id="feedbackMessage"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-success" onclick="submitFeedback(event)">Send Feedback</button>
+                <button type="button" class="btn btn-secondary" onclick="closeFeedbackModal()">Cancel</button>
+            </div>
+            <div id="feedbackMessage" role="status" aria-live="polite"></div>
         </div>
     </div>
 
     <!-- SESSION END POPUP -->
-    <div id="sessionEndPopup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9998; align-items:center; justify-content:center;">
-        <div style="background:white; border-radius:15px; padding:30px; max-width:340px; width:90%; text-align:center; box-shadow:0 10px 40px rgba(0,0,0,0.3);">
-            <div style="font-size:3em; margin-bottom:10px;">🏆</div>
-            <h2 id="sessionEndTitle" style="color:#667eea; margin-bottom:10px;"></h2>
-            <p id="sessionEndScore" style="color:#666; margin-bottom:20px;"></p>
-            <button class="btn btn-success" onclick="closeSessionEndPopup()">🎉 Nice one!</button>
+    <div id="sessionEndPopup" class="session-end-popup" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="sessionEndTitle">
+        <div class="session-end-content">
+            <div class="session-end-trophy" aria-hidden="true">🏆</div>
+            <h2 id="sessionEndTitle"></h2>
+            <p id="sessionEndScore"></p>
+            <button type="button" class="btn btn-success" onclick="closeSessionEndPopup()">🎉 Nice one!</button>
         </div>
     </div>
      <script src="config.js"></script>
@@ -1153,7 +1165,7 @@
     </script>
     <div class="app-footer">
         <button type="button" class="footer-feedback-link footer-feedback-button" onclick="showFeedbackModal()">💬 Feedback or bug report</button>
-        <div id="releaseVersion" class="release-version">Release Candidate 2</div>
+        <div id="releaseVersion" class="release-version">Release Candidate 3</div>
     </div>
 </body>
 </html>
