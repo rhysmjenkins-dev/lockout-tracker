@@ -1174,7 +1174,9 @@
             <button type="button" class="btn btn-success" onclick="closeSessionEndPopup()">🎉 Nice one!</button>
         </div>
     </div>
-     <script src="config.js"></script>
+     <script>
+        document.write('<script src="config.js?v=' + APP_VERSION + '"><\/script>');
+     </script>
      <script>
         document.write('<script src="app.js?v=' + APP_VERSION + '"><\/script>');
     </script>
