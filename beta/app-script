@@ -1,0 +1,3173 @@
+// Lockout Tracker v2 beta — paste-ready Apps Script bundle
+// Generated from the modular files in apps-script/. Do not edit both copies.
+// ===== Code.gs =====
+// Lockout Tracker v2 beta
+// Public reads remain account-free. Every write is handled by doPost and is
+// authorised in Security.gs/Mutations.gs.
+
+var V2_VERSION = '2.0.0-rc.5';
+
+var V2_READ_ACTIONS = {
+  getPlayers: true,
+  getSessions: true,
+  getRecentSessions: true,
+  getSession: true,
+  getHands: true,
+  getEditHistory: true,
+  getSessionsWithHands: true,
+  getHeadToHeadMatrix: true,
+  getPlayerComparisonDetailed: true,
+  getEloRatings: true,
+  getEloHistory: true,
+  getEloHistoryAll: true,
+  getPlayerProfile: true,
+  checkPlayerPin: true,
+  getPublicConfig: true,
+  getHomeData: true
+};
+
+function doGet(e) {
+  var requestId = Utilities.getUuid();
+  try {
+    var params = (e && e.parameter) || {};
+    var action = String(params.action || '');
+    if (!V2_READ_ACTIONS[action]) {
+      return v2Respond({ error: 'This action is not available as a public read.', code: 'READ_ONLY' }, requestId);
+    }
+    return v2Respond(v2RunRead(action, params), requestId);
+  } catch (err) {
+    console.error('Lockout v2 read error [' + requestId + ']: ' + String(err && err.stack || err));
+    return v2Respond({ error: 'The request could not be completed.', code: 'SERVER_ERROR' }, requestId);
+  }
+}
+
+function doPost(e) {
+  var requestId = Utilities.getUuid();
+  try {
+    var raw = e && e.postData && e.postData.contents ? e.postData.contents : '{}';
+    var payload = JSON.parse(raw);
+    var action = String(payload.action || '');
+    if (!action) throw v2Error('VALIDATION', 'Action is required.');
+    return v2Respond(v2RunMutation(action, payload, requestId), requestId);
+  } catch (err) {
+    var safe = v2NormaliseError(err);
+    if (safe.code === 'SERVER_ERROR') {
+      console.error('Lockout v2 write error [' + requestId + ']: ' + String(err && err.stack || err));
+    }
+    return v2Respond({ error: safe.message, code: safe.code }, requestId);
+  }
+}
+
+function v2RunRead(action, p) {
+  switch (action) {
+    case 'getPlayers': return getPlayers();
+    case 'getSessions': return v2VisibleSessions(getSessions());
+    case 'getRecentSessions': return v2VisibleSessions(getRecentSessions(v2OptionalLimit(p.limit)));
+    case 'getSession':
+      var session = getSession(v2Id(p.session_id, 'Session'));
+      if (session && String(session.status || '').toLowerCase() === 'void') throw v2Error('NOT_FOUND', 'Session not found.');
+      return session;
+    case 'getHands': return getHands(v2Id(p.session_id, 'Session'));
+    case 'getEditHistory': return getEditHistory(v2Text(p.record_type, 'Record type', 30), v2Id(p.record_id, 'Record'));
+    case 'getSessionsWithHands':
+      return getSessionsWithHands().filter(function(item) {
+        return !item.session || String(item.session.status || '').toLowerCase() !== 'void';
+      });
+    case 'getHeadToHeadMatrix': return getHeadToHeadMatrix();
+    case 'getPlayerComparisonDetailed':
+      return getPlayerComparisonDetailed(v2Id(p.player1_id, 'Player 1'), v2Id(p.player2_id, 'Player 2'));
+    case 'getEloRatings': return getEloRatings();
+    case 'getEloHistory': return getEloHistory(v2Id(p.player_id, 'Player'));
+    case 'getEloHistoryAll': return sheetToObjects('elo_history');
+    case 'getPlayerProfile': return getPlayerProfile(v2Id(p.player_id, 'Player'));
+    case 'checkPlayerPin': return v2CheckPlayerPin(v2Id(p.player_id, 'Player'));
+    case 'getHomeData':
+      return {
+        players: getPlayers(),
+        sessions_with_hands: getSessionsWithHands().filter(function(item) {
+          return !item.session || String(item.session.status || '').toLowerCase() !== 'void';
+        }),
+        elo_ratings: getEloRatings()
+      };
+    case 'getPublicConfig':
+      return {
+        version: V2_VERSION,
+        schema_version: PropertiesService.getScriptProperties().getProperty('SCHEMA_VERSION') || 'unconfigured',
+        photos_enabled: Boolean(PropertiesService.getScriptProperties().getProperty('IMGBB_API_KEY'))
+      };
+    default: throw v2Error('READ_ONLY', 'Unknown read action.');
+  }
+}
+
+function v2VisibleSessions(sessions) {
+  return (sessions || []).filter(function(session) {
+    return String(session.status || '').toLowerCase() !== 'void';
+  });
+}
+
+function v2RunMutation(action, p, requestId) {
+  switch (action) {
+    case 'unlockMember': return v2UnlockMember(p);
+    case 'validateMember': return v2ValidateMember(p);
+    case 'claimSession': return v2ClaimSession(p);
+    case 'verifyPlayerPin': return v2VerifyPlayerPin(p);
+    case 'setPlayerPin': return v2SetPlayerPin(p, requestId);
+    case 'addPlayer': return v2AddPlayer(p, requestId);
+    case 'createSession': return v2CreateSession(p, requestId);
+    case 'updateSession': return v2UpdateSession(p, requestId);
+    case 'updateSessionPhoto': return v2UpdateSessionPhoto(p, requestId);
+    case 'addPlayerToSession': return v2AddPlayerToSession(p, requestId);
+    case 'closeSession': return v2CloseSession(p, requestId);
+    case 'addHand': return v2AddHand(p, requestId);
+    case 'updateHand': return v2UpdateHand(p, requestId);
+    case 'deleteHand': return v2DeleteHand(p, requestId);
+    case 'updatePlayerProfile': return v2UpdatePlayerProfile(p, requestId);
+    case 'submitFeedback': return v2SubmitFeedback(p, requestId);
+    case 'uploadPhoto': return v2UploadPhoto(p, requestId);
+    default: throw v2Error('READ_ONLY', 'Unknown or administrator-only action.');
+  }
+}
+
+function v2Respond(data, requestId) {
+  var body = v2PublicSafe(data);
+  if (body && typeof body === 'object' && !Array.isArray(body)) body.request_id = requestId;
+  return ContentService.createTextOutput(JSON.stringify(body))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function v2PublicSafe(value, key) {
+  if (value === null || value === undefined) return value;
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    return isNaN(value.getTime()) ? null : value.toISOString();
+  }
+  if (Array.isArray(value)) {
+    return value.map(function(item) { return v2PublicSafe(item, key); });
+  }
+  if (typeof value === 'object') {
+    var out = {};
+    Object.keys(value).forEach(function(k) {
+      var issuedToken = k === 'member_token' || k === 'session_token' || k === 'profile_token';
+      if (!issuedToken && /(^|_)(pin_hash|pin_salt|pin_verifier|edit_code_verifier|token|secret|password|pepper)($|_)/i.test(k)) return;
+      out[k] = v2PublicSafe(value[k], k);
+    });
+    return out;
+  }
+  if (typeof value !== 'string') return value;
+
+  var cleaned = value.charAt(0) === '\u200B' ? value.substring(1) : value;
+  if (key === 'player_join_info') return v2SafeJoinInfo(cleaned);
+  if (key === 'players_involved') return /^\d+(,\d+)*$/.test(cleaned) ? cleaned : '';
+  if (key === 'avatar_url' || key === 'photo_url' || key === 'url') {
+    return v2SafePublicUrl(cleaned);
+  }
+  return v2EscapeHtml(cleaned);
+}
+
+function v2SafeJoinInfo(value) {
+  try {
+    var parsed = JSON.parse(String(value || '{}'));
+    var safe = {};
+    Object.keys(parsed).forEach(function(playerId) {
+      if (!/^\d+$/.test(playerId)) return;
+      var item = parsed[playerId];
+      if (typeof item === 'number' && isFinite(item)) {
+        safe[playerId] = Math.max(1, Math.floor(item));
+      } else if (item && typeof item === 'object') {
+        safe[playerId] = {
+          hand: Math.max(1, Math.floor(Number(item.hand || 1))),
+          starting_score: Math.round(Number(item.starting_score || 0))
+        };
+      }
+    });
+    return JSON.stringify(safe);
+  } catch (err) {
+    return '{}';
+  }
+}
+
+function v2SafePublicUrl(value) {
+  var url = String(value || '').trim();
+  if (!url) return '';
+  if (!/^https:\/\//i.test(url)) return '';
+  if (/[\s"'<>\\]/.test(url)) return '';
+  return url.substring(0, 2000);
+}
+
+function v2EscapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function v2Error(code, message) {
+  var err = new Error(message);
+  err.v2Code = code;
+  return err;
+}
+
+function v2NormaliseError(err) {
+  var allowed = {
+    VALIDATION: true,
+    AUTH_REQUIRED: true,
+    AUTH_EXPIRED: true,
+    MEMBER_LOCKED: true,
+    PROFILE_LOCKED: true,
+    SESSION_AUTH_REQUIRED: true,
+    SESSION_CONFLICT: true,
+    NOT_FOUND: true,
+    SESSION_CLOSED: true,
+    DUPLICATE: true,
+    PHOTO_DISABLED: true,
+    PHOTO_INVALID: true,
+    READ_ONLY: true
+  };
+  var code = err && allowed[err.v2Code] ? err.v2Code : 'SERVER_ERROR';
+  var message = code === 'SERVER_ERROR' ? 'The request could not be completed.' : String(err.message || 'Request failed.');
+  return { code: code, message: message };
+}
+
+function v2OptionalLimit(value) {
+  if (value === undefined || value === null || value === '') return 20;
+  var n = Number(value);
+  if (!isFinite(n) || n < 1) throw v2Error('VALIDATION', 'Limit must be a positive number.');
+  return Math.min(Math.floor(n), 100);
+}
+
+// ===== Security.gs =====
+// Lightweight security for a small, trusted group.
+
+var V2_MEMBER_TTL_SECONDS = 90 * 24 * 60 * 60;
+var V2_PROFILE_TTL_SECONDS = 30 * 60;
+var V2_SESSION_TTL_SECONDS = 180 * 24 * 60 * 60;
+
+function v2UnlockMember(p) {
+  var passphrase = String(p.passphrase || '');
+  var deviceId = v2Text(p.device_id || 'unknown-device', 'Device ID', 100);
+  var displayName = v2Text(p.display_name || 'Friend', 'Display name', 50);
+  var properties = PropertiesService.getScriptProperties();
+  var expected = properties.getProperty('MEMBER_PASSPHRASE');
+  if (!expected) throw v2Error('SERVER_ERROR', 'Member access has not been configured.');
+  var memberAuthVersion = Number(properties.getProperty('MEMBER_AUTH_VERSION') || 1);
+
+  var cache = CacheService.getScriptCache();
+  var deviceKey = 'member_fail_device_' + v2Digest(deviceId).substring(0, 24);
+  var globalKey = 'member_fail_global';
+  if (Number(cache.get(deviceKey) || 0) >= 8 || Number(cache.get(globalKey) || 0) >= 200) {
+    throw v2Error('MEMBER_LOCKED', 'Too many unsuccessful attempts. Try again in 15 minutes.');
+  }
+
+  if (!v2ConstantTimeEqual(v2Digest(passphrase), v2Digest(expected))) {
+    v2IncrementCacheCounter(cache, deviceKey, 900);
+    v2IncrementCacheCounter(cache, globalKey, 900);
+    throw v2Error('AUTH_REQUIRED', 'The editing password is incorrect.');
+  }
+
+  cache.remove(deviceKey);
+  cache.remove(globalKey);
+  return {
+    success: true,
+    member_token: v2IssueToken('member', deviceId, V2_MEMBER_TTL_SECONDS, {
+      label: displayName,
+      v: memberAuthVersion
+    })
+  };
+}
+
+function v2RequireMember(p) {
+  var token = v2VerifyToken(String(p.member_token || ''), 'member');
+  var expectedVersion = Number(
+    PropertiesService.getScriptProperties().getProperty('MEMBER_AUTH_VERSION') || 1
+  );
+  if (Number(token.v || 1) !== expectedVersion) {
+    throw v2Error('AUTH_EXPIRED', 'Member editing access has been revoked. Unlock it again.');
+  }
+  return token;
+}
+
+function v2ValidateMember(p) {
+  var member = v2RequireMember(p);
+  return { success: true, label: member.label || 'Friend' };
+}
+
+function v2RequireProfile(p, playerId) {
+  var token = v2VerifyToken(String(p.profile_token || ''), 'profile', String(playerId));
+  if (Number(token.v || 1) !== v2ProfileAuthVersion(playerId)) {
+    throw v2Error('AUTH_EXPIRED', 'Profile editing access has been reset. Enter the new PIN.');
+  }
+  return token;
+}
+
+function v2ProfileAuthVersion(playerId) {
+  return Number(
+    PropertiesService.getScriptProperties().getProperty('PROFILE_AUTH_VERSION_' + String(playerId)) || 1
+  );
+}
+
+function v2RequireSession(p, sessionId, sessionRecord) {
+  var token = v2VerifyToken(String(p.session_token || ''), 'session', String(sessionId));
+  var expectedVersion = Number(sessionRecord.auth_version || 1);
+  if (Number(token.v || 1) !== expectedVersion) {
+    throw v2Error('SESSION_AUTH_REQUIRED', 'This session editing permission has been revoked.');
+  }
+  return token;
+}
+
+function v2IssueToken(kind, subject, ttlSeconds, extra) {
+  var now = Math.floor(Date.now() / 1000);
+  var data = {
+    kind: kind,
+    sub: String(subject),
+    iat: now,
+    exp: now + ttlSeconds,
+    nonce: Utilities.getUuid()
+  };
+  Object.keys(extra || {}).forEach(function(key) { data[key] = extra[key]; });
+  var encoded = v2Base64Url(JSON.stringify(data));
+  return encoded + '.' + v2Sign(encoded);
+}
+
+function v2VerifyToken(raw, expectedKind, expectedSubject) {
+  if (!raw || raw.indexOf('.') < 1) throw v2Error('AUTH_REQUIRED', 'Editing must be unlocked first.');
+  var parts = raw.split('.');
+  if (parts.length !== 2 || !v2ConstantTimeEqual(parts[1], v2Sign(parts[0]))) {
+    throw v2Error('AUTH_REQUIRED', 'Editing permission is invalid.');
+  }
+  var data;
+  try {
+    data = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[0])).getDataAsString());
+  } catch (err) {
+    throw v2Error('AUTH_REQUIRED', 'Editing permission is invalid.');
+  }
+  if (data.kind !== expectedKind) throw v2Error('AUTH_REQUIRED', 'Editing permission is invalid.');
+  if (expectedSubject !== undefined && String(data.sub) !== String(expectedSubject)) {
+    throw v2Error('AUTH_REQUIRED', 'Editing permission belongs to a different record.');
+  }
+  if (Number(data.exp) < Math.floor(Date.now() / 1000)) {
+    throw v2Error('AUTH_EXPIRED', 'Editing permission has expired. Unlock it again.');
+  }
+  return data;
+}
+
+function v2Sign(encodedPayload) {
+  var secret = PropertiesService.getScriptProperties().getProperty('TOKEN_SECRET');
+  if (!secret) throw v2Error('SERVER_ERROR', 'Token security has not been configured.');
+  return Utilities.base64EncodeWebSafe(
+    Utilities.computeHmacSha256Signature(encodedPayload, secret)
+  ).replace(/=+$/g, '');
+}
+
+function v2Base64Url(text) {
+  return Utilities.base64EncodeWebSafe(String(text)).replace(/=+$/g, '');
+}
+
+function v2Digest(text) {
+  return Utilities.base64EncodeWebSafe(
+    Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(text), Utilities.Charset.UTF_8)
+  ).replace(/=+$/g, '');
+}
+
+function v2ConstantTimeEqual(a, b) {
+  a = String(a || '');
+  b = String(b || '');
+  var mismatch = a.length ^ b.length;
+  var length = Math.max(a.length, b.length);
+  for (var i = 0; i < length; i++) {
+    mismatch |= (a.charCodeAt(i % Math.max(1, a.length)) || 0) ^
+      (b.charCodeAt(i % Math.max(1, b.length)) || 0);
+  }
+  return mismatch === 0;
+}
+
+function v2IncrementCacheCounter(cache, key, ttl) {
+  var next = Number(cache.get(key) || 0) + 1;
+  cache.put(key, String(next), ttl);
+}
+
+function v2CheckPlayerPin(playerId) {
+  var found = v2FindRow('players', 'player_id', playerId);
+  if (!found) throw v2Error('NOT_FOUND', 'Player not found.');
+  var hasModern = Boolean(String(found.object.pin_verifier || '').trim());
+  var hasLegacy = Boolean(String(found.object.pin_hash || '').trim());
+  return { success: true, has_pin: hasModern || hasLegacy };
+}
+
+function v2SetPlayerPin(p, requestId) {
+  var member = v2RequireMember(p);
+  var playerId = v2Id(p.player_id, 'Player');
+  var pin = String(p.pin || '');
+  if (!/^\d{6}$/.test(pin)) throw v2Error('VALIDATION', 'Choose a six-digit PIN.');
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var found = v2FindRow('players', 'player_id', playerId);
+    if (!found) throw v2Error('NOT_FOUND', 'Player not found.');
+    if (String(found.object.pin_verifier || '').trim() || String(found.object.pin_hash || '').trim()) {
+      throw v2Error('AUTH_REQUIRED', 'This player already has a PIN. The administrator must reset it.');
+    }
+    var salt = Utilities.getUuid();
+    v2SetRowValues(found.sheet, found.rowNumber, found.headers, {
+      pin_salt: salt,
+      pin_verifier: v2HashPin(pin, salt),
+      pin_version: 2,
+      profile_updated_at: v2Timestamp()
+    });
+    v2AppendAudit(requestId, member.label || 'Friend', 'member', 'SET_PIN', 'player', playerId, '');
+    return {
+      success: true,
+      profile_token: v2IssueToken('profile', playerId, V2_PROFILE_TTL_SECONDS, {
+        v: v2ProfileAuthVersion(playerId)
+      })
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function v2VerifyPlayerPin(p) {
+  var playerId = v2Id(p.player_id, 'Player');
+  var pin = String(p.pin || '');
+  if (!/^\d{6}$/.test(pin)) throw v2Error('VALIDATION', 'Enter your six-digit PIN.');
+  var deviceId = v2Text(p.device_id || 'unknown-device', 'Device ID', 100);
+  var cache = CacheService.getScriptCache();
+  var deviceFailKey = 'pin_fail_device_' + v2Digest(playerId + '|' + deviceId).substring(0, 24);
+  var playerFailKey = 'pin_fail_player_' + playerId;
+  if (Number(cache.get(deviceFailKey) || 0) >= 6) {
+    throw v2Error('PROFILE_LOCKED', 'Too many unsuccessful attempts. Try again in 15 minutes.');
+  }
+  if (Number(cache.get(playerFailKey) || 0) >= 30) {
+    throw v2Error('PROFILE_LOCKED', 'This profile has received too many unsuccessful attempts. Try again in 15 minutes.');
+  }
+
+  var found = v2FindRow('players', 'player_id', playerId);
+  if (!found) throw v2Error('NOT_FOUND', 'Player not found.');
+  var object = found.object;
+  var verified = false;
+  if (String(object.pin_verifier || '').trim()) {
+    verified = v2ConstantTimeEqual(
+      String(object.pin_verifier),
+      v2HashPin(pin, String(object.pin_salt || ''))
+    );
+  } else if (String(object.pin_hash || '').trim()) {
+    verified = v2ConstantTimeEqual(String(object.pin_hash), v2LegacySimpleHash(pin));
+    if (verified) {
+      var salt = Utilities.getUuid();
+      v2SetRowValues(found.sheet, found.rowNumber, found.headers, {
+        pin_salt: salt,
+        pin_verifier: v2HashPin(pin, salt),
+        pin_version: 2,
+        pin_hash: '',
+        profile_updated_at: v2Timestamp()
+      });
+    }
+  }
+  if (!verified) {
+    v2IncrementCacheCounter(cache, deviceFailKey, 900);
+    v2IncrementCacheCounter(cache, playerFailKey, 900);
+    return { success: false };
+  }
+  cache.remove(deviceFailKey);
+  cache.remove(playerFailKey);
+  return {
+    success: true,
+    profile_token: v2IssueToken('profile', playerId, V2_PROFILE_TTL_SECONDS, {
+      v: v2ProfileAuthVersion(playerId)
+    })
+  };
+}
+
+function v2HashPin(pin, salt) {
+  var secret = PropertiesService.getScriptProperties().getProperty('TOKEN_SECRET') || '';
+  return Utilities.base64EncodeWebSafe(
+    Utilities.computeHmacSha256Signature(String(pin) + '|' + String(salt), secret)
+  ).replace(/=+$/g, '');
+}
+
+function v2LegacySimpleHash(value) {
+  var hash = 0;
+  var text = String(value);
+  for (var i = 0; i < text.length; i++) {
+    hash = ((hash << 5) - hash) + text.charCodeAt(i);
+    hash = hash | 0;
+  }
+  return String(Math.abs(hash));
+}
+
+function v2GenerateSessionCode() {
+  var bytes = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    Utilities.getUuid() + Utilities.getUuid(),
+    Utilities.Charset.UTF_8
+  );
+  var number = 0;
+  for (var i = 0; i < 4; i++) number = (number * 256) + (bytes[i] & 255);
+  return String(100000 + (number % 900000));
+}
+
+function v2SessionCodeVerifier(sessionId, code) {
+  return v2HashPin(String(code), 'session:' + String(sessionId));
+}
+
+function v2ClaimSession(p) {
+  var member = v2RequireMember(p);
+  var sessionId = v2Id(p.session_id, 'Session');
+  var code = String(p.edit_code || '');
+  if (!/^\d{6}$/.test(code)) throw v2Error('VALIDATION', 'Enter the six-digit session access code.');
+  var cache = CacheService.getScriptCache();
+  var deviceFailKey = 'session_claim_fail_device_' + v2Digest(sessionId + '|' + member.sub).substring(0, 24);
+  var sessionFailKey = 'session_claim_fail_session_' + sessionId;
+  if (Number(cache.get(deviceFailKey) || 0) >= 8) {
+    throw v2Error('SESSION_AUTH_REQUIRED', 'Too many unsuccessful attempts. Try again in 15 minutes.');
+  }
+  if (Number(cache.get(sessionFailKey) || 0) >= 40) {
+    throw v2Error('SESSION_AUTH_REQUIRED', 'This session has received too many unsuccessful attempts. Try again in 15 minutes.');
+  }
+  var found = v2FindRow('sessions', 'session_id', sessionId);
+  if (!found) throw v2Error('NOT_FOUND', 'Session not found.');
+  if (String(found.object.status || '').toLowerCase() === 'void') throw v2Error('SESSION_CLOSED', 'This session has been voided.');
+  if (isSessionCompleted(found.object)) throw v2Error('SESSION_CLOSED', 'This session is already closed.');
+  if (!v2ConstantTimeEqual(
+    String(found.object.edit_code_verifier || ''),
+    v2SessionCodeVerifier(sessionId, code)
+  )) {
+    v2IncrementCacheCounter(cache, deviceFailKey, 900);
+    v2IncrementCacheCounter(cache, sessionFailKey, 900);
+    throw v2Error('SESSION_AUTH_REQUIRED', 'The session access code is incorrect.');
+  }
+  cache.remove(deviceFailKey);
+  cache.remove(sessionFailKey);
+  var version = Number(found.object.auth_version || 1);
+  return {
+    success: true,
+    session_token: v2IssueToken('session', sessionId, V2_SESSION_TTL_SECONDS, { v: version, label: member.label || 'Friend' }),
+    revision: Number(found.object.revision || 1)
+  };
+}
+
+// ===== Mutations.gs =====
+// Authorised, validated write operations.
+
+function v2AddPlayer(p, requestId) {
+  var member = v2RequireMember(p);
+  var username = v2Text(p.username, 'Player name', 50);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var existing = sheetToObjects('players');
+    for (var i = 0; i < existing.length; i++) {
+      if (String(existing[i].username || '').toLowerCase() === username.toLowerCase()) {
+        throw v2Error('DUPLICATE', 'A player with that name already exists.');
+      }
+    }
+    var sheet = getSheet('players');
+    var headers = v2Headers(sheet);
+    var id = getNextId('players');
+    v2AppendObject(sheet, headers, {
+      player_id: id,
+      username: v2SheetText(username),
+      date_joined: v2Timestamp(),
+      avatar_url: '',
+      bio: '',
+      pin_hash: '',
+      pin_salt: '',
+      pin_verifier: '',
+      pin_version: '',
+      profile_updated_at: ''
+    });
+    v2AppendAudit(requestId, member.label || 'Friend', 'member', 'ADDED_PLAYER', 'player', id, '');
+    return { success: true, player_id: id };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function v2CreateSession(p, requestId) {
+  var member = v2RequireMember(p);
+  var title = v2Text(p.title, 'Session title', 100);
+  var hostId = v2Id(p.host_player_id, 'Host player');
+  var playerIds = v2IdList(p.players_involved, 'Players');
+  if (playerIds.length < 2) throw v2Error('VALIDATION', 'Select at least two players.');
+  if (playerIds.indexOf(String(hostId)) === -1) throw v2Error('VALIDATION', 'The host must be included in the session.');
+  var notes = v2OptionalText(p.notes, 'Notes', 1000);
+  var tags = v2OptionalText(p.tags, 'Tags', 250);
+  var penalty = v2Integer(p.false_lockout_penalty || DEFAULT_FALSE_LOCKOUT_PENALTY, 'False-lockout penalty', 0, 100);
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    v2AssertPlayersExist(playerIds);
+    var existing = sheetToObjects('sessions');
+    for (var i = 0; i < existing.length; i++) {
+      if (String(existing[i].title || '').toLowerCase().trim() === title.toLowerCase()) {
+        throw v2Error('DUPLICATE', 'A session with that title already exists.');
+      }
+    }
+    var sheet = getSheet('sessions');
+    var headers = v2Headers(sheet);
+    var id = getNextId('sessions');
+    var editCode = v2GenerateSessionCode();
+    v2AppendObject(sheet, headers, {
+      session_id: id,
+      title: v2SheetText(title),
+      host_player_id: hostId,
+      players_involved: playerIds.join(','),
+      date_started: v2Timestamp(),
+      date_ended: '',
+      notes: v2SheetText(notes),
+      tags: v2SheetText(tags),
+      player_join_info: '{}',
+      false_lockout_penalty: penalty,
+      photo_url: '',
+      status: 'active',
+      revision: 1,
+      auth_version: 1,
+      edit_code_verifier: v2SessionCodeVerifier(id, editCode),
+      updated_at: v2Timestamp()
+    });
+    v2AppendAudit(requestId, member.label || 'Friend', 'member', 'CREATED', 'session', id, '');
+    return {
+      success: true,
+      session_id: id,
+      revision: 1,
+      edit_code: editCode,
+      session_token: v2IssueToken('session', id, V2_SESSION_TTL_SECONDS, { v: 1, label: member.label || 'Friend' })
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function v2UpdateSession(p, requestId) {
+  var notes = v2OptionalText(p.notes, 'Notes', 1000);
+  var tags = v2OptionalText(p.tags, 'Tags', 250);
+  return v2MutateSession(p, requestId, 'UPDATED', function(context) {
+    v2SetRowValues(context.sheet, context.rowNumber, context.headers, {
+      notes: v2SheetText(notes),
+      tags: v2SheetText(tags)
+    });
+    return {};
+  });
+}
+
+function v2UpdateSessionPhoto(p, requestId) {
+  var photoUrl = p.photo_url ? v2HttpsUrl(p.photo_url, 'Photo URL') : '';
+  return v2MutateSession(p, requestId, 'UPDATED_PHOTO', function(context) {
+    v2SetRowValues(context.sheet, context.rowNumber, context.headers, { photo_url: photoUrl });
+    return {};
+  });
+}
+
+function v2AddPlayerToSession(p, requestId) {
+  var playerId = v2Id(p.player_id, 'Player');
+  var joinHand = v2Integer(p.join_hand_number, 'Join hand number', 1, 10000);
+  return v2MutateSession(p, requestId, 'ADDED_PLAYER_TO_SESSION', function(context) {
+    v2AssertPlayersExist([String(playerId)]);
+    var players = v2IdList(context.object.players_involved, 'Players');
+    if (players.indexOf(String(playerId)) !== -1) throw v2Error('DUPLICATE', 'Player is already in this session.');
+
+    var nextHand = v2NextHandNumber(context.id);
+    if (joinHand !== nextHand) throw v2Error('SESSION_CONFLICT', 'Late joiners must start on the next hand.');
+    var startingScore = v2StartingScoreBeforeHand(context.id, joinHand);
+    players.push(String(playerId));
+    var joinInfo = {};
+    try { joinInfo = JSON.parse(String(context.object.player_join_info || '{}')); } catch (err) { joinInfo = {}; }
+    joinInfo[String(playerId)] = { hand: joinHand, starting_score: startingScore };
+    v2SetRowValues(context.sheet, context.rowNumber, context.headers, {
+      players_involved: players.join(','),
+      player_join_info: JSON.stringify(joinInfo)
+    });
+    return {
+      players_involved: players.join(','),
+      player_join_info: JSON.stringify(joinInfo),
+      starting_score: startingScore
+    };
+  });
+}
+
+function v2CloseSession(p, requestId) {
+  var result = v2MutateSession(p, requestId, 'CLOSED', function(context) {
+    if (v2NextHandNumber(context.id) <= 1) throw v2Error('VALIDATION', 'Add at least one hand before closing the session.');
+    v2SetRowValues(context.sheet, context.rowNumber, context.headers, {
+      date_ended: v2Timestamp(),
+      status: 'completed'
+    });
+    return {};
+  });
+  SpreadsheetApp.flush();
+  try {
+    calculateEloForSession(v2Id(p.session_id, 'Session'));
+  } catch (eloErr) {
+    console.error('Elo calculation failed after closing session ' + p.session_id + ': ' + String(eloErr));
+    result.elo_warning = 'The session closed, but Elo needs recalculating by the administrator.';
+  }
+  return result;
+}
+
+function v2AddHand(p, requestId) {
+  return v2WriteHand(p, requestId, false);
+}
+
+function v2UpdateHand(p, requestId) {
+  return v2WriteHand(p, requestId, true);
+}
+
+function v2WriteHand(p, requestId, isUpdate) {
+  var handNumber = v2Integer(p.hand_number, 'Hand number', 1, 10000);
+  var prepared = null;
+  return v2MutateSession(p, requestId, isUpdate ? 'UPDATED_HAND' : 'ADDED_HAND', function(context) {
+    var nextHand = v2NextHandNumber(context.id);
+    if (!isUpdate && handNumber !== nextHand) {
+      throw v2Error('SESSION_CONFLICT', 'Another hand was saved first. Reload the session.');
+    }
+    if (isUpdate && (handNumber >= nextHand || !v2HandExists(context.id, handNumber))) {
+      throw v2Error('NOT_FOUND', 'That hand no longer exists.');
+    }
+
+    prepared = v2PrepareHand(context.object, handNumber, p);
+    var handSheet = getSheet('hands');
+    if (isUpdate) v2DeleteHandRows(handSheet, context.id, handNumber);
+    var nextId = getNextId('hands');
+    var rows = [];
+    for (var i = 0; i < prepared.scores.length; i++) {
+      var score = prepared.scores[i];
+      var isLockout = String(score.player_id) === prepared.lockoutPlayerId;
+      rows.push([
+        nextId++,
+        context.id,
+        handNumber,
+        score.player_id,
+        score.score,
+        isLockout ? prepared.lockoutPlayerId : '',
+        isLockout && prepared.falseLockout ? 1 : 0,
+        v2SheetText(prepared.comment),
+        isLockout ? prepared.rawLockoutScore : ''
+      ]);
+    }
+    if (rows.length) {
+      handSheet.getRange(handSheet.getLastRow() + 1, 1, rows.length, 9).setValues(rows);
+    }
+    return {
+      hand_number: handNumber,
+      false_lockout: prepared.falseLockout,
+      lockout_score: prepared.rawLockoutScore
+    };
+  });
+}
+
+function v2DeleteHand(p, requestId) {
+  var handNumber = v2Integer(p.hand_number, 'Hand number', 1, 10000);
+  return v2MutateSession(p, requestId, 'DELETED_HAND', function(context) {
+    var latest = v2NextHandNumber(context.id) - 1;
+    if (handNumber !== latest || latest < 1) {
+      throw v2Error('SESSION_CONFLICT', 'Only the latest hand can be deleted.');
+    }
+    v2DeleteHandRows(getSheet('hands'), context.id, handNumber);
+    return { hand_number: handNumber };
+  });
+}
+
+function v2UpdatePlayerProfile(p, requestId) {
+  var playerId = v2Id(p.player_id, 'Player');
+  v2RequireProfile(p, playerId);
+  var avatarUrl = p.avatar_url ? v2HttpsUrl(p.avatar_url, 'Avatar URL') : '';
+  var bio = v2OptionalText(p.bio, 'Bio', 500);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var found = v2FindRow('players', 'player_id', playerId);
+    if (!found) throw v2Error('NOT_FOUND', 'Player not found.');
+    v2SetRowValues(found.sheet, found.rowNumber, found.headers, {
+      avatar_url: avatarUrl,
+      bio: v2SheetText(bio),
+      profile_updated_at: v2Timestamp()
+    });
+    v2AppendAudit(requestId, 'Player ' + playerId, 'profile', 'UPDATED_PROFILE', 'player', playerId, '');
+    return { success: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function v2SubmitFeedback(p, requestId) {
+  var member = v2RequireMember(p);
+  var type = v2OptionalText(p.type || 'Other', 'Feedback type', 30);
+  var message = v2Text(p.message, 'Feedback message', 2000);
+  var submittedBy = v2OptionalText(p.submitted_by || member.label || 'Anonymous', 'Name', 50);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sheet = getSheet('feedback');
+    var headers = v2Headers(sheet);
+    var feedbackId = getNextId('feedback');
+    var values = {
+      timestamp: v2Timestamp(),
+      type: v2SheetText(type),
+      message: v2SheetText(message),
+      submitted_by: v2SheetText(submittedBy)
+    };
+    values[headers[0]] = feedbackId;
+    v2AppendObject(sheet, headers, values);
+    v2AppendAudit(requestId, member.label || 'Friend', 'member', 'SUBMITTED_FEEDBACK', 'feedback', feedbackId, '');
+    return { success: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function v2UploadPhoto(p) {
+  var scope = String(p.scope || '');
+  if (scope === 'profile') {
+    v2RequireProfile(p, v2Id(p.player_id, 'Player'));
+  } else if (scope === 'session') {
+    var sessionId = v2Id(p.session_id, 'Session');
+    var found = v2FindRow('sessions', 'session_id', sessionId);
+    if (!found) throw v2Error('NOT_FOUND', 'Session not found.');
+    v2RequireSession(p, sessionId, found.object);
+  } else if (scope === 'new_session') {
+    v2RequireMember(p);
+  } else {
+    throw v2Error('VALIDATION', 'Photo scope is invalid.');
+  }
+
+  var key = PropertiesService.getScriptProperties().getProperty('IMGBB_API_KEY');
+  if (!key) throw v2Error('PHOTO_DISABLED', 'Photo uploads are not configured yet.');
+  var mime = String(p.mime_type || '').toLowerCase();
+  if (['image/jpeg', 'image/png', 'image/webp', 'image/gif'].indexOf(mime) === -1) {
+    throw v2Error('PHOTO_INVALID', 'Use a JPEG, PNG, WebP, or GIF image.');
+  }
+  var base64 = String(p.image_base64 || '').replace(/^data:[^;]+;base64,/, '');
+  if (!base64 || base64.length > 7000000 || !/^[A-Za-z0-9+/_=-]+$/.test(base64)) {
+    throw v2Error('PHOTO_INVALID', 'The image must be 5 MB or smaller.');
+  }
+  var response = UrlFetchApp.fetch('https://api.imgbb.com/1/upload?key=' + encodeURIComponent(key), {
+    method: 'post',
+    payload: {
+      image: base64,
+      name: v2OptionalText(p.file_name || 'lockout-photo', 'File name', 80)
+    },
+    muteHttpExceptions: true
+  });
+  if (response.getResponseCode() < 200 || response.getResponseCode() >= 300) {
+    throw v2Error('PHOTO_INVALID', 'The photo host rejected the upload.');
+  }
+  var parsed = JSON.parse(response.getContentText());
+  if (!parsed.success || !parsed.data || !parsed.data.url) {
+    throw v2Error('PHOTO_INVALID', 'The photo could not be uploaded.');
+  }
+  return { success: true, url: v2HttpsUrl(parsed.data.url, 'Uploaded photo URL') };
+}
+
+function v2MutateSession(p, requestId, action, callback) {
+  var sessionId = v2Id(p.session_id, 'Session');
+  var expectedRevision = v2Integer(p.revision, 'Session revision', 1, 1000000000);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var found = v2FindRow('sessions', 'session_id', sessionId);
+    if (!found) throw v2Error('NOT_FOUND', 'Session not found.');
+    if (String(found.object.status || '').toLowerCase() === 'void') throw v2Error('SESSION_CLOSED', 'This session has been voided.');
+    if (isSessionCompleted(found.object)) throw v2Error('SESSION_CLOSED', 'This session is already closed.');
+    var sessionToken = v2RequireSession(p, sessionId, found.object);
+    var currentRevision = Number(found.object.revision || 1);
+    if (expectedRevision !== currentRevision) {
+      throw v2Error('SESSION_CONFLICT', 'This session changed on another device. Reload it before editing.');
+    }
+    var context = {
+      id: sessionId,
+      sheet: found.sheet,
+      rowNumber: found.rowNumber,
+      headers: found.headers,
+      object: found.object
+    };
+    var extra = callback(context) || {};
+    var newRevision = currentRevision + 1;
+    v2SetRowValues(found.sheet, found.rowNumber, found.headers, {
+      revision: newRevision,
+      updated_at: v2Timestamp()
+    });
+    v2AppendAudit(
+      requestId,
+      sessionToken.label || String(p.editor_name || 'Session editor'),
+      'session',
+      action,
+      'session',
+      sessionId,
+      JSON.stringify({ revision: newRevision })
+    );
+    extra.success = true;
+    extra.revision = newRevision;
+    return extra;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function v2PrepareHand(session, handNumber, p) {
+  var rawScores = p.scores;
+  if (typeof rawScores === 'string') {
+    try { rawScores = JSON.parse(rawScores); } catch (err) { throw v2Error('VALIDATION', 'Scores are invalid.'); }
+  }
+  if (!Array.isArray(rawScores)) throw v2Error('VALIDATION', 'Scores are required.');
+  var lockoutPlayerId = String(v2Id(p.lockout_player_id, 'Lockout player'));
+  var expectedPlayers = v2PlayersForHand(session, handNumber);
+  var byPlayer = {};
+  for (var i = 0; i < rawScores.length; i++) {
+    var pid = String(v2Id(rawScores[i].player_id, 'Score player'));
+    if (byPlayer[pid] !== undefined) throw v2Error('VALIDATION', 'A player appears twice in the hand.');
+    byPlayer[pid] = v2Integer(rawScores[i].score, 'Score', -2, 1000);
+  }
+  if (Object.keys(byPlayer).length !== expectedPlayers.length) throw v2Error('VALIDATION', 'Enter one score for every active player.');
+  for (var j = 0; j < expectedPlayers.length; j++) {
+    if (byPlayer[expectedPlayers[j]] === undefined) throw v2Error('VALIDATION', 'Scores do not match the active players.');
+  }
+  if (expectedPlayers.indexOf(lockoutPlayerId) === -1) throw v2Error('VALIDATION', 'Lockout player is not active in this hand.');
+
+  var rawLockout = v2Integer(
+    p.lockout_score !== undefined && p.lockout_score !== '' ? p.lockout_score : byPlayer[lockoutPlayerId],
+    'Lockout score',
+    -2,
+    1000
+  );
+  byPlayer[lockoutPlayerId] = rawLockout;
+  var lowest = Infinity;
+  var lowestCount = 0;
+  Object.keys(byPlayer).forEach(function(pid) {
+    if (byPlayer[pid] < lowest) { lowest = byPlayer[pid]; lowestCount = 1; }
+    else if (byPlayer[pid] === lowest) lowestCount++;
+  });
+  var falseLockout = rawLockout > 5 || rawLockout !== lowest || lowestCount !== 1;
+  var penalty = v2Integer(session.false_lockout_penalty || DEFAULT_FALSE_LOCKOUT_PENALTY, 'False-lockout penalty', 0, 100);
+  byPlayer[lockoutPlayerId] = falseLockout ? rawLockout + penalty : (rawLockout < 0 ? rawLockout : 0);
+
+  return {
+    scores: expectedPlayers.map(function(pid) { return { player_id: pid, score: byPlayer[pid] }; }),
+    lockoutPlayerId: lockoutPlayerId,
+    rawLockoutScore: rawLockout,
+    falseLockout: falseLockout,
+    comment: v2OptionalText(p.comment, 'Hand comment', 500)
+  };
+}
+
+function v2PlayersForHand(session, handNumber) {
+  var players = v2IdList(session.players_involved, 'Players');
+  var joinInfo = {};
+  try { joinInfo = JSON.parse(String(session.player_join_info || '{}')); } catch (err) { joinInfo = {}; }
+  return players.filter(function(pid) {
+    return !joinInfo[pid] || Number(joinInfo[pid].hand || 1) <= handNumber;
+  });
+}
+
+function v2NextHandNumber(sessionId) {
+  var hands = getHands(sessionId);
+  var max = 0;
+  for (var i = 0; i < hands.length; i++) max = Math.max(max, Number(hands[i].hand_number || 0));
+  return max + 1;
+}
+
+function v2HandExists(sessionId, handNumber) {
+  var hands = getHands(sessionId);
+  for (var i = 0; i < hands.length; i++) {
+    if (Number(hands[i].hand_number) === Number(handNumber)) return true;
+  }
+  return false;
+}
+
+function v2DeleteHandRows(sheet, sessionId, handNumber) {
+  var data = sheet.getDataRange().getValues();
+  var rows = [];
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][1]) === String(sessionId) && Number(data[i][2]) === Number(handNumber)) rows.push(i + 1);
+  }
+  for (var j = rows.length - 1; j >= 0; j--) sheet.deleteRow(rows[j]);
+}
+
+function v2StartingScoreBeforeHand(sessionId, handNumber) {
+  var hands = getHands(sessionId);
+  var totals = {};
+  for (var i = 0; i < hands.length; i++) {
+    if (Number(hands[i].hand_number) >= handNumber) continue;
+    var pid = String(hands[i].player_id);
+    totals[pid] = (totals[pid] || 0) + Number(hands[i].score);
+  }
+  var ids = Object.keys(totals);
+  if (!ids.length) return 0;
+  var sum = ids.reduce(function(total, id) { return total + totals[id]; }, 0);
+  return Math.round(sum / ids.length);
+}
+
+function v2AssertPlayersExist(ids) {
+  var players = sheetToObjects('players');
+  var known = {};
+  players.forEach(function(player) { known[String(player.player_id)] = true; });
+  ids.forEach(function(id) {
+    if (!known[String(id)]) throw v2Error('VALIDATION', 'A selected player no longer exists.');
+  });
+}
+
+function v2FindRow(sheetName, idHeader, id) {
+  var sheet = getSheet(sheetName);
+  var values = sheet.getDataRange().getValues();
+  if (!values.length) return null;
+  var headers = values[0].map(function(value) { return String(value); });
+  var idIndex = headers.indexOf(idHeader);
+  if (idIndex < 0) throw new Error('Missing header: ' + idHeader);
+  for (var row = 1; row < values.length; row++) {
+    if (String(values[row][idIndex]) === String(id)) {
+      var object = {};
+      headers.forEach(function(header, index) { object[header] = values[row][index]; });
+      return { sheet: sheet, headers: headers, rowNumber: row + 1, object: object };
+    }
+  }
+  return null;
+}
+
+function v2Headers(sheet) {
+  if (sheet.getLastColumn() < 1) throw new Error('Sheet has no headers: ' + sheet.getName());
+  return sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(function(value) { return String(value); });
+}
+
+function v2SetRowValues(sheet, rowNumber, headers, valuesByHeader) {
+  Object.keys(valuesByHeader).forEach(function(header) {
+    var index = headers.indexOf(header);
+    if (index < 0) throw new Error('Run migrateLockoutV2Beta(); missing header: ' + header);
+    sheet.getRange(rowNumber, index + 1).setValue(valuesByHeader[header]);
+  });
+}
+
+function v2AppendObject(sheet, headers, valuesByHeader) {
+  var row = headers.map(function(header) {
+    return valuesByHeader[header] !== undefined ? valuesByHeader[header] : '';
+  });
+  sheet.appendRow(row);
+}
+
+function v2AppendAudit(requestId, actor, actorType, action, recordType, recordId, details) {
+  var sheet = getSheet('edit_history');
+  var headers = v2Headers(sheet);
+  var idHeader = headers.indexOf('edit_id') >= 0 ? 'edit_id' : headers[0];
+  var values = {};
+  values[idHeader] = getNextId('edit_history');
+  values.timestamp = v2Timestamp();
+  values.editor_name = v2SheetText(v2OptionalText(actor || 'Unknown', 'Audit actor', 80));
+  values.action = action;
+  values.record_type = recordType;
+  values.record_id = recordId;
+  values.request_id = requestId;
+  values.actor_type = actorType;
+  values.details = v2SheetText(v2OptionalText(details, 'Audit details', 1000));
+  v2AppendObject(sheet, headers, values);
+}
+
+function v2Id(value, label) {
+  var text = String(value === undefined || value === null ? '' : value).trim();
+  if (!/^\d+$/.test(text) || Number(text) < 1) throw v2Error('VALIDATION', label + ' ID is invalid.');
+  return text;
+}
+
+function v2IdList(value, label) {
+  var values = Array.isArray(value) ? value : String(value || '').split(',');
+  var output = [];
+  values.forEach(function(item) {
+    var id = String(v2Id(item, label));
+    if (output.indexOf(id) === -1) output.push(id);
+  });
+  if (!output.length) throw v2Error('VALIDATION', label + ' are required.');
+  return output;
+}
+
+function v2Integer(value, label, min, max) {
+  var number = Number(value);
+  if (!isFinite(number) || Math.floor(number) !== number || number < min || number > max) {
+    throw v2Error('VALIDATION', label + ' must be a whole number from ' + min + ' to ' + max + '.');
+  }
+  return number;
+}
+
+function v2Text(value, label, maxLength) {
+  var text = String(value === undefined || value === null ? '' : value).trim();
+  if (!text) throw v2Error('VALIDATION', label + ' is required.');
+  if (text.length > maxLength) throw v2Error('VALIDATION', label + ' is too long.');
+  if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(text)) throw v2Error('VALIDATION', label + ' contains unsupported characters.');
+  return text;
+}
+
+function v2OptionalText(value, label, maxLength) {
+  if (value === undefined || value === null || String(value).trim() === '') return '';
+  return v2Text(value, label, maxLength);
+}
+
+function v2SheetText(value) {
+  var text = String(value === undefined || value === null ? '' : value);
+  return /^[=+\-@]/.test(text) ? '\u200B' + text : text;
+}
+
+function v2HttpsUrl(value, label) {
+  var url = String(value || '').trim();
+  if (!/^https:\/\//i.test(url) || /[\s"'<>\\]/.test(url) || url.length > 2000) {
+    throw v2Error('VALIDATION', label + ' must be a valid HTTPS URL.');
+  }
+  return url;
+}
+
+function v2Timestamp() {
+  return new Date().toISOString();
+}
+
+// ===== LegacyCore.gs =====
+// ============================================
+// LOCKOUT TRACKER — GOOGLE APPS SCRIPT
+// ============================================
+
+// ============================================
+// CONSTANTS
+// ============================================
+var DEFAULT_ELO = 1000;
+var PROVISIONAL_HANDS = 50;
+var PROVISIONAL_K = 40;
+var STANDARD_K = 24;
+var DEFAULT_FALSE_LOCKOUT_PENALTY = 10;
+
+// Public routing and all mutations are implemented in Code.gs and
+// Mutations.gs. The calculation/read helpers below are retained so the beta
+// remains compatible with every existing statistic and historical record.
+
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
+function respond(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getSheet(name) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
+  if (!sheet) throw new Error('Sheet "' + name + '" not found.');
+  return sheet;
+}
+
+function getNextId(sheetName) {
+  var sheet = getSheet(sheetName);
+  var lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return 1;
+  var data = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  var maxId = 0;
+  for (var i = 0; i < data.length; i++) {
+    var val = Number(data[i][0]);
+    if (val > maxId) maxId = val;
+  }
+  return maxId + 1;
+}
+
+function sheetToObjects(sheetName) {
+  var sheet = getSheet(sheetName);
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  var headers = data[0];
+  var result = [];
+  for (var i = 1; i < data.length; i++) {
+    var obj = {};
+    for (var j = 0; j < headers.length; j++) {
+      var value = data[i][j];
+      obj[headers[j]] = (value === '' || value === null || value === undefined) ? '' : value;
+    }
+    result.push(obj);
+  }
+  return result;
+}
+
+function logEdit(editorName, action, recordType, recordId) {
+  var sheet = getSheet('edit_history');
+  var timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss');
+  var id = sheet.getLastRow(); // row 1 = headers, row 2 = id 1, etc.
+  sheet.appendRow([id, timestamp, editorName, action, recordType, recordId]);
+}
+
+// ============================================
+// SHARED HELPERS — BATCH D
+// ============================================
+
+// Checks whether a session has been completed
+function isSessionCompleted(session) {
+  if (String(session.status || '').toLowerCase() === 'void') return false;
+  var dateEnded = String(session.date_ended || '').trim();
+  return dateEnded !== '' && dateEnded !== 'null' && dateEnded !== 'undefined';
+}
+
+function hasSessionTag(session, tag) {
+  var wanted = String(tag || '').trim().toLowerCase();
+  if (!wanted) return false;
+  return String(session.tags || '').split(',').some(function(value) {
+    return String(value).trim().toLowerCase() === wanted;
+  });
+}
+
+function isOfficialCompletedSession(session) {
+  return isSessionCompleted(session) && !hasSessionTag(session, 'testing');
+}
+
+// Safely parses player_join_info from a session, returning starting scores keyed by player ID
+function parseJoinInfo(session) {
+  try {
+    if (!session.player_join_info || session.player_join_info === '' || session.player_join_info === '{}') return {};
+    var parsed = JSON.parse(session.player_join_info);
+    var result = {};
+    for (var pid in parsed) {
+      var info = parsed[pid];
+      if (typeof info === 'object' && info.starting_score !== undefined) {
+        result[String(pid)] = Number(info.starting_score);
+      }
+    }
+    return result;
+  } catch (e) {
+    return {};
+  }
+}
+
+// Finds a session object by ID from a pre-loaded sessions array
+function findSessionById(sessions, sessionId) {
+  for (var i = 0; i < sessions.length; i++) {
+    if (String(sessions[i].session_id) === String(sessionId)) return sessions[i];
+  }
+  return null;
+}
+
+// Builds a map of completed session IDs that started before a given date
+// Accepts pre-loaded sessions array to avoid repeated sheet reads
+function buildCompletedSessionIdsBefore(sessions, beforeDate, excludeSessionId) {
+  var map = {};
+  for (var i = 0; i < sessions.length; i++) {
+    var s = sessions[i];
+    if (!isOfficialCompletedSession(s)) continue;
+    if (String(s.session_id) === String(excludeSessionId)) continue;
+    if (new Date(s.date_started) < beforeDate) {
+      map[String(s.session_id)] = true;
+    }
+  }
+  return map;
+}
+
+// Counts unique hands played by a player in a given set of session IDs
+// Accepts pre-loaded hands array to avoid repeated sheet reads
+function countHandsInSessions(hands, playerId, sessionIdMap) {
+  var seen = {};
+  for (var i = 0; i < hands.length; i++) {
+    var hand = hands[i];
+    if (String(hand.player_id) === String(playerId) && sessionIdMap[String(hand.session_id)]) {
+      seen[hand.session_id + '_' + hand.hand_number] = true;
+    }
+  }
+  return Object.keys(seen).length;
+}
+
+// Extracts a lockout score value from a hand row
+function getLockoutScore(hand) {
+  return (hand.lockout_score !== null && hand.lockout_score !== undefined && hand.lockout_score !== '')
+    ? Number(hand.lockout_score)
+    : Number(hand.score);
+}
+
+// ============================================
+// PLAYERS
+// ============================================
+function getPlayers() {
+  return sheetToObjects('players');
+}
+
+function addPlayer(username, editorName) {
+  if (!username || username.trim() === '') return { error: 'Username is required' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var existing = sheetToObjects('players');
+    for (var i = 0; i < existing.length; i++) {
+      if (existing[i].username.toString().toLowerCase().trim() === username.toLowerCase().trim()) {
+        return { error: 'A player named "' + username + '" already exists.' };
+      }
+    }
+    var id = getNextId('players');
+    var date = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy');
+    getSheet('players').appendRow([id, username, date]);
+    logEdit(editorName || 'SYSTEM', 'CREATED', 'player', id);
+    return { success: true, player_id: id };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ============================================
+// SESSIONS
+// ============================================
+function getSessions() {
+  return sheetToObjects('sessions');
+}
+
+function getRecentSessions(limit) {
+  var sessions = sheetToObjects('sessions');
+  sessions.sort(function (a, b) { return new Date(b.date_started) - new Date(a.date_started); });
+  var maxLimit = limit ? Math.min(Number(limit), sessions.length) : 20;
+  return sessions.slice(0, maxLimit);
+}
+
+function getSession(sessionId) {
+  var session = findSessionById(sheetToObjects('sessions'), sessionId);
+  return session || { error: 'Session not found' };
+}
+
+function createSession(title, hostPlayerId, playersInvolved, notes, tags, falseLockoutPenalty) {
+  if (!title || title.trim() === '') return { error: 'Title is required' };
+  if (!hostPlayerId) return { error: 'Host player is required' };
+  if (!playersInvolved) return { error: 'Players are required' };
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var existing = sheetToObjects('sessions');
+    for (var i = 0; i < existing.length; i++) {
+      if (existing[i].title.toString().toLowerCase().trim() === title.toLowerCase().trim()) {
+        return { error: 'A session named "' + title + '" already exists.' };
+      }
+    }
+    var id = getNextId('sessions');
+    var dateStarted = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss');
+    getSheet('sessions').appendRow([
+      id, title, hostPlayerId, playersInvolved, dateStarted, '',
+      notes || '', tags || '', '{}', falseLockoutPenalty || DEFAULT_FALSE_LOCKOUT_PENALTY, ''
+    ]);
+    logEdit(hostPlayerId, 'CREATED', 'session', id);
+    return { success: true, session_id: id };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function updateSession(sessionId, notes, tags, editorName) {
+  var sheet = getSheet('sessions');
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(sessionId)) {
+      if (notes !== undefined && notes !== null) sheet.getRange(i + 1, 7).setValue(notes);
+      if (tags !== undefined && tags !== null) sheet.getRange(i + 1, 8).setValue(tags);
+      logEdit(editorName, 'UPDATED', 'session', sessionId);
+      return { success: true };
+    }
+  }
+  return { error: 'Session not found' };
+}
+
+function updateSessionPhoto(sessionId, photoUrl, editorName) {
+  var sheet = getSheet('sessions');
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(sessionId)) {
+      sheet.getRange(i + 1, 11).setValue(photoUrl);
+      logEdit(editorName, 'UPDATED_PHOTO', 'session', sessionId);
+      return { success: true };
+    }
+  }
+  return { error: 'Session not found' };
+}
+
+function addPlayerToSession(sessionId, playerId, joinHandNumber, editorName) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sheet = getSheet('sessions');
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]) !== String(sessionId)) continue;
+
+      var playersArray = String(data[i][3]).split(',');
+      if (playersArray.indexOf(String(playerId)) !== -1) {
+        return { error: 'Player already in session' };
+      }
+
+      var startingScore = 0;
+      if (Number(joinHandNumber) > 1) {
+        var handsData = getSheet('hands').getDataRange().getValues();
+        var playerTotals = {};
+        for (var h = 1; h < handsData.length; h++) {
+          var hand = handsData[h];
+          if (String(hand[1]) === String(sessionId) && Number(hand[2]) < Number(joinHandNumber)) {
+            var hpid = String(hand[3]);
+            playerTotals[hpid] = (playerTotals[hpid] || 0) + Number(hand[4]);
+          }
+        }
+        var totalSum = 0, playerCount = 0;
+        for (var pid in playerTotals) { totalSum += playerTotals[pid]; playerCount++; }
+        if (playerCount > 0) startingScore = Math.round(totalSum / playerCount);
+      }
+
+      playersArray.push(String(playerId));
+      sheet.getRange(i + 1, 4).setValue(playersArray.join(','));
+
+      var joinInfo = {};
+      try {
+        var raw = String(data[i][8]);
+        if (raw && raw !== '') joinInfo = JSON.parse(raw);
+      } catch (e) { joinInfo = {}; }
+
+      joinInfo[String(playerId)] = { hand: Number(joinHandNumber), starting_score: startingScore };
+      var joinInfoStr = JSON.stringify(joinInfo);
+      sheet.getRange(i + 1, 9).setValue(joinInfoStr);
+      logEdit(editorName, 'ADDED_PLAYER_TO_SESSION', 'session', sessionId);
+      return { success: true, players_involved: playersArray.join(','), player_join_info: joinInfoStr, starting_score: startingScore };
+    }
+    return { error: 'Session not found' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function closeSession(sessionId, editorName) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sheet = getSheet('sessions');
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]) !== String(sessionId)) continue;
+      var dateEnded = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss');
+      sheet.getRange(i + 1, 6).setValue(dateEnded);
+      logEdit(editorName, 'CLOSED', 'session', sessionId);
+      SpreadsheetApp.flush();
+      try {
+        calculateEloForSession(sessionId);
+      } catch (eloErr) {
+        Logger.log('ELO calculation failed for session ' + sessionId + ': ' + eloErr.toString());
+      }
+      return { success: true };
+    }
+    return { error: 'Session not found' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ============================================
+// HANDS
+// ============================================
+function getHands(sessionId) {
+  var all = sheetToObjects('hands');
+  var result = [];
+  for (var i = 0; i < all.length; i++) {
+    if (String(all[i].session_id) === String(sessionId)) result.push(all[i]);
+  }
+  return result;
+}
+
+function buildHandRows(sessionId, handNumber, scores, lockoutPlayerId, falseLockout, comment, lockoutScore, startId) {
+  var rows = [];
+  var nextId = startId;
+  for (var i = 0; i < scores.length; i++) {
+    var isLockout = String(scores[i].player_id) === String(lockoutPlayerId);
+    var lockoutScoreValue = isLockout
+      ? ((lockoutScore !== null && lockoutScore !== undefined && lockoutScore !== '') ? Number(lockoutScore) : scores[i].score)
+      : null;
+    rows.push([
+      nextId, sessionId, handNumber, scores[i].player_id, scores[i].score,
+      isLockout ? lockoutPlayerId : '',
+      (isLockout && falseLockout === 'true') ? 1 : 0,
+      comment || '',
+      lockoutScoreValue
+    ]);
+    nextId++;
+  }
+  return rows;
+}
+
+function addHand(sessionId, handNumber, scoresJson, lockoutPlayerId, falseLockout, editorName, comment, lockoutScore) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var scores = JSON.parse(scoresJson);
+    var sheet = getSheet('hands');
+    var rows = buildHandRows(sessionId, handNumber, scores, lockoutPlayerId, falseLockout, comment, lockoutScore, getNextId('hands'));
+    if (rows.length > 0) sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 9).setValues(rows);
+    logEdit(editorName, 'ADDED_HAND', 'session', sessionId);
+    return { success: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function updateHand(sessionId, handNumber, scoresJson, lockoutPlayerId, falseLockout, editorName, comment, lockoutScore) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sheet = getSheet('hands');
+    var data = sheet.getDataRange().getValues();
+    var scores = JSON.parse(scoresJson);
+
+    var rowsToDelete = [];
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][1]) === String(sessionId) && String(data[i][2]) === String(handNumber)) {
+        rowsToDelete.push(i + 1);
+      }
+    }
+    for (var i = rowsToDelete.length - 1; i >= 0; i--) sheet.deleteRow(rowsToDelete[i]);
+
+    var rows = buildHandRows(sessionId, handNumber, scores, lockoutPlayerId, falseLockout, comment, lockoutScore, getNextId('hands'));
+    if (rows.length > 0) sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 9).setValues(rows);
+    logEdit(editorName, 'UPDATED_HAND', 'session', sessionId);
+    return { success: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function deleteHand(sessionId, handNumber, editorName) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sheet = getSheet('hands');
+    var data = sheet.getDataRange().getValues();
+    var rowsToDelete = [];
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][1]) === String(sessionId) && String(data[i][2]) === String(handNumber)) {
+        rowsToDelete.push(i + 1);
+      }
+    }
+    for (var i = rowsToDelete.length - 1; i >= 0; i--) sheet.deleteRow(rowsToDelete[i]);
+    logEdit(editorName, 'DELETED_HAND', 'session', sessionId);
+    return { success: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ============================================
+// EDIT HISTORY
+// ============================================
+function getEditHistory(recordType, recordId) {
+  var all = sheetToObjects('edit_history');
+  var result = [];
+  for (var i = 0; i < all.length; i++) {
+    if (String(all[i].record_type) === String(recordType) && String(all[i].record_id) === String(recordId)) {
+      result.push(all[i]);
+    }
+  }
+  return result;
+}
+
+// ============================================
+// BATCH ENDPOINT
+// ============================================
+function getSessionsWithHands() {
+  var sessions = sheetToObjects('sessions');
+  var allHands = sheetToObjects('hands');
+  var handsBySession = {};
+  for (var i = 0; i < allHands.length; i++) {
+    var sid = String(allHands[i].session_id);
+    if (!handsBySession[sid]) handsBySession[sid] = [];
+    handsBySession[sid].push(allHands[i]);
+  }
+  var result = [];
+  for (var i = 0; i < sessions.length; i++) {
+    var sid = String(sessions[i].session_id);
+    result.push({ session: sessions[i], hands: handsBySession[sid] || [] });
+  }
+  return result;
+}
+
+// ============================================
+// HEAD-TO-HEAD STATS
+// ============================================
+function getHeadToHeadMatrix() {
+  var sessions = sheetToObjects('sessions');
+  var hands = sheetToObjects('hands');
+
+  // Pre-group hands by session for performance
+  var handsBySession = {};
+  for (var i = 0; i < hands.length; i++) {
+    var sid = String(hands[i].session_id);
+    if (!handsBySession[sid]) handsBySession[sid] = [];
+    handsBySession[sid].push(hands[i]);
+  }
+
+  var h2h = {};
+
+  for (var i = 0; i < sessions.length; i++) {
+    var session = sessions[i];
+    if (!isOfficialCompletedSession(session)) continue;
+
+    var joinInfo = parseJoinInfo(session);
+    var playerIds = String(session.players_involved).split(',');
+    var playerTotals = {};
+    for (var p = 0; p < playerIds.length; p++) {
+      var pid = String(playerIds[p].trim());
+      playerTotals[pid] = joinInfo[pid] || 0;
+    }
+
+    var sessionHands = handsBySession[String(session.session_id)] || [];
+    for (var h = 0; h < sessionHands.length; h++) {
+      var pid = String(sessionHands[h].player_id);
+      if (playerTotals[pid] !== undefined) playerTotals[pid] += Number(sessionHands[h].score);
+    }
+
+    for (var p1 = 0; p1 < playerIds.length; p1++) {
+      for (var p2 = p1 + 1; p2 < playerIds.length; p2++) {
+        var id1 = String(playerIds[p1]);
+        var id2 = String(playerIds[p2]);
+        var key = id1 < id2 ? id1 + '_' + id2 : id2 + '_' + id1;
+        if (!h2h[key]) {
+          h2h[key] = {
+            p1: id1 < id2 ? id1 : id2,
+            p2: id1 < id2 ? id2 : id1,
+            p1_wins: 0, p2_wins: 0, ties: 0, sessions_together: 0
+          };
+        }
+        h2h[key].sessions_together++;
+        var score1 = playerTotals[id1];
+        var score2 = playerTotals[id2];
+        if (score1 < score2) {
+          if (id1 === h2h[key].p1) h2h[key].p1_wins++; else h2h[key].p2_wins++;
+        } else if (score2 < score1) {
+          if (id2 === h2h[key].p1) h2h[key].p1_wins++; else h2h[key].p2_wins++;
+        } else {
+          h2h[key].ties++;
+        }
+      }
+    }
+  }
+
+  return Object.values(h2h);
+}
+
+// ============================================
+// ELO RATING SYSTEM
+// ============================================
+function getEloRatings() {
+  var history = sheetToObjects('elo_history');
+  var hands = sheetToObjects('hands');
+  var sessions = sheetToObjects('sessions');
+
+  // Build latest ELO entry per player
+  var latest = {};
+  for (var i = 0; i < history.length; i++) {
+    var pid = String(history[i].player_id);
+    if (!latest[pid] || Number(history[i].elo_id) > Number(latest[pid].elo_id)) {
+      latest[pid] = history[i];
+    }
+  }
+
+  // Build completed session ID map once
+  var completedIds = {};
+  for (var i = 0; i < sessions.length; i++) {
+    if (isOfficialCompletedSession(sessions[i])) completedIds[String(sessions[i].session_id)] = true;
+  }
+
+  var players = sheetToObjects('players');
+  var result = [];
+  for (var i = 0; i < players.length; i++) {
+    var pid = String(players[i].player_id);
+    var handsPlayed = countHandsInSessions(hands, pid, completedIds);
+    result.push({
+      player_id: pid,
+      username: players[i].username,
+      rating: latest[pid] ? Math.round(Number(latest[pid].new_rating)) : DEFAULT_ELO,
+      change: latest[pid] ? Math.round(Number(latest[pid].change)) : 0,
+      provisional: handsPlayed < PROVISIONAL_HANDS,
+      hands_played: handsPlayed
+    });
+  }
+  result.sort(function (a, b) { return b.rating - a.rating; });
+  return result;
+}
+
+function getEloHistory(playerId) {
+  var history = sheetToObjects('elo_history');
+  var result = [];
+  for (var i = 0; i < history.length; i++) {
+    if (String(history[i].player_id) === String(playerId)) result.push(history[i]);
+  }
+  result.sort(function (a, b) { return Number(a.elo_id) - Number(b.elo_id); });
+  return result;
+}
+
+function calculateEloForSession(sessionId) {
+  // Load all data once upfront
+  var sessions = sheetToObjects('sessions');
+  var hands = sheetToObjects('hands');
+
+  var targetSession = findSessionById(sessions, sessionId);
+  if (!targetSession) return { error: 'Session not found' };
+  if (hasSessionTag(targetSession, 'testing')) return { skipped: true, reason: 'Testing session' };
+  if (!isSessionCompleted(targetSession)) return { error: 'Session not closed yet' };
+
+  // Duplicate ELO check — prevent double entries if called twice
+  var eloHistory = sheetToObjects('elo_history');
+  for (var i = 0; i < eloHistory.length; i++) {
+    if (String(eloHistory[i].session_id) === String(sessionId)) {
+      return { skipped: true, reason: 'ELO already calculated for this session' };
+    }
+  }
+
+  // Build session totals
+  var joinInfo = parseJoinInfo(targetSession);
+  var playerIds = String(targetSession.players_involved).split(',');
+  var playerTotals = {};
+  for (var i = 0; i < playerIds.length; i++) {
+    var pid = String(playerIds[i].trim());
+    playerTotals[pid] = joinInfo[pid] || 0;
+  }
+  for (var i = 0; i < hands.length; i++) {
+    if (String(hands[i].session_id) === String(sessionId)) {
+      var pid = String(hands[i].player_id);
+      if (playerTotals[pid] !== undefined) playerTotals[pid] += Number(hands[i].score);
+    }
+  }
+
+  // Sort players by score (lowest first = best)
+  var sortedPlayers = Object.keys(playerTotals).sort(function (a, b) {
+    return playerTotals[a] - playerTotals[b];
+  });
+  var n = sortedPlayers.length;
+  if (n < 2) return { skipped: true, reason: 'Not enough players' };
+
+  // Calculate actual scores (fraction of players beaten, handling ties)
+  var actualScores = {};
+  var i = 0;
+  while (i < n) {
+    var j = i;
+    while (j < n - 1 && playerTotals[sortedPlayers[j]] === playerTotals[sortedPlayers[j + 1]]) j++;
+    var avgBeaten = 0;
+    for (var k = i; k <= j; k++) avgBeaten += (n - 1 - k);
+    avgBeaten = avgBeaten / (j - i + 1);
+    var actualScore = avgBeaten / (n - 1);
+    for (var k = i; k <= j; k++) actualScores[sortedPlayers[k]] = actualScore;
+    i = j + 1;
+  }
+
+  // Get current ratings
+  var currentRatings = {};
+  for (var i = 0; i < eloHistory.length; i++) {
+    var pid = String(eloHistory[i].player_id);
+    if (!currentRatings[pid] || Number(eloHistory[i].elo_id) > Number(currentRatings[pid].elo_id)) {
+      currentRatings[pid] = eloHistory[i];
+    }
+  }
+
+  var ratings = {};
+  for (var i = 0; i < sortedPlayers.length; i++) {
+    var pid = sortedPlayers[i];
+    ratings[pid] = currentRatings[pid] ? Number(currentRatings[pid].new_rating) : DEFAULT_ELO;
+  }
+
+  // Build hands-played cache using pre-loaded data — avoids N sheet reads
+  var targetDate = new Date(targetSession.date_started);
+  var handsPlayedCache = {};
+  for (var i = 0; i < sortedPlayers.length; i++) {
+    var pid = sortedPlayers[i];
+    var completedBefore = buildCompletedSessionIdsBefore(sessions, targetDate, sessionId);
+    handsPlayedCache[pid] = countHandsInSessions(hands, pid, completedBefore);
+  }
+
+  // Calculate rating changes
+  var ratingChanges = {};
+  for (var i = 0; i < sortedPlayers.length; i++) ratingChanges[sortedPlayers[i]] = 0;
+
+  for (var a = 0; a < sortedPlayers.length; a++) {
+    for (var b = a + 1; b < sortedPlayers.length; b++) {
+      var pidA = sortedPlayers[a];
+      var pidB = sortedPlayers[b];
+      var expectedA = 1 / (1 + Math.pow(10, (ratings[pidB] - ratings[pidA]) / 400));
+      var expectedB = 1 - expectedA;
+      var kA = handsPlayedCache[pidA] < PROVISIONAL_HANDS ? PROVISIONAL_K : STANDARD_K;
+      var kB = handsPlayedCache[pidB] < PROVISIONAL_HANDS ? PROVISIONAL_K : STANDARD_K;
+      ratingChanges[pidA] += kA * (actualScores[pidA] - expectedA);
+      ratingChanges[pidB] += kB * (actualScores[pidB] - expectedB);
+    }
+  }
+
+  // Write ELO results
+  var eloSheet = getSheet('elo_history');
+  var nextId = getNextId('elo_history');
+  var date = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss');
+  var rowsToAdd = [];
+  for (var i = 0; i < sortedPlayers.length; i++) {
+    var pid = sortedPlayers[i];
+    var oldRating = ratings[pid];
+    var change = ratingChanges[pid] / (n - 1);
+    var newRating = oldRating + change;
+    rowsToAdd.push([nextId, sessionId, pid, Math.round(oldRating), Math.round(newRating), Math.round(change), date]);
+    nextId++;
+  }
+  if (rowsToAdd.length > 0) {
+    eloSheet.getRange(eloSheet.getLastRow() + 1, 1, rowsToAdd.length, 7).setValues(rowsToAdd);
+  }
+  return { success: true, ratings: rowsToAdd };
+}
+
+function recalculateAllElo() {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var eloSheet = getSheet('elo_history');
+    var lastRow = eloSheet.getLastRow();
+    if (lastRow > 1) eloSheet.deleteRows(2, lastRow - 1);
+
+    var sessions = sheetToObjects('sessions');
+    var completed = sessions.filter(function (s) {
+      return isOfficialCompletedSession(s);
+    });
+    completed.sort(function (a, b) { return new Date(a.date_started) - new Date(b.date_started); });
+    for (var i = 0; i < completed.length; i++) {
+      calculateEloForSession(completed[i].session_id);
+    }
+    return { success: true, sessions_processed: completed.length };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ============================================
+// PLAYER COMPARISON (DETAILED)
+// ============================================
+function getPlayerComparisonDetailed(player1Id, player2Id) {
+  var sessions = sheetToObjects('sessions');
+  var hands = sheetToObjects('hands');
+
+  // Pre-group hands by session
+  var handsBySession = {};
+  for (var i = 0; i < hands.length; i++) {
+    var sid = String(hands[i].session_id);
+    if (!handsBySession[sid]) handsBySession[sid] = [];
+    handsBySession[sid].push(hands[i]);
+  }
+
+  var sessionsTogetherData = [];
+  var allSessionsData = { player1: [], player2: [] };
+
+  for (var i = 0; i < sessions.length; i++) {
+    var session = sessions[i];
+    if (!isOfficialCompletedSession(session)) continue;
+
+    var joinInfo = parseJoinInfo(session);
+    var playerIds = String(session.players_involved).split(',');
+
+    // Build full player list including late joiners
+    var allPlayerIds = playerIds.slice();
+    for (var pid in joinInfo) {
+      if (allPlayerIds.indexOf(String(pid)) === -1) allPlayerIds.push(String(pid));
+    }
+
+    var p1InSession = allPlayerIds.indexOf(String(player1Id)) !== -1;
+    var p2InSession = allPlayerIds.indexOf(String(player2Id)) !== -1;
+    if (!p1InSession && !p2InSession) continue;
+
+    // Initialise totals with starting scores
+    var playerTotals = {};
+    for (var p = 0; p < allPlayerIds.length; p++) {
+      var pid = String(allPlayerIds[p].trim());
+      playerTotals[pid] = joinInfo[pid] || 0;
+    }
+
+    var sessionHands = handsBySession[String(session.session_id)] || [];
+    var p1Hands = [], p2Hands = [];
+    for (var h = 0; h < sessionHands.length; h++) {
+      var hand = sessionHands[h];
+      var pid = String(hand.player_id);
+      if (playerTotals[pid] !== undefined) playerTotals[pid] += Number(hand.score);
+      if (pid === String(player1Id)) p1Hands.push(hand);
+      if (pid === String(player2Id)) p2Hands.push(hand);
+    }
+
+    // Determine overall winner(s)
+    var lowestScore = Infinity;
+    for (var pid in playerTotals) {
+      if (playerTotals[pid] < lowestScore) lowestScore = playerTotals[pid];
+    }
+    var winners = [];
+    for (var pid in playerTotals) {
+      if (playerTotals[pid] === lowestScore) winners.push(pid);
+    }
+
+    if (p1InSession && p2InSession) {
+      var p1Score = playerTotals[String(player1Id)] || 0;
+      var p2Score = playerTotals[String(player2Id)] || 0;
+      sessionsTogetherData.push({
+        session_id: session.session_id,
+        title: session.title,
+        date: session.date_started,
+        player_count: allPlayerIds.length,
+        other_players: allPlayerIds.filter(function (pid) {
+          return String(pid) !== String(player1Id) && String(pid) !== String(player2Id);
+        }),
+        p1_won: p1Score < p2Score,
+        p2_won: p2Score < p1Score,
+        is_tie: p1Score === p2Score,
+        p1_score: p1Score,
+        p2_score: p2Score,
+        p1_hands: p1Hands,
+        p2_hands: p2Hands
+      });
+    }
+
+    if (p1InSession) {
+      allSessionsData.player1.push({
+        session_id: session.session_id, title: session.title, date: session.date_started,
+        player_count: allPlayerIds.length,
+        p1_won: winners.indexOf(String(player1Id)) !== -1,
+        is_tie: winners.length > 1 && winners.indexOf(String(player1Id)) !== -1,
+        p1_score: playerTotals[String(player1Id)] || 0,
+        p1_hands: p1Hands
+      });
+    }
+
+    if (p2InSession) {
+      allSessionsData.player2.push({
+        session_id: session.session_id, title: session.title, date: session.date_started,
+        player_count: allPlayerIds.length,
+        p2_won: winners.indexOf(String(player2Id)) !== -1,
+        is_tie: winners.length > 1 && winners.indexOf(String(player2Id)) !== -1,
+        p2_score: playerTotals[String(player2Id)] || 0,
+        p2_hands: p2Hands
+      });
+    }
+  }
+
+  return {
+    player1_id: player1Id,
+    player2_id: player2Id,
+    sessions_together: sessionsTogetherData,
+    sessions_together_stats: calculateDetailedComparisonStats(sessionsTogetherData, player1Id, player2Id),
+    all_sessions_player1: allSessionsData.player1,
+    all_sessions_player2: allSessionsData.player2,
+    all_sessions_stats: {
+      player1: calculateDetailedPlayerStats(allSessionsData.player1, player1Id),
+      player2: calculateDetailedPlayerStats(allSessionsData.player2, player2Id)
+    }
+  };
+}
+
+function calculateDetailedComparisonStats(sessionsData, player1Id, player2Id) {
+  var p1Wins = 0, p2Wins = 0, ties = 0;
+  var p1TotalScore = 0, p2TotalScore = 0, p1TotalHands = 0, p2TotalHands = 0;
+  var p1Lockouts = 0, p2Lockouts = 0;
+  var p1LockoutScores = [], p2LockoutScores = [];
+  var p1FalseLockouts = 0, p2FalseLockouts = 0;
+  var p1FalseLockoutScores = [], p2FalseLockoutScores = [];
+  var p1TotalLockouts = 0, p2TotalLockouts = 0;
+  var contextMap = {};
+
+  for (var i = 0; i < sessionsData.length; i++) {
+    var s = sessionsData[i];
+    if (s.p1_won && !s.p2_won) p1Wins++;
+    else if (s.p2_won && !s.p1_won) p2Wins++;
+    else if (s.is_tie) ties++;
+
+    // Process player 1 hands
+    for (var h = 0; h < s.p1_hands.length; h++) {
+      var hand = s.p1_hands[h];
+      p1TotalScore += Number(hand.score);
+      p1TotalHands++;
+      if (hand.lockout_player_id && String(hand.lockout_player_id) === String(player1Id)) {
+        p1TotalLockouts++;
+        var ls = getLockoutScore(hand);
+        if (hand.false_lockout == 1 || hand.false_lockout === true) { p1FalseLockouts++; p1FalseLockoutScores.push(ls); }
+        else { p1Lockouts++; p1LockoutScores.push(ls); }
+      }
+    }
+
+    // Process player 2 hands
+    for (var h = 0; h < s.p2_hands.length; h++) {
+      var hand = s.p2_hands[h];
+      p2TotalScore += Number(hand.score);
+      p2TotalHands++;
+      if (hand.lockout_player_id && String(hand.lockout_player_id) === String(player2Id)) {
+        p2TotalLockouts++;
+        var ls = getLockoutScore(hand);
+        if (hand.false_lockout == 1 || hand.false_lockout === true) { p2FalseLockouts++; p2FalseLockoutScores.push(ls); }
+        else { p2Lockouts++; p2LockoutScores.push(ls); }
+      }
+    }
+
+    // Context map for "best/worst with" analysis
+    for (var j = 0; j < s.other_players.length; j++) {
+      var otherId = s.other_players[j];
+      if (!contextMap[otherId]) contextMap[otherId] = { p1_wins: 0, total: 0 };
+      contextMap[otherId].total++;
+      if (s.p1_won && !s.p2_won) contextMap[otherId].p1_wins++;
+    }
+  }
+
+  var totalSessions = p1Wins + p2Wins + ties;
+  var bestWith = null, worstWith = null;
+  if (Object.keys(contextMap).length >= 2) {
+    var bestRate = -1, worstRate = 101;
+    for (var otherId in contextMap) {
+      var ctx = contextMap[otherId];
+      var rate = ctx.total > 0 ? (ctx.p1_wins / ctx.total) * 100 : 0;
+      if (rate > bestRate) { bestRate = rate; bestWith = { player_id: otherId, wins: ctx.p1_wins, total: ctx.total }; }
+      if (rate < worstRate) { worstRate = rate; worstWith = { player_id: otherId, wins: ctx.p1_wins, total: ctx.total }; }
+    }
+  }
+
+  function avg(arr) { return arr.length > 0 ? (arr.reduce(function(a,b){return a+b;},0) / arr.length).toFixed(2) : 'N/A'; }
+
+  return {
+    p1_wins: p1Wins, p2_wins: p2Wins, ties: ties, total_sessions: totalSessions,
+    p1_win_rate: totalSessions > 0 ? ((p1Wins / totalSessions) * 100).toFixed(1) : '0',
+    p2_win_rate: totalSessions > 0 ? ((p2Wins / totalSessions) * 100).toFixed(1) : '0',
+    p1_total_score: p1TotalScore, p2_total_score: p2TotalScore,
+    p1_total_hands: p1TotalHands, p2_total_hands: p2TotalHands,
+    p1_avg_hand: p1TotalHands > 0 ? (p1TotalScore / p1TotalHands).toFixed(2) : '0',
+    p2_avg_hand: p2TotalHands > 0 ? (p2TotalScore / p2TotalHands).toFixed(2) : '0',
+    p1_lockouts: p1Lockouts, p2_lockouts: p2Lockouts,
+    p1_lockout_rate: p1TotalHands > 0 ? ((p1Lockouts / p1TotalHands) * 100).toFixed(1) : '0',
+    p2_lockout_rate: p2TotalHands > 0 ? ((p2Lockouts / p2TotalHands) * 100).toFixed(1) : '0',
+    p1_avg_lockout: avg(p1LockoutScores.concat(p1FalseLockoutScores)), p2_avg_lockout: avg(p2LockoutScores.concat(p2FalseLockoutScores)),
+    p1_false_lockouts: p1FalseLockouts, p2_false_lockouts: p2FalseLockouts,
+    p1_false_lockout_rate: p1TotalLockouts > 0 ? ((p1FalseLockouts / p1TotalLockouts) * 100).toFixed(1) : '0',
+    p2_false_lockout_rate: p2TotalLockouts > 0 ? ((p2FalseLockouts / p2TotalLockouts) * 100).toFixed(1) : '0',
+    p1_avg_false_lockout: avg(p1FalseLockoutScores), p2_avg_false_lockout: avg(p2FalseLockoutScores),
+    best_with: bestWith, worst_with: worstWith
+  };
+}
+
+function calculateDetailedPlayerStats(sessionsData, playerId) {
+  var wins = 0, ties = 0, totalScore = 0, totalHands = 0;
+  var lockouts = 0, lockoutScores = [], falseLockouts = 0, falseLockoutScores = [], totalLockouts = 0;
+
+  for (var i = 0; i < sessionsData.length; i++) {
+    var s = sessionsData[i];
+    if (s.is_tie) ties++;
+    else if (s.p1_won || s.p2_won) wins++;
+
+    var handsArray = s.p1_hands || s.p2_hands || [];
+    for (var h = 0; h < handsArray.length; h++) {
+      var hand = handsArray[h];
+      totalScore += Number(hand.score);
+      totalHands++;
+      if (hand.lockout_player_id && String(hand.lockout_player_id) === String(playerId)) {
+        totalLockouts++;
+        var ls = getLockoutScore(hand);
+        if (hand.false_lockout == 1 || hand.false_lockout === true) { falseLockouts++; falseLockoutScores.push(ls); }
+        else { lockouts++; lockoutScores.push(ls); }
+      }
+    }
+  }
+
+  var totalSessions = sessionsData.length;
+  function avg(arr) { return arr.length > 0 ? (arr.reduce(function(a,b){return a+b;},0) / arr.length).toFixed(2) : 'N/A'; }
+
+  return {
+    wins: wins, losses: totalSessions - wins - ties, ties: ties, total_sessions: totalSessions,
+    win_rate: totalSessions > 0 ? ((wins / totalSessions) * 100).toFixed(1) : '0',
+    total_score: totalScore, total_hands: totalHands,
+    avg_hand: totalHands > 0 ? (totalScore / totalHands).toFixed(2) : '0',
+    lockouts: lockouts,
+    lockout_rate: totalHands > 0 ? ((lockouts / totalHands) * 100).toFixed(1) : '0',
+    avg_lockout: avg(lockoutScores.concat(falseLockoutScores)),
+    false_lockouts: falseLockouts,
+    false_lockout_rate: totalLockouts > 0 ? ((falseLockouts / totalLockouts) * 100).toFixed(1) : '0',
+    avg_false_lockout: avg(falseLockoutScores)
+  };
+}
+
+// ============================================
+// PLAYER PROFILES & PIN
+// ============================================
+
+// Legacy PIN/profile mutation functions were deliberately removed. v2 routes
+// use the server-verified, rate-limited implementations in Security.gs and
+// Mutations.gs.
+
+function getPlayerProfile(playerId) {
+  if (!playerId) return { error: 'Missing player ID' };
+
+  // Load all data once
+  var sessions = sheetToObjects('sessions');
+  var hands = sheetToObjects('hands');
+  var eloHistory = sheetToObjects('elo_history');
+  var players = sheetToObjects('players');
+
+  // Find player
+  var player = null;
+  for (var i = 0; i < players.length; i++) {
+    if (String(players[i].player_id) === String(playerId)) {
+      player = players[i];
+      break;
+    }
+  }
+  if (!player) return { error: 'Player not found' };
+
+  // Pre-group hands by session
+  var handsBySession = {};
+  for (var i = 0; i < hands.length; i++) {
+    var sid = String(hands[i].session_id);
+    if (!handsBySession[sid]) handsBySession[sid] = [];
+    handsBySession[sid].push(hands[i]);
+  }
+
+  // Build completed sessions this player participated in
+  var playerSessions = [];
+  for (var i = 0; i < sessions.length; i++) {
+    var s = sessions[i];
+    if (!isOfficialCompletedSession(s)) continue;
+    var playerIds = String(s.players_involved).split(',');
+    var inSession = false;
+    for (var j = 0; j < playerIds.length; j++) {
+      if (String(playerIds[j].trim()) === String(playerId)) { inSession = true; break; }
+    }
+    // Also check late joiners
+    if (!inSession) {
+      var ji = parseJoinInfo(s);
+      if (ji[String(playerId)] !== undefined) inSession = true;
+    }
+    if (inSession) playerSessions.push(s);
+  }
+
+  // Sort sessions by date descending
+  playerSessions.sort(function(a, b) { return new Date(b.date_started) - new Date(a.date_started); });
+
+  // ---- STATS CALCULATION ----
+  var totalHandsPlayed = 0;
+  var totalScore = 0;
+  var totalLockouts = 0;
+  var totalFalseLockouts = 0;
+  var lockoutScores = [];
+  var falseLockoutScoresArr = [];
+  var sessionsWon = 0;
+  var sessionsPlayed = playerSessions.length;
+  var maxStreakEver = 0;
+  var currentStreak = 0;
+
+  // Special moment trackers
+  var rockBottomEarned = false;
+  var hustlerEarned = false;
+  var hatTrickEarned = false;
+  var unstoppableEarned = false;
+  var overconfidentCount = 0;
+  var overconfidentEarned = false;
+  var strategistEarned = false;
+  var highRollerCount = 0;
+  var highRollerEarned = false;
+  var bloodbathEarned = false;
+  var slowBurnerEarned = false;
+  var perfectHandEarned = false;
+  var ghostSessionsCount = 0;
+  var ghostEarned = false;
+  var lightningRoundEarned = false;
+  var nemesisMap = {}; // opponent -> consecutive wins
+
+  // Head-to-head summary
+  var h2hMap = {};
+
+  for (var s = 0; s < playerSessions.length; s++) {
+    var session = playerSessions[s];
+    var sid = String(session.session_id);
+    var sessionHands = handsBySession[sid] || [];
+    var joinInfo = parseJoinInfo(session);
+
+    // Build player totals for this session
+    var allPlayerIds = String(session.players_involved).split(',').map(function(p) { return p.trim(); });
+    for (var pid in joinInfo) {
+      if (allPlayerIds.indexOf(String(pid)) === -1) allPlayerIds.push(String(pid));
+    }
+
+    var playerTotals = {};
+    for (var p = 0; p < allPlayerIds.length; p++) {
+      var pid = String(allPlayerIds[p]);
+      playerTotals[pid] = joinInfo[pid] || 0;
+    }
+    for (var h = 0; h < sessionHands.length; h++) {
+      var hand = sessionHands[h];
+      var pid = String(hand.player_id);
+      if (playerTotals[pid] !== undefined) playerTotals[pid] += Number(hand.score);
+    }
+
+    // Session winner
+    var lowestScore = Infinity;
+    for (var pid in playerTotals) {
+      if (playerTotals[pid] < lowestScore) lowestScore = playerTotals[pid];
+    }
+    var winners = [];
+    for (var pid in playerTotals) {
+      if (playerTotals[pid] === lowestScore) winners.push(String(pid));
+    }
+    var playerWon = winners.indexOf(String(playerId)) !== -1 && winners.length === 1;
+    if (winners.indexOf(String(playerId)) !== -1) sessionsWon += 1 / winners.length;
+
+    // Rock Bottom
+    if (playerTotals[String(playerId)] !== undefined && playerTotals[String(playerId)] < 0) rockBottomEarned = true;
+
+    // Hustler — won as late joiner
+    if (playerWon && joinInfo[String(playerId)] !== undefined) hustlerEarned = true;
+
+    // Lightning Round — session under 10 hands
+    var handNums = new Set();
+    for (var h = 0; h < sessionHands.length; h++) handNums.add(sessionHands[h].hand_number);
+    if (handNums.size > 0 && handNums.size < 10) lightningRoundEarned = true;
+
+    // Per-hand stats for this player
+    var playerHandsThisSession = [];
+    for (var h = 0; h < sessionHands.length; h++) {
+      if (String(sessionHands[h].player_id) === String(playerId)) {
+        playerHandsThisSession.push(sessionHands[h]);
+      }
+    }
+
+    totalHandsPlayed += playerHandsThisSession.length;
+
+    var sessionLockouts = 0;
+    var sessionAttemptedLockout = false;
+
+    // Check if every player had at least one false lockout (Bloodbath)
+    var playerFalseLockoutMap = {};
+    for (var h = 0; h < sessionHands.length; h++) {
+      var hand = sessionHands[h];
+      if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+        if (hand.false_lockout == 1 || hand.false_lockout === true) {
+          playerFalseLockoutMap[String(hand.player_id)] = true;
+        }
+      }
+    }
+    var allHadFalseLockout = allPlayerIds.length > 1;
+    for (var p = 0; p < allPlayerIds.length; p++) {
+      if (!playerFalseLockoutMap[String(allPlayerIds[p])]) { allHadFalseLockout = false; break; }
+    }
+    if (allHadFalseLockout) bloodbathEarned = true;
+
+    for (var h = 0; h < playerHandsThisSession.length; h++) {
+      var hand = playerHandsThisSession[h];
+      totalScore += Number(hand.score);
+
+      if (hand.lockout_player_id && String(hand.lockout_player_id) === String(playerId)) {
+        sessionAttemptedLockout = true;
+        var ls = getLockoutScore(hand);
+        if (hand.false_lockout == 1 || hand.false_lockout === true) {
+          totalFalseLockouts++;
+          falseLockoutScoresArr.push(ls);
+          currentStreak = 0;
+          // Overconfident — false lockout with score > 5
+          if (ls > 5) overconfidentCount++;
+        } else {
+          totalLockouts++;
+          lockoutScores.push(ls);
+          sessionLockouts++;
+          currentStreak++;
+          if (currentStreak > maxStreakEver) maxStreakEver = currentStreak;
+          // Perfect Hand — successful lockout with score <= 0
+          if (ls <= 0) perfectHandEarned = true;
+          // High Roller — lockout attempt with score exactly 5
+          if (ls === 5) highRollerCount++;
+        }
+      } else {
+        currentStreak = 0;
+      }
+    }
+
+    // Hat Trick / Unstoppable
+    if (sessionLockouts >= 3) hatTrickEarned = true;
+    if (sessionLockouts >= 5) unstoppableEarned = true;
+
+    // Ghost — no lockout attempt this session
+    if (!sessionAttemptedLockout) ghostSessionsCount++;
+
+    // Slow Burner — won without any lockout
+    if (playerWon && sessionLockouts === 0 && !sessionAttemptedLockout) slowBurnerEarned = true;
+
+    // Strategist — won with fewest lockout attempts
+    if (playerWon) {
+      var lockoutAttemptsByPlayer = {};
+      for (var h = 0; h < sessionHands.length; h++) {
+        var hand = sessionHands[h];
+        if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
+          var pid = String(hand.player_id);
+          lockoutAttemptsByPlayer[pid] = (lockoutAttemptsByPlayer[pid] || 0) + 1;
+        }
+      }
+      var myAttempts = lockoutAttemptsByPlayer[String(playerId)] || 0;
+      var fewest = true;
+      for (var pid in lockoutAttemptsByPlayer) {
+        if (String(pid) !== String(playerId) && lockoutAttemptsByPlayer[pid] <= myAttempts && lockoutAttemptsByPlayer[pid] > 0) {
+          fewest = false; break;
+        }
+      }
+      if (fewest && myAttempts === 0) fewest = true; // won with zero attempts
+      if (fewest) strategistEarned = true;
+    }
+
+    // Head-to-head and Nemesis tracking
+    var opponents = allPlayerIds.filter(function(pid) { return String(pid) !== String(playerId); });
+    for (var o = 0; o < opponents.length; o++) {
+      var oppId = String(opponents[o]);
+      if (!h2hMap[oppId]) h2hMap[oppId] = { wins: 0, losses: 0, ties: 0 };
+      if (!nemesisMap[oppId]) nemesisMap[oppId] = { streak: 0, maxStreak: 0 };
+
+      var myScore = playerTotals[String(playerId)] || 0;
+      var oppScore = playerTotals[oppId] || 0;
+      if (myScore < oppScore) {
+        h2hMap[oppId].wins++;
+        nemesisMap[oppId].streak++;
+        if (nemesisMap[oppId].streak > nemesisMap[oppId].maxStreak) nemesisMap[oppId].maxStreak = nemesisMap[oppId].streak;
+      } else if (oppScore < myScore) {
+        h2hMap[oppId].losses++;
+        nemesisMap[oppId].streak = 0;
+      } else {
+        h2hMap[oppId].ties++;
+        nemesisMap[oppId].streak = 0;
+      }
+    }
+  }
+
+  // Final achievement checks
+  if (overconfidentCount >= 3) overconfidentEarned = true;
+  if (highRollerCount >= 3) highRollerEarned = true;
+  if (ghostSessionsCount >= 5) ghostEarned = true;
+
+  var nemesisEarned = false;
+  for (var oppId in nemesisMap) {
+    if (nemesisMap[oppId].maxStreak >= 5) { nemesisEarned = true; break; }
+  }
+
+  // ELO data
+  var playerEloHistory = [];
+  var currentElo = DEFAULT_ELO;
+  var eloChange = 0;
+  for (var i = 0; i < eloHistory.length; i++) {
+    if (String(eloHistory[i].player_id) === String(playerId)) {
+      playerEloHistory.push(eloHistory[i]);
+    }
+  }
+  playerEloHistory.sort(function(a, b) { return Number(a.elo_id) - Number(b.elo_id); });
+  if (playerEloHistory.length > 0) {
+    var last = playerEloHistory[playerEloHistory.length - 1];
+    currentElo = Math.round(Number(last.new_rating));
+    eloChange = Math.round(Number(last.change));
+  }
+
+  // All sessions for this player, most recent first
+  var recentSessions = [];
+  for (var i = 0; i < playerSessions.length; i++) {
+    var s = playerSessions[i];
+    var sid = String(s.session_id);
+    var sessionHands = handsBySession[sid] || [];
+    var joinInfo = parseJoinInfo(s);
+    var allPlayerIds = String(s.players_involved).split(',').map(function(p) { return p.trim(); });
+    for (var pid in joinInfo) {
+      if (allPlayerIds.indexOf(String(pid)) === -1) allPlayerIds.push(String(pid));
+    }
+    var playerTotals = {};
+    for (var p = 0; p < allPlayerIds.length; p++) {
+      playerTotals[String(allPlayerIds[p])] = joinInfo[String(allPlayerIds[p])] || 0;
+    }
+    for (var h = 0; h < sessionHands.length; h++) {
+      var pid = String(sessionHands[h].player_id);
+      if (playerTotals[pid] !== undefined) playerTotals[pid] += Number(sessionHands[h].score);
+    }
+    var lowestScore = Infinity;
+    for (var pid in playerTotals) { if (playerTotals[pid] < lowestScore) lowestScore = playerTotals[pid]; }
+    var winners = [];
+    for (var pid in playerTotals) { if (playerTotals[pid] === lowestScore) winners.push(String(pid)); }
+    var handNums = new Set();
+    for (var h = 0; h < sessionHands.length; h++) handNums.add(sessionHands[h].hand_number);
+    var sessionEloEntry = null;
+    for (var e = 0; e < playerEloHistory.length; e++) {
+      if (String(playerEloHistory[e].session_id) === String(s.session_id)) {
+        sessionEloEntry = playerEloHistory[e];
+        break;
+      }
+    }
+    recentSessions.push({
+      session_id: s.session_id,
+      title: s.title,
+      date: s.date_started,
+      player_score: playerTotals[String(playerId)] || 0,
+      won: winners.indexOf(String(playerId)) !== -1 && winners.length === 1,
+      hand_count: handNums.size,
+      player_count: allPlayerIds.length,
+      elo_after: sessionEloEntry ? Math.round(Number(sessionEloEntry.new_rating)) : null,
+      elo_change: sessionEloEntry ? Math.round(Number(sessionEloEntry.change)) : null
+    });
+
+  }
+
+  // H2H summary — top opponents by sessions together
+  var h2hSummary = [];
+  for (var oppId in h2hMap) {
+    var entry = h2hMap[oppId];
+    h2hSummary.push({
+      opponent_id: oppId,
+      wins: entry.wins,
+      losses: entry.losses,
+      ties: entry.ties,
+      total: entry.wins + entry.losses + entry.ties
+    });
+  }
+  h2hSummary.sort(function(a, b) { return b.total - a.total; });
+
+  var avgHand = totalHandsPlayed > 0 ? totalScore / totalHandsPlayed : 0;
+  var lockoutAttemptScores = lockoutScores.concat(falseLockoutScoresArr);
+  var avgLockout = lockoutAttemptScores.length > 0 ? lockoutAttemptScores.reduce(function(a,b){return a+b;},0) / lockoutAttemptScores.length : null;
+
+  return {
+    player: {
+      player_id: player.player_id,
+      username: player.username,
+      date_joined: player.date_joined,
+      avatar_url: player.avatar_url || '',
+      bio: player.bio || '',
+      has_pin: Boolean(String(player.pin_verifier || player.pin_hash || '').trim())
+    },
+    stats: {
+      sessions_played: sessionsPlayed,
+      sessions_won: sessionsWon,
+      win_rate: sessionsPlayed > 0 ? ((sessionsWon / sessionsPlayed) * 100).toFixed(1) : '0',
+      hands_played: totalHandsPlayed,
+      total_score: totalScore,
+      avg_hand: avgHand.toFixed(2),
+      total_lockouts: totalLockouts,
+      total_false_lockouts: totalFalseLockouts,
+      lockout_rate: totalHandsPlayed > 0 ? ((totalLockouts / totalHandsPlayed) * 100).toFixed(1) : '0',
+      avg_lockout: avgLockout !== null ? avgLockout.toFixed(2) : null,
+      max_streak: maxStreakEver
+    },
+    elo: {
+      current: currentElo,
+      change: eloChange,
+      provisional: totalHandsPlayed < PROVISIONAL_HANDS,
+      history: playerEloHistory
+    },
+    achievements: {
+      // Permanent — hands played
+      apprentice: totalHandsPlayed >= 50,
+      centurion: totalHandsPlayed >= 100,
+      journeyman: totalHandsPlayed >= 200,
+      veteran: totalHandsPlayed >= 500,
+      millennium: totalHandsPlayed >= 1000,
+      legend: totalHandsPlayed >= 2000,
+      // Permanent — sessions won
+      first_blood: sessionsWon >= 1,
+      ruler: sessionsWon >= 10,
+      dynasty: sessionsWon >= 25,
+      conqueror: sessionsWon >= 50,
+      // Permanent — lockouts
+      picking_the_lock: totalLockouts >= 50,
+      the_locksmith: totalLockouts >= 100,
+      master_of_the_lock: totalLockouts >= 250,
+      grand_master: totalLockouts >= 500,
+      // Permanent — special
+      hat_trick: hatTrickEarned,
+      unstoppable: unstoppableEarned,
+      rock_bottom: rockBottomEarned,
+      the_hustler: hustlerEarned,
+      overconfident: overconfidentEarned,
+      the_strategist: strategistEarned,
+      high_roller: highRollerEarned,
+      bloodbath: bloodbathEarned,
+      slow_burner: slowBurnerEarned,
+      perfect_hand: perfectHandEarned,
+      the_ghost: ghostEarned,
+      lightning_round: lightningRoundEarned,
+      nemesis: nemesisEarned,
+      // Live — average declaration score (minimum 25 lockout attempts)
+      marksman: lockoutAttemptScores.length >= 25 && avgLockout !== null && avgLockout <= 1.0,
+      surgeon: lockoutAttemptScores.length >= 25 && avgLockout !== null && avgLockout <= 0.0,
+      ice_veins: lockoutAttemptScores.length >= 25 && avgLockout !== null && avgLockout <= -1.0,
+      // Live — avg hand score (min 100 hands)
+      consistent: totalHandsPlayed >= 100 && avgHand <= 6.0,
+      efficient: totalHandsPlayed >= 100 && avgHand <= 4.5,
+      machine: totalHandsPlayed >= 100 && avgHand <= 3.0,
+      // Live — ELO
+      elo_climber: currentElo >= 1100,
+      elo_elite: currentElo >= 1200,
+      elo_master: currentElo >= 1300
+    },
+    recent_sessions: recentSessions,
+    h2h_summary: h2hSummary.slice(0, 5)
+  };
+}
+
+// ============================================
+// FEEDBACK
+// ============================================
+function submitFeedback(type, message, submittedBy) {
+  if (!message || message.trim() === '') return { error: 'Message is required' };
+  var sheet = getSheet('feedback');
+  var timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss');
+  sheet.appendRow([getNextId('feedback'), timestamp, type || 'Other', message, submittedBy || 'Anonymous']);
+  return { success: true };
+}
+
+// ============================================
+// TEST / DEBUG
+// ============================================
+function testElo() {
+  var result = calculateEloForSession(6);
+  Logger.log(JSON.stringify(result));
+}
+
+// ===== Migration.gs =====
+// Run this only against a copied beta spreadsheet.
+
+function migrateLockoutV2Beta() {
+  var properties = PropertiesService.getScriptProperties();
+  if (properties.getProperty('ALLOW_V2_MIGRATION') !== 'YES') {
+    throw new Error('Safety stop: set script property ALLOW_V2_MIGRATION to YES on the copied beta project first.');
+  }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var backup = backupWorkbook();
+    var added = {};
+    added.sessions = v2EnsureHeaders('sessions', [
+      'status', 'revision', 'auth_version', 'edit_code_verifier', 'updated_at'
+    ]);
+    added.players = v2EnsureHeaders('players', [
+      'pin_salt', 'pin_verifier', 'pin_version', 'profile_updated_at'
+    ]);
+    added.edit_history = v2EnsureHeaders('edit_history', [
+      'request_id', 'actor_type', 'details'
+    ]);
+
+    if (!properties.getProperty('TOKEN_SECRET')) {
+      properties.setProperty('TOKEN_SECRET', Utilities.getUuid() + Utilities.getUuid() + Utilities.getUuid());
+    }
+    if (!properties.getProperty('MEMBER_AUTH_VERSION')) {
+      properties.setProperty('MEMBER_AUTH_VERSION', '1');
+    }
+    var activeCodes = v2InitialiseSessionSecurity();
+    properties.setProperty('SCHEMA_VERSION', '2');
+    properties.deleteProperty('ALLOW_V2_MIGRATION');
+    SpreadsheetApp.flush();
+    var result = {
+      success: true,
+      backup_url: backup.url,
+      headers_added: added,
+      active_session_edit_codes: activeCodes,
+      next_step: 'Set MEMBER_PASSPHRASE in Script Properties, then deploy the beta web app.'
+    };
+    console.log(JSON.stringify(result));
+    return result;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function v2EnsureHeaders(sheetName, requiredHeaders) {
+  var sheet = getSheet(sheetName);
+  var headers = v2Headers(sheet);
+  var added = [];
+  requiredHeaders.forEach(function(header) {
+    if (headers.indexOf(header) < 0) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header);
+      headers.push(header);
+      added.push(header);
+    }
+  });
+  return added;
+}
+
+function v2InitialiseSessionSecurity() {
+  var sheet = getSheet('sessions');
+  var values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+  var headers = values[0].map(function(value) { return String(value); });
+  var map = {};
+  headers.forEach(function(header, index) { map[header] = index; });
+  var activeCodes = [];
+  var columns = {
+    status: [], revision: [], auth_version: [], edit_code_verifier: [], updated_at: []
+  };
+  for (var row = 1; row < values.length; row++) {
+    var sessionId = String(values[row][map.session_id]);
+    var completed = String(values[row][map.date_ended] || '').trim() !== '';
+    var existingStatus = String(values[row][map.status] || '').trim().toLowerCase();
+    if (!existingStatus) values[row][map.status] = completed ? 'completed' : 'active';
+    if (!values[row][map.revision]) values[row][map.revision] = 1;
+    if (!values[row][map.auth_version]) values[row][map.auth_version] = 1;
+    if (!values[row][map.updated_at]) values[row][map.updated_at] = v2Timestamp();
+    var effectiveStatus = String(values[row][map.status] || '').trim().toLowerCase();
+    if (!completed && effectiveStatus !== 'void' && !values[row][map.edit_code_verifier]) {
+      var code = v2GenerateSessionCode();
+      values[row][map.edit_code_verifier] = v2SessionCodeVerifier(sessionId, code);
+      activeCodes.push({ session_id: sessionId, edit_code: code });
+    }
+    Object.keys(columns).forEach(function(header) {
+      columns[header].push([values[row][map[header]]]);
+    });
+  }
+  Object.keys(columns).forEach(function(header) {
+    sheet.getRange(2, map[header] + 1, columns[header].length, 1).setValues(columns[header]);
+  });
+  return activeCodes;
+}
+
+// ===== AdminTools.gs =====
+// These functions are private Apps Script / spreadsheet-owner tools. None is
+// routed through the public web API.
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('Lockout Admin')
+    .addItem('Create backup', 'adminBackupWorkbook')
+    .addItem('Validate workbook', 'adminValidateWorkbook')
+    .addItem('Show system status', 'adminShowSystemStatus')
+    .addItem('Show recent activity', 'adminShowRecentActivity')
+    .addSeparator()
+    .addItem('Reset a player PIN', 'adminResetPlayerPinPrompt')
+    .addItem('Reset an active session code', 'adminResetActiveSessionCodePrompt')
+    .addItem('Revoke all member access', 'adminRevokeAllMemberAccessPrompt')
+    .addItem('Void a disputed session', 'adminVoidSessionPrompt')
+    .addSeparator()
+    .addItem('Configure photo uploads', 'adminConfigurePhotoUploadsPrompt')
+    .addSeparator()
+    .addItem('Recalculate all Elo', 'adminRecalculateEloPrompt')
+    .addItem('Clear app caches', 'clearCaches')
+    .addToUi();
+}
+
+function backupWorkbook() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceFile = DriveApp.getFileById(spreadsheet.getId());
+  var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd_HHmmss');
+  var copy = sourceFile.makeCopy(spreadsheet.getName() + ' BACKUP ' + stamp);
+  var url = 'https://docs.google.com/spreadsheets/d/' + copy.getId();
+  var properties = PropertiesService.getScriptProperties();
+  properties.setProperty('LAST_BACKUP_AT', new Date().toISOString());
+  properties.setProperty('LAST_BACKUP_URL', url);
+  return { success: true, id: copy.getId(), url: url };
+}
+
+function adminBackupWorkbook() {
+  var result = backupWorkbook();
+  if (SpreadsheetApp.getActiveSpreadsheet().getSheetByName('edit_history')) {
+    v2AppendAudit(
+      Utilities.getUuid(),
+      'Sheet admin',
+      'admin',
+      'CREATED_BACKUP',
+      'system',
+      'workbook',
+      result.url
+    );
+  }
+  SpreadsheetApp.getUi().alert('Backup created:\n' + result.url);
+}
+
+function validateWorkbook() {
+  var required = ['players', 'sessions', 'hands', 'edit_history', 'elo_history', 'feedback'];
+  var issues = [];
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  required.forEach(function(name) {
+    if (!spreadsheet.getSheetByName(name)) issues.push('Missing sheet: ' + name);
+  });
+  if (issues.length) return { success: false, issues: issues };
+
+  var requiredHeaders = {
+    players: ['player_id', 'username', 'date_joined', 'avatar_url', 'bio', 'pin_hash', 'pin_salt', 'pin_verifier', 'pin_version', 'profile_updated_at'],
+    sessions: ['session_id', 'title', 'host_player_id', 'players_involved', 'date_started', 'date_ended', 'notes', 'tags', 'player_join_info', 'false_lockout_penalty', 'photo_url', 'status', 'revision', 'auth_version', 'edit_code_verifier', 'updated_at'],
+    hands: ['hand_id', 'session_id', 'hand_number', 'player_id', 'score', 'lockout_player_id', 'false_lockout', 'comment', 'lockout_score'],
+    edit_history: ['timestamp', 'editor_name', 'action', 'record_type', 'record_id', 'request_id', 'actor_type', 'details'],
+    elo_history: ['elo_id', 'session_id', 'player_id', 'old_rating', 'new_rating', 'change', 'date'],
+    feedback: ['feedback_id', 'timestamp', 'type', 'message', 'submitted_by']
+  };
+  Object.keys(requiredHeaders).forEach(function(name) {
+    v2FindMissingHeaders(name, requiredHeaders[name], issues);
+  });
+  if (issues.length) return { success: false, issues: issues };
+
+  v2FindDuplicateIds('players', 'player_id', issues);
+  v2FindDuplicateIds('sessions', 'session_id', issues);
+  v2FindDuplicateIds('hands', 'hand_id', issues);
+  v2FindDuplicateIds('elo_history', 'elo_id', issues);
+
+  var players = {};
+  sheetToObjects('players').forEach(function(player) {
+    var id = String(player.player_id || '').trim();
+    if (!/^\d+$/.test(id) || Number(id) < 1) issues.push('Player has an invalid player_id: ' + id);
+    if (!String(player.username || '').trim()) issues.push('Player ' + id + ' has no username.');
+    players[id] = true;
+  });
+  var sessions = {};
+  var sessionPlayers = {};
+  sheetToObjects('sessions').forEach(function(session) {
+    var sessionId = String(session.session_id || '').trim();
+    if (!/^\d+$/.test(sessionId) || Number(sessionId) < 1) issues.push('Session has an invalid session_id: ' + sessionId);
+    sessions[sessionId] = session;
+    var ids = [];
+    try {
+      ids = v2IdList(session.players_involved, 'Players');
+      ids.forEach(function(id) {
+        if (!players[id]) issues.push('Session ' + session.session_id + ' references missing player ' + id);
+      });
+    } catch (err) {
+      issues.push('Session ' + session.session_id + ' has invalid players_involved.');
+    }
+    sessionPlayers[sessionId] = {};
+    ids.forEach(function(id) { sessionPlayers[sessionId][String(id)] = true; });
+    var hostId = String(session.host_player_id || '').trim();
+    if (!players[hostId]) issues.push('Session ' + sessionId + ' references missing host player ' + hostId);
+    if (hostId && !sessionPlayers[sessionId][hostId]) issues.push('Session ' + sessionId + ' host is not in players_involved.');
+    var status = String(session.status || '').trim().toLowerCase();
+    if (['active', 'completed', 'void'].indexOf(status) < 0) issues.push('Session ' + sessionId + ' has invalid status "' + status + '".');
+    var hasEndDate = String(session.date_ended || '').trim() !== '';
+    if (status === 'active' && hasEndDate) issues.push('Session ' + sessionId + ' is active but has date_ended.');
+    if (status === 'completed' && !hasEndDate) issues.push('Session ' + sessionId + ' is completed but has no date_ended.');
+    if (Number(session.revision || 0) < 1) issues.push('Session ' + session.session_id + ' has no valid revision.');
+    if (Number(session.auth_version || 0) < 1) issues.push('Session ' + session.session_id + ' has no valid auth_version.');
+    try {
+      var joinInfo = session.player_join_info ? JSON.parse(String(session.player_join_info)) : {};
+      Object.keys(joinInfo).forEach(function(id) {
+        if (!players[String(id)]) issues.push('Session ' + sessionId + ' join info references missing player ' + id);
+        if (!sessionPlayers[sessionId][String(id)]) issues.push('Session ' + sessionId + ' join player ' + id + ' is not in players_involved.');
+        if (Number(joinInfo[id].hand || 0) < 1 || !isFinite(Number(joinInfo[id].starting_score))) {
+          issues.push('Session ' + sessionId + ' has invalid join info for player ' + id + '.');
+        }
+      });
+    } catch (err) {
+      issues.push('Session ' + sessionId + ' has invalid player_join_info JSON.');
+    }
+  });
+  var handRows = {};
+  var handLockouts = {};
+  sheetToObjects('hands').forEach(function(hand) {
+    var handId = String(hand.hand_id || '').trim();
+    var sessionId = String(hand.session_id || '').trim();
+    var playerId = String(hand.player_id || '').trim();
+    var handNumber = Number(hand.hand_number);
+    if (!sessions[sessionId]) issues.push('Hand ' + handId + ' references missing session ' + sessionId);
+    if (!players[playerId]) issues.push('Hand ' + handId + ' references missing player ' + playerId);
+    if (sessions[sessionId] && !sessionPlayers[sessionId][playerId]) issues.push('Hand ' + handId + ' player ' + playerId + ' is not in session ' + sessionId + '.');
+    if (!Number.isInteger(handNumber) || handNumber < 1) issues.push('Hand ' + handId + ' has invalid hand_number.');
+    if (!isFinite(Number(hand.score))) issues.push('Hand ' + handId + ' has a non-numeric score.');
+    var rowKey = sessionId + '|' + handNumber + '|' + playerId;
+    if (handRows[rowKey]) issues.push('Duplicate player row for session ' + sessionId + ', hand ' + handNumber + ', player ' + playerId + '.');
+    handRows[rowKey] = true;
+    var groupKey = sessionId + '|' + handNumber;
+    if (!handLockouts[groupKey]) handLockouts[groupKey] = [];
+    var lockoutId = String(hand.lockout_player_id || '').trim();
+    if (lockoutId) {
+      handLockouts[groupKey].push(lockoutId);
+      if (!players[lockoutId]) issues.push('Hand ' + handId + ' references missing lockout player ' + lockoutId);
+      if (lockoutId !== playerId) issues.push('Hand ' + handId + ' stores its lockout marker on the wrong player row.');
+      if (!isFinite(Number(hand.lockout_score))) issues.push('Hand ' + handId + ' has a non-numeric lockout_score.');
+    } else if (hand.false_lockout == 1 || hand.false_lockout === true) {
+      issues.push('Hand ' + handId + ' is marked false lockout without a lockout player.');
+    }
+  });
+  Object.keys(handLockouts).forEach(function(key) {
+    if (handLockouts[key].length !== 1) issues.push('Session/hand ' + key + ' has ' + handLockouts[key].length + ' lockout markers; expected 1.');
+  });
+  sheetToObjects('elo_history').forEach(function(entry) {
+    if (!sessions[String(entry.session_id)]) issues.push('Elo entry ' + entry.elo_id + ' references missing session ' + entry.session_id);
+    if (!players[String(entry.player_id)]) issues.push('Elo entry ' + entry.elo_id + ' references missing player ' + entry.player_id);
+    if (![entry.old_rating, entry.new_rating, entry.change].every(function(value) { return isFinite(Number(value)); })) {
+      issues.push('Elo entry ' + entry.elo_id + ' contains a non-numeric rating.');
+    }
+  });
+  var sessionRows = sheetToObjects('sessions');
+  var handRowsForCounts = sheetToObjects('hands');
+  var uniqueHands = {};
+  var officialSessionIds = {};
+  var testingSessionCount = 0;
+  var voidSessionCount = 0;
+  var activeSessionCount = 0;
+  sessionRows.forEach(function(session) {
+    var id = String(session.session_id);
+    if (isOfficialCompletedSession(session)) officialSessionIds[id] = true;
+    if (hasSessionTag(session, 'testing')) testingSessionCount++;
+    if (String(session.status || '').toLowerCase() === 'void') voidSessionCount++;
+    if (!String(session.date_ended || '').trim() && String(session.status || '').toLowerCase() !== 'void') {
+      activeSessionCount++;
+    }
+  });
+  var officialUniqueHands = {};
+  var officialHandPlayerRows = 0;
+  handRowsForCounts.forEach(function(hand) {
+    var handKey = String(hand.session_id) + '|' + String(hand.hand_number);
+    uniqueHands[handKey] = true;
+    if (officialSessionIds[String(hand.session_id)]) {
+      officialUniqueHands[handKey] = true;
+      officialHandPlayerRows++;
+    }
+  });
+  var counts = {
+    players: Object.keys(players).length,
+    sessions: sessionRows.length,
+    completed_official_sessions: Object.keys(officialSessionIds).length,
+    testing_sessions: testingSessionCount,
+    void_sessions: voidSessionCount,
+    active_sessions: activeSessionCount,
+    unique_hands: Object.keys(uniqueHands).length,
+    official_unique_hands: Object.keys(officialUniqueHands).length,
+    hand_player_rows: handRowsForCounts.length,
+    official_hand_player_rows: officialHandPlayerRows,
+    elo_rows: sheetToObjects('elo_history').length
+  };
+  return { success: issues.length === 0, issues: issues, counts: counts };
+}
+
+function v2FindMissingHeaders(sheetName, requiredHeaders, issues) {
+  var headers = v2Headers(getSheet(sheetName));
+  requiredHeaders.forEach(function(header) {
+    if (headers.indexOf(header) < 0) issues.push('Missing header in ' + sheetName + ': ' + header);
+  });
+}
+
+function v2FindDuplicateIds(sheetName, idHeader, issues) {
+  var seen = {};
+  sheetToObjects(sheetName).forEach(function(record) {
+    var id = String(record[idHeader] || '').trim();
+    if (!id) {
+      issues.push('Blank ' + idHeader + ' in ' + sheetName);
+      return;
+    }
+    if (seen[id]) issues.push('Duplicate ' + idHeader + ' ' + id + ' in ' + sheetName);
+    seen[id] = true;
+  });
+}
+
+function adminValidateWorkbook() {
+  var result = validateWorkbook();
+  v2RecordValidationStatus(result);
+  var counts = result.counts || {};
+  var summary = '\n\nPlayers: ' + Number(counts.players || 0) +
+    '\nSessions (all, including Testing/void): ' + Number(counts.sessions || 0) +
+    '\nOfficial completed sessions: ' + Number(counts.completed_official_sessions || 0) +
+    '\nTesting sessions: ' + Number(counts.testing_sessions || 0) +
+    '\nVoid sessions: ' + Number(counts.void_sessions || 0) +
+    '\nActive sessions: ' + Number(counts.active_sessions || 0) +
+    '\nUnique hands (all stored data): ' + Number(counts.unique_hands || 0) +
+    '\nUnique hands (official completed): ' + Number(counts.official_unique_hands || 0) +
+    '\nHand-player rows (all stored data): ' + Number(counts.hand_player_rows || 0) +
+    '\nHand-player rows (official completed): ' + Number(counts.official_hand_player_rows || 0) +
+    '\nElo rows (official only): ' + Number(counts.elo_rows || 0);
+  SpreadsheetApp.getUi().alert(
+    result.success
+      ? 'Validation passed: no structural problems found.' + summary
+      : 'Validation issues:\n\n' + result.issues.join('\n') + summary
+  );
+}
+
+function v2RecordValidationStatus(result) {
+  var properties = PropertiesService.getScriptProperties();
+  properties.setProperty('LAST_VALIDATION_AT', new Date().toISOString());
+  properties.setProperty('LAST_VALIDATION_RESULT', result && result.success ? 'passed' : 'failed');
+  properties.setProperty('LAST_VALIDATION_COUNTS', JSON.stringify(result && result.counts || {}));
+}
+
+function adminShowSystemStatus() {
+  var result = validateWorkbook();
+  v2RecordValidationStatus(result);
+  var properties = PropertiesService.getScriptProperties();
+  var counts = result.counts || {};
+  var backupAt = properties.getProperty('LAST_BACKUP_AT') || 'Not recorded';
+  var backupUrl = properties.getProperty('LAST_BACKUP_URL') || 'Not recorded';
+  var message =
+    'Version: ' + V2_VERSION +
+    '\nSchema: ' + (properties.getProperty('SCHEMA_VERSION') || 'unconfigured') +
+    '\nWorkbook validation: ' + (result.success ? 'PASSED' : 'FAILED') +
+    '\nPlayers: ' + Number(counts.players || 0) +
+    '\nSessions: ' + Number(counts.sessions || 0) +
+    '\nActive sessions: ' + Number(counts.active_sessions || 0) +
+    '\nUnique hands: ' + Number(counts.unique_hands || 0) +
+    '\nHand-player rows: ' + Number(counts.hand_player_rows || 0) +
+    '\nElo rows: ' + Number(counts.elo_rows || 0) +
+    '\n\nLast backup: ' + backupAt +
+    '\nBackup: ' + backupUrl;
+  if (!result.success) {
+    message += '\n\nFirst validation issues:\n' + result.issues.slice(0, 8).join('\n');
+  }
+  SpreadsheetApp.getUi().alert('Lockout system status', message, SpreadsheetApp.getUi().ButtonSet.OK);
+}
+
+function adminShowRecentActivity() {
+  var sheet = getSheet('edit_history');
+  var values = sheet.getDataRange().getValues();
+  if (values.length <= 1) {
+    SpreadsheetApp.getUi().alert('No recorded activity yet.');
+    return;
+  }
+  var headers = values[0].map(function(value) { return String(value); });
+  var timestampIndex = headers.indexOf('timestamp');
+  var editorIndex = headers.indexOf('editor_name');
+  var actionIndex = headers.indexOf('action');
+  var recordTypeIndex = headers.indexOf('record_type');
+  var recordIdIndex = headers.indexOf('record_id');
+  var start = Math.max(1, values.length - 12);
+  var lines = [];
+  for (var row = values.length - 1; row >= start; row--) {
+    var timestamp = values[row][timestampIndex];
+    if (Object.prototype.toString.call(timestamp) === '[object Date]' && !isNaN(timestamp.getTime())) {
+      timestamp = Utilities.formatDate(timestamp, Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
+    }
+    lines.push(
+      String(timestamp || '') + ' — ' +
+      String(values[row][editorIndex] || 'Unknown') + ' — ' +
+      String(values[row][actionIndex] || '') + ' — ' +
+      String(values[row][recordTypeIndex] || '') + ' ' +
+      String(values[row][recordIdIndex] || '')
+    );
+  }
+  SpreadsheetApp.getUi().alert(
+    'Recent Lockout activity',
+    lines.join('\n\n'),
+    SpreadsheetApp.getUi().ButtonSet.OK
+  );
+}
+
+function adminResetPlayerPinPrompt() {
+  var ui = SpreadsheetApp.getUi();
+  var response = ui.prompt('Reset player PIN', 'Enter the player ID. The player can then choose a new six-digit PIN.', ui.ButtonSet.OK_CANCEL);
+  if (response.getSelectedButton() !== ui.Button.OK) return;
+  var playerId;
+  try { playerId = v2Id(response.getResponseText(), 'Player'); } catch (err) { ui.alert(err.message); return; }
+  var found = v2FindRow('players', 'player_id', playerId);
+  if (!found) { ui.alert('Player not found.'); return; }
+  var properties = PropertiesService.getScriptProperties();
+  var versionKey = 'PROFILE_AUTH_VERSION_' + playerId;
+  properties.setProperty(versionKey, String(Number(properties.getProperty(versionKey) || 1) + 1));
+  v2SetRowValues(found.sheet, found.rowNumber, found.headers, {
+    pin_hash: '',
+    pin_salt: '',
+    pin_verifier: '',
+    pin_version: '',
+    profile_updated_at: v2Timestamp()
+  });
+  v2AppendAudit(
+    Utilities.getUuid(),
+    'Sheet admin',
+    'admin',
+    'RESET_PLAYER_PIN',
+    'player',
+    playerId,
+    'Existing profile tokens revoked.'
+  );
+  ui.alert('PIN reset for player ' + playerId + '. Existing profile editing access has also been revoked.');
+}
+
+function adminConfigurePhotoUploadsPrompt() {
+  var ui = SpreadsheetApp.getUi();
+  var properties = PropertiesService.getScriptProperties();
+  var enabled = Boolean(properties.getProperty('IMGBB_API_KEY'));
+  var response = ui.prompt(
+    'Configure photo uploads',
+    (enabled ? 'Photo uploads are currently enabled. ' : '') +
+      'Paste the dedicated ImgBB API key to enable uploads, or enter DISABLE to turn uploads off.',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (response.getSelectedButton() !== ui.Button.OK) return;
+  var value = String(response.getResponseText() || '').trim();
+  if (value.toUpperCase() === 'DISABLE') {
+    properties.deleteProperty('IMGBB_API_KEY');
+    v2AppendAudit(
+      Utilities.getUuid(),
+      'Sheet admin',
+      'admin',
+      'DISABLED_PHOTOS',
+      'system',
+      'photo_uploads',
+      ''
+    );
+    ui.alert('Photo uploads disabled. Existing photo links are unchanged.');
+    return;
+  }
+  if (!/^[A-Za-z0-9_-]{16,128}$/.test(value)) {
+    ui.alert('That does not look like a valid ImgBB API key. Nothing was changed.');
+    return;
+  }
+  properties.setProperty('IMGBB_API_KEY', value);
+  v2AppendAudit(
+    Utilities.getUuid(),
+    'Sheet admin',
+    'admin',
+    'ENABLED_PHOTOS',
+    'system',
+    'photo_uploads',
+    ''
+  );
+  ui.alert('Photo uploads enabled. Refresh the app before testing an upload.');
+}
+
+function adminResetActiveSessionCodePrompt() {
+  var ui = SpreadsheetApp.getUi();
+  var response = ui.prompt(
+    'Reset active session code',
+    'Enter the active session ID. Existing editing permissions for that session will be revoked.',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (response.getSelectedButton() !== ui.Button.OK) return;
+  var sessionId;
+  try {
+    sessionId = v2Id(response.getResponseText(), 'Session');
+  } catch (err) {
+    ui.alert(err.message);
+    return;
+  }
+  var confirm = ui.alert(
+    'Reset session ' + sessionId + '?',
+    'Anyone currently editing this session will need the new code.',
+    ui.ButtonSet.YES_NO
+  );
+  if (confirm !== ui.Button.YES) return;
+  try {
+    var result = adminResetActiveSessionCode(sessionId);
+    ui.alert(
+      'Session code reset.\n\nNew code: ' + result.edit_code +
+      '\n\nRecord it now. It cannot be recovered after this message is closed.'
+    );
+  } catch (err) {
+    ui.alert(err.message);
+  }
+}
+
+function adminResetActiveSessionCode(sessionId) {
+  sessionId = v2Id(sessionId, 'Session');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var found = v2FindRow('sessions', 'session_id', sessionId);
+    if (!found) throw new Error('Session not found.');
+    if (String(found.object.status || '').toLowerCase() === 'void' || isSessionCompleted(found.object)) {
+      throw new Error('Only an active session can have its editing code reset.');
+    }
+
+    var editCode = v2GenerateSessionCode();
+    var nextAuthVersion = Number(found.object.auth_version || 1) + 1;
+    var nextRevision = Number(found.object.revision || 1) + 1;
+    v2SetRowValues(found.sheet, found.rowNumber, found.headers, {
+      edit_code_verifier: v2SessionCodeVerifier(sessionId, editCode),
+      auth_version: nextAuthVersion,
+      revision: nextRevision,
+      updated_at: v2Timestamp()
+    });
+    CacheService.getScriptCache().remove('session_claim_fail_' + sessionId);
+    v2AppendAudit(
+      Utilities.getUuid(),
+      'Sheet admin',
+      'admin',
+      'RESET_SESSION_CODE',
+      'session',
+      sessionId,
+      'Existing session tokens revoked.'
+    );
+    return {
+      success: true,
+      edit_code: editCode,
+      auth_version: nextAuthVersion,
+      revision: nextRevision
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function adminRevokeAllMemberAccessPrompt() {
+  var ui = SpreadsheetApp.getUi();
+  var confirm = ui.alert(
+    'Revoke all member access?',
+    'Every device will need to unlock editing again with the current MEMBER_PASSPHRASE. Player PINs and active-session codes will not change.',
+    ui.ButtonSet.YES_NO
+  );
+  if (confirm !== ui.Button.YES) return;
+  try {
+    var result = adminRevokeAllMemberAccess();
+    ui.alert(
+      'All previous member editing access has been revoked.\n\n' +
+      'Member access version: ' + result.member_auth_version +
+      '\n\nDevices must now unlock with the current shared editing phrase.'
+    );
+  } catch (err) {
+    ui.alert(err.message);
+  }
+}
+
+function adminRevokeAllMemberAccess() {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var properties = PropertiesService.getScriptProperties();
+    var nextVersion = Number(properties.getProperty('MEMBER_AUTH_VERSION') || 1) + 1;
+    properties.setProperty('MEMBER_AUTH_VERSION', String(nextVersion));
+    CacheService.getScriptCache().remove('member_fail_global');
+    v2AppendAudit(
+      Utilities.getUuid(),
+      'Sheet admin',
+      'admin',
+      'REVOKED_MEMBER_ACCESS',
+      'system',
+      'member_access',
+      'All previously issued member tokens revoked. Version ' + nextVersion + '.'
+    );
+    return { success: true, member_auth_version: nextVersion };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function adminVoidSessionPrompt() {
+  var ui = SpreadsheetApp.getUi();
+  var response = ui.prompt('Void disputed session', 'Enter the session ID. It will stop appearing in statistics but remain in the workbook.', ui.ButtonSet.OK_CANCEL);
+  if (response.getSelectedButton() !== ui.Button.OK) return;
+  var sessionId;
+  try { sessionId = v2Id(response.getResponseText(), 'Session'); } catch (err) { ui.alert(err.message); return; }
+  var found = v2FindRow('sessions', 'session_id', sessionId);
+  if (!found) { ui.alert('Session not found.'); return; }
+  var confirm = ui.alert('Void session ' + sessionId + '?', 'Create a backup first. Elo must be recalculated afterwards.', ui.ButtonSet.YES_NO);
+  if (confirm !== ui.Button.YES) return;
+  adminVoidSession(sessionId);
+  ui.alert('Session voided. Now run “Recalculate all Elo”.');
+}
+
+function adminVoidSession(sessionId) {
+  sessionId = v2Id(sessionId, 'Session');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var found = v2FindRow('sessions', 'session_id', sessionId);
+    if (!found) throw new Error('Session not found.');
+    if (String(found.object.status || '').toLowerCase() === 'void') {
+      throw new Error('This session is already void.');
+    }
+    v2SetRowValues(found.sheet, found.rowNumber, found.headers, {
+      status: 'void',
+      revision: Number(found.object.revision || 1) + 1,
+      auth_version: Number(found.object.auth_version || 1) + 1,
+      updated_at: v2Timestamp()
+    });
+    v2AppendAudit(
+      Utilities.getUuid(),
+      'Sheet admin',
+      'admin',
+      'VOIDED_SESSION',
+      'session',
+      sessionId,
+      'Session retained but excluded from public results.'
+    );
+    return { success: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function adminRecalculateEloPrompt() {
+  var ui = SpreadsheetApp.getUi();
+  var confirm = ui.alert('Recalculate all Elo?', 'Create a backup first. This rebuilds the Elo history from completed, non-testing, non-void sessions.', ui.ButtonSet.YES_NO);
+  if (confirm !== ui.Button.YES) return;
+  var result = recalculateAllElo();
+  v2AppendAudit(
+    Utilities.getUuid(),
+    'Sheet admin',
+    'admin',
+    'RECALCULATED_ELO',
+    'system',
+    'elo',
+    'Sessions processed: ' + result.sessions_processed
+  );
+  ui.alert('Elo recalculated for ' + result.sessions_processed + ' sessions.');
+}
+
+function clearCaches() {
+  CacheService.getScriptCache().removeAll([
+    'member_fail_global'
+  ]);
+  try { SpreadsheetApp.getUi().alert('App caches cleared.'); } catch (err) {}
+  return { success: true };
+}
