@@ -6,7 +6,7 @@
         // APP VERSION — increment this when deploying
         // changes to app.js or styles.css
         // ============================================
-        const APP_VERSION = '23-rc-3';
+        const APP_VERSION = '25-rc-3';
         document.write('<link rel="stylesheet" href="styles.css?v=' + APP_VERSION + '">');
     </script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -187,7 +187,7 @@
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Performance Context</h4><p class="p-muted">How a player's head-to-head record against another player varies depending on who else is playing.</p></div>
                             <div class="content-card-sm" id="glossaryLockoutRate"><h4 class="heading-blue-sm">Lockout Rate</h4><p class="p-muted">Percentage of hands where a player successfully locked out (successful lockouts ÷ total hands played).</p></div>
                             <div class="content-card-sm" id="glossaryFalseLockoutRate"><h4 class="heading-blue-sm">False Lockout Rate</h4><p class="p-muted">Percentage of lockout attempts that were false (false lockouts ÷ total lockout attempts).</p></div>
-                            <div class="content-card-sm" id="glossaryAvgLockoutScore"><h4 class="heading-blue-sm">Average Lockout Score</h4><p class="p-muted">The mean score of all successful lockouts by a player. Lower is better (indicates locking out with minimal points).</p></div>
+                            <div class="content-card-sm" id="glossaryAvgLockoutScore"><h4 class="heading-blue-sm">Average Lockout Score</h4><p class="p-muted">The mean score at which a player declared lockout, including both successful and false lockouts. Lower is better.</p></div>
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Average Hand</h4><p class="p-muted">Mean score per hand played (total score ÷ hands played). Excludes starting scores for late joiners.</p></div>
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Hand Streak</h4><p class="p-muted">Consecutive hands won (successful lockouts). Resets on false lockout or non-lockout hand.</p></div>
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Win Rate</h4><p class="p-muted">Percentage of sessions won (sessions won ÷ sessions played). A tied session shares one win equally between its tied winners; win-based achievements still require an outright win.</p></div>
@@ -868,7 +868,7 @@
                     <button class="btn btn-small btn-info" onclick="showPlayerComparisonUI()">Detailed Comparison</button>
                     <button class="btn btn-small btn-success" onclick="showEloStats()">⚡ ELO Rankings</button>
                 </div>
-                <div id="statsContent" class="loading">Loading...</div>
+                <div id="statsContent">Loading...</div>
                 <button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
             </div>
         </div>

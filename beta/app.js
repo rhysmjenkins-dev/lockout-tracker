@@ -439,7 +439,7 @@ async function displayEloLeaderboard() {
     html += '<div class="elo-dropdown-header" onclick="toggleEloDropdown()">';
     html += '<span>⚡ ELO Rankings</span>';
     html += '<span class="elo-dropdown-preview">';
-    html += '🥇 ' + top.username + ' ' + top.rating + (top.provisional ? '?' : '');
+    html += '🥇 ' + makePlayerLink(top.player_id, top.username, 'event.stopPropagation();', 'player-link-on-dark') + ' ' + top.rating + (top.provisional ? '?' : '');
     html += '<span class="elo-dropdown-arrow" id="eloDropdownArrow"> ▼</span>';
     html += '</span>';
     html += '</div>';
@@ -451,7 +451,7 @@ async function displayEloLeaderboard() {
         const pChangeSign = p.change >= 0 ? '+' : '';
         html += '<div class="elo-leaderboard-row">';
         html += '<span class="elo-rank">' + medal + '</span>';
-        html += '<span class="elo-name">' + p.username + '</span>';
+        html += '<span class="elo-name">' + makePlayerLink(p.player_id, p.username, 'event.stopPropagation();', 'player-link-on-dark') + '</span>';
         html += '<span class="elo-rating">' + p.rating + (p.provisional ? '?' : '') + '</span>';
         html += '<span class="elo-change-pill" style="background:' + (p.change >= 0 ? '#e8f5e9' : '#ffebee') + '; color:' + pChangeColor + '">' + pChangeSign + p.change + '</span>';
         html += '</div>';
@@ -523,7 +523,7 @@ async function showEloStats(requestedIntentId) {
         const changeSign = p.change >= 0 ? '+' : '';
         html += '<tr>';
         html += '<td>' + medal + '</td>';
-        html += '<td><strong>' + p.username + '</strong></td>';
+        html += '<td><strong>' + makePlayerLink(p.player_id, p.username) + '</strong></td>';
         html += '<td><strong>' + p.rating + (p.provisional ? '?' : '') + '</strong></td>';
         html += '<td style="color:' + changeColor + '; font-weight:600;">' + changeSign + p.change + '</td>';
         html += '<td>' + p.hands_played + '</td>';
@@ -703,6 +703,13 @@ function celebrateWinner(winnerName) {
 
 function getPlayerName(playerId) {
     return playerCache[playerId] || 'Unknown';
+}
+
+function getPlayerIdByName(username) {
+    const player = allPlayers.find(function(item) {
+        return String(item.username) === String(username);
+    });
+    return player ? player.player_id : '';
 }
 
 function parseLockoutDate(value) {
@@ -1220,9 +1227,9 @@ async function checkActiveSessions() {
             html += '<div class="active-session-item active-session-card">';
             html += '<div class="active-session-card-header">';
             html += '<div class="active-session-card-title"><strong>🎮 ' + session.title + '</strong></div>';
-            html += '<div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">';
+            html += '<div class="active-session-card-actions">';
             if (session.photo_url && session.photo_url !== '') {
-                html += '<img src="' + session.photo_url + '" style="width:40px;height:40px;object-fit:cover;border-radius:6px;cursor:pointer;" onclick="event.stopPropagation(); openPhotoFullscreen(\'' + session.photo_url + '\')">';
+                html += '<img src="' + session.photo_url + '" class="active-session-photo" alt="Photo for ' + escapeAttr(session.title) + '" onclick="event.stopPropagation(); openPhotoFullscreen(\'' + session.photo_url + '\')">';
             }
             html += '<button class="btn btn-success btn-small active-session-resume-btn" onclick="resumeSession(' + session.session_id + ', this)">Resume</button>';
             html += '</div>';
@@ -1234,14 +1241,14 @@ async function checkActiveSessions() {
 
             if (leaderId) {
                 html += '<div class="active-session-leader-box">';
-                html += '<div class="active-session-leader-name">🏆 <span class="player-link" style="color:var(--success-dark);" onclick="event.stopPropagation(); showPlayerProfile(' + leaderId + ')">' + getPlayerName(leaderId) + '</span> leading</div>';
+                html += '<div class="active-session-leader-name">🏆 ' + makePlayerLink(leaderId, getPlayerName(leaderId), 'event.stopPropagation();') + ' leading</div>';
                 html += '<div class="active-session-leader-score">' + formatPoints(playerScores[leaderId]) + '</div>';
                 html += '</div>';
             }
 
             for (let pid in currentStreaks) {
                 if (currentStreaks[pid] >= 2) {
-                    html += '<div class="active-session-streak-box">🔥 <strong>' + getPlayerName(pid) + ':</strong> ' + currentStreaks[pid] + ' lockout streak</div>';
+                    html += '<div class="active-session-streak-box">🔥 <strong>' + makePlayerLink(pid, getPlayerName(pid)) + ':</strong> ' + currentStreaks[pid] + ' lockout streak</div>';
                 }
             }
 
@@ -1888,6 +1895,8 @@ if (handsData.length === 0) {
             if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
                 playerScores[hand.player_id].totalLockouts++;
                 const lockoutScoreToUse = (hand.lockout_score !== null && hand.lockout_score !== undefined && hand.lockout_score !== '') ? Number(hand.lockout_score) : Number(hand.score);
+                totalLockoutScore += lockoutScoreToUse;
+                totalLockouts++;
                 if (hand.false_lockout == 1 || hand.false_lockout === true) {
                     falseLockoutCount++;
                     playerScores[hand.player_id].falseLockouts++;
@@ -1895,8 +1904,6 @@ if (handsData.length === 0) {
                 } else {
                     playerScores[hand.player_id].lockouts++;
                     playerScores[hand.player_id].lockoutScores.push(lockoutScoreToUse);
-                    totalLockoutScore += lockoutScoreToUse;
-                    totalLockouts++;
                 }
             }
         }
@@ -1932,12 +1939,13 @@ if (handsData.length === 0) {
         const handsPlayed = p.hands.length;
         const avgHand = calculateAverageHand(p.hands);
         const lockoutRate = handsPlayed > 0 ? ((p.lockouts / handsPlayed) * 100).toFixed(1) : '0';
-        const avgLockoutScore = p.lockoutScores.length > 0 ? (p.lockoutScores.reduce((sum, s) => sum + s, 0) / p.lockoutScores.length).toFixed(2) : 'N/A';
+        const lockoutAttemptScores = p.lockoutScores.concat(p.falseLockoutScores);
+        const avgLockoutScore = lockoutAttemptScores.length > 0 ? (lockoutAttemptScores.reduce((sum, s) => sum + s, 0) / lockoutAttemptScores.length).toFixed(2) : 'N/A';
         const falseLockoutRate = p.totalLockouts > 0 ? ((p.falseLockouts / p.totalLockouts) * 100).toFixed(1) : '0';
         const avgFalseLockoutScore = p.falseLockoutScores.length > 0 ? (p.falseLockoutScores.reduce((sum, s) => sum + s, 0) / p.falseLockoutScores.length).toFixed(2) : 'N/A';
         html += '<tr>';
         const _pid = sessionPlayers.find(sp => sp.username === p.username).player_id;
-        html += '<td><strong><span class="player-link" onclick="showPlayerProfile(' + _pid + ')">' + p.username + '</span></strong>' + (p.joinHand > 1 ? ' <span class="late-join-badge">H' + p.joinHand + '</span>' : '') + ' ' + formatEloBadge(_pid) + '</td>';
+        html += '<td><strong>' + makePlayerLink(_pid, p.username) + '</strong>' + (p.joinHand > 1 ? ' <span class="late-join-badge">H' + p.joinHand + '</span>' : '') + ' ' + formatEloBadge(_pid) + '</td>';
         html += '<td>' + p.total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td>';
         html += '<td>' + p.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td>';
         html += '<td>' + p.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td>';
@@ -1950,9 +1958,9 @@ if (handsData.length === 0) {
     html += '<div class="stats-summary-grid">';
     html += '<div><strong>🎴 Total Hands:</strong> ' + (new Set(handsData.map(h => h.hand_number)).size) + '</div>';
     html += '<div><strong>📈 Avg Score/Hand:</strong> ' + avgScorePerHand.toFixed(2) + '</div>';
-    html += '<div><strong>🏆 Current Leader:</strong> ' + leader.username + ' (' + leader.total + ' pts)</div>';
+    html += '<div><strong>🏆 Current Leader:</strong> ' + makePlayerLink(getPlayerIdByName(leader.username), leader.username) + ' (' + leader.total + ' pts)</div>';
     html += '<div><strong>📏 Biggest Gap:</strong> ' + biggestGap + ' points</div>';
-    html += '<div><strong>🎯 Most Lockouts:</strong> ' + mostLockoutsPlayer.username + ' (' + mostLockoutsPlayer.lockouts + ')</div>';
+    html += '<div><strong>🎯 Most Lockouts:</strong> ' + makePlayerLink(getPlayerIdByName(mostLockoutsPlayer.username), mostLockoutsPlayer.username) + ' (' + mostLockoutsPlayer.lockouts + ')</div>';
     html += '<div><strong>⚠️ False Lockouts:</strong> ' + falseLockoutCount + '</div>';
     html += '</div>';
     html += '<div class="lockout-perf-box">';
@@ -1960,12 +1968,17 @@ if (handsData.length === 0) {
     html += '<div class="mt-10">• <strong>Overall Avg:</strong> ' + overallAvgLockout + '</div>';
     for (let i = 0; i < scores.length; i++) {
         const p = scores[i];
-        if (p.lockouts > 0) {
-            const avgLockout = (p.lockoutScores.reduce((sum, s) => sum + s, 0) / p.lockoutScores.length).toFixed(2);
-            const isBest = (totalLockouts > 0 && Number(avgLockout) === Math.min(...scores.filter(s => s.lockoutScores.length > 0).map(s => s.lockoutScores.reduce((sum, sc) => sum + sc, 0) / s.lockoutScores.length)));
-            html += '<div>• <strong>' + p.username + ':</strong> ' + avgLockout + ' (' + p.lockouts + ' lockouts)' + (isBest ? ' ⭐ Best!' : '') + '</div>';
+        const attemptScores = p.lockoutScores.concat(p.falseLockoutScores);
+        if (attemptScores.length > 0) {
+            const avgLockout = (attemptScores.reduce((sum, s) => sum + s, 0) / attemptScores.length).toFixed(2);
+            const eligibleAverages = scores
+                .map(s => s.lockoutScores.concat(s.falseLockoutScores))
+                .filter(values => values.length > 0)
+                .map(values => values.reduce((sum, score) => sum + score, 0) / values.length);
+            const isBest = totalLockouts > 0 && Number(avgLockout) === Math.min(...eligibleAverages);
+            html += '<div>• <strong>' + makePlayerLink(getPlayerIdByName(p.username), p.username) + ':</strong> ' + avgLockout + ' (' + attemptScores.length + ' attempts)' + (isBest ? ' ⭐ Best!' : '') + '</div>';
         } else {
-            html += '<div>• <strong>' + p.username + ':</strong> No lockouts yet</div>';
+            html += '<div>• <strong>' + makePlayerLink(getPlayerIdByName(p.username), p.username) + ':</strong> No lockout attempts yet</div>';
         }
     }
     html += '</div></div>';
@@ -2107,7 +2120,7 @@ async function loadPreviousSessions(requestedIntentId) {
         var lowestScore = Infinity, winnerId = null;
         for (var pid in playerTotals) { if (playerTotals[pid] < lowestScore) { lowestScore = playerTotals[pid]; winnerId = pid; } }
         var winnerName = winnerId
-            ? '<span class="player-link" onclick="event.stopPropagation(); showPlayerProfile(' + winnerId + ')">' + getPlayerName(winnerId) + '</span>'
+            ? makePlayerLink(winnerId, getPlayerName(winnerId), 'event.stopPropagation();')
             : 'Unknown';
 
 html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
@@ -2277,7 +2290,8 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return pla
         const avgHand = calculateAverageHand(playerHandScores[playerId]);
         const stats = playerStats[playerId];
         const lockoutRate = handsPlayed > 0 ? ((stats.lockouts / handsPlayed) * 100).toFixed(1) : '0';
-        const avgLockoutScore = stats.lockoutScores.length > 0 ? (stats.lockoutScores.reduce((sum, s) => sum + s, 0) / stats.lockoutScores.length).toFixed(2) : 'N/A';
+        const lockoutAttemptScores = stats.lockoutScores.concat(stats.falseLockoutScores);
+        const avgLockoutScore = lockoutAttemptScores.length > 0 ? (lockoutAttemptScores.reduce((sum, s) => sum + s, 0) / lockoutAttemptScores.length).toFixed(2) : 'N/A';
         const falseLockoutRate = stats.totalLockouts > 0 ? ((stats.falseLockouts / stats.totalLockouts) * 100).toFixed(1) : '0';
         const avgFalseLockoutScore = stats.falseLockoutScores.length > 0 ? (stats.falseLockoutScores.reduce((sum, s) => sum + s, 0) / stats.falseLockoutScores.length).toFixed(2) : 'N/A';
         let eloBadge = '';
@@ -2288,7 +2302,7 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return pla
             eloBadge = ' <span class="elo-badge" style="background:#1a1a2e; color:#ffd700; font-size:0.75em;">⚡ ' + sessionElo[playerId].new_rating + '</span>' +
                        '<span style="color:' + changeColor + '; font-weight:600; font-size:0.8em;"> (' + changeStr + ')</span>';
         }
-        html += '<tr><td><strong>' + getPlayerName(playerId) + '</strong>' + eloBadge + '</td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
+        html += '<tr><td><strong>' + makePlayerLink(playerId, getPlayerName(playerId)) + '</strong>' + eloBadge + '</td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
 }
 html += '</table></div>';
 document.getElementById('sessionDetailContent').innerHTML = html;
@@ -2530,7 +2544,8 @@ function displayOverallStats(stats, totalSessions) {
         if (fl > statValues.falseLockouts.best) { statValues.falseLockouts.best = fl; statValues.falseLockouts.winners = [ps.username]; statValues.falseLockouts.value = fl; } else if (fl === statValues.falseLockouts.best) statValues.falseLockouts.winners.push(ps.username);
         const hs = ps.maxHandStreak;
         if (hs > statValues.handStreak.best) { statValues.handStreak.best = hs; statValues.handStreak.winners = [ps.username]; statValues.handStreak.value = hs; } else if (hs === statValues.handStreak.best) statValues.handStreak.winners.push(ps.username);
-        if (ps.lockoutScores.length > 0) { const als = ps.lockoutScores.reduce((sum, score) => sum + score, 0) / ps.lockoutScores.length; if (als < statValues.avgLockout.best) { statValues.avgLockout.best = als; statValues.avgLockout.winners = [ps.username]; statValues.avgLockout.value = als.toFixed(2); } else if (als === statValues.avgLockout.best) statValues.avgLockout.winners.push(ps.username); }
+        const attemptScores = ps.lockoutScores.concat(ps.falseLockoutScores);
+        if (attemptScores.length > 0) { const als = attemptScores.reduce((sum, score) => sum + score, 0) / attemptScores.length; if (als < statValues.avgLockout.best) { statValues.avgLockout.best = als; statValues.avgLockout.winners = [ps.username]; statValues.avgLockout.value = als.toFixed(2); } else if (als === statValues.avgLockout.best) statValues.avgLockout.winners.push(ps.username); }
     }
     const mostSessionsWon = formatStatWinners(statValues.sessionsWon.winners.length ? statValues.sessionsWon.winners : ['N/A'], statValues.sessionsWon.value || '0', 'wins');
     const mostHandsWon = formatStatWinners(statValues.handsWon.winners.length ? statValues.handsWon.winners : ['N/A'], statValues.handsWon.value || '0', 'hands');
@@ -2553,7 +2568,7 @@ function displayOverallStats(stats, totalSessions) {
     html += '<div class="stat-card"><h4>Longest Hand Streak</h4><p class="stat-value">' + longestHandStreak.names + '</p><p>' + longestHandStreak.value + '</p></div>';
     html += '<div class="stat-card"><h4>Most False Lockouts</h4><p class="stat-value">' + mostFalseLockouts.names + '</p><p>' + mostFalseLockouts.value + '</p></div>';
     html += '</div>';
-    html += '<div class="warning-box mt-15 mb-15 text-sm"><strong>ℹ️ Note:</strong> Testing sessions are excluded. Hand-level stats include active non-testing sessions; session-level stats only include completed non-testing sessions. <strong>Avg LO Score</strong> uses successful lockouts only. <strong>LO Rate</strong> = successful lockouts ÷ hands played. <strong>False LO Rate</strong> = false lockouts ÷ total lockout attempts.</div>';
+    html += '<div class="warning-box mt-15 mb-15 text-sm"><strong>ℹ️ Note:</strong> Testing sessions are excluded. Hand-level stats include active non-testing sessions; session-level stats only include completed non-testing sessions. <strong>Avg LO Score</strong> is the average score at declaration across all lockout attempts, whether successful or false. <strong>LO Rate</strong> = successful lockouts ÷ hands played. <strong>False LO Rate</strong> = false lockouts ÷ total lockout attempts.</div>';
     html += '<h3 class="mt-20">Player Breakdown</h3>';
     html += '<p class="text-muted text-sm mb-10">💡 Click column headers to sort</p>';
     html += '<div class="overflow-x-auto"><table class="scores-table" id="playerBreakdownTable"><tr>';
@@ -2577,9 +2592,10 @@ function displayOverallStats(stats, totalSessions) {
         const lockoutRate = ps.handsPlayed > 0 ? ((ps.handsWon / ps.handsPlayed) * 100).toFixed(1) : '0';
         const avgScore = ps.handsPlayed > 0 ? (ps.totalScore / ps.handsPlayed).toFixed(2) : '0';
         const falseLockoutRate = ps.totalLockouts > 0 ? ((ps.falseLockouts / ps.totalLockouts) * 100).toFixed(1) : '0';
-        const avgLockoutScore = ps.lockoutScores.length > 0 ? (ps.lockoutScores.reduce((sum, score) => sum + score, 0) / ps.lockoutScores.length).toFixed(2) : 'N/A';
+        const lockoutAttemptScores = ps.lockoutScores.concat(ps.falseLockoutScores);
+        const avgLockoutScore = lockoutAttemptScores.length > 0 ? (lockoutAttemptScores.reduce((sum, score) => sum + score, 0) / lockoutAttemptScores.length).toFixed(2) : 'N/A';
         const avgFalseLockoutScore = ps.falseLockoutScores.length > 0 ? (ps.falseLockoutScores.reduce((sum, score) => sum + score, 0) / ps.falseLockoutScores.length).toFixed(2) : 'N/A';
-        html += '<tr><td>' + ps.username + formatEloBadge(playerId) + '</td><td>' + ps.sessionsPlayed + '</td><td>' + ps.sessionsWon.toFixed(1) + '</td><td>' + sessionWinRate + '%</td><td>' + ps.handsPlayed + '</td><td>' + avgScore + '</td><td>' + ps.handsWon + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + ps.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
+        html += '<tr><td>' + makePlayerLink(playerId, ps.username) + formatEloBadge(playerId) + '</td><td>' + ps.sessionsPlayed + '</td><td>' + ps.sessionsWon.toFixed(1) + '</td><td>' + sessionWinRate + '%</td><td>' + ps.handsPlayed + '</td><td>' + avgScore + '</td><td>' + ps.handsWon + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + ps.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
     }
     html += '</table></div>';
     document.getElementById('statsContent').innerHTML = html;
@@ -2636,9 +2652,9 @@ async function showHeadToHeadList(requestedIntentId) {
 
         html += '<div class="h2h-matchup-card">';
         html += '<div class="h2h-matchup-header">';
-        html += '<strong class="heading-blue">' + p1Name + '</strong>';
+        html += '<strong class="heading-blue">' + makePlayerLink(m.p1, p1Name) + '</strong>';
         html += '<span class="h2h-score-span">' + m.p1_wins + '-' + m.ties + '-' + m.p2_wins + '</span>';
-        html += '<strong class="heading-red">' + p2Name + '</strong>';
+        html += '<strong class="heading-red">' + makePlayerLink(m.p2, p2Name) + '</strong>';
         html += '</div>';
         html += '<div class="h2h-bar-wrapper">';
         html += '<div style="width: ' + p1Pct + '%; background: #667eea;"></div>';
@@ -2736,7 +2752,7 @@ async function showPlayerComparison(requestedIntentId) {
     const p1Name = getPlayerName(p1Id), p2Name = getPlayerName(p2Id);
     let html = '';
 
-    html += '<div class="comparison-vs-header"><h2 class="comparison-vs-title">' + p1Name + ' ' + formatEloBadge(p1Id) + ' vs ' + p2Name + ' ' + formatEloBadge(p2Id) + '</h2></div>';
+    html += '<div class="comparison-vs-header"><h2 class="comparison-vs-title">' + makePlayerLink(p1Id, p1Name, '', 'player-link-on-dark') + ' ' + formatEloBadge(p1Id) + ' vs ' + makePlayerLink(p2Id, p2Name, '', 'player-link-on-dark') + ' ' + formatEloBadge(p2Id) + '</h2></div>';
     html += '<button class="btn btn-info mb-20" onclick="showPlayerComparisonUI()" style="width: 100%;">← Change Players</button>';
 
     const ts = data.sessions_together_stats;
@@ -2749,7 +2765,7 @@ async function showPlayerComparison(requestedIntentId) {
         html += '<div class="content-card" style="text-align: center; color: #666;">These players have never played together</div>';
     } else {
         html += '<div class="overflow-x-auto"><table class="scores-table">';
-        html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + p1Name + '</th><th style="color: white; background: #f5576c;">' + p2Name + '</th></tr>';
+        html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + makePlayerLink(p1Id, p1Name, '', 'player-link-on-dark') + '</th><th style="color: white; background: #f5576c;">' + makePlayerLink(p2Id, p2Name, '', 'player-link-on-dark') + '</th></tr>';
         html += '<tr><td><strong>Wins</strong></td><td>' + ts.p1_wins + '</td><td>' + ts.p2_wins + '</td></tr>';
         html += '<tr><td><strong>Win Rate</strong></td><td>' + ts.p1_win_rate + '%</td><td>' + ts.p2_win_rate + '%</td></tr>';
         html += '<tr><td><strong>Total Score</strong></td><td>' + ts.p1_total_score + '</td><td>' + ts.p2_total_score + '</td></tr>';
@@ -2757,7 +2773,7 @@ async function showPlayerComparison(requestedIntentId) {
         html += '<tr><td><strong>Avg Hand</strong></td><td>' + ts.p1_avg_hand + '</td><td>' + ts.p2_avg_hand + '</td></tr>';
         html += '<tr><td><strong>Lockouts</strong></td><td>' + ts.p1_lockouts + '</td><td>' + ts.p2_lockouts + '</td></tr>';
         html += '<tr><td><strong>Lockout Rate</strong></td><td>' + ts.p1_lockout_rate + '%</td><td>' + ts.p2_lockout_rate + '%</td></tr>';
-        html += '<tr><td><strong>Avg Lockout Score</strong></td><td>' + (ts.p1_lockouts > 0 ? ts.p1_avg_lockout : 'N/A') + '</td><td>' + (ts.p2_lockouts > 0 ? ts.p2_avg_lockout : 'N/A') + '</td></tr>';
+        html += '<tr><td><strong>Avg Lockout Score</strong></td><td>' + (ts.p1_lockouts + ts.p1_false_lockouts > 0 ? ts.p1_avg_lockout : 'N/A') + '</td><td>' + (ts.p2_lockouts + ts.p2_false_lockouts > 0 ? ts.p2_avg_lockout : 'N/A') + '</td></tr>';
         html += '<tr><td><strong>False Lockouts</strong></td><td>' + ts.p1_false_lockouts + '</td><td>' + ts.p2_false_lockouts + '</td></tr>';
         html += '<tr><td><strong>False Lockout Rate</strong></td><td>' + (ts.p1_false_lockouts + ts.p1_lockouts > 0 ? ts.p1_false_lockout_rate + '%' : 'N/A') + '</td><td>' + (ts.p2_false_lockouts + ts.p2_lockouts > 0 ? ts.p2_false_lockout_rate + '%' : 'N/A') + '</td></tr>';
         html += '<tr><td><strong>Avg False LO Score</strong></td><td>' + (ts.p1_false_lockouts > 0 ? ts.p1_avg_false_lockout : 'N/A') + '</td><td>' + (ts.p2_false_lockouts > 0 ? ts.p2_avg_false_lockout : 'N/A') + '</td></tr>';
@@ -2767,9 +2783,9 @@ async function showPlayerComparison(requestedIntentId) {
             html += '<div class="warning-box mt-20">';
             html += '<h4 class="comparison-context-heading">📊 Performance Context</h4>';
             html += '<p class="text-muted text-sm mb-10">When ' + p1Name + ' plays against ' + p2Name + ' <strong>head-to-head</strong>, ' + p1Name + '\'s win rate varies depending on who else is playing:</p>';
-            html += '<div class="content-card-sm"><div style="font-size: 0.85em; color: #4caf50; font-weight: 600; margin-bottom: 3px;">✅ Best with ' + getPlayerName(ts.best_with.player_id) + '</div>';
+            html += '<div class="content-card-sm"><div style="font-size: 0.85em; color: #4caf50; font-weight: 600; margin-bottom: 3px;">✅ Best with ' + makePlayerLink(ts.best_with.player_id, getPlayerName(ts.best_with.player_id)) + '</div>';
             html += '<div class="text-sm" style="color: #333;">' + p1Name + ' beats ' + p2Name + ' in ' + ts.best_with.wins + ' out of ' + ts.best_with.total + ' sessions when ' + getPlayerName(ts.best_with.player_id) + ' is also playing</div></div>';
-            html += '<div class="content-card-sm"><div style="font-size: 0.85em; color: #f44336; font-weight: 600; margin-bottom: 3px;">❌ Worst with ' + getPlayerName(ts.worst_with.player_id) + '</div>';
+            html += '<div class="content-card-sm"><div style="font-size: 0.85em; color: #f44336; font-weight: 600; margin-bottom: 3px;">❌ Worst with ' + makePlayerLink(ts.worst_with.player_id, getPlayerName(ts.worst_with.player_id)) + '</div>';
             html += '<div class="text-sm" style="color: #333;">' + p1Name + ' beats ' + p2Name + ' in ' + ts.worst_with.wins + ' out of ' + ts.worst_with.total + ' sessions when ' + getPlayerName(ts.worst_with.player_id) + ' is also playing</div></div>';
             html += '</div>';
         }
@@ -2781,7 +2797,7 @@ async function showPlayerComparison(requestedIntentId) {
     html += '<h3 class="section-heading-red">📊 All Sessions</h3>';
     html += '<p class="text-muted text-sm mb-20"><strong>Overall wins:</strong> Sessions where each player had the lowest score and won outright (across all sessions they participated in)</p>';
     html += '<div class="overflow-x-auto"><table class="scores-table">';
-    html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + p1Name + '</th><th style="color: white; background: #f5576c;">' + p2Name + '</th></tr>';
+    html += '<tr><th>Stat</th><th style="color: white; background: #667eea;">' + makePlayerLink(p1Id, p1Name, '', 'player-link-on-dark') + '</th><th style="color: white; background: #f5576c;">' + makePlayerLink(p2Id, p2Name, '', 'player-link-on-dark') + '</th></tr>';
     html += '<tr><td><strong>Wins</strong></td><td>' + as1.wins + '</td><td>' + as2.wins + '</td></tr>';
     html += '<tr><td><strong>Losses</strong></td><td>' + as1.losses + '</td><td>' + as2.losses + '</td></tr>';
     if (as1.ties > 0 || as2.ties > 0) html += '<tr><td><strong>Ties</strong></td><td>' + as1.ties + '</td><td>' + as2.ties + '</td></tr>';
@@ -2791,7 +2807,7 @@ async function showPlayerComparison(requestedIntentId) {
     html += '<tr><td><strong>Avg Hand</strong></td><td>' + as1.avg_hand + '</td><td>' + as2.avg_hand + '</td></tr>';
     html += '<tr><td><strong>Lockouts</strong></td><td>' + as1.lockouts + '</td><td>' + as2.lockouts + '</td></tr>';
     html += '<tr><td><strong>Lockout Rate</strong></td><td>' + as1.lockout_rate + '%</td><td>' + as2.lockout_rate + '%</td></tr>';
-    html += '<tr><td><strong>Avg Lockout Score</strong></td><td>' + (as1.lockouts > 0 ? as1.avg_lockout : 'N/A') + '</td><td>' + (as2.lockouts > 0 ? as2.avg_lockout : 'N/A') + '</td></tr>';
+    html += '<tr><td><strong>Avg Lockout Score</strong></td><td>' + (as1.lockouts + as1.false_lockouts > 0 ? as1.avg_lockout : 'N/A') + '</td><td>' + (as2.lockouts + as2.false_lockouts > 0 ? as2.avg_lockout : 'N/A') + '</td></tr>';
     html += '<tr><td><strong>False Lockouts</strong></td><td>' + as1.false_lockouts + '</td><td>' + as2.false_lockouts + '</td></tr>';
     html += '<tr><td><strong>False Lockout Rate</strong></td><td>' + (as1.false_lockouts + as1.lockouts > 0 ? as1.false_lockout_rate + '%' : 'N/A') + '</td><td>' + (as2.false_lockouts + as2.lockouts > 0 ? as2.false_lockout_rate + '%' : 'N/A') + '</td></tr>';
     html += '<tr><td><strong>Avg False LO Score</strong></td><td>' + (as1.false_lockouts > 0 ? as1.avg_false_lockout : 'N/A') + '</td><td>' + (as2.false_lockouts > 0 ? as2.avg_false_lockout : 'N/A') + '</td></tr>';
@@ -3201,8 +3217,11 @@ async function submitPinEntry() {
 let _currentProfileId = null;
 let _currentProfileData = null;
 
-function makePlayerLink(playerId, displayName) {
-    return '<span class="player-link" onclick="showPlayerProfile(\'' + playerId + '\')">' + displayName + '</span>';
+function makePlayerLink(playerId, displayName, beforeNavigation, extraClass) {
+    if (playerId === null || playerId === undefined || String(playerId) === '') return displayName;
+    const className = 'player-link' + (extraClass ? ' ' + extraClass : '');
+    const before = beforeNavigation ? beforeNavigation + ' ' : '';
+    return '<a href="#playerProfileScreen" class="' + className + '" onclick="' + before + 'showPlayerProfile(\'' + escapeAttr(playerId) + '\'); return false;">' + displayName + '</a>';
 }
 
 async function loadPlayersScreen(requestedIntentId) {
@@ -3435,9 +3454,9 @@ function renderAchievements(achievements) {
         { key: 'the_ghost',          emoji: '👻',  name: 'The Ghost',          live: false, desc: 'Play 5 sessions without ever attempting a lockout' },
         { key: 'lightning_round',    emoji: '⚡',  name: 'Lightning Round',    live: false, desc: 'Play a session that ends in under 10 hands' },
         { key: 'nemesis',            emoji: '🤝',  name: 'Nemesis',            live: false, desc: 'Beat the same player in 5 consecutive head-to-head sessions' },
-        { key: 'marksman',           emoji: '🎯',  name: 'Marksman',           live: true,  desc: 'Avg LO ≤ 1.0 (25+ successful LOs)' },
-        { key: 'surgeon',            emoji: '🔬',  name: 'Surgeon',            live: true,  desc: 'Avg LO ≤ 0.0 (25+ successful LOs)' },
-        { key: 'ice_veins',          emoji: '🧊',  name: 'Ice Veins',          live: true,  desc: 'Avg LO ≤ -1.0 (25+ successful LOs)' },
+        { key: 'marksman',           emoji: '🎯',  name: 'Marksman',           live: true,  desc: 'Avg LO ≤ 1.0 (25+ lockout attempts)' },
+        { key: 'surgeon',            emoji: '🔬',  name: 'Surgeon',            live: true,  desc: 'Avg LO ≤ 0.0 (25+ lockout attempts)' },
+        { key: 'ice_veins',          emoji: '🧊',  name: 'Ice Veins',          live: true,  desc: 'Avg LO ≤ -1.0 (25+ lockout attempts)' },
         { key: 'consistent',         emoji: '📊',  name: 'Consistent',         live: true,  desc: 'Avg hand ≤ 6.0 (100+ hands)' },
         { key: 'efficient',          emoji: '📉',  name: 'Efficient',          live: true,  desc: 'Avg hand ≤ 4.5 (100+ hands)' },
         { key: 'machine',            emoji: '🤖',  name: 'Machine',            live: true,  desc: 'Avg hand ≤ 3.0 (100+ hands)' },
@@ -3513,9 +3532,9 @@ function showAchievementInfo(key) {
         the_ghost:          { emoji: '👻',  name: 'The Ghost',          live: false, desc: 'Play 5 sessions without ever attempting a lockout' },
         lightning_round:    { emoji: '⚡',  name: 'Lightning Round',    live: false, desc: 'Play a session that ends in under 10 hands' },
         nemesis:            { emoji: '🤝',  name: 'Nemesis',            live: false, desc: 'Beat the same player in 5 consecutive head-to-head sessions' },
-        marksman:           { emoji: '🎯',  name: 'Marksman',           live: true,  desc: 'Average lockout score of 1.0 or under (minimum 25 successful lockouts)' },
-        surgeon:            { emoji: '🔬',  name: 'Surgeon',            live: true,  desc: 'Average lockout score of 0.0 or under (minimum 25 successful lockouts)' },
-        ice_veins:          { emoji: '🧊',  name: 'Ice Veins',          live: true,  desc: 'Average lockout score of -1.0 or under (minimum 25 successful lockouts)' },
+        marksman:           { emoji: '🎯',  name: 'Marksman',           live: true,  desc: 'Average declaration score of 1.0 or under (minimum 25 lockout attempts)' },
+        surgeon:            { emoji: '🔬',  name: 'Surgeon',            live: true,  desc: 'Average declaration score of 0.0 or under (minimum 25 lockout attempts)' },
+        ice_veins:          { emoji: '🧊',  name: 'Ice Veins',          live: true,  desc: 'Average declaration score of -1.0 or under (minimum 25 lockout attempts)' },
         consistent:         { emoji: '📊',  name: 'Consistent',         live: true,  desc: 'Average hand score of 6.0 or under (minimum 100 hands)' },
         efficient:          { emoji: '📉',  name: 'Efficient',          live: true,  desc: 'Average hand score of 4.5 or under (minimum 100 hands)' },
         machine:            { emoji: '🤖',  name: 'Machine',            live: true,  desc: 'Average hand score of 3.0 or under (minimum 100 hands)' },

@@ -486,10 +486,21 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
 .comment-text { color: var(--primary); font-size: 0.9em; }
 
 /* === BATCH 3 ADDITIONS === */
-.active-session-card { background: var(--white); padding: 20px; border-radius: 12px; margin: 12px 0; border: 2px solid #e8e9ff; box-shadow: 0 2px 8px rgba(102,126,234,0.1); }
+.active-session-card {
+    display: block;
+    width: 100%;
+    background: var(--white);
+    padding: 20px;
+    border-radius: 12px;
+    margin: 12px 0;
+    border: 2px solid #e8e9ff;
+    box-shadow: 0 2px 8px rgba(102,126,234,0.1);
+}
 .active-session-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 15px; padding-bottom: 12px; border-bottom: 2px solid #f0f0f0; }
 .active-session-card-title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .active-session-card-title strong { font-size: 1.15em; color: var(--primary); }
+.active-session-card-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex: 0 0 auto; }
+.active-session-photo { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; cursor: pointer; flex: 0 0 auto; }
 .active-session-resume-btn { margin: 0; flex-shrink: 0; padding: 8px 16px; font-size: 0.9em; }
 .active-session-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 .active-session-stat-cell { background: var(--bg-light); padding: 10px; border-radius: 6px; font-size: 0.85em; }
@@ -895,13 +906,29 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
 
 /* Player name link — subtle, not blue underlined */
 .player-link {
-    color: var(--primary);
+    color: inherit;
     font-weight: 600;
     cursor: pointer;
-    border-bottom: 1px dotted var(--primary);
+    border-bottom: 1px dotted rgba(51,51,51,0.38);
     transition: opacity 0.15s;
+    text-decoration: none;
 }
-.player-link:hover { opacity: 0.75; }
+.player-link:hover,
+.player-link:focus-visible {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    opacity: 1;
+}
+.player-link-on-dark {
+    color: var(--white);
+    border-bottom-color: rgba(255,255,255,0.75);
+}
+.scores-table .player-link-on-dark,
+.scores-table .player-link-on-dark:hover,
+.scores-table .player-link-on-dark:focus-visible {
+    color: var(--white);
+    border-bottom-color: rgba(255,255,255,0.75);
+}
 .player-card {
     width: 100%;
     font: inherit;
@@ -999,6 +1026,8 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
     .profile-session-list { max-height: 300px; }
     .active-session-card { padding: 15px; }
     .active-session-card-header { align-items: stretch; flex-direction: column; }
+    .active-session-card-actions { justify-content: space-between; width: 100%; }
+    .active-session-card-actions .active-session-resume-btn { flex: 1; }
     .active-session-resume-btn { width: 100%; }
     .comparison-player-grid { grid-template-columns: 1fr; gap: 8px; }
     .comparison-vs-header { padding: 15px; margin-bottom: 20px; }
