@@ -6,7 +6,7 @@
         // APP VERSION — increment this when deploying
         // changes to app.js or styles.css
         // ============================================
-        const APP_VERSION = '25-rc-3a';
+        const APP_VERSION = '26-rc-4';
         document.write('<link rel="stylesheet" href="styles.css?v=' + APP_VERSION + '">');
     </script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -257,6 +257,8 @@
                                 </li>
                                 <li>Tap <strong>"Start Session"</strong></li>
                                 <li>Record the six-digit session access code shown after creation. Another trusted device needs it only when taking over scoring; the administrator can reset a lost code from <strong>Lockout Admin</strong></li>
+                                <li>The app is online-only. Wait for the green saved confirmation before moving to the next hand</li>
+                                <li>If another device changes the game first, the app will protect the newer version and ask you to refresh the session before trying again</li>
                             </ul>
                         </div>
                     </div>
@@ -558,7 +560,7 @@
                         <h3>🔒 DATA & PRIVACY</h3>
                         <ul class="list-indented">
                             <li>Game data is stored in the administrator's <strong>Google Sheet</strong> and is visible to anyone with this public app link</li>
-                            <li>Optional profile and session photos are sent to <strong>ImgBB</strong> and receive externally hosted URLs; if uploads are disabled or no picture is chosen, the app displays player initials</li>
+                            <li>Optional profile and session photos are resized in the browser when needed, then sent to <strong>ImgBB</strong> and given externally hosted URLs; if uploads are disabled or no picture is chosen, the app displays player initials</li>
                             <li>The app does not sell personal data or use advertising trackers</li>
                             <li><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryEditHistory'); return false;">Edit history</a> tracks all changes (who edited what and when)</li>
                         </ul>
@@ -1165,7 +1167,7 @@
     </script>
     <div class="app-footer">
         <button type="button" class="footer-feedback-link footer-feedback-button" onclick="showFeedbackModal()">💬 Feedback or bug report</button>
-        <div id="releaseVersion" class="release-version">Release Candidate 3</div>
+        <div id="releaseVersion" class="release-version">Release Candidate 4</div>
     </div>
 </body>
 </html>

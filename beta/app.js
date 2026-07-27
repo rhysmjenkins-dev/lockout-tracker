@@ -29,11 +29,28 @@ let eloCache = [];
 let eloHistoryAllCache = null;
 let eloHistoryAllCachedAt = 0;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.0.0-rc.3',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.0.0-rc.4',
     photos_enabled: false
 };
 let navigationIntentId = 0;
 let screenTransitionTimer = null;
+const readResponseCache = new Map();
+const readRequestInFlight = new Map();
+
+const READ_CACHE_TTL = {
+    getHomeData: 15000,
+    getPlayers: 300000,
+    getSessions: 30000,
+    getRecentSessions: 30000,
+    getSessionsWithHands: 15000,
+    getHeadToHeadMatrix: 30000,
+    getPlayerComparisonDetailed: 30000,
+    getEloRatings: 30000,
+    getEloHistory: 60000,
+    getEloHistoryAll: 60000,
+    getPlayerProfile: 30000,
+    getPublicConfig: 300000
+};
 
 function beginNavigationIntent() {
     navigationIntentId++;
@@ -56,7 +73,8 @@ const READ_ACTIONS = new Set([
     'getPlayers', 'getSessions', 'getRecentSessions', 'getSession', 'getHands',
     'getEditHistory', 'getSessionsWithHands', 'getHeadToHeadMatrix',
     'getPlayerComparisonDetailed', 'getEloRatings', 'getEloHistory',
-    'getEloHistoryAll', 'getPlayerProfile', 'checkPlayerPin', 'getPublicConfig'
+    'getEloHistoryAll', 'getPlayerProfile', 'checkPlayerPin', 'getPublicConfig',
+    'getHomeData'
 ]);
 const SESSION_ACTIONS = new Set([
     'updateSession', 'updateSessionPhoto', 'addPlayerToSession', 'closeSession',
@@ -182,7 +200,7 @@ async function loadPublicConfig() {
         publicConfig = Object.assign({}, publicConfig, data);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Release Candidate 3 · ' + publicConfig.version;
+    if (version) version.textContent = 'Release Candidate 4 · ' + publicConfig.version;
     return publicConfig;
 }
 
@@ -282,7 +300,10 @@ function setButtonLoading(buttonElement, isLoading, originalText) {
     if (isLoading) {
         buttonElement.disabled = true;
         buttonElement.dataset.originalText = buttonElement.textContent;
-        buttonElement.textContent = '⏳ Loading...';
+        const label = String(buttonElement.textContent || '').toLowerCase();
+        buttonElement.textContent = /submit|save|create|update|end|delete|add|send/.test(label)
+            ? '⏳ Saving...'
+            : '⏳ Loading...';
         buttonElement.setAttribute('aria-busy', 'true');
         buttonElement.style.opacity = '0.6';
         buttonElement.style.cursor = 'not-allowed';
@@ -295,13 +316,82 @@ function setButtonLoading(buttonElement, isLoading, originalText) {
     }
 }
 
+function showStatusToast(message) {
+    let toast = document.getElementById('saveStatusToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'saveStatusToast';
+        toast.className = 'save-status-toast';
+        toast.setAttribute('role', 'status');
+        toast.setAttribute('aria-live', 'polite');
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('visible');
+    clearTimeout(window._saveStatusToastTimer);
+    window._saveStatusToastTimer = setTimeout(function() {
+        toast.classList.remove('visible');
+    }, 1800);
+}
+
 // ============================================
 // API & UTILITY FUNCTIONS
 // ============================================
+function apiCacheKey(action, params) {
+    const sorted = {};
+    Object.keys(params || {}).sort().forEach(function(key) {
+        sorted[key] = params[key];
+    });
+    return action + ':' + JSON.stringify(sorted);
+}
+
+function clearFrontendReadCaches(options) {
+    readResponseCache.clear();
+    readRequestInFlight.clear();
+    eloHistoryAllCache = null;
+    eloHistoryAllCachedAt = 0;
+    if (options && options.players) {
+        playersLoaded = false;
+        allPlayers = [];
+        playerCache = {};
+    }
+}
+
+function apiErrorMessage(data, fallback) {
+    if (!data) return fallback || 'The request could not be completed.';
+    if (data.code === 'SESSION_CONFLICT') {
+        return 'This game changed on another device. Nothing was saved. Refresh the session before trying again.';
+    }
+    if (data.code === 'NETWORK_TIMEOUT') {
+        return 'The request took too long. Nothing was saved. Check your connection and try again.';
+    }
+    if (data.code === 'NETWORK_ERROR') {
+        return 'The app could not reach the server. Nothing was saved. Check your connection and try again.';
+    }
+    return data.error || fallback || 'The request could not be completed.';
+}
+
+function actionErrorHtml(data, fallback, allowSessionRefresh) {
+    let html = '<div class="error" role="alert">' + escapeHtml(apiErrorMessage(data, fallback));
+    if (allowSessionRefresh && data && data.code === 'SESSION_CONFLICT' && currentSession) {
+        html += '<div class="error-actions"><button type="button" class="btn btn-small btn-info" onclick="refreshActiveSessionAfterConflict(this)">Refresh session</button></div>';
+    }
+    html += '</div>';
+    return html;
+}
+
+async function refreshActiveSessionAfterConflict(buttonElement) {
+    if (!currentSession) return;
+    const sessionId = currentSession.session_id;
+    await resumeSession(sessionId, buttonElement);
+}
+
 async function rawApiRequest(action, params, isRead) {
     if (!API_URL || API_URL.includes('PASTE_BETA_')) {
         return { error: 'The beta backend has not been connected yet.', code: 'BETA_NOT_CONFIGURED' };
     }
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(function() { controller.abort(); }, 30000) : null;
     try {
         let response;
         if (isRead) {
@@ -310,16 +400,24 @@ async function rawApiRequest(action, params, isRead) {
             for (const key in params) {
                 if (params[key] !== undefined && params[key] !== null) url.searchParams.append(key, params[key]);
             }
-            response = await fetch(url, { method: 'GET', cache: 'no-store' });
+            response = await fetch(url, {
+                method: 'GET',
+                cache: 'no-store',
+                signal: controller ? controller.signal : undefined
+            });
         } else {
             response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(Object.assign({ action: action }, params || {}))
+                body: JSON.stringify(Object.assign({ action: action }, params || {})),
+                signal: controller ? controller.signal : undefined
             });
         }
         if (!response.ok) {
-            return { error: 'Network error: ' + response.status + ' ' + response.statusText };
+            return {
+                error: 'Network error: ' + response.status + ' ' + response.statusText,
+                code: 'NETWORK_ERROR'
+            };
         }
         const data = await response.json();
         if (data && data.error) {
@@ -328,13 +426,37 @@ async function rawApiRequest(action, params, isRead) {
         return data;
     } catch (error) {
         console.error('API [' + action + '] failed:', error.message);
-        return { error: error.message };
+        if (error && error.name === 'AbortError') {
+            return { error: 'The request timed out.', code: 'NETWORK_TIMEOUT' };
+        }
+        return { error: error.message || 'Network request failed.', code: 'NETWORK_ERROR' };
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
     }
 }
 
 async function apiCall(action, params) {
     params = Object.assign({}, params || {});
     const isRead = READ_ACTIONS.has(action);
+    if (isRead) {
+        const ttl = Number(READ_CACHE_TTL[action] || 0);
+        const cacheKey = apiCacheKey(action, params);
+        const cached = readResponseCache.get(cacheKey);
+        if (ttl > 0 && cached && Date.now() - cached.storedAt < ttl) return cached.data;
+        if (readRequestInFlight.has(cacheKey)) return readRequestInFlight.get(cacheKey);
+        const request = rawApiRequest(action, params, true)
+            .then(function(data) {
+                if (ttl > 0 && data && !data.error) {
+                    readResponseCache.set(cacheKey, { data: data, storedAt: Date.now() });
+                }
+                return data;
+            })
+            .finally(function() {
+                readRequestInFlight.delete(cacheKey);
+            });
+        readRequestInFlight.set(cacheKey, request);
+        return request;
+    }
     if (!isRead) {
         if (MEMBER_ACTIONS.has(action)) {
             params.member_token = getMemberToken() || await unlockEditing(false);
@@ -369,6 +491,9 @@ async function apiCall(action, params) {
     if (data && data.revision && currentSession && String(currentSession.session_id) === String(params.session_id)) {
         currentSession.revision = Number(data.revision);
     }
+    if (data && !data.error) {
+        clearFrontendReadCaches({ players: action === 'addPlayer' });
+    }
     return data;
 }
 
@@ -385,6 +510,30 @@ async function ensurePlayersLoaded() {
         playerCache[data[i].player_id] = data[i].username;
     }
     return allPlayers;
+}
+
+function applyPlayersData(players) {
+    if (!Array.isArray(players)) return;
+    allPlayers = players;
+    playersLoaded = true;
+    playerCache = {};
+    for (let i = 0; i < players.length; i++) {
+        playerCache[players[i].player_id] = players[i].username;
+    }
+}
+
+async function loadHomeDashboard() {
+    const data = await apiCall('getHomeData', {});
+    if (data.error) {
+        await Promise.all([checkActiveSessions(), displayEloLeaderboard()]);
+        return;
+    }
+    applyPlayersData(data.players || []);
+    eloCache = Array.isArray(data.elo_ratings) ? data.elo_ratings : [];
+    await Promise.all([
+        checkActiveSessions(data.sessions_with_hands || []),
+        displayEloLeaderboard(eloCache)
+    ]);
 }
 
 // ============================================
@@ -427,8 +576,8 @@ function formatEloBadge(playerId) {
     return '<span class="elo-badge">⚡ ' + elo.rating + provisional + '</span>';
 }
 
-async function displayEloLeaderboard() {
-    const data = await loadEloRatings();
+async function displayEloLeaderboard(preloadedData) {
+    const data = Array.isArray(preloadedData) ? preloadedData : await loadEloRatings();
     if (!data || data.length === 0) return;
     const medals = ['🥇', '🥈', '🥉'];
     const top = data[0];
@@ -826,26 +975,97 @@ function getPlayerJoinHand(playerId) {
 // IMAGE UPLOAD (proxied by Apps Script; the provider key never reaches the browser)
 // ============================================
 
+function readFileAsDataUrl(file) {
+    return new Promise(function(resolve, reject) {
+        const reader = new FileReader();
+        reader.onload = function() { resolve(reader.result); };
+        reader.onerror = function() { reject(new Error('Could not read the image.')); };
+        reader.readAsDataURL(file);
+    });
+}
+
+function loadPhotoImage(dataUrl) {
+    return new Promise(function(resolve, reject) {
+        const image = new Image();
+        image.onload = function() { resolve(image); };
+        image.onerror = function() { reject(new Error('The selected image could not be opened.')); };
+        image.src = dataUrl;
+    });
+}
+
+function canvasPhotoBlob(canvas, quality) {
+    return new Promise(function(resolve) {
+        canvas.toBlob(resolve, 'image/webp', quality);
+    });
+}
+
+async function preparePhotoForUpload(file) {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowed.includes(file.type)) {
+        return { error: 'Use a JPEG, PNG, WebP, or GIF image.' };
+    }
+    if (file.size > 15 * 1024 * 1024) {
+        return { error: 'Choose an image smaller than 15 MB.' };
+    }
+    if (file.type === 'image/gif') {
+        if (file.size > 5 * 1024 * 1024) {
+            return { error: 'Animated GIFs must be 5 MB or smaller.' };
+        }
+        return { file: file, mimeType: file.type, fileName: file.name };
+    }
+
+    const originalDataUrl = await readFileAsDataUrl(file);
+    const image = await loadPhotoImage(originalDataUrl);
+    const largestSide = Math.max(image.naturalWidth, image.naturalHeight);
+    if (file.size <= 1500 * 1024 && largestSide <= 1920) {
+        return { file: file, mimeType: file.type, fileName: file.name };
+    }
+
+    let scale = Math.min(1, 1920 / largestSide);
+    let width = Math.max(1, Math.round(image.naturalWidth * scale));
+    let height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    let context = canvas.getContext('2d');
+    context.drawImage(image, 0, 0, width, height);
+    let blob = await canvasPhotoBlob(canvas, 0.84);
+
+    if (blob && blob.size > 4500 * 1024) {
+        scale = Math.min(1, 1280 / largestSide);
+        width = Math.max(1, Math.round(image.naturalWidth * scale));
+        height = Math.max(1, Math.round(image.naturalHeight * scale));
+        canvas.width = width;
+        canvas.height = height;
+        context = canvas.getContext('2d');
+        context.drawImage(image, 0, 0, width, height);
+        blob = await canvasPhotoBlob(canvas, 0.72);
+    }
+    if (!blob) return { error: 'The image could not be prepared for upload.' };
+    if (blob.size > 5 * 1024 * 1024) {
+        return { error: 'The optimised image is still too large. Try a smaller image.' };
+    }
+    return {
+        file: blob,
+        mimeType: 'image/webp',
+        fileName: String(file.name || 'lockout-photo').replace(/\.[^.]+$/, '') + '.webp',
+        optimised: true
+    };
+}
+
 async function uploadPhotoFile(file) {
     try {
-        if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
-            return { error: 'Use a JPEG, PNG, WebP, or GIF image.' };
-        }
-        if (file.size > 5 * 1024 * 1024) return { error: 'Image must be 5 MB or smaller.' };
-        const dataUrl = await new Promise(function(resolve, reject) {
-            const reader = new FileReader();
-            reader.onload = function() { resolve(reader.result); };
-            reader.onerror = function() { reject(new Error('Could not read the image.')); };
-            reader.readAsDataURL(file);
-        });
+        const prepared = await preparePhotoForUpload(file);
+        if (prepared.error) return prepared;
+        const dataUrl = await readFileAsDataUrl(prepared.file);
         const context = window._photoUploadContext || { scope: 'new_session' };
         const result = await apiCall('uploadPhoto', Object.assign({}, context, {
             image_base64: String(dataUrl).split(',')[1],
-            mime_type: file.type,
-            file_name: file.name
+            mime_type: prepared.mimeType,
+            file_name: prepared.fileName
         }));
         if (result.error) return { error: result.error };
-        return { url: result.url };
+        return { url: result.url, optimised: Boolean(prepared.optimised) };
     } catch(e) {
         return { error: e.message };
     }
@@ -873,7 +1093,7 @@ function createPhotoUploadUI(currentPhotoUrl, onUploadComplete) {
     html += '<input type="file" id="photoFileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;" onchange="handlePhotoUpload(event)">';
     html += '<span class="btn btn-info btn-small">📷 ' + (currentPhotoUrl ? 'Change Photo' : 'Add Photo') + '</span>';
     html += '</label>';
-    html += '<p class="text-muted text-sm mt-10">JPEG, PNG, WebP or GIF; maximum 5 MB. Photos are hosted by ImgBB.</p>';
+    html += '<p class="text-muted text-sm mt-10">JPEG, PNG or WebP up to 15 MB will be resized for faster loading. Animated GIFs must be 5 MB or smaller. Photos are hosted by ImgBB.</p>';
     html += '<div id="photoUploadStatus"></div>';
     html += '</div>';
     return html;
@@ -884,7 +1104,7 @@ async function handlePhotoUpload(event) {
     if (!file) return;
     const statusDiv = document.getElementById('photoUploadStatus');
     event.target.disabled = true;
-    statusDiv.innerHTML = '<div class="loading">⏳ Uploading photo...</div>';
+    statusDiv.innerHTML = '<div class="loading">⏳ Preparing and uploading photo...</div>';
     const result = await uploadPhotoFile(file);
     event.target.disabled = false;
     event.target.value = '';
@@ -893,7 +1113,7 @@ async function handlePhotoUpload(event) {
         return;
     }
     window._pendingPhotoUrl = result.url;
-    statusDiv.innerHTML = '<div class="success">✅ Photo ready</div>';
+    statusDiv.innerHTML = '<div class="success">✅ Photo ready' + (result.optimised ? ' and optimised for faster loading' : '') + '</div>';
     const preview = document.querySelector('.session-photo-preview');
     if (preview) {
         preview.src = result.url;
@@ -978,8 +1198,7 @@ function showScreen(screenId, skipHistory, requestedIntentId) {
     if (screenId === 'homeScreen') {
         setTimeout(function() {
             if (!isCurrentNavigationIntent(intentId)) return;
-            checkActiveSessions();
-            displayEloLeaderboard();
+            loadHomeDashboard();
         }, 150);
     }
     return intentId;
@@ -1115,10 +1334,11 @@ async function confirmAddPlayer() {
         editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
     });
     if (data.error) {
-        messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+        messageDiv.innerHTML = actionErrorHtml(data, 'The player could not be added.', true);
         if (addBtn) setButtonLoading(addBtn, false);
     } else {
         const startingScore = data.starting_score || 0;
+        showStatusToast('Player added');
         messageDiv.innerHTML = '<div class="success">Player added successfully!' + (startingScore > 0 ? ' (Starting with ' + startingScore + ' points)' : '') + '</div>';
         currentSession.players_involved = data.players_involved;
         currentSession.player_join_info = data.player_join_info;
@@ -1142,10 +1362,15 @@ function closeAddPlayerModal() {
 // ============================================
 // SESSION MANAGEMENT
 // ============================================
-async function checkActiveSessions() {
-    await ensurePlayersLoaded();
-
-    const sessionsWithHands = await apiCall('getSessionsWithHands', {});
+async function checkActiveSessions(preloadedSessions) {
+    let sessionsWithHands = preloadedSessions;
+    if (!Array.isArray(sessionsWithHands)) {
+        const results = await Promise.all([
+            ensurePlayersLoaded(),
+            apiCall('getSessionsWithHands', {})
+        ]);
+        sessionsWithHands = results[1];
+    }
     if (sessionsWithHands.error) {
         document.getElementById('activeSessionsSection').innerHTML = '<p style="color: #c33;">Error loading sessions</p>';
         return;
@@ -1325,18 +1550,19 @@ async function resumeSession(sessionId, buttonElement, requestedIntentId) {
         ? requestedIntentId
         : beginNavigationIntent();
     if (buttonElement) setButtonLoading(buttonElement, true);
-    const sessionData = await apiCall('getSession', { session_id: sessionId });
+    const results = await Promise.all([
+        apiCall('getSession', { session_id: sessionId }),
+        ensurePlayersLoaded(),
+        apiCall('getHands', { session_id: sessionId })
+    ]);
+    const sessionData = results[0];
+    const handsData = results[2];
     if (!isCurrentNavigationIntent(intentId)) {
         if (buttonElement) setButtonLoading(buttonElement, false);
         return;
     }
     if (sessionData.error) {
         alert('Error loading session: ' + sessionData.error);
-        if (buttonElement) setButtonLoading(buttonElement, false);
-        return;
-    }
-    await ensurePlayersLoaded();
-    if (!isCurrentNavigationIntent(intentId)) {
         if (buttonElement) setButtonLoading(buttonElement, false);
         return;
     }
@@ -1355,11 +1581,6 @@ async function resumeSession(sessionId, buttonElement, requestedIntentId) {
         photo_url: sessionData.photo_url || '',
         revision: Number(sessionData.revision || 1)
     };
-    const handsData = await apiCall('getHands', { session_id: sessionId });
-    if (!isCurrentNavigationIntent(intentId)) {
-        if (buttonElement) setButtonLoading(buttonElement, false);
-        return;
-    }
     currentHandNumber = (handsData.error || handsData.length === 0) ? 1 : Math.max(...handsData.map(h => h.hand_number)) + 1;
     showActiveSession(intentId);
     updateSessionScores();
@@ -1433,7 +1654,7 @@ async function saveEditedSession(event) {
     });
     const messageDiv = document.getElementById('editSessionMessage');
     if (data.error) {
-        messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+        messageDiv.innerHTML = actionErrorHtml(data, 'The session details could not be saved.', true);
         setButtonLoading(saveBtn, false);
     } else {
         currentSession.notes = escapeHtml(notes);
@@ -1445,12 +1666,17 @@ async function saveEditedSession(event) {
                 editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
             });
             if (photoData.error) {
-                messageDiv.innerHTML = '<div class="error">Details saved, but the photo could not be updated: ' + photoData.error + '</div>';
+                messageDiv.innerHTML = actionErrorHtml(
+                    photoData,
+                    'The details were saved, but the photo could not be updated.',
+                    true
+                );
                 setButtonLoading(saveBtn, false);
                 return;
             }
             currentSession.photo_url = window._pendingPhotoUrl;
         }
+        showStatusToast('Session changes saved');
         messageDiv.innerHTML = '<div class="success">Session updated!</div>';
         displaySessionMetadata('activeSessionMetadata');
         setTimeout(function() { closeEditSessionModal(); setButtonLoading(saveBtn, false); }, 1000);
@@ -1473,7 +1699,8 @@ async function endSession(event) {
         editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
     });
     if (data.error) {
-        alert('❌ Failed to end session. Please try again.\n\n' + data.error);
+        document.getElementById('handMessage').innerHTML =
+            actionErrorHtml(data, 'The session could not be ended.', true);
         hapticFeedback('error');
         setButtonLoading(endBtn, false);
         return;
@@ -1505,13 +1732,9 @@ async function endSession(event) {
     setButtonLoading(endBtn, false);
     eloHistoryAllCache = null;
     eloHistoryAllCachedAt = 0;
+    eloCache = [];
     currentSession = null;
     showScreen('homeScreen', false, intentId);
-    checkActiveSessions();
-    setTimeout(function() {
-        eloCache = [];
-        displayEloLeaderboard();
-    }, 3000);
     setTimeout(function() {
         const popup = document.getElementById('sessionEndPopup');
         document.getElementById('sessionEndTitle').textContent = isTie ? 'Tie game!' : winner.username + ' wins!';
@@ -1616,12 +1839,13 @@ async function submitHand(event) {
         comment: comment, lockout_score: lockoutScoreValue
     });
     if (data.error) {
-        messageDiv.innerHTML = '<div class="error">❌ Failed to save hand. Please try again. (' + data.error + ')</div>';
+        messageDiv.innerHTML = actionErrorHtml(data, 'The hand could not be saved.', true);
         hapticFeedback('error');
         setButtonLoading(submitBtn, false);
     } else {
         currentHandNumber++;
         hapticFeedback('success');
+        showStatusToast('Hand saved');
         setupHandInputs();
         updateSessionScores();
         setButtonLoading(submitBtn, false);
@@ -1803,9 +2027,10 @@ async function saveEditedHand(event) {
         comment: comment, lockout_score: lockoutScoreValue
     });
     if (data.error) {
-        messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
+        messageDiv.innerHTML = actionErrorHtml(data, 'The hand could not be updated.', true);
         setButtonLoading(saveBtn, false);
     } else {
+        showStatusToast('Hand changes saved');
         messageDiv.innerHTML = '<div class="success">Hand updated!</div>';
         setTimeout(function() { closeEditModal(); updateSessionScores(); setButtonLoading(saveBtn, false); }, 1000);
     }
@@ -1826,12 +2051,14 @@ async function deleteHand(handNumber, event) {
         editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
     });
     if (data.error) {
-        alert('❌ Failed to delete hand. Please try again.\n\n' + data.error);
+        document.getElementById('handMessage').innerHTML =
+            actionErrorHtml(data, 'The hand could not be deleted.', true);
         hapticFeedback('error');
         if (event && event.target) setButtonLoading(event.target, false);
     } else {
         if (handNumber == currentHandNumber - 1) { currentHandNumber--; setupHandInputs(); }
         hapticFeedback('success');
+        showStatusToast('Hand deleted');
         updateSessionScores();
         if (event && event.target) setButtonLoading(event.target, false);
     }
@@ -2061,9 +2288,11 @@ async function loadPreviousSessions(requestedIntentId) {
             '<div class="skeleton-session-item"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div></div>' +
         '</div>';
 
-    await ensurePlayersLoaded();
-    if (!isCurrentNavigationIntent(intentId)) return false;
-    const sessionsWithHands = await apiCall('getSessionsWithHands', {});
+    const results = await Promise.all([
+        ensurePlayersLoaded(),
+        apiCall('getSessionsWithHands', {})
+    ]);
+    const sessionsWithHands = results[1];
     if (!isCurrentNavigationIntent(intentId)) return false;
     if (sessionsWithHands.error) { contentDiv.innerHTML = '<div class="error">Error loading sessions: ' + sessionsWithHands.error + '</div>'; return; }
 
@@ -2912,8 +3141,7 @@ window.addEventListener('DOMContentLoaded', function() {
     const initialScreen = getRestorableScreenFromHash();
     history.replaceState({ screen: initialScreen }, '', '#' + initialScreen);
     if (initialScreen === 'homeScreen') {
-        ensurePlayersLoaded();
-        Promise.all([checkActiveSessions(), displayEloLeaderboard()]);
+        loadHomeDashboard();
     } else {
         const intentId = showScreen(initialScreen, true);
         loadRestoredScreen(initialScreen, intentId);
