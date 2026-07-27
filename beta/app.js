@@ -29,7 +29,7 @@ let eloCache = [];
 let eloHistoryAllCache = null;
 let eloHistoryAllCachedAt = 0;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.0.0-beta.5',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.0.0-rc.1',
     photos_enabled: false
 };
 let navigationIntentId = 0;
@@ -101,11 +101,14 @@ function getProfileToken(playerId) {
 
 function setProfileToken(playerId, token) {
     if (token) sessionStorage.setItem('lockout_profile_token_' + playerId, token);
+    else sessionStorage.removeItem('lockout_profile_token_' + playerId);
 }
 
 function editingDisplayName() {
+    const savedName = localStorage.getItem('lockout_editor_name');
+    if (savedName) return savedName;
     const identity = getStoredIdentity();
-    return identity && identity.username ? identity.username : (localStorage.getItem('lockout_editor_name') || 'Friend');
+    return identity && identity.username ? identity.username : 'Friend';
 }
 
 async function unlockEditing(forcePrompt) {
@@ -146,7 +149,10 @@ function updateEditingStatus() {
     const status = document.getElementById('editingStatus');
     if (!status) return;
     if (getMemberToken()) {
-        status.innerHTML = '<span class="editing-unlocked">Editing unlocked</span> <button type="button" class="link-button" onclick="lockEditing()">Lock</button>';
+        status.innerHTML =
+            '<span class="editing-unlocked">Editing as <strong>' + escapeHtml(editingDisplayName()) + '</strong></span> ' +
+            '<button type="button" class="link-button" onclick="unlockEditing(true)">Change</button> ' +
+            '<button type="button" class="link-button" onclick="lockEditing()">Lock</button>';
     } else {
         status.innerHTML = '<button type="button" class="link-button" onclick="unlockEditing(true)">Unlock editing</button>';
     }
@@ -165,6 +171,7 @@ async function validateSavedMemberAccess() {
         setMemberToken('');
         return false;
     }
+    if (data.label) localStorage.setItem('lockout_editor_name', data.label);
     updateEditingStatus();
     return true;
 }
@@ -175,7 +182,7 @@ async function loadPublicConfig() {
         publicConfig = Object.assign({}, publicConfig, data);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Beta 5 · ' + publicConfig.version;
+    if (version) version.textContent = 'Release Candidate 1 · ' + publicConfig.version;
     return publicConfig;
 }
 
@@ -186,7 +193,7 @@ async function ensureSessionToken(sessionId) {
     if (!memberToken) return '';
     const input = await requestAccessInput({
         title: 'Unlock this session',
-        message: 'Enter the six-digit editing code shown when the session began.',
+        message: 'Enter the six-digit session access code shown when the session began. The administrator can reset it from Lockout Admin if it has been lost.',
         primaryLabel: 'Session access code',
         primaryType: 'text',
         primaryInputMode: 'numeric',
@@ -352,6 +359,10 @@ async function apiCall(action, params) {
     if (data && data.code === 'AUTH_EXPIRED' && MEMBER_ACTIONS.has(action)) setMemberToken('');
     if (data && data.code === 'SESSION_AUTH_REQUIRED' && params.session_id) {
         localStorage.removeItem('lockout_session_token_' + params.session_id);
+    }
+    if (data && (data.code === 'AUTH_EXPIRED' || data.code === 'AUTH_REQUIRED') && params.player_id &&
+        (action === 'updatePlayerProfile' || (action === 'uploadPhoto' && params.scope === 'profile'))) {
+        setProfileToken(params.player_id, '');
     }
     if (data && data.revision && currentSession && String(currentSession.session_id) === String(params.session_id)) {
         currentSession.revision = Number(data.revision);
@@ -806,7 +817,7 @@ function getPlayerJoinHand(playerId) {
 // IMAGE UPLOAD (proxied by Apps Script; the provider key never reaches the browser)
 // ============================================
 
-async function uploadToImgur(file) {
+async function uploadPhotoFile(file) {
     try {
         if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
             return { error: 'Use a JPEG, PNG, WebP, or GIF image.' };
@@ -831,6 +842,11 @@ async function uploadToImgur(file) {
     }
 }
 
+// Retained for compatibility with older cached UI handlers.
+async function uploadToImgur(file) {
+    return uploadPhotoFile(file);
+}
+
 function createPhotoUploadUI(currentPhotoUrl, onUploadComplete) {
     let html = '<div class="photo-upload-section">';
     if (currentPhotoUrl && currentPhotoUrl !== '') {
@@ -845,9 +861,10 @@ function createPhotoUploadUI(currentPhotoUrl, onUploadComplete) {
         return html;
     }
     html += '<label class="photo-upload-label">';
-    html += '<input type="file" id="photoFileInput" accept="image/*" style="display:none;" onchange="handlePhotoUpload(event)">';
+    html += '<input type="file" id="photoFileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;" onchange="handlePhotoUpload(event)">';
     html += '<span class="btn btn-info btn-small">📷 ' + (currentPhotoUrl ? 'Change Photo' : 'Add Photo') + '</span>';
     html += '</label>';
+    html += '<p class="text-muted text-sm mt-10">JPEG, PNG, WebP or GIF; maximum 2 MB. Photos are hosted by ImgBB.</p>';
     html += '<div id="photoUploadStatus"></div>';
     html += '</div>';
     return html;
@@ -857,8 +874,11 @@ async function handlePhotoUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     const statusDiv = document.getElementById('photoUploadStatus');
+    event.target.disabled = true;
     statusDiv.innerHTML = '<div class="loading">⏳ Uploading photo...</div>';
-    const result = await uploadToImgur(file);
+    const result = await uploadPhotoFile(file);
+    event.target.disabled = false;
+    event.target.value = '';
     if (result.error) {
         statusDiv.innerHTML = '<div class="error">❌ Upload failed: ' + result.error + '</div>';
         return;
@@ -875,6 +895,18 @@ async function handlePhotoUpload(event) {
             container.insertAdjacentHTML('afterbegin', previewHtml);
         }
     }
+}
+
+function selectedTagValues(name) {
+    return Array.from(document.querySelectorAll('input[name="' + name + '"]:checked'))
+        .map(function(input) { return input.value; });
+}
+
+function setSelectedTagValues(name, values) {
+    const selected = new Set((values || []).map(function(value) { return String(value).trim(); }));
+    document.querySelectorAll('input[name="' + name + '"]').forEach(function(input) {
+        input.checked = selected.has(input.value);
+    });
 }
 
 function removeSessionPhoto() {
@@ -1225,12 +1257,7 @@ async function createSession(event) {
     const selectedPlayers = [];
     for (let i = 0; i < checkboxes.length; i++) selectedPlayers.push(checkboxes[i].value);
     const notes = document.getElementById('sessionNotes').value.trim();
-    const tagsSelect = document.getElementById('sessionTags');
-    const selectedTags = [];
-    for (let i = 0; i < tagsSelect.options.length; i++) {
-        if (tagsSelect.options[i].selected) selectedTags.push(tagsSelect.options[i].value);
-    }
-    const tags = selectedTags.join(',');
+    const tags = selectedTagValues('sessionTags').join(',');
     const penalty = document.getElementById('falseLockoutPenalty').value.trim();
     const messageDiv = document.getElementById('sessionMessage');
     if (!title || !hostId || selectedPlayers.length === 0) {
@@ -1340,7 +1367,8 @@ function showActiveSession(requestedIntentId) {
     }).join(', ');
     document.getElementById('activeSessionInfo').innerHTML =
         '<p><strong>Session ID:</strong> ' + currentSession.session_id + '</p>' +
-        '<p><strong>Players:</strong> ' + playerNames + '</p>';
+        '<p><strong>Players:</strong> ' + playerNames + '</p>' +
+        '<p class="text-muted text-sm">Scoring on another trusted device? Unlock general editing there, then enter this session’s six-digit access code when prompted. If the code is lost, the administrator can reset it from Lockout Admin.</p>';
     displaySessionMetadata('activeSessionMetadata');
     setupHandInputs();
     document.getElementById('sessionScores').innerHTML = '';
@@ -1379,22 +1407,14 @@ function showEditSessionModal() {
     window._pendingPhotoUrl = currentSession.photo_url || '';
     window._photoUploadContext = { scope: 'session', session_id: currentSession.session_id };
     document.getElementById('editSessionPhotoUpload').innerHTML = createPhotoUploadUI(currentSession.photo_url || '', null);
-    const tagsSelect = document.getElementById('editSessionTags');
     const currentTags = (currentSession.tags || '').split(',').filter(t => t.trim());
-    for (let i = 0; i < tagsSelect.options.length; i++) {
-        tagsSelect.options[i].selected = currentTags.indexOf(tagsSelect.options[i].value) !== -1;
-    }
+    setSelectedTagValues('editSessionTags', currentTags);
     document.getElementById('editSessionModal').classList.add('active');
 }
 
 async function saveEditedSession(event) {
     const notes = document.getElementById('editSessionNotes').value.trim();
-    const tagsSelect = document.getElementById('editSessionTags');
-    const selectedTags = [];
-    for (let i = 0; i < tagsSelect.options.length; i++) {
-        if (tagsSelect.options[i].selected) selectedTags.push(tagsSelect.options[i].value);
-    }
-    const tags = selectedTags.join(',');
+    const tags = selectedTagValues('editSessionTags').join(',');
     const saveBtn = event.target;
     setButtonLoading(saveBtn, true);
     let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
@@ -3094,7 +3114,11 @@ async function submitPinEntry() {
         messageDiv.innerHTML = '<div class="error">Enter your six-digit PIN.</div>';
         return;
     }
-    const data = await apiCall('verifyPlayerPin', { player_id: _pinEntryPlayerId, pin: _pinEntryBuffer });
+    const data = await apiCall('verifyPlayerPin', {
+        player_id: _pinEntryPlayerId,
+        pin: _pinEntryBuffer,
+        device_id: getDeviceId()
+    });
     if (data.error) {
         messageDiv.innerHTML = '<div class="error">❌ Error verifying PIN.</div>';
         _pinEntryBuffer = '';

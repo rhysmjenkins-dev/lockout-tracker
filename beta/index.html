@@ -6,7 +6,7 @@
         // APP VERSION — increment this when deploying
         // changes to app.js or styles.css
         // ============================================
-        const APP_VERSION = '20-beta-8';
+        const APP_VERSION = '21-rc-1';
         document.write('<link rel="stylesheet" href="styles.css?v=' + APP_VERSION + '">');
     </script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -226,7 +226,7 @@
                             <ul class="list-indented">
                                 <li>Tap <strong>"➕ Add New Player"</strong> from the home screen</li>
                                 <li>Enter the player name and say whether this is your own profile</li>
-                                <li>If it is yours, choose a <strong>six-digit profile PIN</strong>, then add an optional bio and picture</li>
+                                <li>If it is yours, choose a <strong>six-digit profile PIN</strong>, then add an optional bio and, when uploads are enabled, a picture</li>
                                 <li>If you are adding someone else, leave their profile unclaimed so they can choose their own PIN later</li>
                                 <li>Repeat for all regular players</li>
                                 <li>Players only need to be added once (they're saved permanently)</li>
@@ -238,7 +238,7 @@
                                 <li>The <strong>editing password</strong> unlocks general editing on a trusted device</li>
                                 <li>Each active session has its own <strong>six-digit session access code</strong> in case another device takes over scoring.</li>
                                 <li>A player's <strong>six-digit profile PIN</strong> protects only their bio and picture</li>
-                                <li>The administrator can revoke saved member access and reset forgotten profile PINs</li>
+                                <li>The administrator can revoke saved member access and reset forgotten profile PINs; resetting a PIN immediately revokes previously saved access to that profile</li>
                             </ul>
                         </div>
                         <div class="content-card">
@@ -256,6 +256,7 @@
                                     </ul>
                                 </li>
                                 <li>Tap <strong>"Start Session"</strong></li>
+                                <li>Record the six-digit session access code shown after creation. Another trusted device needs it only when taking over scoring; the administrator can reset a lost code from <strong>Lockout Admin</strong></li>
                             </ul>
                         </div>
                     </div>
@@ -557,7 +558,7 @@
                         <h3>🔒 DATA & PRIVACY</h3>
                         <ul class="list-indented">
                             <li>Game data is stored in the administrator's <strong>Google Sheet</strong> and is visible to anyone with this public app link</li>
-                            <li>When photo uploads are enabled, optional photos are sent to <strong>ImgBB</strong> and receive externally hosted URLs; otherwise the app displays player initials</li>
+                            <li>Optional profile and session photos are sent to <strong>ImgBB</strong> and receive externally hosted URLs; if uploads are disabled or no picture is chosen, the app displays player initials</li>
                             <li>The app does not sell personal data or use advertising trackers</li>
                             <li><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryEditHistory'); return false;">Edit history</a> tracks all changes (who edited what and when)</li>
                         </ul>
@@ -884,16 +885,16 @@
                 </select>
                 <label for="sessionNotes">Session Notes (Optional)</label>
                 <textarea id="sessionNotes" placeholder="e.g. Playing at John's house, bring snacks"></textarea>
-                <label for="sessionTags">Session Type (Optional)</label>
-                <select id="sessionTags" multiple size="4" class="min-height-120">
-                    <option value="Testing">🧪 Testing</option>
-                    <option value="Casual">😎 Casual</option>
-                    <option value="Holiday">🏖️ Holiday</option>
-                    <option value="Pub">🍺 Pub</option>
-                    <option value="Late Night">🌙 Late Night</option>
-                    <option value="Tournament">🏆 Tournament</option>
-                </select>
-                <small class="display-block color-666">Hold Ctrl (Cmd on Mac) to select multiple</small>
+                <fieldset id="sessionTags" class="tag-selector">
+                    <legend>Session Type (Optional)</legend>
+                    <label class="tag-option"><input type="checkbox" name="sessionTags" value="Testing"> <span>🧪 Testing</span></label>
+                    <label class="tag-option"><input type="checkbox" name="sessionTags" value="Casual"> <span>😎 Casual</span></label>
+                    <label class="tag-option"><input type="checkbox" name="sessionTags" value="Holiday"> <span>🏖️ Holiday</span></label>
+                    <label class="tag-option"><input type="checkbox" name="sessionTags" value="Pub"> <span>🍺 Pub</span></label>
+                    <label class="tag-option"><input type="checkbox" name="sessionTags" value="Late Night"> <span>🌙 Late Night</span></label>
+                    <label class="tag-option"><input type="checkbox" name="sessionTags" value="Tournament"> <span>🏆 Tournament</span></label>
+                </fieldset>
+                <small class="display-block color-666">Select any that apply. Testing sessions remain in history but do not affect official statistics or ELO.</small>
                 <label for="falseLockoutPenalty">False Lockout Penalty</label>
                 <input type="number" id="falseLockoutPenalty" placeholder="e.g. 10" value="10" min="0">
                 <small class="display-block color-666">Points added to score when a lockout attempt fails</small>
@@ -970,16 +971,15 @@
             <textarea id="editSessionNotes" placeholder="e.g. Playing at John's house"></textarea>
             <label>Session Photo</label>
             <div id="editSessionPhotoUpload"></div>
-            <label for="editSessionTags">Session Type</label>
-            <select id="editSessionTags" multiple size="4" class="min-height-120">
-                <option value="Testing">🧪 Testing</option>
-                <option value="Casual">😎 Casual</option>
-                <option value="Holiday">🏖️ Holiday</option>
-                <option value="Pub">🍺 Pub</option>
-                <option value="Late Night">🌙 Late Night</option>
-                <option value="Tournament">🏆 Tournament</option>
-            </select>
-            <small class="display-block color-666">Hold Ctrl (Cmd on Mac) to select multiple</small>
+            <fieldset id="editSessionTags" class="tag-selector">
+                <legend>Session Type</legend>
+                <label class="tag-option"><input type="checkbox" name="editSessionTags" value="Testing"> <span>🧪 Testing</span></label>
+                <label class="tag-option"><input type="checkbox" name="editSessionTags" value="Casual"> <span>😎 Casual</span></label>
+                <label class="tag-option"><input type="checkbox" name="editSessionTags" value="Holiday"> <span>🏖️ Holiday</span></label>
+                <label class="tag-option"><input type="checkbox" name="editSessionTags" value="Pub"> <span>🍺 Pub</span></label>
+                <label class="tag-option"><input type="checkbox" name="editSessionTags" value="Late Night"> <span>🌙 Late Night</span></label>
+                <label class="tag-option"><input type="checkbox" name="editSessionTags" value="Tournament"> <span>🏆 Tournament</span></label>
+            </fieldset>
 <button class="btn btn-success" onclick="saveEditedSession(event)">Save Changes</button>
 <button class="btn btn-secondary" onclick="closeEditSessionModal()">Cancel</button>
 <div id="editSessionMessage"></div>
@@ -1153,7 +1153,7 @@
     </script>
     <div class="app-footer">
         <button type="button" class="footer-feedback-link footer-feedback-button" onclick="showFeedbackModal()">💬 Feedback or bug report</button>
-        <div id="releaseVersion" class="release-version">Beta 5</div>
+        <div id="releaseVersion" class="release-version">Release Candidate 1</div>
     </div>
 </body>
 </html>

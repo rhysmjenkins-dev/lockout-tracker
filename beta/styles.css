@@ -108,6 +108,43 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible {
     outline-offset: 3px;
 }
 label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-medium); }
+.tag-selector {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 15px 0 8px;
+    padding: 14px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+}
+.tag-selector legend {
+    padding: 0 6px;
+    font-weight: 600;
+    color: var(--text-medium);
+}
+.tag-option {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 46px;
+    margin: 0;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-light);
+    cursor: pointer;
+}
+.tag-option:has(input:checked) {
+    border-color: var(--primary);
+    background: rgba(102, 126, 234, 0.12);
+}
+.tag-option input[type="checkbox"] {
+    flex: 0 0 auto;
+    width: 22px;
+    min-height: 22px;
+    margin: 0;
+}
+.tag-option span { line-height: 1.2; }
 .hidden { display: none; }
 .screen { display: none; animation: fadeIn 0.3s ease-in-out; transition: opacity 0.15s ease-out, transform 0.15s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -180,6 +217,7 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
     padding-right: 5px;
 }
 @media (max-width: 600px) {
+    .tag-selector { grid-template-columns: 1fr; }
     .hand-history-scroll-inner {
         max-height: 300px;
     }
