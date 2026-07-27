@@ -4,6 +4,8 @@
 const API_URL = window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.apiUrl
     ? window.LOCKOUT_CONFIG.apiUrl
     : 'PASTE_BETA_APPS_SCRIPT_EXEC_URL_HERE';
+const CHART_LIBRARY_URL = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+const CONFETTI_LIBRARY_URL = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
 
 // ============================================
 // CONSTANTS
@@ -29,13 +31,15 @@ let eloCache = [];
 let eloHistoryAllCache = null;
 let eloHistoryAllCachedAt = 0;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.1',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.2',
     photos_enabled: false
 };
 let navigationIntentId = 0;
 let screenTransitionTimer = null;
 const readResponseCache = new Map();
 const readRequestInFlight = new Map();
+const externalScriptPromises = new Map();
+window.lockoutPerformance = window.lockoutPerformance || [];
 
 const READ_CACHE_TTL = {
     getHomeData: 15000,
@@ -43,12 +47,13 @@ const READ_CACHE_TTL = {
     getSessions: 30000,
     getRecentSessions: 30000,
     getSessionsWithHands: 15000,
-    getHeadToHeadMatrix: 30000,
-    getPlayerComparisonDetailed: 30000,
+    getHeadToHeadMatrix: 120000,
+    getPlayerComparisonDetailed: 120000,
     getEloRatings: 30000,
     getEloHistory: 60000,
     getEloHistoryAll: 60000,
-    getPlayerProfile: 30000,
+    getPlayerProfile: 120000,
+    getStatsSummary: 60000,
     getPublicConfig: 300000
 };
 
@@ -74,13 +79,118 @@ const READ_ACTIONS = new Set([
     'getEditHistory', 'getSessionsWithHands', 'getHeadToHeadMatrix',
     'getPlayerComparisonDetailed', 'getEloRatings', 'getEloHistory',
     'getEloHistoryAll', 'getPlayerProfile', 'checkPlayerPin', 'getPublicConfig',
-    'getHomeData'
+    'getHomeData', 'getStatsSummary'
 ]);
 const SESSION_ACTIONS = new Set([
     'updateSession', 'updateSessionPhoto', 'addPlayerToSession', 'closeSession',
     'addHand', 'updateHand', 'deleteHand'
 ]);
 const UNAUTHENTICATED_WRITE_ACTIONS = new Set(['setPlayerPin', 'verifyPlayerPin']);
+
+function loadExternalScript(url, globalName) {
+    if (globalName && window[globalName]) return Promise.resolve(window[globalName]);
+    if (externalScriptPromises.has(url)) return externalScriptPromises.get(url);
+    const promise = new Promise(function(resolve, reject) {
+        const script = document.createElement('script');
+        script.src = url;
+        script.async = true;
+        script.onload = function() { resolve(globalName ? window[globalName] : true); };
+        script.onerror = function() {
+            externalScriptPromises.delete(url);
+            reject(new Error('Could not load a visual effect.'));
+        };
+        document.head.appendChild(script);
+    });
+    externalScriptPromises.set(url, promise);
+    return promise;
+}
+
+function loadChartLibrary() {
+    return loadExternalScript(CHART_LIBRARY_URL, 'Chart');
+}
+
+function loadConfettiLibrary() {
+    return loadExternalScript(CONFETTI_LIBRARY_URL, 'confetti');
+}
+
+function recordApiTiming(action, startedAt, data) {
+    const duration = Date.now() - startedAt;
+    const entry = {
+        action: action,
+        duration_ms: duration,
+        server_ms: data && Number(data.server_ms || 0),
+        success: !(data && data.error),
+        at: new Date().toISOString()
+    };
+    window.lockoutPerformance.push(entry);
+    if (window.lockoutPerformance.length > 50) window.lockoutPerformance.shift();
+    if (duration >= 1500) console.info('API timing:', entry);
+}
+
+function installSearchableSelect(selectOrId, placeholder) {
+    const select = typeof selectOrId === 'string' ? document.getElementById(selectOrId) : selectOrId;
+    if (!select) return null;
+    const searchId = select.id + 'Search';
+    let search = document.getElementById(searchId);
+    if (!search) {
+        search = document.createElement('input');
+        search.type = 'search';
+        search.id = searchId;
+        search.className = 'player-select-search';
+        search.placeholder = placeholder || 'Search players…';
+        search.setAttribute('aria-label', placeholder || 'Search players');
+        select.parentNode.insertBefore(search, select);
+        const status = document.createElement('div');
+        status.id = searchId + 'Status';
+        status.className = 'player-search-status';
+        status.setAttribute('aria-live', 'polite');
+        select.parentNode.insertBefore(status, select.nextSibling);
+        search.addEventListener('input', function() {
+            filterPlayerSelect(select, search.value, status);
+        });
+    }
+    search.value = '';
+    filterPlayerSelect(select, '', document.getElementById(searchId + 'Status'));
+    return search;
+}
+
+function filterPlayerSelect(select, query, status) {
+    const term = String(query || '').trim().toLowerCase();
+    let visible = 0;
+    Array.from(select.options).forEach(function(option, index) {
+        const matches = index === 0 || !term || option.textContent.toLowerCase().includes(term);
+        option.hidden = !matches;
+        option.disabled = !matches;
+        if (index > 0 && matches) visible++;
+    });
+    const selected = select.options[select.selectedIndex];
+    if (selected && selected.disabled) select.value = '';
+    if (status) status.textContent = term ? visible + ' player' + (visible === 1 ? '' : 's') + ' found' : '';
+}
+
+function installPlayerListSearch(listId, placeholder) {
+    const list = document.getElementById(listId);
+    if (!list) return;
+    const searchId = listId + 'Search';
+    let search = document.getElementById(searchId);
+    if (!search) {
+        search = document.createElement('input');
+        search.type = 'search';
+        search.id = searchId;
+        search.className = 'player-select-search';
+        search.placeholder = placeholder || 'Search players…';
+        search.setAttribute('aria-label', placeholder || 'Search players');
+        list.parentNode.insertBefore(search, list);
+        search.addEventListener('input', function() {
+            const term = search.value.trim().toLowerCase();
+            list.querySelectorAll('.player-item').forEach(function(item) {
+                item.hidden = Boolean(term) && !item.textContent.toLowerCase().includes(term);
+            });
+        });
+    }
+    search.value = '';
+    list.querySelectorAll('.player-item').forEach(function(item) { item.hidden = false; });
+}
 
 function getDeviceId() {
     let id = localStorage.getItem('lockout_device_id');
@@ -123,9 +233,10 @@ async function signInToEdit(forcePrompt, preferredPlayerId, callback) {
             const selected = String(player.player_id) === String(preferredPlayerId || '') ? ' selected' : '';
             return '<option value="' + player.player_id + '"' + selected + '>' + escapeHtml(player.username) + '</option>';
         }).join('');
+        const search = installSearchableSelect(select, 'Search players…');
         document.getElementById('signInMessage').innerHTML = '';
         document.getElementById('signInModal').classList.add('active');
-        setTimeout(function() { select.focus(); }, 0);
+        setTimeout(function() { (search || select).focus(); }, 0);
     });
 }
 
@@ -157,7 +268,7 @@ async function continuePlayerSignIn() {
     if (check.error) {
         if (resolver) resolver('');
         _pendingSignInResolver = null;
-        alert(check.error);
+        alert(apiErrorMessage(check, 'Could not check this player’s PIN status.'));
         return;
     }
     if (check.has_pin) openPinEntryModal(playerId, finishSignIn);
@@ -206,7 +317,7 @@ async function loadPublicConfig() {
         publicConfig = Object.assign({}, publicConfig, data);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Beta 1 · v' + publicConfig.version;
+    if (version) version.textContent = 'Beta 2 · v' + publicConfig.version;
     return publicConfig;
 }
 
@@ -341,6 +452,15 @@ function actionErrorHtml(data, fallback, allowSessionRefresh) {
     return html;
 }
 
+function loadErrorHtml(data, fallback, retryExpression) {
+    let html = '<div class="error" role="alert">' + escapeHtml(apiErrorMessage(data, fallback));
+    if (retryExpression) {
+        html += '<div class="error-actions"><button type="button" class="btn btn-small btn-info" onclick="' +
+            escapeAttr(retryExpression) + '">Retry</button></div>';
+    }
+    return html + '</div>';
+}
+
 async function refreshActiveSessionAfterConflict(buttonElement) {
     if (!currentSession) return;
     const sessionId = currentSession.session_id;
@@ -351,6 +471,7 @@ async function rawApiRequest(action, params, isRead) {
     if (!API_URL || API_URL.includes('PASTE_BETA_')) {
         return { error: 'The beta backend has not been connected yet.', code: 'BETA_NOT_CONFIGURED' };
     }
+    const startedAt = Date.now();
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timeoutId = controller ? setTimeout(function() { controller.abort(); }, 30000) : null;
     try {
@@ -375,22 +496,29 @@ async function rawApiRequest(action, params, isRead) {
             });
         }
         if (!response.ok) {
-            return {
+            const failed = {
                 error: 'Network error: ' + response.status + ' ' + response.statusText,
                 code: 'NETWORK_ERROR'
             };
+            recordApiTiming(action, startedAt, failed);
+            return failed;
         }
         const data = await response.json();
         if (data && data.error) {
             console.warn('API [' + action + '] returned error:', data.error);
         }
+        recordApiTiming(action, startedAt, data);
         return data;
     } catch (error) {
         console.error('API [' + action + '] failed:', error.message);
         if (error && error.name === 'AbortError') {
-            return { error: 'The request timed out.', code: 'NETWORK_TIMEOUT' };
+            const timedOut = { error: 'The request timed out.', code: 'NETWORK_TIMEOUT' };
+            recordApiTiming(action, startedAt, timedOut);
+            return timedOut;
         }
-        return { error: error.message || 'Network request failed.', code: 'NETWORK_ERROR' };
+        const failed = { error: error.message || 'Network request failed.', code: 'NETWORK_ERROR' };
+        recordApiTiming(action, startedAt, failed);
+        return failed;
     } finally {
         if (timeoutId) clearTimeout(timeoutId);
     }
@@ -636,6 +764,15 @@ async function showEloStats(requestedIntentId) {
 }
 
 function drawEloHistoryChart(sessionsData, allHistoryData) {
+    if (!window.Chart) {
+        loadChartLibrary()
+            .then(function() { drawEloHistoryChart(sessionsData, allHistoryData); })
+            .catch(function() {
+                const container = document.getElementById('eloChartContainer');
+                if (container) container.innerHTML = '<p class="text-muted text-sm p-15">Chart unavailable. The rating table is unaffected.</p>';
+            });
+        return;
+    }
     const container = document.getElementById('eloChartContainer');
     const ctx = document.getElementById('eloHistoryChart');
     if (!ctx) return;
@@ -785,6 +922,10 @@ function closeSessionEndPopup() {
 }
 
 function celebrateWinner(winnerName) {
+    if (!window.confetti) {
+        loadConfettiLibrary().then(function() { celebrateWinner(winnerName); }).catch(function() {});
+        return;
+    }
     const canvas = document.createElement('canvas');
     canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;pointer-events:none;';
     document.body.appendChild(canvas);
@@ -1183,6 +1324,7 @@ async function loadPlayersForSession() {
     for (let i = 0; i < allPlayers.length; i++) {
         hostSelect.innerHTML += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
     }
+    installSearchableSelect(hostSelect, 'Search hosts…');
     const playerList = document.getElementById('playerSelectionList');
     let html = '<ul class="player-list">';
     for (let i = 0; i < allPlayers.length; i++) {
@@ -1190,6 +1332,7 @@ async function loadPlayersForSession() {
     }
     html += '</ul>';
     playerList.innerHTML = html;
+    installPlayerListSearch('playerSelectionList', 'Search players to add…');
     window._pendingPhotoUrl = '';
     window._photoUploadContext = { scope: 'new_session' };
     document.getElementById('createSessionPhotoUpload').innerHTML = createPhotoUploadUI('', null);
@@ -1249,6 +1392,7 @@ async function showAddPlayerModal() {
     }
     html += '</ul>';
     playerList.innerHTML = html;
+    installPlayerListSearch('addPlayerList', 'Search available players…');
     selectedPlayerToAdd = null;
     document.getElementById('confirmAddPlayerBtn').disabled = true;
     document.getElementById('addPlayerConfirm').style.display = 'none';
@@ -2177,6 +2321,10 @@ if (handsData.length === 0) {
 // ACTIVE SESSION CHARTS
 // ============================================
 function drawActiveWormChart(playerHands, playerIds) {
+    if (!window.Chart) {
+        loadChartLibrary().then(function() { drawActiveWormChart(playerHands, playerIds); }).catch(function() {});
+        return;
+    }
     const ctx = document.getElementById('activeWormChart');
     if (!ctx) return;
     const datasets = [], colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
@@ -2197,6 +2345,10 @@ function drawActiveWormChart(playerHands, playerIds) {
 }
 
 function drawActiveManhattanChart(playerHands, playerIds) {
+    if (!window.Chart) {
+        loadChartLibrary().then(function() { drawActiveManhattanChart(playerHands, playerIds); }).catch(function() {});
+        return;
+    }
     const ctx = document.getElementById('activeManhattanChart');
     if (!ctx) return;
     const colors = CHART_COLORS;
@@ -2528,6 +2680,12 @@ document.getElementById('sessionDetailHandHistory').innerHTML = handHistoryHtml;
 // COMPLETED SESSION CHARTS
 // ============================================
 function drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session) {
+    if (!window.Chart) {
+        loadChartLibrary().then(function() {
+            drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
+        }).catch(function() {});
+        return;
+    }
     const ctx = document.getElementById('wormChart');
     if (!ctx) return;
     const datasets = [], colors = ['#667eea', '#f5576c', '#4facfe', '#00f2fe', '#fa709a'];
@@ -2552,6 +2710,12 @@ function drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playe
 }
 
 function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session) {
+    if (!window.Chart) {
+        loadChartLibrary().then(function() {
+            drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
+        }).catch(function() {});
+        return;
+    }
     const ctx = document.getElementById('manhattanChart');
     if (!ctx) return;
     const colors = CHART_COLORS;
@@ -2594,22 +2758,14 @@ async function loadStats(requestedIntentId) {
 
     await ensurePlayersLoaded();
     if (!isCurrentNavigationIntent(intentId)) return false;
-    const sessionsWithHands = await apiCall('getSessionsWithHands', {});
+    const summary = await apiCall('getStatsSummary', {});
     if (!isCurrentNavigationIntent(intentId)) return false;
-    if (sessionsWithHands.error) { contentDiv.innerHTML = '<div class="error">Error loading stats</div>'; return; }
-
-    const completedSessionsData = [], allSessionsData = [];
-    for (let i = 0; i < sessionsWithHands.length; i++) {
-        const item = sessionsWithHands[i];
-        const isCompleted = (item.session.date_ended && item.session.date_ended !== '');
-        if (hasSessionTag(item.session, 'testing')) continue;
-        const sessionData = { session_id: item.session.session_id, title: item.session.title, hands: item.hands, is_completed: isCompleted, player_join_info: item.session.player_join_info || '{}' };
-        allSessionsData.push(sessionData);
-        if (isCompleted) completedSessionsData.push(sessionData);
+    if (summary.error) {
+        contentDiv.innerHTML = loadErrorHtml(summary, 'Statistics could not be loaded.', 'showOverallStats()');
+        return false;
     }
-    const stats = calculateOverallStats(completedSessionsData, allSessionsData, allPlayers);
     if (!isCurrentNavigationIntent(intentId)) return false;
-    displayOverallStats(stats, completedSessionsData.length);
+    displayOverallStats(summary.stats || {}, Number(summary.total_sessions || 0));
     return true;
 }
 
@@ -2804,7 +2960,10 @@ async function showHeadToHeadList(requestedIntentId) {
     if (!isCurrentNavigationIntent(intentId)) return;
     const data = await apiCall('getHeadToHeadMatrix', {});
     if (!isCurrentNavigationIntent(intentId)) return;
-    if (data.error) { contentDiv.innerHTML = '<div class="error">Error loading data: ' + data.error + '</div>'; return; }
+    if (data.error) {
+        contentDiv.innerHTML = loadErrorHtml(data, 'Head-to-head records could not be loaded.', 'showHeadToHeadList()');
+        return;
+    }
     if (data.length === 0) { contentDiv.innerHTML = '<div class="placeholder-content"><h3>Not Enough Data</h3><p>Play more sessions to see head-to-head records!</p></div>'; return; }
 
     data.sort(function(a, b) { return b.sessions_together - a.sessions_together; });
@@ -2849,14 +3008,7 @@ async function showHeadToHeadList(requestedIntentId) {
 async function quickCompare(p1Id, p2Id) {
     const intentId = beginNavigationIntent();
     showScreen('statsScreen', false, intentId);
-    await showPlayerComparisonUI(intentId);
-    if (!isCurrentNavigationIntent(intentId)) return;
-    const player1 = document.getElementById('comparisonPlayer1');
-    const player2 = document.getElementById('comparisonPlayer2');
-    if (!player1 || !player2) return;
-    player1.value = p1Id;
-    player2.value = p2Id;
-    showPlayerComparison(intentId);
+    await showPlayerComparison(intentId, p1Id, p2Id);
 }
 
 // ============================================
@@ -2882,6 +3034,8 @@ async function showPlayerComparisonUI(requestedIntentId) {
     html += '</div>';
     html += '<button class="btn btn-success" id="comparePlayersBtn" style="width: 100%;">Compare Players</button>';
     contentDiv.innerHTML = html;
+    installSearchableSelect('comparisonPlayer1', 'Search player one…');
+    installSearchableSelect('comparisonPlayer2', 'Search player two…');
     setTimeout(function() {
         if (!isCurrentNavigationIntent(intentId)) return;
         const btn = document.getElementById('comparePlayersBtn');
@@ -2890,23 +3044,29 @@ async function showPlayerComparisonUI(requestedIntentId) {
     return true;
 }
 
-async function showPlayerComparison(requestedIntentId) {
+async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, requestedPlayer2Id) {
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
         : beginNavigationIntent();
     await ensurePlayersLoaded();
     if (!isCurrentNavigationIntent(intentId)) return;
     const contentDiv = document.getElementById('statsContent');
-    const p1Select = document.getElementById('comparisonPlayer1');
-    const p2Select = document.getElementById('comparisonPlayer2');
-    if (!p1Select || !p2Select) { contentDiv.innerHTML = '<div class="error">Error: Please select players from the dropdowns above.</div>'; return; }
-    const p1Id = p1Select.value, p2Id = p2Select.value;
+    const directComparison = requestedPlayer1Id !== undefined && requestedPlayer2Id !== undefined;
+    const p1Select = directComparison ? null : document.getElementById('comparisonPlayer1');
+    const p2Select = directComparison ? null : document.getElementById('comparisonPlayer2');
+    if (!directComparison && (!p1Select || !p2Select)) {
+        contentDiv.innerHTML = loadErrorHtml(null, 'Please select players from the comparison screen.', 'showPlayerComparisonUI()');
+        return;
+    }
+    const p1Id = directComparison ? String(requestedPlayer1Id) : p1Select.value;
+    const p2Id = directComparison ? String(requestedPlayer2Id) : p2Select.value;
     if (!p1Id || !p2Id) { contentDiv.innerHTML = '<div class="error">Please select two players</div>'; return; }
     if (p1Id === p2Id) { contentDiv.innerHTML = '<div class="error">Please select two different players</div>'; return; }
 
+    const loadingComparisonLabel = getPlayerName(p1Id) + ' vs ' + getPlayerName(p2Id);
     contentDiv.innerHTML =
         '<div class="skeleton-card">' +
-            '<h3 class="section-heading-blue mb-20">Loading player comparison...</h3>' +
+            '<h3 class="section-heading-blue mb-20">Loading ' + escapeHtml(loadingComparisonLabel) + '…</h3>' +
             '<div class="overflow-x-auto">' +
                 '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
                 '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
@@ -2919,7 +3079,14 @@ async function showPlayerComparison(requestedIntentId) {
     showScreen('statsScreen', false, intentId);
     const data = await apiCall('getPlayerComparisonDetailed', { player1_id: p1Id, player2_id: p2Id });
     if (!isCurrentNavigationIntent(intentId)) return;
-    if (data.error) { contentDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>'; return; }
+    if (data.error) {
+        contentDiv.innerHTML = loadErrorHtml(
+            data,
+            'The comparison could not be loaded.',
+            'quickCompare(' + Number(p1Id) + ',' + Number(p2Id) + ')'
+        );
+        return;
+    }
 
     const p1Name = getPlayerName(p1Id), p2Name = getPlayerName(p2Id);
     let html = '';
@@ -3154,6 +3321,10 @@ document.addEventListener('keypress', function(e) {
 });
 
 function triggerEasterEgg() {
+    if (!window.confetti) {
+        loadConfettiLibrary().then(triggerEasterEgg).catch(function() {});
+        return;
+    }
     const duration = 3000, end = Date.now() + duration;
     (function frame() {
         confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#667eea', '#764ba2', '#f5576c'] });
@@ -3278,7 +3449,8 @@ async function confirmPinSetup() {
     messageDiv.innerHTML = '<div class="pin-progress"><span class="loading-spinner" aria-hidden="true"></span><span>Saving your PIN…</span></div>';
     const data = await apiCall('setPlayerPin', { player_id: _pinSetupPlayerId, pin: _pinSetupBuffer });
     if (data.error) {
-        messageDiv.innerHTML = '<div class="error">❌ Could not save PIN. Please try again.</div>';
+        messageDiv.innerHTML = '<div class="error">❌ ' +
+            escapeHtml(apiErrorMessage(data, 'Could not save PIN. Please try again.')) + '</div>';
         _pinSetupBuffer = '';
         updatePinDots('pinSetup', 0);
         _pinSetupSubmitting = false;
@@ -3369,7 +3541,8 @@ async function submitPinEntry() {
         device_id: getDeviceId()
     });
     if (data.error) {
-        messageDiv.innerHTML = '<div class="error">❌ Error verifying PIN.</div>';
+        messageDiv.innerHTML = '<div class="error">❌ ' +
+            escapeHtml(apiErrorMessage(data, 'Error verifying PIN.')) + '</div>';
         _pinEntryBuffer = '';
         updatePinDots('pinEntry', 0);
         _pinEntrySubmitting = false;
@@ -3479,7 +3652,11 @@ async function showPlayerProfile(playerId, requestedIntentId) {
     const data = await apiCall('getPlayerProfile', { player_id: playerId });
     if (!isCurrentNavigationIntent(intentId)) return;
     if (data.error) {
-        contentDiv.innerHTML = '<div class="error">Error loading profile: ' + data.error + '</div>';
+        contentDiv.innerHTML = loadErrorHtml(
+            data,
+            'This player profile could not be loaded.',
+            'showPlayerProfile(' + Number(playerId) + ')'
+        );
         return;
     }
     _currentProfileData = data;
@@ -3520,9 +3697,7 @@ function renderPlayerProfile(data) {
     html += '<div><span class="elo-badge">⚡ ' + eloText + '</span>';
     html += ' <span style="color:' + eloChangeColor + '; font-size:0.8em;">(' + eloChangeStr + ')</span></div>';
     html += '<div class="profile-joined">Member since ' + formatUKDate(p.date_joined) + '</div>';
-    if (isOwnProfile) {
-        html += '<button class="profile-edit-btn" onclick="handleEditProfileClick()">✏️ Edit Profile</button>';
-    } else {
+    if (isOwnProfile && getPlayerToken()) {
         html += '<button class="profile-edit-btn" onclick="handleEditProfileClick()">✏️ Edit Profile</button>';
     }
     html += '</div></div>';
@@ -3560,11 +3735,13 @@ function renderPlayerProfile(data) {
             const winPct = total > 0 ? Math.round((h.wins / total) * 100) : 0;
             const lossPct = total > 0 ? Math.round((h.losses / total) * 100) : 0;
             const tiePct = 100 - winPct - lossPct;
-            html += '<div class="h2h-summary-row" onclick="quickCompare(' + _currentProfileId + ', ' + h.opponent_id + ')">';
+            html += '<button type="button" class="h2h-summary-row" aria-label="Compare ' +
+                escapeAttr(p.username) + ' with ' + escapeAttr(getPlayerName(h.opponent_id)) +
+                '" onclick="quickCompare(' + _currentProfileId + ', ' + h.opponent_id + ')">';
             html += '<div>';
             html += '<div class="h2h-summary-name">' + getPlayerName(h.opponent_id) + '</div>';
             html += '<div class="h2h-summary-record">' + h.wins + 'W – ' + h.ties + 'D – ' + h.losses + 'L • ' + total + ' sessions</div>';
-            html += '</div>';
+            html += '</button>';
             html += '<div class="h2h-summary-bar">';
             html += '<div style="width:' + winPct + '%;background:#667eea;"></div>';
             html += '<div style="width:' + tiePct + '%;background:#aaa;"></div>';
@@ -3764,6 +3941,10 @@ function showAchievementInfo(key) {
 }
 
 function drawProfileEloChart(history) {
+    if (!window.Chart) {
+        loadChartLibrary().then(function() { drawProfileEloChart(history); }).catch(function() {});
+        return;
+    }
     const ctx = document.getElementById('profileEloCanvas');
     if (!ctx) return;
     const labels = history.map(function(e, i) { return 'S' + (i + 1); });
@@ -3804,6 +3985,10 @@ async function handleEditProfileClick() {
     const alreadyVerified = identity &&
         String(identity.player_id) === String(playerId) &&
         Boolean(getPlayerToken());
+    if (!alreadyVerified) {
+        alert('Sign in as ' + _currentProfileData.player.username + ' to edit this profile.');
+        return;
+    }
 
     // Show loading state on the button
     const editBtn = document.querySelector('.profile-edit-btn');
@@ -3822,22 +4007,23 @@ async function handleEditProfileClick() {
     }
     if (!check.has_pin) {
         restoreBtn();
-        openPinSetupModal(playerId, function() { openEditProfileModal(playerId); }, false);
-        return;
-    }
-    if (alreadyVerified) {
-        restoreBtn();
-        openEditProfileModal(playerId);
+        signOutPlayer();
+        alert('Your PIN needs to be set again. Sign in from the header to continue.');
         return;
     }
     restoreBtn();
-    openPinEntryModal(playerId, function() {
-        openEditProfileModal(playerId);
-    });
+    openEditProfileModal(playerId);
 }
 
 function openEditProfileModal(playerId) {
     if (!_currentProfileData) return;
+    const identity = getStoredIdentity();
+    if (!identity || !getPlayerToken() ||
+        String(identity.player_id) !== String(playerId) ||
+        String(_currentProfileData.player.player_id) !== String(playerId)) {
+        alert('Sign in as this player to edit the profile.');
+        return;
+    }
     document.getElementById('profileBioInput').value = decodeHtml(_currentProfileData.player.bio || '');
     window._pendingPhotoUrl = _currentProfileData.player.avatar_url || '';
     window._photoUploadContext = { scope: 'profile', player_id: playerId };

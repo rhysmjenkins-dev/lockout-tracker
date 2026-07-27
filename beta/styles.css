@@ -182,8 +182,15 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
 .lockout-warning strong { color: #d39e00; }
 .game-summary { background: var(--bg-light); padding: 15px; border-radius: 8px; margin: 15px 0; }
 .game-summary h3 { margin-bottom: 10px; color: var(--primary); }
-.scores-table { width: 100%; border-collapse: collapse; margin-top: 15px; overflow-x: auto; display: block; }
-.scores-table th, .scores-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.scores-table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    margin: 15px auto 0;
+    display: table;
+}
+.scores-table th, .scores-table td { padding: 12px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.scores-table th:first-child, .scores-table td:first-child { text-align: left; }
 .scores-table th { background: var(--primary); color: var(--white); font-weight: 600; position: sticky; top: 0; z-index: 10; }
 .scores-table tr:hover { background: var(--bg-light); }
 .session-list { list-style: none; padding: 0; }
@@ -500,7 +507,33 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
 .skeleton-h-40 { height: 40px; }
 
 /* === BATCH 2 ADDITIONS === */
-.overflow-x-auto { overflow-x: auto; }
+.overflow-x-auto {
+    width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-gutter: stable both-edges;
+}
+.player-select-search {
+    width: 100%;
+    margin: 0 0 8px;
+    padding: 11px 12px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    background: var(--white);
+    color: var(--text-dark);
+    font-size: 1em;
+}
+.player-select-search:focus {
+    outline: 3px solid rgba(102,126,234,0.2);
+    border-color: var(--primary);
+}
+.player-search-status {
+    min-height: 18px;
+    margin: -3px 0 6px;
+    color: var(--text-muted);
+    font-size: 0.78em;
+    text-align: left;
+}
 .stats-summary-box { background: linear-gradient(135deg, var(--success-light) 0%, #c8e6c9 100%); padding: 20px; border-radius: 10px; margin-top: 20px; border-left: 4px solid var(--success); }
 .heading-dark-green { color: var(--success-dark); margin-bottom: 15px; }
 .stats-summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
@@ -881,16 +914,21 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
 /* H2H summary */
 .h2h-summary-row {
     display: flex;
+    width: 100%;
     align-items: center;
     justify-content: space-between;
     padding: 10px 12px;
     background: var(--bg-light);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    border: 1px solid transparent;
     border-radius: 8px;
     margin-bottom: 8px;
     cursor: pointer;
     transition: background 0.2s;
 }
-.h2h-summary-row:hover { background: #e8e9ff; }
+.h2h-summary-row:hover, .h2h-summary-row:focus-visible { background: #e8e9ff; border-color: var(--primary); }
 .h2h-summary-name { font-weight: 600; color: var(--primary); font-size: 0.95em; }
 .h2h-summary-record { font-size: 0.85em; color: var(--text-muted); }
 .h2h-summary-bar {
