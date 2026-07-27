@@ -29,7 +29,7 @@ let eloCache = [];
 let eloHistoryAllCache = null;
 let eloHistoryAllCachedAt = 0;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.0.0-rc.1',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.0.0-rc.2',
     photos_enabled: false
 };
 let navigationIntentId = 0;
@@ -182,7 +182,7 @@ async function loadPublicConfig() {
         publicConfig = Object.assign({}, publicConfig, data);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Release Candidate 1 · ' + publicConfig.version;
+    if (version) version.textContent = 'Release Candidate 2 · ' + publicConfig.version;
     return publicConfig;
 }
 
@@ -822,7 +822,7 @@ async function uploadPhotoFile(file) {
         if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
             return { error: 'Use a JPEG, PNG, WebP, or GIF image.' };
         }
-        if (file.size > 2 * 1024 * 1024) return { error: 'Image must be smaller than 2 MB.' };
+        if (file.size > 5 * 1024 * 1024) return { error: 'Image must be 5 MB or smaller.' };
         const dataUrl = await new Promise(function(resolve, reject) {
             const reader = new FileReader();
             reader.onload = function() { resolve(reader.result); };
@@ -864,7 +864,7 @@ function createPhotoUploadUI(currentPhotoUrl, onUploadComplete) {
     html += '<input type="file" id="photoFileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;" onchange="handlePhotoUpload(event)">';
     html += '<span class="btn btn-info btn-small">📷 ' + (currentPhotoUrl ? 'Change Photo' : 'Add Photo') + '</span>';
     html += '</label>';
-    html += '<p class="text-muted text-sm mt-10">JPEG, PNG, WebP or GIF; maximum 2 MB. Photos are hosted by ImgBB.</p>';
+    html += '<p class="text-muted text-sm mt-10">JPEG, PNG, WebP or GIF; maximum 5 MB. Photos are hosted by ImgBB.</p>';
     html += '<div id="photoUploadStatus"></div>';
     html += '</div>';
     return html;
