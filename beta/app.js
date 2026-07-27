@@ -29,7 +29,7 @@ let eloCache = [];
 let eloHistoryAllCache = null;
 let eloHistoryAllCachedAt = 0;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.0.0-rc.4',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.0.0-rc.5',
     photos_enabled: false
 };
 let navigationIntentId = 0;
@@ -200,7 +200,7 @@ async function loadPublicConfig() {
         publicConfig = Object.assign({}, publicConfig, data);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Release Candidate 4 · ' + publicConfig.version;
+    if (version) version.textContent = 'Release Candidate 5 · ' + publicConfig.version;
     return publicConfig;
 }
 
@@ -1592,13 +1592,13 @@ function showActiveSession(requestedIntentId) {
     let playerNames = sessionPlayers.map(p => {
         const joinHand = getPlayerJoinHand(p.player_id);
         const eloBadge = formatEloBadge(p.player_id);
-        if (joinHand > 1) return p.username + ' <span class="late-join-badge">Joined H' + joinHand + '</span> ' + eloBadge;
-        return p.username + ' ' + eloBadge;
+        const playerLink = makePlayerLink(p.player_id, p.username);
+        if (joinHand > 1) return playerLink + ' <span class="late-join-badge">Joined H' + joinHand + '</span> ' + eloBadge;
+        return playerLink + ' ' + eloBadge;
     }).join(', ');
     document.getElementById('activeSessionInfo').innerHTML =
         '<p><strong>Session ID:</strong> ' + currentSession.session_id + '</p>' +
-        '<p><strong>Players:</strong> ' + playerNames + '</p>' +
-        '<p class="text-muted text-sm">Scoring on another trusted device? Unlock general editing there, then enter this session’s six-digit access code when prompted. If the code is lost, the administrator can reset it from Lockout Admin.</p>';
+        '<p><strong>Players:</strong> ' + playerNames + '</p>';
     displaySessionMetadata('activeSessionMetadata');
     setupHandInputs();
     document.getElementById('sessionScores').innerHTML = '';

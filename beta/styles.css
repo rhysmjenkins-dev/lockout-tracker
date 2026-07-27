@@ -210,12 +210,16 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
     bottom: 24px;
     z-index: 12000;
     transform: translate(-50%, 20px);
-    background: #1b5e20;
+    background: var(--gradient-primary);
     color: var(--white);
     padding: 10px 16px;
     border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.35);
     box-shadow: 0 4px 16px rgba(0,0,0,0.22);
     font-weight: 600;
+    text-align: center;
+    width: max-content;
+    max-width: calc(100vw - 40px);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease, transform 0.2s ease;
