@@ -3171,3 +3171,4 @@ function clearCaches() {
   try { SpreadsheetApp.getUi().alert('App caches cleared.'); } catch (err) {}
   return { success: true };
 }
+
