@@ -26,6 +26,12 @@ let selectedPlayerToAdd = null;
 let playersLoaded = false;
 let playerCache = {};
 let eloCache = [];
+let eloHistoryAllCache = null;
+let eloHistoryAllCachedAt = 0;
+let publicConfig = {
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.0.0-beta.5',
+    photos_enabled: false
+};
 let navigationIntentId = 0;
 let screenTransitionTimer = null;
 
@@ -144,6 +150,33 @@ function updateEditingStatus() {
     } else {
         status.innerHTML = '<button type="button" class="link-button" onclick="unlockEditing(true)">Unlock editing</button>';
     }
+}
+
+async function validateSavedMemberAccess() {
+    const token = getMemberToken();
+    if (!token) {
+        updateEditingStatus();
+        return false;
+    }
+    const status = document.getElementById('editingStatus');
+    if (status) status.textContent = 'Checking editing access...';
+    const data = await rawApiRequest('validateMember', { member_token: token }, false);
+    if (data.error) {
+        setMemberToken('');
+        return false;
+    }
+    updateEditingStatus();
+    return true;
+}
+
+async function loadPublicConfig() {
+    const data = await apiCall('getPublicConfig', {});
+    if (!data.error) {
+        publicConfig = Object.assign({}, publicConfig, data);
+    }
+    const version = document.getElementById('releaseVersion');
+    if (version) version.textContent = 'Beta 5 · ' + publicConfig.version;
+    return publicConfig;
 }
 
 async function ensureSessionToken(sessionId) {
@@ -352,6 +385,19 @@ async function loadEloRatings() {
     return eloCache;
 }
 
+async function getCachedEloHistoryAll(forceRefresh) {
+    const now = Date.now();
+    if (!forceRefresh && eloHistoryAllCache && now - eloHistoryAllCachedAt < 60000) {
+        return eloHistoryAllCache;
+    }
+    const data = await apiCall('getEloHistoryAll', {});
+    if (!data.error) {
+        eloHistoryAllCache = data;
+        eloHistoryAllCachedAt = now;
+    }
+    return data;
+}
+
 function getPlayerElo(playerId) {
     for (let i = 0; i < eloCache.length; i++) {
         if (String(eloCache[i].player_id) === String(playerId)) {
@@ -440,7 +486,7 @@ async function showEloStats(requestedIntentId) {
     const [ratingsData, sessionsData, allHistoryData] = await Promise.all([
         apiCall('getEloRatings', {}),
         apiCall('getSessionsWithHands', {}),
-        apiCall('getEloHistoryAll', {})
+        getCachedEloHistoryAll(false)
     ]);
     if (!isCurrentNavigationIntent(intentId)) return;
 
@@ -793,6 +839,11 @@ function createPhotoUploadUI(currentPhotoUrl, onUploadComplete) {
         html += '<button class="btn btn-danger btn-small mt-10" onclick="removeSessionPhoto()">🗑️ Remove Photo</button>';
         html += '</div>';
     }
+    if (!publicConfig.photos_enabled) {
+        html += '<p class="text-muted text-sm">Photo uploads are not enabled yet. Your initial will be used instead.</p>';
+        html += '</div>';
+        return html;
+    }
     html += '<label class="photo-upload-label">';
     html += '<input type="file" id="photoFileInput" accept="image/*" style="display:none;" onchange="handlePhotoUpload(event)">';
     html += '<span class="btn btn-info btn-small">📷 ' + (currentPhotoUrl ? 'Change Photo' : 'Add Photo') + '</span>';
@@ -943,6 +994,11 @@ async function addPlayer(event) {
     const username = document.getElementById('newPlayerName').value.trim();
     const messageDiv = document.getElementById('addPlayerMessage');
     if (!username) { messageDiv.innerHTML = '<div class="error">Please enter a player name</div>'; return; }
+    const ownership = document.querySelector('input[name="newPlayerOwnership"]:checked');
+    if (!ownership) {
+        messageDiv.innerHTML = '<div class="error">Please say whether this is your profile.</div>';
+        return;
+    }
     const intentId = beginNavigationIntent();
     const addBtn = event.target;
     setButtonLoading(addBtn, true);
@@ -954,10 +1010,21 @@ async function addPlayer(event) {
         messageDiv.innerHTML = '<div class="success">Player added!</div>';
         document.getElementById('newPlayerName').value = '';
         playersLoaded = false;
+        await ensurePlayersLoaded();
+        if (ownership.value === 'self') {
+            await showPlayerProfile(data.player_id, intentId);
+            setButtonLoading(addBtn, false);
+            if (_currentProfileData && String(_currentProfileData.player.player_id) === String(data.player_id)) {
+                openPinSetupModal(data.player_id);
+            } else {
+                alert('Player created, but profile setup could not open. Select the player from the Players screen to finish setup.');
+            }
+            return;
+        }
         setTimeout(function() {
             showScreen('homeScreen', false, intentId);
             setButtonLoading(addBtn, false);
-        }, 1500);
+        }, 1000);
     }
 }
 
@@ -1407,6 +1474,8 @@ async function endSession(event) {
     const isTie = scores.length > 1 && scores[1].total === winner.total;
     hapticFeedback('success');
     setButtonLoading(endBtn, false);
+    eloHistoryAllCache = null;
+    eloHistoryAllCachedAt = 0;
     currentSession = null;
     showScreen('homeScreen', false, intentId);
     checkActiveSessions();
@@ -1537,7 +1606,12 @@ async function displayHandHistory(handsData) {
     if (!handsData) {
         handsData = await apiCall('getHands', { session_id: currentSession.session_id });
     }
-    if (handsData.error || handsData.length === 0) {
+    if (handsData.error) {
+        document.getElementById('activeHandHistoryBottom').innerHTML =
+            '<div class="error">Hand history could not be loaded. Check your connection and try refreshing.</div>';
+        return;
+    }
+    if (handsData.length === 0) {
         document.getElementById('activeHandHistoryBottom').innerHTML = '';
         return;
     }
@@ -1974,7 +2048,7 @@ async function loadPreviousSessions(requestedIntentId) {
 
     if (completedSessions.length === 0) { contentDiv.innerHTML = '<div class="placeholder-content"><h3>No Completed Sessions</h3><p>Complete a session to see it here!</p></div>'; return; }
 
-    const eloHistoryAll = await apiCall('getEloHistoryAll', {});
+    const eloHistoryAll = await getCachedEloHistoryAll(false);
     if (!isCurrentNavigationIntent(intentId)) return false;
     const eloHistoryMap = {};
     if (!eloHistoryAll.error) {
@@ -2142,7 +2216,7 @@ async function viewSessionDetail(sessionIndex, buttonElement, requestedIntentId)
 const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return playerTotals[a] - playerTotals[b]; });
 
     const sessionElo = {};
-    const eloHistoryAll = await apiCall('getEloHistoryAll', {});
+    const eloHistoryAll = await getCachedEloHistoryAll(false);
     if (!isCurrentNavigationIntent(intentId)) {
         if (buttonElement) setButtonLoading(buttonElement, false);
         return;
@@ -2775,6 +2849,8 @@ window.addEventListener('DOMContentLoaded', function() {
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     window.scrollTo(0, 0);
     updateEditingStatus();
+    loadPublicConfig();
+    validateSavedMemberAccess();
 
     // Show both skeletons immediately and simultaneously
     document.getElementById('activeSessionsSection').innerHTML =
@@ -2966,8 +3042,9 @@ async function confirmPinSetup() {
         if (data.profile_token) setProfileToken(_pinSetupPlayerId, data.profile_token);
         hapticFeedback('success');
         setTimeout(function() {
+            const playerId = _pinSetupPlayerId;
             closePinSetupModal();
-            openEditProfileModal(_pinSetupPlayerId);
+            openEditProfileModal(playerId);
         }, 800);
     }
 }
