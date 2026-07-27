@@ -6,7 +6,7 @@
         // APP VERSION — increment this when deploying
         // changes to app.js or styles.css
         // ============================================
-        const APP_VERSION = '27-rc-5';
+        const APP_VERSION = '21-beta-1';
         document.write('<link rel="stylesheet" href="styles.css?v=' + APP_VERSION + '">');
     </script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -60,7 +60,7 @@
                     <label><input type="radio" name="newPlayerOwnership" value="self"> This is my profile</label>
                     <label><input type="radio" name="newPlayerOwnership" value="other"> I am adding someone else</label>
                 </fieldset>
-                <p class="text-muted text-sm">If it is yours, you will next choose a six-digit PIN, then be prompted for an optional bio and picture. If it belongs to someone else, they can claim it later.</p>
+                <p class="text-muted text-sm">If it is yours, you will next choose a four-digit PIN, then be prompted for an optional bio and picture. If it belongs to someone else, they can choose their PIN when they first sign in.</p>
                 <button class="btn btn-success" onclick="addPlayer(event)">Add Player</button>
                 <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back</button>
                 <div id="addPlayerMessage" role="status" aria-live="polite"></div>
@@ -192,9 +192,8 @@
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Hand Streak</h4><p class="p-muted">Consecutive hands won (successful lockouts). Resets on false lockout or non-lockout hand.</p></div>
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Win Rate</h4><p class="p-muted">Percentage of sessions won (sessions won ÷ sessions played). A tied session shares one win equally between its tied winners; win-based achievements still require an outright win.</p></div>
                             <div class="content-card-sm" id="glossarySessionTags"><h4 class="heading-blue-sm">Session Tags</h4><p class="p-muted">Categories applied to sessions (e.g., Casual, Holiday, Pub, Tournament) for filtering and organization. Sessions tagged Testing remain visible in history but are excluded from official statistics, profiles, comparisons, achievements and ELO.</p></div>
-                            <div class="content-card-sm" id="glossaryMemberAccess"><h4 class="heading-blue-sm">Editing Password</h4><p class="p-muted">The shared password that unlocks general editing on a trusted device. The administrator can revoke all saved device access from the private Google Sheet menu.</p></div>
-                            <div class="content-card-sm" id="glossaryProfilePin"><h4 class="heading-blue-sm">Profile PIN</h4><p class="p-muted">A personal six-digit PIN used only to edit one player's bio and picture. It is separate from the shared editing password.</p></div>
-                            <div class="content-card-sm" id="glossarySessionCode"><h4 class="heading-blue-sm">Session Access Code</h4><p class="p-muted">A six-digit code created with each session. Another unlocked device can use it to take over scoring for that active session.</p></div>
+                            <div class="content-card-sm" id="glossaryPlayerSignIn"><h4 class="heading-blue-sm">Player Sign-In</h4><p class="p-muted">Select your name and enter your four-digit PIN. This identifies who is making changes and stays remembered on that device until you sign out.</p></div>
+                            <div class="content-card-sm" id="glossaryProfilePin"><h4 class="heading-blue-sm">Player PIN</h4><p class="p-muted">A personal four-digit PIN used to sign in. Signed-in friends can score games, while each player can edit only their own profile.</p></div>
                             <div class="content-card-sm" id="glossaryEditHistory"><h4 class="heading-blue-sm">Edit History</h4><p class="p-muted">A log of all changes made to sessions and hands, tracking who edited what and when.</p></div>
                             <div class="content-card-sm" id="glossaryEloRating"><h4 class="heading-blue-sm">ELO Rating</h4><p class="p-muted">A number representing a player's skill level. All players start at 1000. Goes up when you finish higher than expected, down when you finish lower. Visible on the home screen and stats page.</p></div>
                             <div class="content-card-sm" id="glossaryProvisionalRating"><h4 class="heading-blue-sm">Provisional Rating (?)</h4><p class="p-muted">A rating marked with ? meaning the player has played fewer than 50 hands. Provisional ratings move faster to help find your true level quickly. Once you hit 50 hands the ? disappears and your rating stabilises.</p></div>
@@ -226,19 +225,19 @@
                             <ul class="list-indented">
                                 <li>Tap <strong>"➕ Add New Player"</strong> from the home screen</li>
                                 <li>Enter the player name and say whether this is your own profile</li>
-                                <li>If it is yours, choose a <strong>six-digit profile PIN</strong>, then add an optional bio and, when uploads are enabled, a picture</li>
+                                <li>If it is yours, choose a <strong>four-digit PIN</strong>, then add an optional bio and picture</li>
                                 <li>If you are adding someone else, leave their profile unclaimed so they can choose their own PIN later</li>
                                 <li>Repeat for all regular players</li>
                                 <li>Players only need to be added once (they're saved permanently)</li>
                             </ul>
                         </div>
                         <div class="content-card">
-                            <h4 class="heading-green">Editing Access and Session Codes</h4>
+                            <h4 class="heading-green">Player Sign-In</h4>
                             <ul class="list-indented">
-                                <li>The <strong>editing password</strong> unlocks general editing on a trusted device</li>
-                                <li>Each active session has its own <strong>six-digit session access code</strong> in case another device takes over scoring.</li>
-                                <li>A player's <strong>six-digit profile PIN</strong> protects only their bio and picture</li>
-                                <li>The administrator can revoke saved member access and reset forgotten profile PINs; resetting a PIN immediately revokes previously saved access to that profile</li>
+                                <li>Select your player name and enter your <strong>four-digit PIN</strong> to make changes</li>
+                                <li>Your sign-in is remembered on that device until you sign out or switch player</li>
+                                <li>Any signed-in friend can score an active game; only the player themselves can edit their profile</li>
+                                <li>This is a lightweight trust-based system for friends. The administrator can reset a forgotten PIN or sign everyone out from <strong>Lockout Admin</strong></li>
                             </ul>
                         </div>
                         <div class="content-card">
@@ -256,7 +255,7 @@
                                     </ul>
                                 </li>
                                 <li>Tap <strong>"Start Session"</strong></li>
-                                <li>Record the six-digit session access code shown after creation. Another trusted device needs it only when taking over scoring; the administrator can reset a lost code from <strong>Lockout Admin</strong></li>
+                                <li>Any friend who is signed in can continue scoring the session on their device</li>
                                 <li>The app is online-only. Wait for the green saved confirmation before moving to the next hand</li>
                                 <li>If another device changes the game first, the app will protect the newer version and ask you to refresh the session before trying again</li>
                             </ul>
@@ -1035,6 +1034,24 @@
         </div>
     </div>
 
+    <!-- PLAYER SIGN-IN MODAL -->
+    <div id="signInModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="signInHeading">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="signInHeading">Sign in to edit</h3>
+                <button class="modal-close" onclick="closeSignInModal()" aria-label="Close sign-in dialog">&times;</button>
+            </div>
+            <p class="modal-body-text">Choose your player name. You will then enter your PIN, or choose one if this is your first sign-in.</p>
+            <label for="signInPlayerSelect">Player</label>
+            <select id="signInPlayerSelect"></select>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-success" onclick="continuePlayerSignIn()">Continue</button>
+                <button type="button" class="btn btn-secondary" onclick="closeSignInModal()">Cancel</button>
+            </div>
+            <div id="signInMessage" role="status" aria-live="polite"></div>
+        </div>
+    </div>
+
         <!-- PIN SETUP MODAL -->
     <div id="pinSetupModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="pinSetupHeading">
         <div class="modal-content">
@@ -1042,15 +1059,13 @@
                 <h3 id="pinSetupHeading">🔐 Set Your PIN</h3>
                 <button class="modal-close" onclick="closePinSetupModal()" aria-label="Close PIN setup dialog">&times;</button>
             </div>
-            <p class="modal-body-text">Choose a 6-digit PIN to protect your profile. You will need this to edit your profile on any device.</p>
+            <p class="modal-body-text">Choose a 4-digit PIN. You will use it to sign in and make changes on another device.</p>
             <div class="warning-box mb-10">⚠️ <strong>Only set a PIN if this is your own profile.</strong> Each player manages their own PIN — do not set or enter a PIN on someone else's behalf.</div>
             <div class="pin-entry-grid" id="pinSetupDisplay" aria-label="PIN entry progress">
                 <div class="pin-dot" id="pinSetupDot0"></div>
                 <div class="pin-dot" id="pinSetupDot1"></div>
                 <div class="pin-dot" id="pinSetupDot2"></div>
                 <div class="pin-dot" id="pinSetupDot3"></div>
-                <div class="pin-dot" id="pinSetupDot4"></div>
-                <div class="pin-dot" id="pinSetupDot5"></div>
             </div>
             <div class="pin-keypad" id="pinSetupKeypad">
                 <button type="button" class="pin-key" onclick="pinSetupInput('1')">1</button>
@@ -1078,15 +1093,13 @@
                 <h3 id="pinEntryHeading">🔐 Enter Your PIN</h3>
                 <button class="modal-close" onclick="closePinEntryModal()" aria-label="Close PIN entry dialog">&times;</button>
             </div>
-            <p class="modal-body-text" id="pinEntryPrompt">Enter your 6-digit PIN to edit your profile.</p>
+            <p class="modal-body-text" id="pinEntryPrompt">Enter your 4-digit PIN to sign in.</p>
             <div class="warning-box mb-10">⚠️ <strong>Only enter your PIN if this is your own profile.</strong></div>
             <div class="pin-entry-grid" id="pinEntryDisplay" aria-label="PIN entry progress">
                 <div class="pin-dot" id="pinEntryDot0"></div>
                 <div class="pin-dot" id="pinEntryDot1"></div>
                 <div class="pin-dot" id="pinEntryDot2"></div>
                 <div class="pin-dot" id="pinEntryDot3"></div>
-                <div class="pin-dot" id="pinEntryDot4"></div>
-                <div class="pin-dot" id="pinEntryDot5"></div>
             </div>
             <div class="pin-keypad" id="pinEntryKeypad">
                 <button type="button" class="pin-key" onclick="pinEntryInput('1')">1</button>
@@ -1167,7 +1180,7 @@
     </script>
     <div class="app-footer">
         <button type="button" class="footer-feedback-link footer-feedback-button" onclick="showFeedbackModal()">💬 Feedback or bug report</button>
-        <div id="releaseVersion" class="release-version">Release Candidate 5</div>
+        <div id="releaseVersion" class="release-version">Beta 1 · v2.1-beta.1</div>
     </div>
 </body>
 </html>

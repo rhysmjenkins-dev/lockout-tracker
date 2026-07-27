@@ -29,7 +29,7 @@ let eloCache = [];
 let eloHistoryAllCache = null;
 let eloHistoryAllCachedAt = 0;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.0.0-rc.5',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.1',
     photos_enabled: false
 };
 let navigationIntentId = 0;
@@ -80,9 +80,7 @@ const SESSION_ACTIONS = new Set([
     'updateSession', 'updateSessionPhoto', 'addPlayerToSession', 'closeSession',
     'addHand', 'updateHand', 'deleteHand'
 ]);
-const MEMBER_ACTIONS = new Set([
-    'addPlayer', 'createSession', 'submitFeedback', 'setPlayerPin'
-]);
+const UNAUTHENTICATED_WRITE_ACTIONS = new Set(['setPlayerPin', 'verifyPlayerPin']);
 
 function getDeviceId() {
     let id = localStorage.getItem('lockout_device_id');
@@ -95,101 +93,109 @@ function getDeviceId() {
     return id;
 }
 
-function getMemberToken() {
-    return localStorage.getItem('lockout_member_token') || '';
+function getPlayerToken() {
+    return localStorage.getItem('lockout_player_token') || '';
 }
 
-function setMemberToken(token) {
-    if (token) localStorage.setItem('lockout_member_token', token);
-    else localStorage.removeItem('lockout_member_token');
+function setPlayerToken(token) {
+    if (token) localStorage.setItem('lockout_player_token', token);
+    else localStorage.removeItem('lockout_player_token');
     updateEditingStatus();
 }
 
-function getSessionToken(sessionId) {
-    return localStorage.getItem('lockout_session_token_' + sessionId) || '';
-}
-
-function setSessionToken(sessionId, token) {
-    if (token) localStorage.setItem('lockout_session_token_' + sessionId, token);
-}
-
-function getProfileToken(playerId) {
-    return sessionStorage.getItem('lockout_profile_token_' + playerId) || '';
-}
-
-function setProfileToken(playerId, token) {
-    if (token) sessionStorage.setItem('lockout_profile_token_' + playerId, token);
-    else sessionStorage.removeItem('lockout_profile_token_' + playerId);
-}
-
 function editingDisplayName() {
-    const savedName = localStorage.getItem('lockout_editor_name');
-    if (savedName) return savedName;
     const identity = getStoredIdentity();
     return identity && identity.username ? identity.username : 'Friend';
 }
 
-async function unlockEditing(forcePrompt) {
-    if (getMemberToken() && !forcePrompt) return getMemberToken();
-    const suggested = editingDisplayName() === 'Friend' ? '' : editingDisplayName();
-    const input = await requestAccessInput({
-        title: 'Unlock editing',
-        message: 'Enter the editing password. You only need to do this once on this device.',
-        primaryLabel: 'Editing password',
-        primaryType: 'password',
-        primaryAutocomplete: 'current-password',
-        secondaryLabel: 'Your name for the edit history',
-        secondaryValue: suggested,
-        confirmText: 'Unlock editing'
+let _signInCallback = null;
+let _signInResolver = null;
+let _pendingSignInResolver = null;
+
+async function signInToEdit(forcePrompt, preferredPlayerId, callback) {
+    if (getPlayerToken() && !forcePrompt) return getPlayerToken();
+    await ensurePlayersLoaded();
+    return new Promise(function(resolve) {
+        _signInResolver = resolve;
+        _signInCallback = callback || null;
+        const select = document.getElementById('signInPlayerSelect');
+        select.innerHTML = '<option value="">Choose player...</option>' + allPlayers.map(function(player) {
+            const selected = String(player.player_id) === String(preferredPlayerId || '') ? ' selected' : '';
+            return '<option value="' + player.player_id + '"' + selected + '>' + escapeHtml(player.username) + '</option>';
+        }).join('');
+        document.getElementById('signInMessage').innerHTML = '';
+        document.getElementById('signInModal').classList.add('active');
+        setTimeout(function() { select.focus(); }, 0);
     });
-    if (!input) return '';
-    const passphrase = input.primary;
-    const displayName = input.secondary || 'Friend';
-    const data = await rawApiRequest('unlockMember', {
-        passphrase: passphrase,
-        device_id: getDeviceId(),
-        display_name: displayName
-    }, false);
-    if (data.error) {
-        alert(data.error);
-        return '';
-    }
-    localStorage.setItem('lockout_editor_name', displayName);
-    setMemberToken(data.member_token);
-    return data.member_token;
 }
 
-function lockEditing() {
-    setMemberToken('');
+function closeSignInModal() {
+    document.getElementById('signInModal').classList.remove('active');
+    _signInCallback = null;
+    if (_signInResolver) _signInResolver('');
+    _signInResolver = null;
+}
+
+async function continuePlayerSignIn() {
+    const playerId = document.getElementById('signInPlayerSelect').value;
+    const message = document.getElementById('signInMessage');
+    if (!playerId) {
+        message.innerHTML = '<div class="error">Choose your player name.</div>';
+        return;
+    }
+    const callback = _signInCallback;
+    const resolver = _signInResolver;
+    const finishSignIn = function() {
+        if (callback) callback();
+        if (resolver) resolver(getPlayerToken());
+    };
+    _pendingSignInResolver = resolver;
+    document.getElementById('signInModal').classList.remove('active');
+    _signInCallback = null;
+    _signInResolver = null;
+    const check = await apiCall('checkPlayerPin', { player_id: playerId });
+    if (check.error) {
+        if (resolver) resolver('');
+        _pendingSignInResolver = null;
+        alert(check.error);
+        return;
+    }
+    if (check.has_pin) openPinEntryModal(playerId, finishSignIn);
+    else openPinSetupModal(playerId, finishSignIn, false);
+}
+
+function signOutPlayer() {
+    setPlayerToken('');
+    clearIdentity();
 }
 
 function updateEditingStatus() {
     const status = document.getElementById('editingStatus');
     if (!status) return;
-    if (getMemberToken()) {
+    if (getPlayerToken()) {
         status.innerHTML =
-            '<span class="editing-unlocked">Editing as <strong>' + escapeHtml(editingDisplayName()) + '</strong></span> ' +
-            '<button type="button" class="link-button" onclick="unlockEditing(true)">Change</button> ' +
-            '<button type="button" class="link-button" onclick="lockEditing()">Lock</button>';
+            '<span class="editing-unlocked">Signed in as <strong>' + escapeHtml(editingDisplayName()) + '</strong></span> ' +
+            '<button type="button" class="link-button" onclick="signInToEdit(true)">Switch player</button> ' +
+            '<button type="button" class="link-button" onclick="signOutPlayer()">Sign out</button>';
     } else {
-        status.innerHTML = '<button type="button" class="link-button" onclick="unlockEditing(true)">Unlock editing</button>';
+        status.innerHTML = '<button type="button" class="link-button" onclick="signInToEdit(true)">Sign in to edit</button>';
     }
 }
 
-async function validateSavedMemberAccess() {
-    const token = getMemberToken();
+async function validateSavedPlayerAccess() {
+    const token = getPlayerToken();
     if (!token) {
         updateEditingStatus();
         return false;
     }
     const status = document.getElementById('editingStatus');
-    if (status) status.textContent = 'Checking editing access...';
-    const data = await rawApiRequest('validateMember', { member_token: token }, false);
+    if (status) status.textContent = 'Checking saved sign-in...';
+    const data = await rawApiRequest('validatePlayer', { player_token: token }, false);
     if (data.error) {
-        setMemberToken('');
+        signOutPlayer();
         return false;
     }
-    if (data.label) localStorage.setItem('lockout_editor_name', data.label);
+    storeIdentity(data.player_id, data.username);
     updateEditingStatus();
     return true;
 }
@@ -200,41 +206,8 @@ async function loadPublicConfig() {
         publicConfig = Object.assign({}, publicConfig, data);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Release Candidate 5 · ' + publicConfig.version;
+    if (version) version.textContent = 'Beta 1 · v' + publicConfig.version;
     return publicConfig;
-}
-
-async function ensureSessionToken(sessionId) {
-    let token = getSessionToken(sessionId);
-    if (token) return token;
-    const memberToken = await unlockEditing(false);
-    if (!memberToken) return '';
-    const input = await requestAccessInput({
-        title: 'Unlock this session',
-        message: 'Enter the six-digit session access code shown when the session began. The administrator can reset it from Lockout Admin if it has been lost.',
-        primaryLabel: 'Session access code',
-        primaryType: 'text',
-        primaryInputMode: 'numeric',
-        primaryMaxLength: 6,
-        confirmText: 'Unlock session'
-    });
-    if (!input) return '';
-    const code = input.primary;
-    const data = await rawApiRequest('claimSession', {
-        member_token: memberToken,
-        session_id: sessionId,
-        edit_code: code
-    }, false);
-    if (data.error) {
-        alert(data.error);
-        return '';
-    }
-    token = data.session_token;
-    setSessionToken(sessionId, token);
-    if (currentSession && String(currentSession.session_id) === String(sessionId) && data.revision) {
-        currentSession.revision = Number(data.revision);
-    }
-    return token;
 }
 
 let _accessModalResolver = null;
@@ -279,18 +252,6 @@ function finishAccessModal(confirmed) {
     modal.classList.remove('active');
     if (_accessModalResolver) _accessModalResolver(result);
     _accessModalResolver = null;
-}
-
-async function showSessionEditCode(code) {
-    await requestAccessInput({
-        title: 'Session access code',
-        message: 'Keep this code with the group. Another trusted device needs it only if it takes over scoring.',
-        primaryLabel: 'Six-digit code',
-        primaryValue: String(code),
-        primaryReadOnly: true,
-        confirmText: 'Done',
-        hideCancel: true
-    });
 }
 
 // ============================================
@@ -458,36 +419,20 @@ async function apiCall(action, params) {
         return request;
     }
     if (!isRead) {
-        if (MEMBER_ACTIONS.has(action)) {
-            params.member_token = getMemberToken() || await unlockEditing(false);
-            if (!params.member_token) return { error: 'Editing was not unlocked.', code: 'AUTH_REQUIRED' };
+        if (!UNAUTHENTICATED_WRITE_ACTIONS.has(action)) {
+            params.player_token = getPlayerToken() || await signInToEdit(false);
+            if (!params.player_token) return { error: 'Sign in to make changes.', code: 'AUTH_REQUIRED' };
         }
         if (SESSION_ACTIONS.has(action)) {
             const sessionId = params.session_id || (currentSession && currentSession.session_id);
-            params.session_token = await ensureSessionToken(sessionId);
-            if (!params.session_token) return { error: 'Session editing was not unlocked.', code: 'SESSION_AUTH_REQUIRED' };
             params.revision = currentSession && String(currentSession.session_id) === String(sessionId)
                 ? Number(currentSession.revision || 1)
                 : Number(params.revision || 1);
         }
-        if (action === 'updatePlayerProfile') {
-            params.profile_token = getProfileToken(params.player_id);
-        }
-        if (action === 'uploadPhoto') {
-            if (params.scope === 'new_session') params.member_token = getMemberToken() || await unlockEditing(false);
-            if (params.scope === 'session') params.session_token = await ensureSessionToken(params.session_id);
-            if (params.scope === 'profile') params.profile_token = getProfileToken(params.player_id);
-        }
     }
     const data = await rawApiRequest(action, params, isRead);
-    if (data && data.code === 'AUTH_EXPIRED' && MEMBER_ACTIONS.has(action)) setMemberToken('');
-    if (data && data.code === 'SESSION_AUTH_REQUIRED' && params.session_id) {
-        localStorage.removeItem('lockout_session_token_' + params.session_id);
-    }
-    if (data && (data.code === 'AUTH_EXPIRED' || data.code === 'AUTH_REQUIRED') && params.player_id &&
-        (action === 'updatePlayerProfile' || (action === 'uploadPhoto' && params.scope === 'profile'))) {
-        setProfileToken(params.player_id, '');
-    }
+    if (data && (data.code === 'AUTH_EXPIRED' || data.code === 'AUTH_REQUIRED') &&
+        !UNAUTHENTICATED_WRITE_ACTIONS.has(action)) signOutPlayer();
     if (data && data.revision && currentSession && String(currentSession.session_id) === String(params.session_id)) {
         currentSession.revision = Number(data.revision);
     }
@@ -1275,7 +1220,7 @@ async function addPlayer(event) {
             await showPlayerProfile(data.player_id, intentId);
             setButtonLoading(addBtn, false);
             if (_currentProfileData && String(_currentProfileData.player.player_id) === String(data.player_id)) {
-                openPinSetupModal(data.player_id);
+                openPinSetupModal(data.player_id, null, true);
             } else {
                 alert('Player created, but profile setup could not open. Select the player from the Players screen to finish setup.');
             }
@@ -1514,7 +1459,6 @@ async function createSession(event) {
         messageDiv.innerHTML = '<div class="error">Error: ' + data.error + '</div>';
         setButtonLoading(createBtn, false);
     } else {
-        setSessionToken(data.session_id, data.session_token);
         currentSession = {
             session_id: data.session_id, title: title, host_player_id: hostId,
             notes: escapeHtml(notes), tags: escapeHtml(tags), player_join_info: '{}',
@@ -1531,7 +1475,6 @@ async function createSession(event) {
             else messageDiv.innerHTML = '<div class="error">Session created, but the photo could not be attached: ' + photoData.error + '</div>';
             window._pendingPhotoUrl = '';
         }
-        if (data.edit_code) await showSessionEditCode(data.edit_code);
         sessionPlayers = [];
         for (let i = 0; i < allPlayers.length; i++) {
             if (selectedPlayers.indexOf(String(allPlayers[i].player_id)) !== -1) sessionPlayers.push(allPlayers[i]);
@@ -3117,7 +3060,7 @@ window.addEventListener('DOMContentLoaded', function() {
     window.scrollTo(0, 0);
     updateEditingStatus();
     loadPublicConfig();
-    validateSavedMemberAccess();
+    validateSavedPlayerAccess();
 
     // Show both skeletons immediately and simultaneously
     document.getElementById('activeSessionsSection').innerHTML =
@@ -3251,9 +3194,13 @@ function clearIdentity() {
 let _pinSetupBuffer = '';
 let _pinSetupPlayerId = null;
 let _pinSetupSubmitting = false;
+let _pinSetupCallback = null;
+let _pinSetupOpenProfile = false;
 
-function openPinSetupModal(playerId) {
+function openPinSetupModal(playerId, callback, openProfileAfter) {
     _pinSetupPlayerId = playerId;
+    _pinSetupCallback = callback || null;
+    _pinSetupOpenProfile = Boolean(openProfileAfter);
     _pinSetupBuffer = '';
     _pinSetupSubmitting = false;
     setPinKeypadBusy('pinSetup', false);
@@ -3271,15 +3218,19 @@ function closePinSetupModal() {
     document.getElementById('pinSetupModal').classList.remove('active');
     _pinSetupBuffer = '';
     _pinSetupPlayerId = null;
+    _pinSetupCallback = null;
+    _pinSetupOpenProfile = false;
+    if (_pendingSignInResolver) _pendingSignInResolver('');
+    _pendingSignInResolver = null;
 }
 
 function updatePinDots(prefix, count) {
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 4; i++) {
         const dot = document.getElementById(prefix + 'Dot' + i);
         if (dot) dot.classList.toggle('filled', i < count);
     }
     const display = document.getElementById(prefix + 'Display');
-    if (display) display.setAttribute('aria-label', count + ' of 6 PIN digits entered');
+    if (display) display.setAttribute('aria-label', count + ' of 4 PIN digits entered');
 }
 
 function setPinKeypadBusy(prefix, isBusy) {
@@ -3297,11 +3248,11 @@ function setPinKeypadBusy(prefix, isBusy) {
 }
 
 function pinSetupInput(digit) {
-    if (_pinSetupSubmitting || _pinSetupBuffer.length >= 6) return;
+    if (_pinSetupSubmitting || _pinSetupBuffer.length >= 4) return;
     _pinSetupBuffer += digit;
     updatePinDots('pinSetup', _pinSetupBuffer.length);
     hapticFeedback('light');
-    if (_pinSetupBuffer.length === 6) {
+    if (_pinSetupBuffer.length === 4) {
         setTimeout(confirmPinSetup, 200);
     }
 }
@@ -3318,8 +3269,8 @@ function pinSetupClear() {
 async function confirmPinSetup() {
     const messageDiv = document.getElementById('pinSetupMessage');
     if (_pinSetupSubmitting) return;
-    if (!/^\d{6}$/.test(_pinSetupBuffer)) {
-        messageDiv.innerHTML = '<div class="error">Enter all six digits.</div>';
+    if (!/^\d{4}$/.test(_pinSetupBuffer)) {
+        messageDiv.innerHTML = '<div class="error">Enter all four digits.</div>';
         return;
     }
     _pinSetupSubmitting = true;
@@ -3335,15 +3286,19 @@ async function confirmPinSetup() {
     } else {
         messageDiv.innerHTML = '<div class="success">✅ PIN set!</div>';
         const player = allPlayers.find(p => String(p.player_id) === String(_pinSetupPlayerId));
-        if (player) storeIdentity(_pinSetupPlayerId, player.username);
-        if (data.profile_token) setProfileToken(_pinSetupPlayerId, data.profile_token);
+        storeIdentity(_pinSetupPlayerId, data.username || (player && player.username) || 'Player');
+        if (data.player_token) setPlayerToken(data.player_token);
         hapticFeedback('success');
         setTimeout(function() {
             const playerId = _pinSetupPlayerId;
+            const callback = _pinSetupCallback;
+            const openProfile = _pinSetupOpenProfile;
             _pinSetupSubmitting = false;
             setPinKeypadBusy('pinSetup', false);
+            _pendingSignInResolver = null;
             closePinSetupModal();
-            openEditProfileModal(playerId);
+            if (openProfile) openEditProfileModal(playerId);
+            if (callback) callback();
         }, 800);
     }
 }
@@ -3375,14 +3330,16 @@ function closePinEntryModal() {
     _pinEntryBuffer = '';
     _pinEntryPlayerId = null;
     _pinEntryCallback = null;
+    if (_pendingSignInResolver) _pendingSignInResolver('');
+    _pendingSignInResolver = null;
 }
 
 function pinEntryInput(digit) {
-    if (_pinEntrySubmitting || _pinEntryBuffer.length >= 6) return;
+    if (_pinEntrySubmitting || _pinEntryBuffer.length >= 4) return;
     _pinEntryBuffer += digit;
     updatePinDots('pinEntry', _pinEntryBuffer.length);
     hapticFeedback('light');
-    if (_pinEntryBuffer.length === 6) {
+    if (_pinEntryBuffer.length === 4) {
         setTimeout(submitPinEntry, 200);
     }
 }
@@ -3399,8 +3356,8 @@ function pinEntryClear() {
 async function submitPinEntry() {
     const messageDiv = document.getElementById('pinEntryMessage');
     if (_pinEntrySubmitting) return;
-    if (!/^\d{6}$/.test(_pinEntryBuffer)) {
-        messageDiv.innerHTML = '<div class="error">Enter your six-digit PIN.</div>';
+    if (!/^\d{4}$/.test(_pinEntryBuffer)) {
+        messageDiv.innerHTML = '<div class="error">Enter your four-digit PIN.</div>';
         return;
     }
     _pinEntrySubmitting = true;
@@ -3421,12 +3378,13 @@ async function submitPinEntry() {
     }
     if (data.success) {
         const player = allPlayers.find(p => String(p.player_id) === String(_pinEntryPlayerId));
-        if (player) storeIdentity(_pinEntryPlayerId, player.username);
-        if (data.profile_token) setProfileToken(_pinEntryPlayerId, data.profile_token);
+        storeIdentity(_pinEntryPlayerId, data.username || (player && player.username) || 'Player');
+        if (data.player_token) setPlayerToken(data.player_token);
         hapticFeedback('success');
         const cb = _pinEntryCallback;
         _pinEntrySubmitting = false;
         setPinKeypadBusy('pinEntry', false);
+        _pendingSignInResolver = null;
         closePinEntryModal();
         if (cb) cb();
     } else {
@@ -3845,7 +3803,7 @@ async function handleEditProfileClick() {
     const identity = getStoredIdentity();
     const alreadyVerified = identity &&
         String(identity.player_id) === String(playerId) &&
-        Boolean(getProfileToken(playerId));
+        Boolean(getPlayerToken());
 
     // Show loading state on the button
     const editBtn = document.querySelector('.profile-edit-btn');
@@ -3863,9 +3821,8 @@ async function handleEditProfileClick() {
         return;
     }
     if (!check.has_pin) {
-        clearIdentity();
         restoreBtn();
-        openPinSetupModal(playerId);
+        openPinSetupModal(playerId, function() { openEditProfileModal(playerId); }, false);
         return;
     }
     if (alreadyVerified) {
