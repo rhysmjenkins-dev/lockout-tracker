@@ -113,8 +113,8 @@ async function unlockEditing(forcePrompt) {
     const suggested = editingDisplayName() === 'Friend' ? '' : editingDisplayName();
     const input = await requestAccessInput({
         title: 'Unlock editing',
-        message: 'Enter the friends editing code. You only need to do this once on this device.',
-        primaryLabel: 'Friends editing code',
+        message: 'Enter the editing password. You only need to do this once on this device.',
+        primaryLabel: 'Editing password',
         primaryType: 'password',
         primaryAutocomplete: 'current-password',
         secondaryLabel: 'Your name for the edit history',
@@ -187,7 +187,7 @@ async function ensureSessionToken(sessionId) {
     const input = await requestAccessInput({
         title: 'Unlock this session',
         message: 'Enter the six-digit editing code shown when the session began.',
-        primaryLabel: 'Session editing code',
+        primaryLabel: 'Session access code',
         primaryType: 'text',
         primaryInputMode: 'numeric',
         primaryMaxLength: 6,
@@ -258,7 +258,7 @@ function finishAccessModal(confirmed) {
 
 async function showSessionEditCode(code) {
     await requestAccessInput({
-        title: 'Session editing code',
+        title: 'Session access code',
         message: 'Keep this code with the group. Another trusted device needs it only if it takes over scoring.',
         primaryLabel: 'Six-digit code',
         primaryValue: String(code),

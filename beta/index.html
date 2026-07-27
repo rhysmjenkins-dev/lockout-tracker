@@ -192,9 +192,9 @@
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Hand Streak</h4><p class="p-muted">Consecutive hands won (successful lockouts). Resets on false lockout or non-lockout hand.</p></div>
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Win Rate</h4><p class="p-muted">Percentage of sessions won (sessions won ÷ sessions played). A tied session shares one win equally between its tied winners; win-based achievements still require an outright win.</p></div>
                             <div class="content-card-sm" id="glossarySessionTags"><h4 class="heading-blue-sm">Session Tags</h4><p class="p-muted">Categories applied to sessions (e.g., Casual, Holiday, Pub, Tournament) for filtering and organization. Sessions tagged Testing remain visible in history but are excluded from official statistics, profiles, comparisons, achievements and ELO.</p></div>
-                            <div class="content-card-sm" id="glossaryMemberAccess"><h4 class="heading-blue-sm">Friends Editing Code</h4><p class="p-muted">The shared code that unlocks general editing on a trusted device. The administrator can revoke all saved device access from the private Google Sheet menu.</p></div>
-                            <div class="content-card-sm" id="glossaryProfilePin"><h4 class="heading-blue-sm">Profile PIN</h4><p class="p-muted">A personal six-digit PIN used only to edit one player's bio and picture. It is separate from the shared friends editing code.</p></div>
-                            <div class="content-card-sm" id="glossarySessionCode"><h4 class="heading-blue-sm">Session Editing Code</h4><p class="p-muted">A six-digit code created with each session. Another unlocked device can use it to take over scoring for that active session.</p></div>
+                            <div class="content-card-sm" id="glossaryMemberAccess"><h4 class="heading-blue-sm">Editing Password</h4><p class="p-muted">The shared password that unlocks general editing on a trusted device. The administrator can revoke all saved device access from the private Google Sheet menu.</p></div>
+                            <div class="content-card-sm" id="glossaryProfilePin"><h4 class="heading-blue-sm">Profile PIN</h4><p class="p-muted">A personal six-digit PIN used only to edit one player's bio and picture. It is separate from the shared editing password.</p></div>
+                            <div class="content-card-sm" id="glossarySessionCode"><h4 class="heading-blue-sm">Session Access Code</h4><p class="p-muted">A six-digit code created with each session. Another unlocked device can use it to take over scoring for that active session.</p></div>
                             <div class="content-card-sm" id="glossaryEditHistory"><h4 class="heading-blue-sm">Edit History</h4><p class="p-muted">A log of all changes made to sessions and hands, tracking who edited what and when.</p></div>
                             <div class="content-card-sm" id="glossaryEloRating"><h4 class="heading-blue-sm">ELO Rating</h4><p class="p-muted">A number representing a player's skill level. All players start at 1000. Goes up when you finish higher than expected, down when you finish lower. Visible on the home screen and stats page.</p></div>
                             <div class="content-card-sm" id="glossaryProvisionalRating"><h4 class="heading-blue-sm">Provisional Rating (?)</h4><p class="p-muted">A rating marked with ? meaning the player has played fewer than 50 hands. Provisional ratings move faster to help find your true level quickly. Once you hit 50 hands the ? disappears and your rating stabilises.</p></div>
@@ -235,10 +235,10 @@
                         <div class="content-card">
                             <h4 class="heading-green">Editing Access and Session Codes</h4>
                             <ul class="list-indented">
-                                <li>The <strong>friends editing code</strong> unlocks general editing on a trusted device</li>
-                                <li>Each active session has its own <strong>six-digit session editing code</strong> for another device taking over scoring</li>
+                                <li>The <strong>editing password</strong> unlocks general editing on a trusted device</li>
+                                <li>Each active session has its own <strong>six-digit session access code</strong> in case another device takes over scoring.</li>
                                 <li>A player's <strong>six-digit profile PIN</strong> protects only their bio and picture</li>
-                                <li>The administrator can revoke saved member access and reset forgotten profile PINs from the private Google Sheet menu</li>
+                                <li>The administrator can revoke saved member access and reset forgotten profile PINs</li>
                             </ul>
                         </div>
                         <div class="content-card">
@@ -519,7 +519,7 @@
                                 <li>All players <strong>start at 1000</strong></li>
                                 <li>Goes <strong>up</strong> when you finish higher than expected</li>
                                 <li>Goes <strong>down</strong> when you finish lower than expected</li>
-                                <li>Total rating change always <strong>sums to zero</strong> across all players in a session — <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryRankBasedElo'); return false;">see Rank-Based ELO</a></li>
+                                <li>Displayed rating changes may not add up to exactly zero when players use different provisional K-factors or changes are rounded — <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryRankBasedElo'); return false;">see Rank-Based ELO</a></li>
                                 <li><strong>Testing sessions</strong> are excluded from ELO calculations</li>
                             </ul>
                         </div>
@@ -556,7 +556,6 @@
                     <div class="privacy-box">
                         <h3>🔒 DATA & PRIVACY</h3>
                         <ul class="list-indented">
-                            <li>All data is stored in <strong>Google Sheets</strong> (your own spreadsheet)</li>
                             <li>Game data is stored in the administrator's <strong>Google Sheet</strong> and is visible to anyone with this public app link</li>
                             <li>When photo uploads are enabled, optional photos are sent to <strong>ImgBB</strong> and receive externally hosted URLs; otherwise the app displays player initials</li>
                             <li>The app does not sell personal data or use advertising trackers</li>
