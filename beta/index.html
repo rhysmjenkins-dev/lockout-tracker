@@ -7,7 +7,8 @@
         // changes to app.js or styles.css
         // ============================================
         const APP_VERSION = '21-beta-10';
-        document.write('<link rel="stylesheet" href="styles.css?v=' + APP_VERSION + '">');
+        const ASSET_VERSION = APP_VERSION + '-podcast-1';
+        document.write('<link rel="stylesheet" href="styles.css?v=' + ASSET_VERSION + '">');
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -40,6 +41,7 @@
                 <button class="btn btn-secondary" onclick="showScreen('playersScreen'); loadPlayersScreen();">👤 Players</button>
                 <button class="btn btn-secondary" onclick="showScreen('previousSessionsScreen'); loadPreviousSessions();">📊 View Previous Sessions</button>
                 <button class="btn btn-secondary" onclick="showScreen('statsScreen'); loadStats();">📈 View Stats</button>
+                <button class="btn btn-secondary" onclick="showScreen('podcastsScreen'); loadPodcasts();">🎙️ Podcasts</button>
                 <button class="btn btn-secondary" onclick="showScreen('addPlayerScreen')">➕ Add New Player</button>
                 <button class="btn btn-info" onclick="showScreen('appInstructionsScreen')">📱 How to Use App</button>
                 <button class="btn btn-info" onclick="showScreen('dictionaryScreen')">📖 Dictionary</button>
@@ -845,6 +847,18 @@
             </div>
         </div>
 
+        <!-- PODCASTS SCREEN -->
+        <div id="podcastsScreen" class="screen">
+            <div class="card">
+                <h2>🎙️ Lockout Podcast</h2>
+                <p class="podcast-intro">Listen to the latest Lockout recaps.</p>
+                <div id="podcastsContent">
+                    <div class="loading">Loading episodes...</div>
+                </div>
+                <button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
+            </div>
+        </div>
+
         <!-- SESSION DETAIL SCREEN -->
         <div id="sessionDetailScreen" class="screen">
             <div class="card">
@@ -1176,7 +1190,7 @@
         document.write('<script src="config.js?v=' + APP_VERSION + '"><\/script>');
      </script>
      <script>
-        document.write('<script src="app.js?v=' + APP_VERSION + '"><\/script>');
+        document.write('<script src="app.js?v=' + ASSET_VERSION + '"><\/script>');
     </script>
     <div class="app-footer">
         <button type="button" class="footer-feedback-link footer-feedback-button" onclick="showFeedbackModal()">💬 Feedback or bug report</button>

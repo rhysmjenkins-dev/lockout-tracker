@@ -1282,3 +1282,40 @@ textarea:focus-visible,
     .session-end-popup { padding: 10px; align-items: flex-end; }
     .session-end-content { padding: 24px 18px; border-radius: 15px 15px 10px 10px; }
 }
+.podcast-intro {
+    color: #666;
+    margin: -4px 0 20px;
+}
+
+.podcast-episode {
+    background: #f8f9ff;
+    border: 1px solid #e3e6f5;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    padding: 18px;
+}
+
+.podcast-episode h3 {
+    margin: 0 0 4px;
+}
+
+.podcast-date {
+    color: #666;
+    font-size: 0.9rem;
+    margin: 0 0 12px;
+}
+
+.podcast-description {
+    margin: 0 0 14px;
+}
+
+.podcast-audio {
+    display: block;
+    width: 100%;
+}
+
+@media (max-width: 600px) {
+    .podcast-episode {
+        padding: 14px;
+    }
+}

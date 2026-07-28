@@ -1720,6 +1720,7 @@ function getRestorableScreenFromHash() {
         'startSessionScreen',
         'playersScreen',
         'previousSessionsScreen',
+        'podcastsScreen',
         'statsScreen',
         'addPlayerScreen',
         'appInstructionsScreen',
@@ -1734,7 +1735,81 @@ function getRestorableScreenFromHash() {
 function loadRestoredScreen(screenId, intentId) {
     if (screenId === 'playersScreen') loadPlayersScreen();
     else if (screenId === 'previousSessionsScreen') loadPreviousSessions();
+    else if (screenId === 'podcastsScreen') loadPodcasts();
     else if (screenId === 'statsScreen') loadStats(intentId);
+}
+
+// ============================================
+// PODCASTS
+// ============================================
+let podcastEpisodesCache = null;
+
+function safePodcastAudioFile(value) {
+    const file = String(value || '').trim();
+    if (!/^podcasts\/audio\/[a-z0-9][a-z0-9._/-]*\.(mp3|m4a|wav|ogg)$/i.test(file)) return '';
+    return file.indexOf('..') === -1 ? file : '';
+}
+
+function formatPodcastDate(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const date = new Date(text + (text.length === 10 ? 'T12:00:00' : ''));
+    return Number.isNaN(date.getTime())
+        ? text
+        : date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function renderPodcasts(episodes) {
+    const content = document.getElementById('podcastsContent');
+    if (!content) return;
+    if (!episodes.length) {
+        content.innerHTML = '<div class="empty-state">No podcast episodes yet.</div>';
+        return;
+    }
+
+    content.innerHTML = episodes.map(function(episode) {
+        const audioFile = safePodcastAudioFile(episode.audio_file);
+        if (!audioFile) return '';
+        const description = String(episode.description || '').trim();
+        return '<article class="podcast-episode">' +
+            '<h3>' + escapeHtml(episode.title || 'Lockout Podcast') + '</h3>' +
+            (episode.date ? '<p class="podcast-date">' + escapeHtml(formatPodcastDate(episode.date)) + '</p>' : '') +
+            (description ? '<p class="podcast-description">' + escapeHtml(description) + '</p>' : '') +
+            '<audio class="podcast-audio" controls preload="metadata">' +
+                '<source src="' + escapeAttr(audioFile) + '">' +
+                'Your browser does not support audio playback.' +
+            '</audio>' +
+        '</article>';
+    }).join('') || '<div class="empty-state">No playable podcast episodes were found.</div>';
+}
+
+async function loadPodcasts(forceRefresh) {
+    const content = document.getElementById('podcastsContent');
+    if (!content) return;
+    if (podcastEpisodesCache && !forceRefresh) {
+        renderPodcasts(podcastEpisodesCache);
+        return;
+    }
+
+    content.innerHTML = '<div class="loading">Loading episodes...</div>';
+    try {
+        const response = await fetch('podcasts/episodes.json?v=' + encodeURIComponent(
+            typeof ASSET_VERSION === 'string' ? ASSET_VERSION : APP_VERSION
+        ), {
+            cache: 'no-store'
+        });
+        if (!response.ok) throw new Error('Episode list could not be loaded.');
+        const data = await response.json();
+        const episodes = Array.isArray(data) ? data : [];
+        podcastEpisodesCache = episodes.sort(function(a, b) {
+            return String(b.date || '').localeCompare(String(a.date || ''));
+        });
+        renderPodcasts(podcastEpisodesCache);
+    } catch (error) {
+        content.innerHTML =
+            '<div class="message error">The podcasts could not be loaded.</div>' +
+            '<button class="btn btn-small btn-secondary" onclick="loadPodcasts(true)">Try again</button>';
+    }
 }
 
 // ============================================
