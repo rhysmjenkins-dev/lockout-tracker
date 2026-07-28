@@ -31,9 +31,10 @@ let eloCache = [];
 let eloHistoryAllCache = null;
 let eloHistoryAllCachedAt = 0;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.4',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.5',
     photos_enabled: false
 };
+let homeDashboardPromise = null;
 let navigationIntentId = 0;
 let screenTransitionTimer = null;
 const readResponseCache = new Map();
@@ -401,26 +402,33 @@ async function continuePlayerSignIn() {
         if (resolver) resolver(getPlayerToken());
     };
     const attemptId = ++_signInAttemptId;
-    setSignInChecking(true, 'Checking this player’s PIN status…');
-    const check = await checkPlayerPinWithRetry(playerId, attemptId);
-    if (attemptId !== _signInAttemptId) return;
-    if (check.error) {
-        setSignInChecking(false);
-        message.innerHTML = '<div class="error" role="alert">' +
-            escapeHtml(check.code === 'NETWORK_TIMEOUT'
-                ? 'The PIN check took too long. Please try again.'
-                : check.code === 'NETWORK_ERROR'
-                    ? 'The app could not reach the server. Check your connection and try again.'
-                    : (check.error || 'Could not check this player’s PIN status.')) +
-            '</div>';
-        return;
+    const player = allPlayers.find(function(item) {
+        return String(item.player_id) === String(playerId);
+    });
+    let hasPin = player && typeof player.has_pin === 'boolean' ? player.has_pin : null;
+    if (hasPin === null) {
+        setSignInChecking(true, 'Checking this player’s PIN status…');
+        const check = await checkPlayerPinWithRetry(playerId, attemptId);
+        if (attemptId !== _signInAttemptId) return;
+        if (check.error) {
+            setSignInChecking(false);
+            message.innerHTML = '<div class="error" role="alert">' +
+                escapeHtml(check.code === 'NETWORK_TIMEOUT'
+                    ? 'The PIN check took too long. Please try again.'
+                    : check.code === 'NETWORK_ERROR'
+                        ? 'The app could not reach the server. Check your connection and try again.'
+                        : (check.error || 'Could not check this player’s PIN status.')) +
+                '</div>';
+            return;
+        }
+        hasPin = Boolean(check.has_pin);
     }
     _pendingSignInResolver = resolver;
     setSignInChecking(false);
     document.getElementById('signInModal').classList.remove('active');
     _signInCallback = null;
     _signInResolver = null;
-    if (check.has_pin) openPinEntryModal(playerId, finishSignIn);
+    if (hasPin) openPinEntryModal(playerId, finishSignIn);
     else openPinSetupModal(playerId, finishSignIn, false);
 }
 
@@ -466,8 +474,16 @@ async function loadPublicConfig() {
         publicConfig = Object.assign({}, publicConfig, data);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Beta 4 · v' + publicConfig.version;
+    if (version) version.textContent = 'Beta 5 · v' + publicConfig.version;
     return publicConfig;
+}
+
+function applyPublicConfig(config) {
+    if (config && typeof config === 'object') {
+        publicConfig = Object.assign({}, publicConfig, config);
+    }
+    const version = document.getElementById('releaseVersion');
+    if (version) version.textContent = 'Beta 5 · v' + publicConfig.version;
 }
 
 let _accessModalResolver = null;
@@ -721,6 +737,10 @@ async function apiCall(action, params) {
 
 async function ensurePlayersLoaded() {
     if (playersLoaded) return allPlayers;
+    if (homeDashboardPromise) {
+        await homeDashboardPromise;
+        if (playersLoaded) return allPlayers;
+    }
     const data = await apiCall('getPlayers', {});
     if (data.error) {
         console.error('Error loading players:', data.error);
@@ -745,17 +765,29 @@ function applyPlayersData(players) {
 }
 
 async function loadHomeDashboard() {
-    const data = await apiCall('getHomeData', {});
-    if (data.error) {
-        await Promise.all([checkActiveSessions(), displayEloLeaderboard()]);
-        return;
+    if (homeDashboardPromise) return homeDashboardPromise;
+    homeDashboardPromise = (async function() {
+        const data = await apiCall('getHomeData', {});
+        if (data.error) {
+            // Allow the fallback loaders to request players independently.
+            homeDashboardPromise = null;
+            await Promise.all([loadPublicConfig(), checkActiveSessions(), displayEloLeaderboard()]);
+            return false;
+        }
+        applyPublicConfig(data.public_config);
+        applyPlayersData(data.players || []);
+        eloCache = Array.isArray(data.elo_ratings) ? data.elo_ratings : [];
+        await Promise.all([
+            checkActiveSessions(data.sessions_with_hands || []),
+            displayEloLeaderboard(eloCache)
+        ]);
+        return true;
+    })();
+    try {
+        return await homeDashboardPromise;
+    } finally {
+        homeDashboardPromise = null;
     }
-    applyPlayersData(data.players || []);
-    eloCache = Array.isArray(data.elo_ratings) ? data.elo_ratings : [];
-    await Promise.all([
-        checkActiveSessions(data.sessions_with_hands || []),
-        displayEloLeaderboard(eloCache)
-    ]);
 }
 
 // ============================================
@@ -3378,7 +3410,6 @@ window.addEventListener('DOMContentLoaded', function() {
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     window.scrollTo(0, 0);
     updateEditingStatus();
-    loadPublicConfig();
     validateSavedPlayerAccess();
 
     // Show both skeletons immediately and simultaneously
@@ -3405,6 +3436,7 @@ window.addEventListener('DOMContentLoaded', function() {
     if (initialScreen === 'homeScreen') {
         loadHomeDashboard();
     } else {
+        loadPublicConfig();
         const intentId = showScreen(initialScreen, true);
         loadRestoredScreen(initialScreen, intentId);
     }
@@ -3610,6 +3642,11 @@ async function confirmPinSetup() {
     } else {
         messageDiv.innerHTML = '<div class="success">✅ PIN set!</div>';
         const player = allPlayers.find(p => String(p.player_id) === String(_pinSetupPlayerId));
+        if (player) player.has_pin = true;
+        if (_currentProfileData && _currentProfileData.player &&
+            String(_currentProfileData.player.player_id) === String(_pinSetupPlayerId)) {
+            _currentProfileData.player.has_pin = true;
+        }
         storeIdentity(_pinSetupPlayerId, data.username || (player && player.username) || 'Player');
         if (data.player_token) setPlayerToken(data.player_token);
         hapticFeedback('success');
@@ -3791,16 +3828,6 @@ async function showPlayerProfile(playerId, requestedIntentId) {
             '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:120px;"></div>' +
         '</div>';
 
-    // Validate stored identity against sheet on every load
-    const identity = getStoredIdentity();
-    if (identity && String(identity.player_id) === String(playerId)) {
-        const pinCheck = await apiCall('checkPlayerPin', { player_id: playerId });
-        if (!isCurrentNavigationIntent(intentId)) return;
-        if (pinCheck.error || !pinCheck.has_pin) {
-            clearIdentity();
-        }
-    }
-
     const data = await apiCall('getPlayerProfile', { player_id: playerId });
     if (!isCurrentNavigationIntent(intentId)) return;
     if (data.error) {
@@ -3810,6 +3837,11 @@ async function showPlayerProfile(playerId, requestedIntentId) {
             'showPlayerProfile(' + Number(playerId) + ')'
         );
         return;
+    }
+    const identity = getStoredIdentity();
+    if (identity && String(identity.player_id) === String(playerId) &&
+        data.player && data.player.has_pin === false) {
+        signOutPlayer();
     }
     _currentProfileData = data;
     renderPlayerProfile(data);
@@ -4142,28 +4174,11 @@ async function handleEditProfileClick() {
         return;
     }
 
-    // Show loading state on the button
-    const editBtn = document.querySelector('.profile-edit-btn');
-    if (editBtn) setButtonLoading(editBtn, true);
-
-    const restoreBtn = function() {
-        if (editBtn) setButtonLoading(editBtn, false, '✏️ Edit Profile');
-    };
-
-    const check = await apiCall('checkPlayerPin', { player_id: playerId });
-
-    if (check.error) {
-        restoreBtn();
-        alert('Could not check PIN status. Please try again.');
-        return;
-    }
-    if (!check.has_pin) {
-        restoreBtn();
+    if (_currentProfileData.player.has_pin === false) {
         signOutPlayer();
         alert('Your PIN needs to be set again. Sign in from the header to continue.');
         return;
     }
-    restoreBtn();
     openEditProfileModal(playerId);
 }
 
