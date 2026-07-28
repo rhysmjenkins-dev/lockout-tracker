@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "title": "Episode 2: The Dave Redemption Tour",
+    "date": "2026-07-26",
+    "description": "A 70-point collapse, three consecutive victories and the continuing statistical mystery of Jack scoring exactly 33.",
+    "audio_file": "podcasts/audio/episode-02-20-to-26-july-2026.m4a"
+  },
+  {
+    "title": "Episode 1: Lockout Goes to Air",
+    "date": "2026-07-19",
+    "description": "The entirely necessary opening broadcast: five games, two Friday winners and an ominously strong start from Dave.",
+    "audio_file": "podcasts/audio/episode-01-13-to-19-july-2026.m4a"
+  }
+]
