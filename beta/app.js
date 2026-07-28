@@ -17,6 +17,9 @@ const PROVISIONAL_K = 40;
 const STANDARD_K = 24;
 const DEFAULT_FALSE_LOCKOUT_PENALTY = 10;
 const MIN_SCORE = -2;
+const PUBLIC_SNAPSHOT_STORAGE_KEY = 'lockout_public_snapshot_2_1_beta_6';
+const PUBLIC_SNAPSHOT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const API_REQUEST_TIMEOUT_MS = 24000;
 
 let currentSession = null;
 let currentHandNumber = 1;
@@ -31,7 +34,7 @@ let eloCache = [];
 let eloHistoryAllCache = null;
 let eloHistoryAllCachedAt = 0;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.5',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.6',
     photos_enabled: false
 };
 let homeDashboardPromise = null;
@@ -43,6 +46,7 @@ const externalScriptPromises = new Map();
 window.lockoutPerformance = window.lockoutPerformance || [];
 
 const READ_CACHE_TTL = {
+    getAppBootstrap: 120000,
     getHomeData: 15000,
     getPlayers: 300000,
     getSessions: 30000,
@@ -53,6 +57,8 @@ const READ_CACHE_TTL = {
     getEloRatings: 30000,
     getEloHistory: 60000,
     getEloHistoryAll: 60000,
+    getSession: 60000,
+    getHands: 60000,
     getPlayerProfile: 120000,
     getStatsSummary: 60000,
     getPublicConfig: 300000
@@ -80,13 +86,14 @@ const READ_ACTIONS = new Set([
     'getEditHistory', 'getSessionsWithHands', 'getHeadToHeadMatrix',
     'getPlayerComparisonDetailed', 'getEloRatings', 'getEloHistory',
     'getEloHistoryAll', 'getPlayerProfile', 'checkPlayerPin', 'getPublicConfig',
-    'getHomeData', 'getStatsSummary'
+    'getHomeData', 'getStatsSummary', 'getAppBootstrap'
 ]);
 const SESSION_ACTIONS = new Set([
     'updateSession', 'updateSessionPhoto', 'addPlayerToSession', 'closeSession',
     'addHand', 'updateHand', 'deleteHand'
 ]);
 const UNAUTHENTICATED_WRITE_ACTIONS = new Set(['setPlayerPin', 'verifyPlayerPin']);
+const SAFE_POST_RETRY_ACTIONS = new Set(['validatePlayer', 'verifyPlayerPin']);
 
 function loadExternalScript(url, globalName) {
     if (globalName && window[globalName]) return Promise.resolve(window[globalName]);
@@ -458,7 +465,7 @@ async function validateSavedPlayerAccess() {
     }
     const status = document.getElementById('editingStatus');
     if (status) status.textContent = 'Checking saved sign-in...';
-    const data = await rawApiRequest('validatePlayer', { player_token: token }, false);
+    const data = await requestWithSafeRetry('validatePlayer', { player_token: token }, false);
     if (data.error) {
         signOutPlayer();
         return false;
@@ -474,7 +481,7 @@ async function loadPublicConfig() {
         publicConfig = Object.assign({}, publicConfig, data);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Beta 5 · v' + publicConfig.version;
+    if (version) version.textContent = 'Beta 6 · v' + publicConfig.version;
     return publicConfig;
 }
 
@@ -483,7 +490,7 @@ function applyPublicConfig(config) {
         publicConfig = Object.assign({}, publicConfig, config);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Beta 5 · v' + publicConfig.version;
+    if (version) version.textContent = 'Beta 6 · v' + publicConfig.version;
 }
 
 let _accessModalResolver = null;
@@ -605,6 +612,9 @@ function apiErrorMessage(data, fallback) {
     if (data.code === 'NETWORK_ERROR') {
         return 'The app could not reach the server. Nothing was saved. Check your connection and try again.';
     }
+    if (data.code === 'READ_ONLY') {
+        return 'This page is using an older cached app file. Refresh the page, then try again.';
+    }
     return data.error || fallback || 'The request could not be completed.';
 }
 
@@ -638,7 +648,7 @@ async function rawApiRequest(action, params, isRead) {
     }
     const startedAt = Date.now();
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timeoutId = controller ? setTimeout(function() { controller.abort(); }, 30000) : null;
+    const timeoutId = controller ? setTimeout(function() { controller.abort(); }, API_REQUEST_TIMEOUT_MS) : null;
     try {
         let response;
         if (isRead) {
@@ -689,6 +699,22 @@ async function rawApiRequest(action, params, isRead) {
     }
 }
 
+function isTransientApiFailure(data) {
+    return Boolean(data && (data.code === 'NETWORK_TIMEOUT' || data.code === 'NETWORK_ERROR'));
+}
+
+function waitForRetry(delayMs) {
+    return new Promise(function(resolve) { setTimeout(resolve, delayMs); });
+}
+
+async function requestWithSafeRetry(action, params, isRead) {
+    let data = await rawApiRequest(action, params, isRead);
+    if (!isTransientApiFailure(data) || (!isRead && !SAFE_POST_RETRY_ACTIONS.has(action))) return data;
+    await waitForRetry(350);
+    data = await rawApiRequest(action, params, isRead);
+    return data;
+}
+
 async function apiCall(action, params) {
     params = Object.assign({}, params || {});
     const isRead = READ_ACTIONS.has(action);
@@ -698,7 +724,7 @@ async function apiCall(action, params) {
         const cached = readResponseCache.get(cacheKey);
         if (ttl > 0 && cached && Date.now() - cached.storedAt < ttl) return cached.data;
         if (readRequestInFlight.has(cacheKey)) return readRequestInFlight.get(cacheKey);
-        const request = rawApiRequest(action, params, true)
+        const request = requestWithSafeRetry(action, params, true)
             .then(function(data) {
                 if (ttl > 0 && data && !data.error) {
                     readResponseCache.set(cacheKey, { data: data, storedAt: Date.now() });
@@ -723,7 +749,7 @@ async function apiCall(action, params) {
                 : Number(params.revision || 1);
         }
     }
-    const data = await rawApiRequest(action, params, isRead);
+    const data = await requestWithSafeRetry(action, params, isRead);
     if (data && (data.code === 'AUTH_EXPIRED' || data.code === 'AUTH_REQUIRED') &&
         !UNAUTHENTICATED_WRITE_ACTIONS.has(action)) signOutPlayer();
     if (data && data.revision && currentSession && String(currentSession.session_id) === String(params.session_id)) {
@@ -764,23 +790,108 @@ function applyPlayersData(players) {
     }
 }
 
+function storeReadResponse(action, params, data, storedAt) {
+    if (data === undefined || data === null || data.error) return;
+    readResponseCache.set(apiCacheKey(action, params || {}), {
+        data: data,
+        storedAt: Number(storedAt || Date.now())
+    });
+}
+
+function storeSessionReadResponses(item, storedAt) {
+    if (!item || !item.session) return;
+    const sessionId = item.session.session_id;
+    storeReadResponse('getSession', { session_id: sessionId }, item.session, storedAt);
+    storeReadResponse('getHands', { session_id: sessionId }, item.hands || [], storedAt);
+    if (String(sessionId) !== sessionId) {
+        storeReadResponse('getSession', { session_id: String(sessionId) }, item.session, storedAt);
+        storeReadResponse('getHands', { session_id: String(sessionId) }, item.hands || [], storedAt);
+    }
+}
+
+function primeBootstrapReadCaches(data, storedAt) {
+    if (!data || typeof data !== 'object') return;
+    const at = Number(storedAt || Date.now());
+    storeReadResponse('getAppBootstrap', {}, data, at);
+    storeReadResponse('getPlayers', {}, data.players || [], at);
+    storeReadResponse('getSessionsWithHands', {}, data.sessions_with_hands || [], at);
+    storeReadResponse('getEloRatings', {}, data.elo_ratings || [], at);
+    storeReadResponse('getEloHistoryAll', {}, data.elo_history_all || [], at);
+    storeReadResponse('getStatsSummary', {}, data.stats_summary || {}, at);
+    storeReadResponse('getHeadToHeadMatrix', {}, data.head_to_head_matrix || [], at);
+    storeReadResponse('getPublicConfig', {}, data.public_config || {}, at);
+    (data.sessions_with_hands || []).forEach(function(item) {
+        storeSessionReadResponses(item, at);
+    });
+}
+
+function applyBootstrapData(data, storedAt) {
+    if (!data || typeof data !== 'object') return false;
+    applyPublicConfig(data.public_config);
+    applyPlayersData(data.players || []);
+    eloCache = Array.isArray(data.elo_ratings) ? data.elo_ratings : [];
+    eloHistoryAllCache = Array.isArray(data.elo_history_all) ? data.elo_history_all : null;
+    eloHistoryAllCachedAt = eloHistoryAllCache ? Number(storedAt || Date.now()) : 0;
+    primeBootstrapReadCaches(data, storedAt);
+    return true;
+}
+
+function loadStoredPublicSnapshot() {
+    try {
+        const raw = localStorage.getItem(PUBLIC_SNAPSHOT_STORAGE_KEY);
+        if (!raw) return null;
+        const stored = JSON.parse(raw);
+        if (!stored || !stored.data || !Number(stored.stored_at)) return null;
+        if (Date.now() - Number(stored.stored_at) > PUBLIC_SNAPSHOT_MAX_AGE_MS) return null;
+        const expectedVersion = window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version;
+        const storedVersion = stored.data.public_config && stored.data.public_config.version;
+        if (expectedVersion && storedVersion && expectedVersion !== storedVersion) return null;
+        return stored;
+    } catch (error) {
+        return null;
+    }
+}
+
+function saveStoredPublicSnapshot(data) {
+    try {
+        localStorage.setItem(PUBLIC_SNAPSHOT_STORAGE_KEY, JSON.stringify({
+            stored_at: Date.now(),
+            data: data
+        }));
+    } catch (error) {
+        // The app remains fully functional when private browsing blocks storage.
+    }
+}
+
+async function renderHomeBootstrap(data) {
+    await Promise.all([
+        checkActiveSessions(data.sessions_with_hands || []),
+        displayEloLeaderboard(data.elo_ratings || [])
+    ]);
+}
+
 async function loadHomeDashboard() {
     if (homeDashboardPromise) return homeDashboardPromise;
     homeDashboardPromise = (async function() {
-        const data = await apiCall('getHomeData', {});
-        if (data.error) {
-            // Allow the fallback loaders to request players independently.
-            homeDashboardPromise = null;
-            await Promise.all([loadPublicConfig(), checkActiveSessions(), displayEloLeaderboard()]);
-            return false;
+        const stored = loadStoredPublicSnapshot();
+        if (stored && applyBootstrapData(stored.data, Date.now())) {
+            await renderHomeBootstrap(stored.data);
         }
-        applyPublicConfig(data.public_config);
-        applyPlayersData(data.players || []);
-        eloCache = Array.isArray(data.elo_ratings) ? data.elo_ratings : [];
-        await Promise.all([
-            checkActiveSessions(data.sessions_with_hands || []),
-            displayEloLeaderboard(eloCache)
-        ]);
+
+        let data = stored
+            ? await requestWithSafeRetry('getAppBootstrap', {}, true)
+            : await apiCall('getAppBootstrap', {});
+        if (data.error) {
+            if (stored) return true;
+            data = await apiCall('getHomeData', {});
+            if (data.error) {
+                await Promise.all([loadPublicConfig(), checkActiveSessions(), displayEloLeaderboard()]);
+                return false;
+            }
+        }
+        applyBootstrapData(data, Date.now());
+        if (Array.isArray(data.elo_history_all)) saveStoredPublicSnapshot(data);
+        await renderHomeBootstrap(data);
         return true;
     })();
     try {
@@ -1821,6 +1932,11 @@ async function resumeSession(sessionId, buttonElement, requestedIntentId) {
         ? requestedIntentId
         : beginNavigationIntent();
     if (buttonElement) setButtonLoading(buttonElement, true);
+    if (homeDashboardPromise) await homeDashboardPromise;
+    if (!isCurrentNavigationIntent(intentId)) {
+        if (buttonElement) setButtonLoading(buttonElement, false);
+        return;
+    }
     const results = await Promise.all([
         apiCall('getSession', { session_id: sessionId }),
         ensurePlayersLoaded(),
