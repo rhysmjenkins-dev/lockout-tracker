@@ -17,7 +17,7 @@ const PROVISIONAL_K = 40;
 const STANDARD_K = 24;
 const DEFAULT_FALSE_LOCKOUT_PENALTY = 10;
 const MIN_SCORE = -2;
-const PUBLIC_SNAPSHOT_STORAGE_KEY = 'lockout_public_snapshot_2_1_beta_6';
+const PUBLIC_SNAPSHOT_STORAGE_KEY = 'lockout_public_snapshot_2_1_beta_7';
 const PUBLIC_SNAPSHOT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const API_REQUEST_TIMEOUT_MS = 24000;
 
@@ -34,7 +34,7 @@ let eloCache = [];
 let eloHistoryAllCache = null;
 let eloHistoryAllCachedAt = 0;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.6',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.7',
     photos_enabled: false
 };
 let homeDashboardPromise = null;
@@ -481,7 +481,7 @@ async function loadPublicConfig() {
         publicConfig = Object.assign({}, publicConfig, data);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Beta 6 · v' + publicConfig.version;
+    if (version) version.textContent = 'Beta 7 · v' + publicConfig.version;
     return publicConfig;
 }
 
@@ -490,7 +490,7 @@ function applyPublicConfig(config) {
         publicConfig = Object.assign({}, publicConfig, config);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Beta 6 · v' + publicConfig.version;
+    if (version) version.textContent = 'Beta 7 · v' + publicConfig.version;
 }
 
 let _accessModalResolver = null;
@@ -820,6 +820,12 @@ function primeBootstrapReadCaches(data, storedAt) {
     storeReadResponse('getStatsSummary', {}, data.stats_summary || {}, at);
     storeReadResponse('getHeadToHeadMatrix', {}, data.head_to_head_matrix || [], at);
     storeReadResponse('getPublicConfig', {}, data.public_config || {}, at);
+    Object.keys(data.player_profiles || {}).forEach(function(playerId) {
+        storeReadResponse('getPlayerProfile', { player_id: playerId }, data.player_profiles[playerId], at);
+        if (/^\d+$/.test(playerId)) {
+            storeReadResponse('getPlayerProfile', { player_id: Number(playerId) }, data.player_profiles[playerId], at);
+        }
+    });
     (data.sessions_with_hands || []).forEach(function(item) {
         storeSessionReadResponses(item, at);
     });
