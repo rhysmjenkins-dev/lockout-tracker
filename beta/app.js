@@ -17,7 +17,12 @@ const PROVISIONAL_K = 40;
 const STANDARD_K = 24;
 const DEFAULT_FALSE_LOCKOUT_PENALTY = 10;
 const MIN_SCORE = -2;
-const PUBLIC_SNAPSHOT_STORAGE_KEY = 'lockout_public_snapshot_2_1_beta_8';
+const PUBLIC_SNAPSHOT_STORAGE_KEY = 'lockout_public_snapshot_2_1';
+const LEGACY_PUBLIC_SNAPSHOT_STORAGE_KEYS = [
+    'lockout_public_snapshot_2_1_beta_8',
+    'lockout_public_snapshot_2_1_beta_7'
+];
+const PUBLIC_SNAPSHOT_SCHEMA_VERSION = 1;
 const PUBLIC_SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const API_REQUEST_TIMEOUT_MS = 24000;
 
@@ -34,7 +39,7 @@ let eloCache = [];
 let eloHistoryAllCache = null;
 let eloHistoryAllCachedAt = 0;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.8',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.9',
     photos_enabled: false
 };
 let homeDashboardPromise = null;
@@ -42,6 +47,7 @@ let navigationIntentId = 0;
 let screenTransitionTimer = null;
 const readResponseCache = new Map();
 const readRequestInFlight = new Map();
+let readCacheGeneration = 0;
 const externalScriptPromises = new Map();
 window.lockoutPerformance = window.lockoutPerformance || [];
 
@@ -132,7 +138,7 @@ function recordApiTiming(action, startedAt, data) {
     };
     window.lockoutPerformance.push(entry);
     if (window.lockoutPerformance.length > 50) window.lockoutPerformance.shift();
-    if (duration >= 1500) console.info('API timing:', entry);
+    if (duration >= 1500) console.info('API timing ' + JSON.stringify(entry));
 }
 
 function installSearchableSelect(selectOrId, placeholder) {
@@ -463,7 +469,7 @@ async function loadPublicConfig() {
         publicConfig = Object.assign({}, publicConfig, data);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Beta 8 · v' + publicConfig.version;
+    if (version) version.textContent = 'Beta 9 · v' + publicConfig.version;
     return publicConfig;
 }
 
@@ -472,7 +478,7 @@ function applyPublicConfig(config) {
         publicConfig = Object.assign({}, publicConfig, config);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Beta 8 · v' + publicConfig.version;
+    if (version) version.textContent = 'Beta 9 · v' + publicConfig.version;
 }
 
 let _accessModalResolver = null;
@@ -572,6 +578,7 @@ function apiCacheKey(action, params) {
 }
 
 function clearFrontendReadCaches(options) {
+    readCacheGeneration++;
     readResponseCache.clear();
     readRequestInFlight.clear();
     eloHistoryAllCache = null;
@@ -706,15 +713,18 @@ async function apiCall(action, params) {
         const cached = readResponseCache.get(cacheKey);
         if (ttl > 0 && cached && Date.now() - cached.storedAt < ttl) return cached.data;
         if (readRequestInFlight.has(cacheKey)) return readRequestInFlight.get(cacheKey);
+        const cacheGeneration = readCacheGeneration;
         const request = requestWithSafeRetry(action, params, true)
             .then(function(data) {
-                if (ttl > 0 && data && !data.error) {
+                if (ttl > 0 && data && !data.error && cacheGeneration === readCacheGeneration) {
                     readResponseCache.set(cacheKey, { data: data, storedAt: Date.now() });
                 }
                 return data;
             })
             .finally(function() {
-                readRequestInFlight.delete(cacheKey);
+                if (readRequestInFlight.get(cacheKey) === request) {
+                    readRequestInFlight.delete(cacheKey);
+                }
             });
         readRequestInFlight.set(cacheKey, request);
         return request;
@@ -825,27 +835,39 @@ function applyBootstrapData(data, storedAt) {
 }
 
 function loadStoredPublicSnapshot() {
-    try {
-        const raw = localStorage.getItem(PUBLIC_SNAPSHOT_STORAGE_KEY);
-        if (!raw) return null;
-        const stored = JSON.parse(raw);
-        if (!stored || !stored.data || !Number(stored.stored_at)) return null;
-        if (Date.now() - Number(stored.stored_at) > PUBLIC_SNAPSHOT_MAX_AGE_MS) return null;
-        const expectedVersion = window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version;
-        const storedVersion = stored.data.public_config && stored.data.public_config.version;
-        if (expectedVersion && storedVersion && expectedVersion !== storedVersion) return null;
-        return stored;
-    } catch (error) {
-        return null;
+    const keys = [PUBLIC_SNAPSHOT_STORAGE_KEY].concat(LEGACY_PUBLIC_SNAPSHOT_STORAGE_KEYS);
+    for (let i = 0; i < keys.length; i++) {
+        try {
+            const raw = localStorage.getItem(keys[i]);
+            if (!raw) continue;
+            const stored = JSON.parse(raw);
+            if (!stored || !stored.data || !Number(stored.stored_at)) continue;
+            if (stored.snapshot_schema &&
+                Number(stored.snapshot_schema) !== PUBLIC_SNAPSHOT_SCHEMA_VERSION) continue;
+            if (Date.now() - Number(stored.stored_at) > PUBLIC_SNAPSHOT_MAX_AGE_MS) continue;
+            if (stored.data.public_config && window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version) {
+                stored.data.public_config = Object.assign({}, stored.data.public_config, {
+                    version: window.LOCKOUT_CONFIG.version
+                });
+            }
+            return stored;
+        } catch (error) {
+            // Try the next compatible snapshot.
+        }
     }
+    return null;
 }
 
 function saveStoredPublicSnapshot(data) {
     try {
         localStorage.setItem(PUBLIC_SNAPSHOT_STORAGE_KEY, JSON.stringify({
+            snapshot_schema: PUBLIC_SNAPSHOT_SCHEMA_VERSION,
             stored_at: Date.now(),
             data: data
         }));
+        LEGACY_PUBLIC_SNAPSHOT_STORAGE_KEYS.forEach(function(key) {
+            localStorage.removeItem(key);
+        });
     } catch (error) {
         // The app remains fully functional when private browsing blocks storage.
     }
@@ -862,13 +884,14 @@ async function loadHomeDashboard() {
     if (homeDashboardPromise) return homeDashboardPromise;
     homeDashboardPromise = (async function() {
         const stored = loadStoredPublicSnapshot();
-        if (stored && applyBootstrapData(stored.data, Date.now())) {
+        if (stored && applyBootstrapData(stored.data, stored.stored_at)) {
             await renderHomeBootstrap(stored.data);
+            if (Date.now() - Number(stored.stored_at) < READ_CACHE_TTL.getAppBootstrap) {
+                return true;
+            }
         }
 
-        let data = stored
-            ? await requestWithSafeRetry('getAppBootstrap', {}, true)
-            : await apiCall('getAppBootstrap', {});
+        let data = await apiCall('getAppBootstrap', {});
         if (data.error) {
             if (stored) return true;
             data = await apiCall('getHomeData', {});
@@ -1320,21 +1343,44 @@ function parsePlayerJoinInfo(joinInfoString) {
     } catch(e) { return {}; }
 }
 
-function getPlayerStartingScore(playerId) {
-    if (!currentSession || !currentSession.player_join_info) return 0;
+function getSessionPlayerJoinDetails(session, playerId) {
+    const details = { hand: 1, startingScore: 0 };
+    if (!session || !session.player_join_info) return details;
     try {
-        const fullInfo = JSON.parse(currentSession.player_join_info);
-        const info = fullInfo[playerId];
-        if (!info) return 0;
-        if (typeof info === 'object' && info.starting_score !== undefined) return info.starting_score;
+        const fullInfo = JSON.parse(session.player_join_info);
+        const info = fullInfo[String(playerId)];
+        if (typeof info === 'object' && info !== null) {
+            if (info.hand !== undefined) details.hand = Number(info.hand) || 1;
+            if (info.starting_score !== undefined) details.startingScore = Number(info.starting_score) || 0;
+        } else if (typeof info === 'number') {
+            details.hand = info;
+        }
     } catch(e) {}
-    return 0;
+    return details;
+}
+
+function formatLateJoinBadge(joinHand, startingScore) {
+    if (Number(joinHand) <= 1) return '';
+    return ' <span class="late-join-badge" title="Joined Hand ' + joinHand +
+        ' with starting score ' + startingScore + '">H' + joinHand + ' · Start ' + startingScore + '</span>';
+}
+
+function formatWormTooltip(context) {
+    const dataset = context.dataset || {};
+    let label = (dataset.playerName || dataset.label || 'Score') + ': ' + context.formattedValue;
+    if (Number(dataset.joinHand) > 1 && context.dataIndex === Number(dataset.joinHand) - 1) {
+        const handScore = dataset.handScores && dataset.handScores.length ? dataset.handScores[0] : 0;
+        label += ' (start ' + dataset.startingScore + ' + hand ' + handScore + ')';
+    }
+    return label;
+}
+
+function getPlayerStartingScore(playerId) {
+    return getSessionPlayerJoinDetails(currentSession, playerId).startingScore;
 }
 
 function getPlayerJoinHand(playerId) {
-    if (!currentSession || !currentSession.player_join_info) return 1;
-    const joinInfo = parsePlayerJoinInfo(currentSession.player_join_info);
-    return joinInfo[playerId] || 1;
+    return getSessionPlayerJoinDetails(currentSession, playerId).hand;
 }
 
 // ============================================
@@ -2547,7 +2593,7 @@ if (handsData.length === 0) {
         const avgFalseLockoutScore = p.falseLockoutScores.length > 0 ? (p.falseLockoutScores.reduce((sum, s) => sum + s, 0) / p.falseLockoutScores.length).toFixed(2) : 'N/A';
         html += '<tr>';
         const _pid = sessionPlayers.find(sp => sp.username === p.username).player_id;
-        html += '<td><strong>' + makePlayerLink(_pid, p.username) + '</strong>' + (p.joinHand > 1 ? ' <span class="late-join-badge">H' + p.joinHand + '</span>' : '') + ' ' + formatEloBadge(_pid) + '</td>';
+        html += '<td><strong>' + makePlayerLink(_pid, p.username) + '</strong>' + formatLateJoinBadge(p.joinHand, getPlayerStartingScore(_pid)) + ' ' + formatEloBadge(_pid) + '</td>';
         html += '<td>' + p.total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td>';
         html += '<td>' + p.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td>';
         html += '<td>' + p.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td>';
@@ -2591,6 +2637,7 @@ if (handsData.length === 0) {
         let chartsHtml = '<h3 class="mt-20">Session Graphs</h3>';
         chartsHtml += '<div class="chart-container"><canvas id="activeWormChart"></canvas></div>';
         chartsHtml += '<div class="chart-container"><canvas id="activeManhattanChart"></canvas></div>';
+        if (scores.some(p => p.joinHand > 1)) chartsHtml += '<p class="chart-note">Worm includes late-join starts; Manhattan shows hand scores only.</p>';
         chartSection.innerHTML = chartsHtml;
         const playerHandsData = {}, playerIdsArray = [];
         for (let i = 0; i < scores.length; i++) {
@@ -2624,12 +2671,25 @@ function drawActiveWormChart(playerHands, playerIds) {
         const cumulativeScores = [];
         for (let h = 1; h < joinHand; h++) cumulativeScores.push(null);
         for (let j = 0; j < hands.length; j++) { cumulative += hands[j]; cumulativeScores.push(cumulative); }
-        datasets.push({ label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''), data: cumulativeScores, borderColor: colors[i % colors.length], backgroundColor: 'transparent', borderWidth: 2, tension: 0.1, spanGaps: false });
+        const playerName = getPlayerName(playerId);
+        datasets.push({
+            label: playerName + (joinHand > 1 ? ' (H' + joinHand + ', start ' + startingScore + ')' : ''),
+            playerName: playerName,
+            joinHand: joinHand,
+            startingScore: startingScore,
+            handScores: hands.slice(),
+            data: cumulativeScores,
+            borderColor: colors[i % colors.length],
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            tension: 0.1,
+            spanGaps: false
+        });
     }
     const labels = [];
     for (let i = 1; i <= maxHands; i++) labels.push('Hand ' + i);
     if (window._activeWormChart) window._activeWormChart.destroy();
-    window._activeWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Cricket Worm' }, legend: { display: true, position: 'top' } }, scales: { y: { title: { display: true, text: 'Cumulative Score' } } } } });
+    window._activeWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Cricket Worm' }, legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: formatWormTooltip } } }, scales: { y: { title: { display: true, text: 'Cumulative Score' } } } } });
 }
 
 function drawActiveManhattanChart(playerHands, playerIds) {
@@ -2825,7 +2885,10 @@ async function viewSessionDetail(sessionIndex, buttonElement, requestedIntentId)
         if (Object.keys(joinInfo).length > 0) {
             metadataHtml += '<p><strong>👥 Late Joiners:</strong> ';
             const joiners = [];
-            for (let playerId in joinInfo) joiners.push(getPlayerName(playerId) + ' (Hand ' + joinInfo[playerId] + ')');
+            for (let playerId in joinInfo) {
+                const details = getSessionPlayerJoinDetails(session, playerId);
+                joiners.push(getPlayerName(playerId) + ' — H' + details.hand + ', start ' + details.startingScore);
+            }
             metadataHtml += joiners.join(', ') + '</p>';
         }
         metadataHtml += '</div>';
@@ -2914,7 +2977,8 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return pla
             eloBadge = ' <span class="elo-badge" style="background:#1a1a2e; color:#ffd700; font-size:0.75em;">⚡ ' + sessionElo[playerId].new_rating + '</span>' +
                        '<span style="color:' + changeColor + '; font-weight:600; font-size:0.8em;"> (' + changeStr + ')</span>';
         }
-        html += '<tr><td><strong>' + makePlayerLink(playerId, getPlayerName(playerId)) + '</strong>' + eloBadge + '</td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
+        const joinDetails = getSessionPlayerJoinDetails(session, playerId);
+        html += '<tr><td><strong>' + makePlayerLink(playerId, getPlayerName(playerId)) + '</strong>' + formatLateJoinBadge(joinDetails.hand, joinDetails.startingScore) + eloBadge + '</td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
 }
 html += '</table></div>';
 document.getElementById('sessionDetailContent').innerHTML = html;
@@ -2955,6 +3019,7 @@ document.getElementById('sessionDetailHandHistory').innerHTML = handHistoryHtml;
     let graphsHtml = '<h3 class="mt-20">Graphs</h3>';
     graphsHtml += '<div class="chart-container"><canvas id="wormChart"></canvas></div>';
     graphsHtml += '<div class="chart-container"><canvas id="manhattanChart"></canvas></div>';
+    if (Object.keys(joinInfo).length > 0) graphsHtml += '<p class="chart-note">Worm includes late-join starts; Manhattan shows hand scores only.</p>';
     document.getElementById('sessionDetailGraphs').innerHTML = graphsHtml;
     showScreen('sessionDetailScreen', false, intentId);
     setTimeout(function() {
@@ -2989,12 +3054,25 @@ function drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playe
         const dataPoints = [];
         for (let h = 1; h < joinHand; h++) dataPoints.push(null);
         for (let j = 0; j < hands.length; j++) { cumulative += hands[j].score; dataPoints.push(cumulative); }
-        datasets.push({ label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''), data: dataPoints, borderColor: colors[i % colors.length], backgroundColor: 'transparent', borderWidth: 2, tension: 0.1, spanGaps: false });
+        const playerName = getPlayerName(playerId);
+        datasets.push({
+            label: playerName + (joinHand > 1 ? ' (H' + joinHand + ', start ' + startingScore + ')' : ''),
+            playerName: playerName,
+            joinHand: joinHand,
+            startingScore: startingScore,
+            handScores: hands.map(hand => hand.score),
+            data: dataPoints,
+            borderColor: colors[i % colors.length],
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            tension: 0.1,
+            spanGaps: false
+        });
     }
     const labels = [];
     for (let i = 1; i <= maxHand; i++) labels.push('Hand ' + i);
     if (window._sessionWormChart) window._sessionWormChart.destroy();
-    window._sessionWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Cricket Worm' }, legend: { display: true, position: 'top' } }, scales: { y: { title: { display: true, text: 'Cumulative Score' } } } } });
+    window._sessionWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Cricket Worm' }, legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: formatWormTooltip } } }, scales: { y: { title: { display: true, text: 'Cumulative Score' } } } } });
 }
 
 function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session) {

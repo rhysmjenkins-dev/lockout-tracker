@@ -6,7 +6,7 @@
         // APP VERSION — increment this when deploying
         // changes to app.js or styles.css
         // ============================================
-        const APP_VERSION = '21-beta-8';
+        const APP_VERSION = '21-beta-9';
         document.write('<link rel="stylesheet" href="styles.css?v=' + APP_VERSION + '">');
     </script>
     <meta charset="UTF-8">
@@ -169,7 +169,7 @@
                             <div class="content-card-sm" id="glossarySlam"><h4 class="heading-blue-sm">Slam</h4><p class="p-muted">An out-of-turn action where you match a discarded card with one in your hand or an opponent's hand. Reduces hand size or penalizes opponents.</p></div>
                             <div class="content-card-sm" id="glossaryPenaltyCard"><h4 class="heading-blue-sm">Penalty Card</h4><p class="p-muted">A face-down card added to your hand (without looking) as punishment for incorrect slams or being correctly slammed by an opponent.</p></div>
                             <div class="content-card-sm" id="glossaryDefense"><h4 class="heading-blue-sm">Defense</h4><p class="p-muted">Protecting your card from being slammed by placing your finger on it first when you see an opponent approaching.</p></div>
-                            <div class="content-card-sm" id="glossaryLateJoiner"><h4 class="heading-blue-sm">Late Joiner</h4><p class="p-muted">A player who joins mid-session. Their starting score equals the average of all current players' totals at the hand they join.</p></div>
+                            <div class="content-card-sm" id="glossaryLateJoiner"><h4 class="heading-blue-sm">Late Joiner</h4><p class="p-muted">A player who joins mid-session. Their starting score is the current players' average cumulative score, rounded to the nearest whole number.</p></div>
                             <div class="content-card-sm" id="glossaryCumulativeScore"><h4 class="heading-blue-sm">Cumulative Score</h4><p class="p-muted">Your total score across all hands in a session. Lowest cumulative score wins.</p></div>
                             <div class="content-card-sm" id="glossaryRedKing"><h4 class="heading-blue-sm">Red King</h4><p class="p-muted">The only card worth -1 points (King of Hearts or Diamonds). Cannot be slammed.</p></div>
                         </div>
@@ -327,7 +327,7 @@
                                 <li>Tap <strong>"➕ Add Player"</strong> button (in active session)</li>
                                 <li>Select the player from the list</li>
                                 <li>Confirm — they'll join from the <strong>current hand</strong> onwards</li>
-                                <li>The app calculates their <strong>starting score</strong> automatically (average of all current players' totals)</li>
+                                <li>The app calculates their <strong>starting score</strong> automatically (current players' average cumulative score, rounded to the nearest whole number)</li>
                                 <li>Late joiners are marked with a <strong>"Joined H#"</strong> badge</li>
                             </ol>
                         </div>
@@ -446,7 +446,7 @@
                             <h4 class="heading-cyan"><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryLateJoiner'); return false;">Late Joiner</a> Support</h4>
                             <ul class="list-indented">
                                 <li>Players can join mid-session</li>
-                                <li>Starting score = average of all current players' totals at join hand</li>
+                                <li>Starting score = current players' average cumulative score at the join hand, rounded to the nearest whole number</li>
                                 <li>Marked with <strong>"Joined H#"</strong> badges throughout the app</li>
                                 <li>Graphs show nulls for hands before they joined</li>
                             </ul>
@@ -505,7 +505,7 @@
                         <div class="content-card-sm"><p class="p-question">Q: What if I accidentally end a session?</p><p>A: Ended sessions cannot be reopened. Start a new session if needed.</p></div>
                         <div class="content-card-sm"><p class="p-question">Q: Can I remove a player from a session?</p><p>A: No, once a player is added (either at start or mid-session), they cannot be removed. Plan carefully!</p></div>
                         <div class="content-card-sm"><p class="p-question">Q: What if two players tie for lowest after a lockout?</p><p>A: The locked-out player gets a <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryFalseLockout'); return false;">false lockout</a> penalty. The other tied player keeps their original score (not reset to 0).</p></div>
-                        <div class="content-card-sm"><p class="p-question">Q: How are <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryLateJoiner'); return false;">late joiner</a> starting scores calculated?</p><p>A: Average of all current players' cumulative totals at the hand they join.</p></div>
+                        <div class="content-card-sm"><p class="p-question">Q: How are <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryLateJoiner'); return false;">late joiner</a> starting scores calculated?</p><p>A: The current players' average cumulative score, rounded to the nearest whole number.</p></div>
                         <div class="content-card-sm"><p class="p-question">Q: Why does the app ask for lockout scores, not final scores?</p><p>A: The app calculates final scores automatically based on lockout validity. You only input the score the player called lockout with.</p></div>
                     </div>
 
@@ -1180,7 +1180,7 @@
     </script>
     <div class="app-footer">
         <button type="button" class="footer-feedback-link footer-feedback-button" onclick="showFeedbackModal()">💬 Feedback or bug report</button>
-        <div id="releaseVersion" class="release-version">Beta 8 · v2.1-beta.8</div>
+        <div id="releaseVersion" class="release-version">Beta 9 · v2.1-beta.9</div>
     </div>
 </body>
 </html>
