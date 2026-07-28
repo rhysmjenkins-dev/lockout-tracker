@@ -31,7 +31,7 @@ let eloCache = [];
 let eloHistoryAllCache = null;
 let eloHistoryAllCachedAt = 0;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.3',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.4',
     photos_enabled: false
 };
 let navigationIntentId = 0;
@@ -324,6 +324,39 @@ function editingDisplayName() {
 let _signInCallback = null;
 let _signInResolver = null;
 let _pendingSignInResolver = null;
+let _signInChecking = false;
+let _signInAttemptId = 0;
+
+function setSignInChecking(isChecking, statusText) {
+    _signInChecking = isChecking;
+    const button = document.getElementById('signInContinueButton');
+    const message = document.getElementById('signInMessage');
+    if (button) {
+        button.disabled = isChecking;
+        button.textContent = isChecking ? '⏳ Checking…' : 'Continue';
+        if (isChecking) button.setAttribute('aria-busy', 'true');
+        else button.removeAttribute('aria-busy');
+    }
+    if (message && statusText) {
+        message.innerHTML =
+            '<div class="pin-progress"><span class="loading-spinner" aria-hidden="true"></span><span>' +
+            escapeHtml(statusText) + '</span></div>';
+    }
+}
+
+function isRetryablePinStatusError(data) {
+    return data && (data.code === 'NETWORK_TIMEOUT' || data.code === 'NETWORK_ERROR');
+}
+
+async function checkPlayerPinWithRetry(playerId, attemptId) {
+    let check = await apiCall('checkPlayerPin', { player_id: playerId });
+    if (!isRetryablePinStatusError(check) || attemptId !== _signInAttemptId) return check;
+    setSignInChecking(true, 'The server is taking a moment — trying once more…');
+    await new Promise(function(resolve) { setTimeout(resolve, 350); });
+    if (attemptId !== _signInAttemptId) return { error: 'Sign-in cancelled.', code: 'CANCELLED' };
+    check = await apiCall('checkPlayerPin', { player_id: playerId });
+    return check;
+}
 
 async function signInToEdit(forcePrompt, preferredPlayerId, callback) {
     if (getPlayerToken() && !forcePrompt) return getPlayerToken();
@@ -337,6 +370,7 @@ async function signInToEdit(forcePrompt, preferredPlayerId, callback) {
             return '<option value="' + player.player_id + '"' + selected + '>' + escapeHtml(player.username) + '</option>';
         }).join('');
         const search = installSearchableSelect(select, 'Search players…');
+        setSignInChecking(false);
         document.getElementById('signInMessage').innerHTML = '';
         document.getElementById('signInModal').classList.add('active');
         setTimeout(function() { (search || select).focus(); }, 0);
@@ -344,6 +378,8 @@ async function signInToEdit(forcePrompt, preferredPlayerId, callback) {
 }
 
 function closeSignInModal() {
+    _signInAttemptId++;
+    setSignInChecking(false);
     document.getElementById('signInModal').classList.remove('active');
     _signInCallback = null;
     if (_signInResolver) _signInResolver('');
@@ -351,6 +387,7 @@ function closeSignInModal() {
 }
 
 async function continuePlayerSignIn() {
+    if (_signInChecking) return;
     const playerId = document.getElementById('signInPlayerSelect').value;
     const message = document.getElementById('signInMessage');
     if (!playerId) {
@@ -363,17 +400,26 @@ async function continuePlayerSignIn() {
         if (callback) callback();
         if (resolver) resolver(getPlayerToken());
     };
+    const attemptId = ++_signInAttemptId;
+    setSignInChecking(true, 'Checking this player’s PIN status…');
+    const check = await checkPlayerPinWithRetry(playerId, attemptId);
+    if (attemptId !== _signInAttemptId) return;
+    if (check.error) {
+        setSignInChecking(false);
+        message.innerHTML = '<div class="error" role="alert">' +
+            escapeHtml(check.code === 'NETWORK_TIMEOUT'
+                ? 'The PIN check took too long. Please try again.'
+                : check.code === 'NETWORK_ERROR'
+                    ? 'The app could not reach the server. Check your connection and try again.'
+                    : (check.error || 'Could not check this player’s PIN status.')) +
+            '</div>';
+        return;
+    }
     _pendingSignInResolver = resolver;
+    setSignInChecking(false);
     document.getElementById('signInModal').classList.remove('active');
     _signInCallback = null;
     _signInResolver = null;
-    const check = await apiCall('checkPlayerPin', { player_id: playerId });
-    if (check.error) {
-        if (resolver) resolver('');
-        _pendingSignInResolver = null;
-        alert(apiErrorMessage(check, 'Could not check this player’s PIN status.'));
-        return;
-    }
     if (check.has_pin) openPinEntryModal(playerId, finishSignIn);
     else openPinSetupModal(playerId, finishSignIn, false);
 }
@@ -420,7 +466,7 @@ async function loadPublicConfig() {
         publicConfig = Object.assign({}, publicConfig, data);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Beta 3 · v' + publicConfig.version;
+    if (version) version.textContent = 'Beta 4 · v' + publicConfig.version;
     return publicConfig;
 }
 
