@@ -31,7 +31,7 @@ let eloCache = [];
 let eloHistoryAllCache = null;
 let eloHistoryAllCachedAt = 0;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.2',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.3',
     photos_enabled: false
 };
 let navigationIntentId = 0;
@@ -131,7 +131,11 @@ function installSearchableSelect(selectOrId, placeholder) {
     const select = typeof selectOrId === 'string' ? document.getElementById(selectOrId) : selectOrId;
     if (!select) return null;
     const searchId = select.id + 'Search';
+    const resultsId = searchId + 'Results';
+    const statusId = searchId + 'Status';
     let search = document.getElementById(searchId);
+    let results = document.getElementById(resultsId);
+    let status = document.getElementById(statusId);
     if (!search) {
         search = document.createElement('input');
         search.type = 'search';
@@ -139,40 +143,120 @@ function installSearchableSelect(selectOrId, placeholder) {
         search.className = 'player-select-search';
         search.placeholder = placeholder || 'Search players…';
         search.setAttribute('aria-label', placeholder || 'Search players');
+        search.setAttribute('autocomplete', 'off');
+        search.setAttribute('aria-controls', resultsId);
+        search.setAttribute('aria-expanded', 'false');
         select.parentNode.insertBefore(search, select);
-        const status = document.createElement('div');
-        status.id = searchId + 'Status';
+
+        results = document.createElement('div');
+        results.id = resultsId;
+        results.className = 'player-search-results';
+        results.setAttribute('role', 'listbox');
+        results.setAttribute('aria-label', (placeholder || 'Search players') + ' results');
+        select.parentNode.insertBefore(results, select);
+
+        status = document.createElement('div');
+        status.id = statusId;
         status.className = 'player-search-status';
         status.setAttribute('aria-live', 'polite');
         select.parentNode.insertBefore(status, select.nextSibling);
+
+        search.addEventListener('focus', function() {
+            filterPlayerSelect(select, search.value, status, results, true);
+        });
         search.addEventListener('input', function() {
-            filterPlayerSelect(select, search.value, status);
+            filterPlayerSelect(select, search.value, status, results, true);
+        });
+        search.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closePlayerSearchResults(search, results);
+                return;
+            }
+            if (event.key !== 'Enter' && event.key !== 'ArrowDown') return;
+            const firstResult = results.querySelector('.player-search-result:not([hidden])');
+            if (!firstResult) return;
+            event.preventDefault();
+            if (event.key === 'Enter') choosePlayerSearchResult(select, search, results, status, firstResult);
+            else firstResult.focus();
         });
     }
-    search.value = '';
-    filterPlayerSelect(select, '', document.getElementById(searchId + 'Status'));
+    select.classList.add('searchable-player-native-select');
+    results.innerHTML = '';
+    Array.from(select.options).forEach(function(option, index) {
+        if (index === 0 || !option.value) return;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'player-search-result';
+        button.dataset.value = option.value;
+        button.dataset.searchText = option.textContent.toLowerCase();
+        button.textContent = option.textContent;
+        button.setAttribute('role', 'option');
+        button.setAttribute('aria-selected', String(String(select.value) === String(option.value)));
+        button.addEventListener('click', function() {
+            choosePlayerSearchResult(select, search, results, status, button);
+        });
+        button.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closePlayerSearchResults(search, results);
+                search.focus();
+            }
+        });
+        results.appendChild(button);
+    });
+    const selected = select.options[select.selectedIndex];
+    search.value = selected && selected.value ? selected.textContent : '';
+    filterPlayerSelect(select, search.value, status, results, false);
     return search;
 }
 
-function filterPlayerSelect(select, query, status) {
+function closePlayerSearchResults(search, results) {
+    results.classList.remove('is-open');
+    search.setAttribute('aria-expanded', 'false');
+}
+
+function choosePlayerSearchResult(select, search, results, status, button) {
+    select.value = button.dataset.value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    search.value = button.textContent;
+    results.querySelectorAll('.player-search-result').forEach(function(result) {
+        result.classList.toggle('is-selected', result === button);
+        result.setAttribute('aria-selected', String(result === button));
+    });
+    status.textContent = 'Selected ' + button.textContent;
+    closePlayerSearchResults(search, results);
+}
+
+function filterPlayerSelect(select, query, status, results, openResults) {
     const term = String(query || '').trim().toLowerCase();
     let visible = 0;
-    Array.from(select.options).forEach(function(option, index) {
-        const matches = index === 0 || !term || option.textContent.toLowerCase().includes(term);
-        option.hidden = !matches;
-        option.disabled = !matches;
-        if (index > 0 && matches) visible++;
+    results.querySelectorAll('.player-search-result').forEach(function(button) {
+        const matches = !term || button.dataset.searchText.includes(term);
+        button.hidden = !matches;
+        button.style.display = matches ? 'block' : 'none';
+        if (matches) visible++;
     });
     const selected = select.options[select.selectedIndex];
-    if (selected && selected.disabled) select.value = '';
-    if (status) status.textContent = term ? visible + ' player' + (visible === 1 ? '' : 's') + ' found' : '';
+    const selectedText = selected && selected.value ? selected.textContent.toLowerCase() : '';
+    if (term && selectedText && selectedText !== term) select.value = '';
+    status.textContent = term
+        ? (visible ? visible + ' player' + (visible === 1 ? '' : 's') + ' found' : 'No players found')
+        : '';
+    results.classList.toggle('is-open', Boolean(openResults));
+    searchPlayerResultsExpanded(select, openResults);
+}
+
+function searchPlayerResultsExpanded(select, expanded) {
+    const search = document.getElementById(select.id + 'Search');
+    if (search) search.setAttribute('aria-expanded', String(Boolean(expanded)));
 }
 
 function installPlayerListSearch(listId, placeholder) {
     const list = document.getElementById(listId);
     if (!list) return;
     const searchId = listId + 'Search';
+    const statusId = searchId + 'Status';
     let search = document.getElementById(searchId);
+    let status = document.getElementById(statusId);
     if (!search) {
         search = document.createElement('input');
         search.type = 'search';
@@ -180,16 +264,35 @@ function installPlayerListSearch(listId, placeholder) {
         search.className = 'player-select-search';
         search.placeholder = placeholder || 'Search players…';
         search.setAttribute('aria-label', placeholder || 'Search players');
+        search.setAttribute('autocomplete', 'off');
         list.parentNode.insertBefore(search, list);
+
+        status = document.createElement('div');
+        status.id = statusId;
+        status.className = 'player-search-status';
+        status.setAttribute('aria-live', 'polite');
+        list.parentNode.insertBefore(status, list);
+
         search.addEventListener('input', function() {
-            const term = search.value.trim().toLowerCase();
-            list.querySelectorAll('.player-item').forEach(function(item) {
-                item.hidden = Boolean(term) && !item.textContent.toLowerCase().includes(term);
-            });
+            filterPlayerList(list, search.value, status);
         });
     }
     search.value = '';
-    list.querySelectorAll('.player-item').forEach(function(item) { item.hidden = false; });
+    filterPlayerList(list, '', status);
+}
+
+function filterPlayerList(list, query, status) {
+    const term = String(query || '').trim().toLowerCase();
+    let visible = 0;
+    list.querySelectorAll('.player-item').forEach(function(item) {
+        const matches = !term || item.textContent.toLowerCase().includes(term);
+        item.hidden = !matches;
+        item.style.display = matches ? 'flex' : 'none';
+        if (matches) visible++;
+    });
+    status.textContent = term
+        ? (visible ? visible + ' player' + (visible === 1 ? '' : 's') + ' found' : 'No players found')
+        : '';
 }
 
 function getDeviceId() {
@@ -317,7 +420,7 @@ async function loadPublicConfig() {
         publicConfig = Object.assign({}, publicConfig, data);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Beta 2 · v' + publicConfig.version;
+    if (version) version.textContent = 'Beta 3 · v' + publicConfig.version;
     return publicConfig;
 }
 
@@ -1276,6 +1379,9 @@ function showScreen(screenId, skipHistory, requestedIntentId) {
     }, 150);
 
     if (!skipHistory) history.pushState({ screen: screenId }, '', '#' + screenId);
+    if (screenId === 'dictionaryScreen') {
+        showDictionarySection('lingo');
+    }
     if (screenId === 'startSessionScreen') {
         setTimeout(function() {
             if (isCurrentNavigationIntent(intentId)) loadPlayersForSession();
@@ -3738,16 +3844,16 @@ function renderPlayerProfile(data) {
             html += '<button type="button" class="h2h-summary-row" aria-label="Compare ' +
                 escapeAttr(p.username) + ' with ' + escapeAttr(getPlayerName(h.opponent_id)) +
                 '" onclick="quickCompare(' + _currentProfileId + ', ' + h.opponent_id + ')">';
-            html += '<div>';
+            html += '<div class="h2h-summary-copy">';
             html += '<div class="h2h-summary-name">' + getPlayerName(h.opponent_id) + '</div>';
             html += '<div class="h2h-summary-record">' + h.wins + 'W – ' + h.ties + 'D – ' + h.losses + 'L • ' + total + ' sessions</div>';
-            html += '</button>';
+            html += '</div>';
             html += '<div class="h2h-summary-bar">';
             html += '<div style="width:' + winPct + '%;background:#667eea;"></div>';
             html += '<div style="width:' + tiePct + '%;background:#aaa;"></div>';
             html += '<div style="width:' + lossPct + '%;background:#f5576c;"></div>';
             html += '</div>';
-            html += '</div>';
+            html += '</button>';
         }
         html += '</div>';
     }
