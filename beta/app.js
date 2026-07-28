@@ -18,12 +18,14 @@ const STANDARD_K = 24;
 const DEFAULT_FALSE_LOCKOUT_PENALTY = 10;
 const MIN_SCORE = -2;
 const PUBLIC_SNAPSHOT_STORAGE_KEY = 'lockout_public_snapshot_2_1';
+const PUBLIC_SNAPSHOT_DIRTY_KEY = 'lockout_public_snapshot_2_1_dirty';
 const LEGACY_PUBLIC_SNAPSHOT_STORAGE_KEYS = [
     'lockout_public_snapshot_2_1_beta_8',
     'lockout_public_snapshot_2_1_beta_7'
 ];
 const PUBLIC_SNAPSHOT_SCHEMA_VERSION = 1;
 const PUBLIC_SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const HOME_BACKGROUND_REFRESH_MS = 60000;
 const API_REQUEST_TIMEOUT_MS = 24000;
 
 let currentSession = null;
@@ -34,15 +36,18 @@ let allSessions = [];
 let currentEditingHand = null;
 let selectedPlayerToAdd = null;
 let playersLoaded = false;
+let playersLoadedAt = 0;
 let playerCache = {};
 let eloCache = [];
 let eloHistoryAllCache = null;
 let eloHistoryAllCachedAt = 0;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.9',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.10',
     photos_enabled: false
 };
 let homeDashboardPromise = null;
+let homeDashboardRefreshPromise = null;
+let publicSnapshotNeedsRefresh = false;
 let navigationIntentId = 0;
 let screenTransitionTimer = null;
 const readResponseCache = new Map();
@@ -53,20 +58,20 @@ window.lockoutPerformance = window.lockoutPerformance || [];
 
 const READ_CACHE_TTL = {
     getAppBootstrap: 120000,
-    getHomeData: 15000,
-    getPlayers: 300000,
-    getSessions: 30000,
-    getRecentSessions: 30000,
-    getSessionsWithHands: 15000,
+    getHomeData: 60000,
+    getPlayers: 60000,
+    getSessions: 60000,
+    getRecentSessions: 60000,
+    getSessionsWithHands: 120000,
     getHeadToHeadMatrix: 120000,
     getPlayerComparisonDetailed: 120000,
-    getEloRatings: 30000,
-    getEloHistory: 60000,
-    getEloHistoryAll: 60000,
-    getSession: 60000,
-    getHands: 60000,
+    getEloRatings: 120000,
+    getEloHistory: 120000,
+    getEloHistoryAll: 120000,
+    getSession: 15000,
+    getHands: 15000,
     getPlayerProfile: 120000,
-    getStatsSummary: 60000,
+    getStatsSummary: 120000,
     getPublicConfig: 300000
 };
 
@@ -100,6 +105,11 @@ const SESSION_ACTIONS = new Set([
 ]);
 const UNAUTHENTICATED_WRITE_ACTIONS = new Set(['setPlayerPin', 'verifyPlayerPin']);
 const SAFE_POST_RETRY_ACTIONS = new Set(['verifyPlayerPin']);
+const DATA_CHANGING_WRITE_ACTIONS = new Set([
+    'setPlayerPin', 'addPlayer', 'createSession', 'updateSession',
+    'updateSessionPhoto', 'addPlayerToSession', 'closeSession',
+    'addHand', 'updateHand', 'deleteHand', 'updatePlayerProfile'
+]);
 
 function loadExternalScript(url, globalName) {
     if (globalName && window[globalName]) return Promise.resolve(window[globalName]);
@@ -415,11 +425,8 @@ async function continuePlayerSignIn() {
         if (resolver) resolver(getPlayerToken());
     };
     const attemptId = ++_signInAttemptId;
-    const player = allPlayers.find(function(item) {
-        return String(item.player_id) === String(playerId);
-    });
-    let hasPin = player && typeof player.has_pin === 'boolean' ? player.has_pin : null;
-    if (hasPin === null) {
+    let hasPin = false;
+    {
         setSignInChecking(true, 'Checking this player’s PIN status…');
         const check = await checkPlayerPinWithRetry(playerId, attemptId);
         if (attemptId !== _signInAttemptId) return;
@@ -469,7 +476,7 @@ async function loadPublicConfig() {
         publicConfig = Object.assign({}, publicConfig, data);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Beta 9 · v' + publicConfig.version;
+    if (version) version.textContent = 'Beta 10 · v' + publicConfig.version;
     return publicConfig;
 }
 
@@ -478,7 +485,7 @@ function applyPublicConfig(config) {
         publicConfig = Object.assign({}, publicConfig, config);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Beta 9 · v' + publicConfig.version;
+    if (version) version.textContent = 'Beta 10 · v' + publicConfig.version;
 }
 
 let _accessModalResolver = null;
@@ -577,17 +584,55 @@ function apiCacheKey(action, params) {
     return action + ':' + JSON.stringify(sorted);
 }
 
+function markPublicSnapshotDirty() {
+    publicSnapshotNeedsRefresh = true;
+    try {
+        localStorage.setItem(PUBLIC_SNAPSHOT_DIRTY_KEY, '1');
+    } catch (error) {
+        // In-memory invalidation still protects the current page.
+    }
+}
+
+function isPublicSnapshotDirty() {
+    if (publicSnapshotNeedsRefresh) return true;
+    try {
+        return localStorage.getItem(PUBLIC_SNAPSHOT_DIRTY_KEY) === '1';
+    } catch (error) {
+        return false;
+    }
+}
+
 function clearFrontendReadCaches(options) {
     readCacheGeneration++;
     readResponseCache.clear();
     readRequestInFlight.clear();
     eloHistoryAllCache = null;
     eloHistoryAllCachedAt = 0;
+    markPublicSnapshotDirty();
     if (options && options.players) {
         playersLoaded = false;
+        playersLoadedAt = 0;
         allPlayers = [];
         playerCache = {};
     }
+}
+
+function clearSessionReadCaches(sessionId) {
+    readCacheGeneration++;
+    const idVariants = [sessionId, String(sessionId)];
+    const numericId = Number(sessionId);
+    if (Number.isFinite(numericId)) idVariants.push(numericId);
+    const seen = new Set();
+    idVariants.forEach(function(id) {
+        const marker = typeof id + ':' + String(id);
+        if (seen.has(marker)) return;
+        seen.add(marker);
+        ['getSession', 'getHands'].forEach(function(action) {
+            const key = apiCacheKey(action, { session_id: id });
+            readResponseCache.delete(key);
+            readRequestInFlight.delete(key);
+        });
+    });
 }
 
 function apiErrorMessage(data, fallback) {
@@ -628,6 +673,7 @@ function loadErrorHtml(data, fallback, retryExpression) {
 async function refreshActiveSessionAfterConflict(buttonElement) {
     if (!currentSession) return;
     const sessionId = currentSession.session_id;
+    clearSessionReadCaches(sessionId);
     await resumeSession(sessionId, buttonElement);
 }
 
@@ -704,15 +750,17 @@ async function requestWithSafeRetry(action, params, isRead) {
     return data;
 }
 
-async function apiCall(action, params) {
+async function apiCall(action, params, options) {
     params = Object.assign({}, params || {});
+    options = options || {};
     const isRead = READ_ACTIONS.has(action);
     if (isRead) {
         const ttl = Number(READ_CACHE_TTL[action] || 0);
         const cacheKey = apiCacheKey(action, params);
+        const requestKey = options.forceRefresh ? cacheKey + ':force' : cacheKey;
         const cached = readResponseCache.get(cacheKey);
-        if (ttl > 0 && cached && Date.now() - cached.storedAt < ttl) return cached.data;
-        if (readRequestInFlight.has(cacheKey)) return readRequestInFlight.get(cacheKey);
+        if (!options.forceRefresh && ttl > 0 && cached && Date.now() - cached.storedAt < ttl) return cached.data;
+        if (readRequestInFlight.has(requestKey)) return readRequestInFlight.get(requestKey);
         const cacheGeneration = readCacheGeneration;
         const request = requestWithSafeRetry(action, params, true)
             .then(function(data) {
@@ -722,11 +770,11 @@ async function apiCall(action, params) {
                 return data;
             })
             .finally(function() {
-                if (readRequestInFlight.get(cacheKey) === request) {
-                    readRequestInFlight.delete(cacheKey);
+                if (readRequestInFlight.get(requestKey) === request) {
+                    readRequestInFlight.delete(requestKey);
                 }
             });
-        readRequestInFlight.set(cacheKey, request);
+        readRequestInFlight.set(requestKey, request);
         return request;
     }
     if (!isRead) {
@@ -747,17 +795,17 @@ async function apiCall(action, params) {
     if (data && data.revision && currentSession && String(currentSession.session_id) === String(params.session_id)) {
         currentSession.revision = Number(data.revision);
     }
-    if (data && !data.error) {
+    if (data && !data.error && DATA_CHANGING_WRITE_ACTIONS.has(action)) {
         clearFrontendReadCaches({ players: action === 'addPlayer' });
     }
     return data;
 }
 
 async function ensurePlayersLoaded() {
-    if (playersLoaded) return allPlayers;
+    if (playersLoaded && Date.now() - playersLoadedAt < READ_CACHE_TTL.getPlayers) return allPlayers;
     if (homeDashboardPromise) {
         await homeDashboardPromise;
-        if (playersLoaded) return allPlayers;
+        if (playersLoaded && Date.now() - playersLoadedAt < READ_CACHE_TTL.getPlayers) return allPlayers;
     }
     const data = await apiCall('getPlayers', {});
     if (data.error) {
@@ -766,16 +814,18 @@ async function ensurePlayersLoaded() {
     }
     allPlayers = data;
     playersLoaded = true;
+    playersLoadedAt = Date.now();
     for (let i = 0; i < data.length; i++) {
         playerCache[data[i].player_id] = data[i].username;
     }
     return allPlayers;
 }
 
-function applyPlayersData(players) {
+function applyPlayersData(players, storedAt) {
     if (!Array.isArray(players)) return;
     allPlayers = players;
     playersLoaded = true;
+    playersLoadedAt = Number(storedAt || Date.now());
     playerCache = {};
     for (let i = 0; i < players.length; i++) {
         playerCache[players[i].player_id] = players[i].username;
@@ -826,7 +876,7 @@ function primeBootstrapReadCaches(data, storedAt) {
 function applyBootstrapData(data, storedAt) {
     if (!data || typeof data !== 'object') return false;
     applyPublicConfig(data.public_config);
-    applyPlayersData(data.players || []);
+    applyPlayersData(data.players || [], storedAt);
     eloCache = Array.isArray(data.elo_ratings) ? data.elo_ratings : [];
     eloHistoryAllCache = Array.isArray(data.elo_history_all) ? data.elo_history_all : null;
     eloHistoryAllCachedAt = eloHistoryAllCache ? Number(storedAt || Date.now()) : 0;
@@ -865,6 +915,8 @@ function saveStoredPublicSnapshot(data) {
             stored_at: Date.now(),
             data: data
         }));
+        localStorage.removeItem(PUBLIC_SNAPSHOT_DIRTY_KEY);
+        publicSnapshotNeedsRefresh = false;
         LEGACY_PUBLIC_SNAPSHOT_STORAGE_KEYS.forEach(function(key) {
             localStorage.removeItem(key);
         });
@@ -880,29 +932,62 @@ async function renderHomeBootstrap(data) {
     ]);
 }
 
+async function refreshHomeDashboardFromServer() {
+    const requestedGeneration = readCacheGeneration;
+    let data = await apiCall('getAppBootstrap', {}, { forceRefresh: true });
+    if (data.error) {
+        data = await apiCall('getHomeData', {}, { forceRefresh: true });
+        if (data.error) return false;
+    }
+    if (requestedGeneration !== readCacheGeneration) return true;
+    applyBootstrapData(data, Date.now());
+    if (Array.isArray(data.elo_history_all)) {
+        saveStoredPublicSnapshot(data);
+    }
+    await renderHomeBootstrap(data);
+    return true;
+}
+
+function refreshHomeDashboardInBackground() {
+    if (homeDashboardRefreshPromise) return homeDashboardRefreshPromise;
+    homeDashboardRefreshPromise = refreshHomeDashboardFromServer()
+        .catch(function(error) {
+            console.warn('Background dashboard refresh failed:', error && error.message || error);
+            return false;
+        })
+        .finally(function() {
+            homeDashboardRefreshPromise = null;
+        });
+    return homeDashboardRefreshPromise;
+}
+
 async function loadHomeDashboard() {
     if (homeDashboardPromise) return homeDashboardPromise;
     homeDashboardPromise = (async function() {
         const stored = loadStoredPublicSnapshot();
-        if (stored && applyBootstrapData(stored.data, stored.stored_at)) {
-            await renderHomeBootstrap(stored.data);
-            if (Date.now() - Number(stored.stored_at) < READ_CACHE_TTL.getAppBootstrap) {
-                return true;
-            }
-        }
-
-        let data = await apiCall('getAppBootstrap', {});
-        if (data.error) {
-            if (stored) return true;
-            data = await apiCall('getHomeData', {});
-            if (data.error) {
-                await Promise.all([loadPublicConfig(), checkActiveSessions(), displayEloLeaderboard()]);
+        if (stored) {
+            const snapshotAge = Date.now() - Number(stored.stored_at);
+            if (isPublicSnapshotDirty()) {
+                const refreshed = await refreshHomeDashboardFromServer();
+                if (refreshed) return true;
+                applyBootstrapData(stored.data, stored.stored_at);
+                await renderHomeBootstrap(stored.data);
+                showStatusToast('Showing saved data — refresh when online');
                 return false;
             }
+            applyBootstrapData(stored.data, stored.stored_at);
+            await renderHomeBootstrap(stored.data);
+            if (snapshotAge >= HOME_BACKGROUND_REFRESH_MS) {
+                refreshHomeDashboardInBackground();
+            }
+            return true;
         }
-        applyBootstrapData(data, Date.now());
-        if (Array.isArray(data.elo_history_all)) saveStoredPublicSnapshot(data);
-        await renderHomeBootstrap(data);
+
+        const loaded = await refreshHomeDashboardFromServer();
+        if (!loaded) {
+            await Promise.all([loadPublicConfig(), checkActiveSessions(), displayEloLeaderboard()]);
+            return false;
+        }
         return true;
     })();
     try {
@@ -1304,8 +1389,17 @@ function calculateAverageHand(handScores) {
 }
 
 function formatPoints(value) {
-    const number = Number(value);
-    return String(value) + (number === 1 ? ' point' : ' points');
+    return formatCount(value, 'point');
+}
+
+function formatCount(value, singular, plural) {
+    return String(value) + ' ' + (Number(value) === 1 ? singular : (plural || singular + 's'));
+}
+
+function getFalseLockoutPenalty(value) {
+    return value === '' || value === null || value === undefined
+        ? DEFAULT_FALSE_LOCKOUT_PENALTY
+        : Number(value);
 }
 
 function escapeAttr(str) {
@@ -1971,10 +2065,11 @@ async function resumeSession(sessionId, buttonElement, requestedIntentId) {
         if (buttonElement) setButtonLoading(buttonElement, false);
         return;
     }
+    clearSessionReadCaches(sessionId);
     const results = await Promise.all([
-        apiCall('getSession', { session_id: sessionId }),
+        apiCall('getSession', { session_id: sessionId }, { forceRefresh: true }),
         ensurePlayersLoaded(),
-        apiCall('getHands', { session_id: sessionId })
+        apiCall('getHands', { session_id: sessionId }, { forceRefresh: true })
     ]);
     const sessionData = results[0];
     const handsData = results[2];
@@ -1983,7 +2078,12 @@ async function resumeSession(sessionId, buttonElement, requestedIntentId) {
         return;
     }
     if (sessionData.error) {
-        alert('Error loading session: ' + sessionData.error);
+        alert('Error loading session: ' + apiErrorMessage(sessionData, 'The session could not be loaded.'));
+        if (buttonElement) setButtonLoading(buttonElement, false);
+        return;
+    }
+    if (handsData.error) {
+        alert('Error loading hand history: ' + apiErrorMessage(handsData, 'The hand history could not be loaded.'));
         if (buttonElement) setButtonLoading(buttonElement, false);
         return;
     }
@@ -1998,11 +2098,11 @@ async function resumeSession(sessionId, buttonElement, requestedIntentId) {
         host_player_id: sessionData.host_player_id, notes: sessionData.notes || '',
         tags: sessionData.tags || '', player_join_info: sessionData.player_join_info || '{}',
         players_involved: sessionData.players_involved,
-        false_lockout_penalty: sessionData.false_lockout_penalty || 10,
+        false_lockout_penalty: getFalseLockoutPenalty(sessionData.false_lockout_penalty),
         photo_url: sessionData.photo_url || '',
         revision: Number(sessionData.revision || 1)
     };
-    currentHandNumber = (handsData.error || handsData.length === 0) ? 1 : Math.max(...handsData.map(h => h.hand_number)) + 1;
+    currentHandNumber = handsData.length === 0 ? 1 : Math.max(...handsData.map(h => h.hand_number)) + 1;
     showActiveSession(intentId);
     updateSessionScores();
     if (buttonElement) setButtonLoading(buttonElement, false);
@@ -2131,24 +2231,21 @@ async function endSession(event) {
         setButtonLoading(endBtn, false);
         return;
     }
-    const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
-    if (!isCurrentNavigationIntent(intentId)) {
-        currentSession = null;
-        setButtonLoading(endBtn, false);
-        return;
-    }
+    const hasFinalScores = Array.isArray(data.final_scores) && data.final_scores.length > 0;
     const playerTotals = {};
-    for (let i = 0; i < sessionPlayers.length; i++) {
-        const player = sessionPlayers[i];
-        playerTotals[player.player_id] = { username: player.username, total: getPlayerStartingScore(player.player_id) };
-    }
-    for (let i = 0; i < handsData.length; i++) {
-        const hand = handsData[i];
-        if (playerTotals[hand.player_id]) playerTotals[hand.player_id].total += Number(hand.score);
+    if (hasFinalScores) {
+        for (let i = 0; i < data.final_scores.length; i++) {
+            const finalScore = data.final_scores[i];
+            const player = allPlayers.find(p => String(p.player_id) === String(finalScore.player_id));
+            playerTotals[String(finalScore.player_id)] = {
+                username: player ? player.username : getPlayerName(finalScore.player_id),
+                total: Number(finalScore.total)
+            };
+        }
     }
     const scores = Object.values(playerTotals).sort((a, b) => a.total - b.total);
     const winner = scores[0];
-    const isTie = scores.length > 1 && scores[1].total === winner.total;
+    const isTie = hasFinalScores && scores.length > 1 && scores[1].total === winner.total;
     hapticFeedback('success');
     setButtonLoading(endBtn, false);
     eloHistoryAllCache = null;
@@ -2158,10 +2255,12 @@ async function endSession(event) {
     showScreen('homeScreen', false, intentId);
     setTimeout(function() {
         const popup = document.getElementById('sessionEndPopup');
-        document.getElementById('sessionEndTitle').textContent = isTie ? 'Tie game!' : winner.username + ' wins!';
-        document.getElementById('sessionEndScore').textContent = formatPoints(winner.total);
+        document.getElementById('sessionEndTitle').textContent = hasFinalScores
+            ? (isTie ? 'Tie game!' : winner.username + ' wins!')
+            : 'Session complete!';
+        document.getElementById('sessionEndScore').textContent = hasFinalScores ? formatPoints(winner.total) : '';
         popup.style.display = 'flex';
-        if (!isTie) celebrateWinner(winner.username);
+        if (hasFinalScores && !isTie) celebrateWinner(winner.username);
     }, 300);
 }
 
@@ -2242,8 +2341,7 @@ async function submitHand(event) {
     if (document.getElementById('lockoutWarning').style.display === 'block') {
         if (!confirm('This will be marked as a FALSE LOCKOUT. Continue?')) { setButtonLoading(submitBtn, false); return; }
     }
-    let penalty = 10;
-    if (currentSession.false_lockout_penalty) penalty = Number(currentSession.false_lockout_penalty);
+    const penalty = getFalseLockoutPenalty(currentSession.false_lockout_penalty);
     const lockoutScoreValue = lockoutPlayerScore;
     for (let i = 0; i < scores.length; i++) {
         if (String(scores[i].player_id) === String(lockoutPlayerId)) {
@@ -2341,8 +2439,17 @@ if (h.lockout_score !== null && h.lockout_score !== undefined && h.lockout_score
 async function editHand(handNumber, event) {
     if (event && event.target) setButtonLoading(event.target, true);
     const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
+    if (handsData.error) {
+        alert(apiErrorMessage(handsData, 'The hand could not be loaded.'));
+        if (event && event.target) setButtonLoading(event.target, false);
+        return;
+    }
     const handsToEdit = handsData.filter(h => h.hand_number == handNumber);
-    if (handsToEdit.length === 0) { alert('Hand not found'); return; }
+    if (handsToEdit.length === 0) {
+        alert('Hand not found');
+        if (event && event.target) setButtonLoading(event.target, false);
+        return;
+    }
     currentEditingHand = handNumber;
     document.getElementById('editHandNumber').textContent = handNumber;
     document.getElementById('editLockoutWarning').style.display = 'none';
@@ -2430,8 +2537,7 @@ async function saveEditedHand(event) {
     if (document.getElementById('editLockoutWarning').style.display === 'block') {
         if (!confirm('This will be marked as a FALSE LOCKOUT. Continue?')) { setButtonLoading(saveBtn, false); return; }
     }
-    let penalty = 10;
-    if (currentSession.false_lockout_penalty) penalty = Number(currentSession.false_lockout_penalty);
+    const penalty = getFalseLockoutPenalty(currentSession.false_lockout_penalty);
     const lockoutScoreValue = lockoutPlayerScore;
     for (let i = 0; i < scores.length; i++) {
         if (String(scores[i].player_id) === String(lockoutPlayerId)) {
@@ -2509,7 +2615,18 @@ document.getElementById('activeHandHistoryBottom').innerHTML =
     '</div>';
 
     const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
-    if (handsData.error) return;
+    if (handsData.error) {
+        document.getElementById('sessionScores').innerHTML = loadErrorHtml(
+            handsData,
+            'Scores could not be loaded.',
+            'updateSessionScores()'
+        );
+        document.getElementById('activeHandHistoryBottom').innerHTML =
+            '<div class="error" role="alert">' +
+            escapeHtml(apiErrorMessage(handsData, 'Hand history could not be loaded.')) +
+            '</div>';
+        return;
+    }
 
 if (handsData.length === 0) {
     document.getElementById('sessionScores').innerHTML =
@@ -2606,7 +2723,7 @@ if (handsData.length === 0) {
     html += '<div class="stats-summary-grid">';
     html += '<div><strong>🎴 Total Hands:</strong> ' + (new Set(handsData.map(h => h.hand_number)).size) + '</div>';
     html += '<div><strong>📈 Avg Score/Hand:</strong> ' + avgScorePerHand.toFixed(2) + '</div>';
-    html += '<div><strong>🏆 Current Leader:</strong> ' + makePlayerLink(getPlayerIdByName(leader.username), leader.username) + ' (' + leader.total + ' pts)</div>';
+    html += '<div><strong>🏆 Current Leader:</strong> ' + makePlayerLink(getPlayerIdByName(leader.username), leader.username) + ' (' + formatPoints(leader.total) + ')</div>';
     html += '<div><strong>📏 Biggest Gap:</strong> ' + biggestGap + ' points</div>';
     html += '<div><strong>🎯 Most Lockouts:</strong> ' + makePlayerLink(getPlayerIdByName(mostLockoutsPlayer.username), mostLockoutsPlayer.username) + ' (' + mostLockoutsPlayer.lockouts + ')</div>';
     html += '<div><strong>⚠️ False Lockouts:</strong> ' + falseLockoutCount + '</div>';
@@ -2773,7 +2890,12 @@ async function loadPreviousSessions(requestedIntentId) {
         const session = completedSessions[i].session;
         const hands = completedSessions[i].hands;
         var cleanDate = formatUKDate(session.date_started);
-        var playerIds = session.players_involved.split(',');
+        var playedPlayerIds = new Set(hands.map(function(hand) { return String(hand.player_id); }));
+        var playerIds = session.players_involved.split(',').map(function(playerId) {
+            return String(playerId).trim();
+        }).filter(function(playerId) {
+            return playedPlayerIds.has(playerId);
+        });
         var playerTotals = {}, handCount = 0, joinInfo = {};
         try {
             if (session.player_join_info && session.player_join_info !== '' && session.player_join_info !== '{}') {
@@ -2789,10 +2911,21 @@ async function loadPreviousSessions(requestedIntentId) {
             if (playerTotals[hand.player_id] !== undefined) playerTotals[hand.player_id] += Number(hand.score);
         }
         handCount = handNumbers.size;
-        var lowestScore = Infinity, winnerId = null;
-        for (var pid in playerTotals) { if (playerTotals[pid] < lowestScore) { lowestScore = playerTotals[pid]; winnerId = pid; } }
-        var winnerName = winnerId
-            ? makePlayerLink(winnerId, getPlayerName(winnerId), 'event.stopPropagation();')
+        var lowestScore = Infinity, winnerIds = [];
+        for (var pid in playerTotals) {
+            if (playerTotals[pid] < lowestScore) {
+                lowestScore = playerTotals[pid];
+                winnerIds = [pid];
+            } else if (playerTotals[pid] === lowestScore) {
+                winnerIds.push(pid);
+            }
+        }
+        var isTiedSession = winnerIds.length > 1;
+        var winnerId = winnerIds.length === 1 ? winnerIds[0] : null;
+        var winnerName = winnerIds.length
+            ? winnerIds.map(function(playerId) {
+                return makePlayerLink(playerId, getPlayerName(playerId), 'event.stopPropagation();');
+            }).join(' & ')
             : 'Unknown';
 
 html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
@@ -2803,8 +2936,8 @@ html += '<span>' + escapeAttr(session.title) + '</span>';
         }
         html += '</div>';
         html += '<div class="session-item-info" style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">';
-        html += '<div>📅 ' + cleanDate + ' • ' + handCount + ' hands • ' + playerIds.length + ' players</div>';
-        let winnerLine = '🏆 ' + winnerName;
+        html += '<div>📅 ' + cleanDate + ' • ' + formatCount(handCount, 'hand') + ' • ' + formatCount(playerIds.length, 'player') + '</div>';
+        let winnerLine = isTiedSession ? '🤝 Tie — ' + winnerName : '🏆 ' + winnerName;
         if (winnerId) {
             const eloEntry = eloHistoryMap[String(session.session_id) + '_' + String(winnerId)];
             if (eloEntry) {
@@ -2814,14 +2947,14 @@ html += '<span>' + escapeAttr(session.title) + '</span>';
                 const changeColor = change > 0 ? '#4caf50' : change < 0 ? '#f5576c' : '#666';
                 winnerLine += ' <span class="elo-badge" style="background:#1a1a2e; color:#ffd700; font-size:0.75em;">⚡ ' + newRating + '</span>' +
                               ' <span style="color:' + changeColor + '; font-weight:600; font-size:0.8em;">(' + changeStr + ')</span>' +
-                              ' <span style="color:#888; font-size:0.85em;">• ' + lowestScore + ' pts</span>';
+                              ' <span style="color:#888; font-size:0.85em;">• ' + formatPoints(lowestScore) + '</span>';
             } else {
-                winnerLine += ' <span style="color:#888; font-size:0.85em;">• ' + lowestScore + ' pts</span>';
+                winnerLine += ' <span style="color:#888; font-size:0.85em;">• ' + formatPoints(lowestScore) + '</span>';
             }
         } else {
-            winnerLine += ' <span style="color:#888; font-size:0.85em;">• ' + lowestScore + ' pts</span>';
+            winnerLine += ' <span style="color:#888; font-size:0.85em;">• ' + formatPoints(lowestScore) + '</span>';
         }
-        html += '<div style="color: #4caf50; font-weight: 600;">' + winnerLine + '</div>';
+        html += '<div style="color: ' + (isTiedSession ? '#b26a00' : '#4caf50') + '; font-weight: 600;">' + winnerLine + '</div>';
 
         if (session.tags && session.tags !== '') {
             var tagsArray = session.tags.split(',').filter(function(t) { return t.trim(); });
@@ -2859,7 +2992,11 @@ async function viewSessionDetail(sessionIndex, buttonElement, requestedIntentId)
             '</div>' +
         '</div>';
 
-    let handsData = await apiCall('getHands', { session_id: session.session_id });
+    const cachedHands = window.sessionsHandsCache &&
+        window.sessionsHandsCache[String(session.session_id)];
+    let handsData = Array.isArray(cachedHands)
+        ? cachedHands
+        : await apiCall('getHands', { session_id: session.session_id });
     if (!isCurrentNavigationIntent(intentId)) {
         if (buttonElement) setButtonLoading(buttonElement, false);
         return;
@@ -3536,8 +3673,8 @@ async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, reque
             html += '</div>';
             html += '<div class="text-muted text-sm mb-10">' + cleanDate + ' • ' + s.player_count + ' players</div>';
             html += '<div class="session-history-scores">';
-            html += '<div class="text-sm"><strong class="heading-blue">' + p1Name + ':</strong> ' + s.p1_score + ' pts</div>';
-            html += '<div class="text-sm"><strong class="heading-red">' + p2Name + ':</strong> ' + s.p2_score + ' pts</div>';
+            html += '<div class="text-sm"><strong class="heading-blue">' + p1Name + ':</strong> ' + formatPoints(s.p1_score) + '</div>';
+            html += '<div class="text-sm"><strong class="heading-red">' + p2Name + ':</strong> ' + formatPoints(s.p2_score) + '</div>';
             html += '</div></div>';
         }
         html += '</div>';
@@ -4105,7 +4242,7 @@ function renderPlayerProfile(data) {
                 '" onclick="quickCompare(' + _currentProfileId + ', ' + h.opponent_id + ')">';
             html += '<div class="h2h-summary-copy">';
             html += '<div class="h2h-summary-name">' + getPlayerName(h.opponent_id) + '</div>';
-            html += '<div class="h2h-summary-record">' + h.wins + 'W – ' + h.ties + 'D – ' + h.losses + 'L • ' + total + ' sessions</div>';
+            html += '<div class="h2h-summary-record">' + h.wins + 'W – ' + h.ties + 'D – ' + h.losses + 'L • ' + formatCount(total, 'session') + '</div>';
             html += '</div>';
             html += '<div class="h2h-summary-bar">';
             html += '<div style="width:' + winPct + '%;background:#667eea;"></div>';
@@ -4136,9 +4273,14 @@ function renderPlayerProfile(data) {
             html += '<div class="profile-session-row" data-title="' + escapeAttr(s.title) + '" onclick="viewSessionFromProfileWithLoading(this, \'' + s.session_id + '\')">';
             html += '<div style="flex:1;min-width:0;">';
             html += '<div class="profile-session-title">' + s.title + '</div>';
-            html += '<div class="profile-session-meta">' + cleanDate + ' • ' + s.hand_count + ' hands • ' + s.player_count + ' players • ' + s.player_score + ' pts' + eloHtml + '</div>';
+            html += '<div class="profile-session-meta">' + cleanDate + ' • ' +
+                formatCount(s.hand_count, 'hand') + ' • ' +
+                formatCount(s.player_count, 'player') + ' • ' +
+                formatPoints(s.player_score) + eloHtml + '</div>';
             html += '</div>';
-            html += '<div class="profile-session-result ' + (s.won ? 'won' : 'lost') + '">' + (s.won ? '🏆 Win' : 'Loss') + '</div>';
+            const resultClass = s.won ? 'won' : (s.tied ? 'tied' : 'lost');
+            const resultLabel = s.won ? '🏆 Win' : (s.tied ? '🤝 Tie' : 'Loss');
+            html += '<div class="profile-session-result ' + resultClass + '">' + resultLabel + '</div>';
             html += '</div>';
         }
         html += '</div>';

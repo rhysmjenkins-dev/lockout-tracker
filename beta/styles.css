@@ -1023,6 +1023,7 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
     flex-shrink: 0;
 }
 .profile-session-result.won { background: var(--success-light); color: var(--success-dark); }
+.profile-session-result.tied { background: #fff3e0; color: #9a5700; }
 .profile-session-result.lost { background: #ffebee; color: #c62828; }
 
 /* Player name link — subtle, not blue underlined */
