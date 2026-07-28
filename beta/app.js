@@ -17,8 +17,8 @@ const PROVISIONAL_K = 40;
 const STANDARD_K = 24;
 const DEFAULT_FALSE_LOCKOUT_PENALTY = 10;
 const MIN_SCORE = -2;
-const PUBLIC_SNAPSHOT_STORAGE_KEY = 'lockout_public_snapshot_2_1_beta_7';
-const PUBLIC_SNAPSHOT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const PUBLIC_SNAPSHOT_STORAGE_KEY = 'lockout_public_snapshot_2_1_beta_8';
+const PUBLIC_SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const API_REQUEST_TIMEOUT_MS = 24000;
 
 let currentSession = null;
@@ -34,7 +34,7 @@ let eloCache = [];
 let eloHistoryAllCache = null;
 let eloHistoryAllCachedAt = 0;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.7',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1-beta.8',
     photos_enabled: false
 };
 let homeDashboardPromise = null;
@@ -93,7 +93,7 @@ const SESSION_ACTIONS = new Set([
     'addHand', 'updateHand', 'deleteHand'
 ]);
 const UNAUTHENTICATED_WRITE_ACTIONS = new Set(['setPlayerPin', 'verifyPlayerPin']);
-const SAFE_POST_RETRY_ACTIONS = new Set(['validatePlayer', 'verifyPlayerPin']);
+const SAFE_POST_RETRY_ACTIONS = new Set(['verifyPlayerPin']);
 
 function loadExternalScript(url, globalName) {
     if (globalName && window[globalName]) return Promise.resolve(window[globalName]);
@@ -457,31 +457,13 @@ function updateEditingStatus() {
     }
 }
 
-async function validateSavedPlayerAccess() {
-    const token = getPlayerToken();
-    if (!token) {
-        updateEditingStatus();
-        return false;
-    }
-    const status = document.getElementById('editingStatus');
-    if (status) status.textContent = 'Checking saved sign-in...';
-    const data = await requestWithSafeRetry('validatePlayer', { player_token: token }, false);
-    if (data.error) {
-        signOutPlayer();
-        return false;
-    }
-    storeIdentity(data.player_id, data.username);
-    updateEditingStatus();
-    return true;
-}
-
 async function loadPublicConfig() {
     const data = await apiCall('getPublicConfig', {});
     if (!data.error) {
         publicConfig = Object.assign({}, publicConfig, data);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Beta 7 · v' + publicConfig.version;
+    if (version) version.textContent = 'Beta 8 · v' + publicConfig.version;
     return publicConfig;
 }
 
@@ -490,7 +472,7 @@ function applyPublicConfig(config) {
         publicConfig = Object.assign({}, publicConfig, config);
     }
     const version = document.getElementById('releaseVersion');
-    if (version) version.textContent = 'Beta 7 · v' + publicConfig.version;
+    if (version) version.textContent = 'Beta 8 · v' + publicConfig.version;
 }
 
 let _accessModalResolver = null;
@@ -3532,7 +3514,6 @@ window.addEventListener('DOMContentLoaded', function() {
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     window.scrollTo(0, 0);
     updateEditingStatus();
-    validateSavedPlayerAccess();
 
     // Show both skeletons immediately and simultaneously
     document.getElementById('activeSessionsSection').innerHTML =
