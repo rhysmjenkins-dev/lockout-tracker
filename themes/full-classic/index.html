@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#5b64d8">
+    <meta name="color-scheme" content="light">
+    <title>Lockout Tracker — Classic Refined prototype</title>
+    <link rel="stylesheet" href="styles.css?v=2">
+</head>
+<body>
+    <div class="prototype-banner" role="status">
+        Visual prototype · fixture data · nothing is connected or saved
+    </div>
+
+    <div class="app-shell">
+        <header class="app-header">
+            <button class="brand" type="button" data-go="home" aria-label="Go to home">
+                <span class="brand-mark" aria-hidden="true">♠</span>
+                <span class="brand-copy">
+                    <strong>Lockout Tracker</strong>
+                    <small>Track your games, dominate the leaderboard</small>
+                </span>
+            </button>
+            <button class="identity-button" type="button" data-modal="sign-in">
+                <span class="avatar avatar-sm">R</span>
+                <span><small>Playing as</small><strong id="identityName">Rhys</strong></span>
+                <span aria-hidden="true">⌄</span>
+            </button>
+        </header>
+
+        <nav class="primary-nav" aria-label="Main navigation">
+            <button class="nav-link is-active" type="button" data-go="home">Home</button>
+            <button class="nav-link" type="button" data-go="start-session">Start session</button>
+            <button class="nav-link" type="button" data-go="players">Players</button>
+            <button class="nav-link" type="button" data-go="previous-sessions">Sessions</button>
+            <button class="nav-link" type="button" data-go="stats">Stats</button>
+            <button class="nav-link" type="button" data-go="podcasts">Podcasts</button>
+            <button class="nav-link" type="button" data-go="more">More</button>
+        </nav>
+
+        <main id="mainContent">
+            <!-- HOME -->
+            <section class="screen is-active" data-screen="home" aria-labelledby="homeTitle">
+                <div class="page-heading page-heading-home">
+                    <div>
+                        <p class="eyebrow">Wednesday, 29 July</p>
+                        <h1 id="homeTitle">Welcome back, Rhys</h1>
+                        <p>Pick up the current game or explore the latest results.</p>
+                    </div>
+                    <button class="button button-primary" type="button" data-go="start-session">
+                        <span aria-hidden="true">＋</span> Start new session
+                    </button>
+                </div>
+
+                <div class="home-layout">
+                    <div class="stack">
+                        <article class="panel active-session-card">
+                            <div class="panel-body">
+                                <div class="section-heading">
+                                    <div>
+                                        <p class="eyebrow on-colour"><span class="live-dot"></span> Session in progress</p>
+                                        <h2>29/07/26 Evening</h2>
+                                    </div>
+                                    <span class="soft-badge on-colour">Hand 4</span>
+                                </div>
+                                <div class="active-player-strip" aria-label="Players in this session">
+                                    <button type="button" class="avatar-link" data-player="Dave"><span class="avatar avatar-lg avatar-photo avatar-dave">D</span><span>Dave</span></button>
+                                    <button type="button" class="avatar-link" data-player="Rhys"><span class="avatar avatar-lg">R</span><span>Rhys</span></button>
+                                    <button type="button" class="avatar-link" data-player="Jack"><span class="avatar avatar-lg avatar-jack">J</span><span>Jack</span></button>
+                                </div>
+                                <div class="leader-callout">
+                                    <div><small>Current leader</small><strong>Dave</strong></div>
+                                    <span>−1</span>
+                                </div>
+                                <button class="button button-on-colour button-full" type="button" data-go="active-session">Resume scoring</button>
+                            </div>
+                        </article>
+
+                        <section class="panel">
+                            <div class="panel-body">
+                                <div class="section-heading">
+                                    <div><p class="eyebrow">Shortcuts</p><h2>What would you like to do?</h2></div>
+                                </div>
+                                <div class="action-grid">
+                                    <button class="action-card" type="button" data-go="players">
+                                        <span class="action-icon" aria-hidden="true">◎</span>
+                                        <span><strong>Players</strong><small>Profiles, form and achievements</small></span>
+                                    </button>
+                                    <button class="action-card" type="button" data-go="previous-sessions">
+                                        <span class="action-icon" aria-hidden="true">▤</span>
+                                        <span><strong>Previous sessions</strong><small>Scores, hands and graphs</small></span>
+                                    </button>
+                                    <button class="action-card" type="button" data-go="stats">
+                                        <span class="action-icon" aria-hidden="true">↗</span>
+                                        <span><strong>Statistics</strong><small>Overall, head-to-head and ELO</small></span>
+                                    </button>
+                                    <button class="action-card" type="button" data-go="add-player">
+                                        <span class="action-icon" aria-hidden="true">＋</span>
+                                        <span><strong>Add player</strong><small>Create a new player profile</small></span>
+                                    </button>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <aside class="stack">
+                        <section class="panel">
+                            <div class="panel-body">
+                                <div class="section-heading compact">
+                                    <div><p class="eyebrow">Current order</p><h2>⚡ ELO rankings</h2></div>
+                                    <button class="text-button" type="button" data-go="stats" data-stats-target="elo">View all</button>
+                                </div>
+                                <div class="ranking-list">
+                                    <button class="ranking-row" type="button" data-player="Dave"><span class="rank medal">1</span><span class="avatar avatar-sm avatar-photo avatar-dave">D</span><strong>Dave</strong><span class="rating">1079<small class="positive">+10</small></span></button>
+                                    <button class="ranking-row" type="button" data-player="Jack"><span class="rank">2</span><span class="avatar avatar-sm avatar-jack">J</span><strong>Jack</strong><span class="rating">1024<small class="positive">+20</small></span></button>
+                                    <button class="ranking-row" type="button" data-player="Rhys"><span class="rank">3</span><span class="avatar avatar-sm">R</span><strong>Rhys</strong><span class="rating">1020<small class="negative">−4</small></span></button>
+                                    <button class="ranking-row" type="button" data-player="Jake"><span class="rank">4</span><span class="avatar avatar-sm avatar-jake">J</span><strong>Jake</strong><span class="rating">971<small class="negative">−19</small></span></button>
+                                </div>
+                                <p class="fine-print">? marks a provisional rating with fewer than 50 hands.</p>
+                            </div>
+                        </section>
+
+                        <section class="panel latest-result">
+                            <div class="panel-body">
+                                <p class="eyebrow">Latest completed session</p>
+                                <div class="result-title"><div><h2>280726 Lunch</h2><p>28 July · 5 hands · 4 players</p></div><span class="soft-badge success">Official</span></div>
+                                <div class="winner-line"><span class="avatar avatar-sm avatar-jack">J</span><span><small>Winner</small><strong>Jack · −1 points</strong></span></div>
+                                <button class="button button-secondary button-full" type="button" data-session="280726 Lunch">View session</button>
+                            </div>
+                        </section>
+
+                        <section class="panel podcast-teaser">
+                            <div class="panel-body">
+                                <p class="eyebrow">Latest from the podcast</p>
+                                <h2>20–26 July weekly recap</h2>
+                                <p>Results, rating moves and the main stories from the week.</p>
+                                <button class="text-button" type="button" data-go="podcasts">Listen to episode →</button>
+                            </div>
+                        </section>
+                    </aside>
+                </div>
+                <nav class="utility-links" aria-label="Help links">
+                    <button type="button" data-go="how-to">How to use the app</button>
+                    <button type="button" data-go="dictionary">Dictionary</button>
+                    <button type="button" data-go="rules">Rules</button>
+                </nav>
+            </section>
+
+            <!-- START SESSION -->
+            <section class="screen" data-screen="start-session" aria-labelledby="startTitle" hidden>
+                <div class="page-heading">
+                    <div><p class="eyebrow">New game</p><h1 id="startTitle">Start new session</h1><p>Set up the table, choose the players and begin scoring.</p></div>
+                    <button class="button button-secondary" type="button" data-go="home">Cancel</button>
+                </div>
+                <form class="two-column-form panel" data-demo-form="start-session">
+                    <div class="panel-body form-main">
+                        <div class="form-section">
+                            <span class="form-step">1</span>
+                            <div>
+                                <h2>Session details</h2>
+                                <div class="field-grid">
+                                    <label class="field field-wide"><span>Session title</span><input type="text" value="29/07/26 Evening" placeholder="e.g. Magaluf 2024"></label>
+                                    <label class="field"><span>Who's hosting?</span><select><option>Rhys</option><option>Dave</option><option>Jack</option><option>Russ</option><option>Jake</option></select></label>
+                                    <label class="field"><span>False lockout penalty</span><input type="number" value="10" min="0"></label>
+                                    <label class="field field-wide"><span>Session notes <em>Optional</em></span><textarea placeholder="e.g. Playing at John's house, bring snacks">Wednesday evening game</textarea></label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-section">
+                            <span class="form-step">2</span>
+                            <div>
+                                <h2>Session type <em>Optional</em></h2>
+                                <p class="supporting-copy">Testing sessions remain in history but do not affect official statistics or ELO.</p>
+                                <div class="chip-options">
+                                    <label><input type="checkbox"><span>🧪 Testing</span></label>
+                                    <label><input type="checkbox" checked><span>😎 Casual</span></label>
+                                    <label><input type="checkbox"><span>🏖 Holiday</span></label>
+                                    <label><input type="checkbox"><span>🍺 Pub</span></label>
+                                    <label><input type="checkbox"><span>🌙 Late Night</span></label>
+                                    <label><input type="checkbox"><span>🏆 Tournament</span></label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-section">
+                            <span class="form-step">3</span>
+                            <div>
+                                <h2>Select players</h2>
+                                <label class="search-field"><span class="sr-only">Search players</span><input type="search" placeholder="Search players to add…" data-filter-input="sessionPlayers"></label>
+                                <div class="selectable-player-list" data-filter-list="sessionPlayers">
+                                    <label data-search="rhys"><input type="checkbox" checked><span class="avatar avatar-sm">R</span><span><strong>Rhys</strong><small>⚡ 1020</small></span></label>
+                                    <label data-search="dave"><input type="checkbox" checked><span class="avatar avatar-sm avatar-photo avatar-dave">D</span><span><strong>Dave</strong><small>⚡ 1079</small></span></label>
+                                    <label data-search="jack"><input type="checkbox" checked><span class="avatar avatar-sm avatar-jack">J</span><span><strong>Jack</strong><small>⚡ 1024</small></span></label>
+                                    <label data-search="russ"><input type="checkbox"><span class="avatar avatar-sm avatar-russ">R</span><span><strong>Russ</strong><small>⚡ 932</small></span></label>
+                                    <label data-search="jake"><input type="checkbox"><span class="avatar avatar-sm avatar-jake">J</span><span><strong>Jake</strong><small>⚡ 971</small></span></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <aside class="form-aside">
+                        <div>
+                            <p class="eyebrow">Session photo</p>
+                            <button class="photo-dropzone" type="button" data-demo-action="Photo picker">
+                                <span class="photo-icon" aria-hidden="true">▧</span>
+                                <strong>Add a photo</strong>
+                                <small>Optional · JPG, PNG or WebP</small>
+                            </button>
+                        </div>
+                        <div class="setup-summary">
+                            <h3>Ready to start</h3>
+                            <dl><div><dt>Host</dt><dd>Rhys</dd></div><div><dt>Players</dt><dd>3 selected</dd></div><div><dt>Penalty</dt><dd>10 points</dd></div></dl>
+                        </div>
+                        <button class="button button-primary button-full" type="submit">Start session</button>
+                    </aside>
+                </form>
+            </section>
+
+            <!-- PLAYERS -->
+            <section class="screen" data-screen="players" aria-labelledby="playersTitle" hidden>
+                <div class="page-heading">
+                    <div><p class="eyebrow">The group</p><h1 id="playersTitle">Players</h1><p>Open a profile to see form, achievements and head-to-head records.</p></div>
+                    <button class="button button-primary" type="button" data-go="add-player">＋ Add player</button>
+                </div>
+                <div class="toolbar panel">
+                    <label class="search-field"><span class="sr-only">Search players</span><input type="search" placeholder="Search players…" data-filter-input="playerGrid"></label>
+                    <label class="compact-select"><span>Sort</span><select data-sort-players><option value="rating">ELO rating</option><option value="name">Name</option><option value="sessions">Sessions played</option></select></label>
+                </div>
+                <div class="player-grid" data-filter-list="playerGrid">
+                    <button class="player-card" type="button" data-player="Dave" data-search="dave" data-rating="1079" data-sessions="19"><span class="avatar avatar-xl avatar-photo avatar-dave">D</span><span class="player-card-copy"><strong>Dave</strong><small>19 sessions · 117 hands</small></span><span class="elo-pill">⚡ 1079</span><span class="form-pill positive">+10</span></button>
+                    <button class="player-card" type="button" data-player="Jack" data-search="jack" data-rating="1024" data-sessions="15"><span class="avatar avatar-xl avatar-jack">J</span><span class="player-card-copy"><strong>Jack</strong><small>15 sessions · 95 hands</small></span><span class="elo-pill">⚡ 1024</span><span class="form-pill positive">+20</span></button>
+                    <button class="player-card" type="button" data-player="Rhys" data-search="rhys" data-rating="1020" data-sessions="22"><span class="avatar avatar-xl">R</span><span class="player-card-copy"><strong>Rhys</strong><small>22 sessions · 138 hands</small></span><span class="elo-pill">⚡ 1020</span><span class="form-pill negative">−4</span></button>
+                    <button class="player-card" type="button" data-player="Jake" data-search="jake" data-rating="971" data-sessions="11"><span class="avatar avatar-xl avatar-jake">J</span><span class="player-card-copy"><strong>Jake</strong><small>11 sessions · 72 hands</small></span><span class="elo-pill">⚡ 971</span><span class="form-pill negative">−19</span></button>
+                    <button class="player-card" type="button" data-player="Russ" data-search="russ" data-rating="932" data-sessions="13"><span class="avatar avatar-xl avatar-russ">R</span><span class="player-card-copy"><strong>Russ</strong><small>13 sessions · 80 hands</small></span><span class="elo-pill">⚡ 932</span><span class="form-pill positive">+7</span></button>
+                    <button class="player-card" type="button" data-player="Dan" data-search="dan" data-rating="1000" data-sessions="4"><span class="avatar avatar-xl avatar-dan">D</span><span class="player-card-copy"><strong>Dan</strong><small>4 sessions · 24 hands</small></span><span class="elo-pill">⚡ 1000?</span><span class="form-pill neutral">0</span></button>
+                    <button class="player-card" type="button" data-player="Lewis" data-search="lewis" data-rating="986" data-sessions="3"><span class="avatar avatar-xl avatar-lewis">L</span><span class="player-card-copy"><strong>Lewis</strong><small>3 sessions · 19 hands</small></span><span class="elo-pill">⚡ 986?</span><span class="form-pill negative">−6</span></button>
+                    <button class="player-card" type="button" data-player="Joe" data-search="joe" data-rating="1008" data-sessions="2"><span class="avatar avatar-xl avatar-joe">J</span><span class="player-card-copy"><strong>Joe</strong><small>2 sessions · 12 hands</small></span><span class="elo-pill">⚡ 1008?</span><span class="form-pill positive">+8</span></button>
+                </div>
+            </section>
+
+            <!-- PLAYER PROFILE -->
+            <section class="screen" data-screen="profile" aria-labelledby="profileTitle" hidden>
+                <div class="back-row"><button class="text-button" type="button" data-go="players">← Back to players</button></div>
+                <section class="profile-hero panel">
+                    <div class="panel-body">
+                        <span class="avatar avatar-profile" id="profileAvatar">R</span>
+                        <div class="profile-copy">
+                            <div class="profile-title-line"><h1 id="profileTitle">Rhys</h1><span class="elo-pill large" id="profileElo">⚡ 1020</span><span class="form-pill negative">−4</span></div>
+                            <p id="profileBio">“Regular host and scorekeeper.”</p>
+                            <small>Member since 9 July 2024</small>
+                        </div>
+                        <button class="button button-secondary" type="button" data-modal="edit-profile">Edit profile</button>
+                    </div>
+                </section>
+
+                <div class="stat-strip">
+                    <div><strong>22</strong><span>Sessions</span></div>
+                    <div><strong>7</strong><span>Wins</span></div>
+                    <div><strong>31.8%</strong><span>Win rate</span></div>
+                    <div><strong>138</strong><span>Hands</span></div>
+                    <div><strong>3.28</strong><span>Avg hand</span></div>
+                    <div><strong>1.42</strong><span>Avg LO</span></div>
+                </div>
+
+                <div class="profile-layout">
+                    <div class="stack">
+                        <section class="panel">
+                            <div class="panel-body">
+                                <div class="section-heading"><div><p class="eyebrow">Rating history</p><h2>ELO form</h2></div><span class="soft-badge">Last 8 sessions</span></div>
+                                <div class="chart-wrap chart-medium"><canvas id="profileChart" aria-label="Rhys ELO rating history"></canvas></div>
+                            </div>
+                        </section>
+                        <section class="panel">
+                            <div class="panel-body">
+                                <div class="section-heading"><div><p class="eyebrow">Shared sessions</p><h2>Head-to-head</h2></div><button class="text-button" type="button" data-go="stats" data-stats-target="head-to-head">Open full records</button></div>
+                                <div class="h2h-list">
+                                    <button class="h2h-row" type="button" data-compare="Rhys,Dave"><span class="avatar avatar-sm avatar-photo avatar-dave">D</span><span><strong>Dave</strong><small>12 sessions together</small></span><span class="record"><b>4–1–7</b><small>W–D–L</small></span><span class="record-bar"><i style="--w:33%"></i><i class="draw" style="--w:8%"></i></span></button>
+                                    <button class="h2h-row" type="button" data-compare="Rhys,Jack"><span class="avatar avatar-sm avatar-jack">J</span><span><strong>Jack</strong><small>10 sessions together</small></span><span class="record"><b>6–0–4</b><small>W–D–L</small></span><span class="record-bar"><i style="--w:60%"></i></span></button>
+                                    <button class="h2h-row" type="button" data-compare="Rhys,Russ"><span class="avatar avatar-sm avatar-russ">R</span><span><strong>Russ</strong><small>8 sessions together</small></span><span class="record"><b>5–1–2</b><small>W–D–L</small></span><span class="record-bar"><i style="--w:62%"></i><i class="draw" style="--w:13%"></i></span></button>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="panel">
+                            <div class="panel-body">
+                                <div class="section-heading"><div><p class="eyebrow">History</p><h2>Recent sessions</h2></div><label class="mini-search"><span class="sr-only">Search profile sessions</span><input type="search" placeholder="Search…" data-filter-input="profileSessions"></label></div>
+                                <div class="session-rows" data-filter-list="profileSessions">
+                                    <button class="session-row" type="button" data-session="280726 Lunch" data-search="280726 lunch casual"><span><strong>280726 Lunch</strong><small>28 July · 5 hands · 4 players · 10 points</small></span><span class="session-result loss">Loss</span><span class="elo-mini">⚡ 1020 <b>−4</b></span></button>
+                                    <button class="session-row" type="button" data-session="260726 Evening" data-search="260726 evening pub"><span><strong>260726 Evening</strong><small>26 July · 8 hands · 4 players · −2 points</small></span><span class="session-result win">Win</span><span class="elo-mini">⚡ 1024 <b>+18</b></span></button>
+                                    <button class="session-row" type="button" data-session="190726 Holiday" data-search="190726 holiday"><span><strong>190726 Holiday</strong><small>19 July · 7 hands · 5 players · 14 points</small></span><span class="session-result loss">Loss</span><span class="elo-mini">⚡ 1006 <b>−7</b></span></button>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                    <aside class="stack">
+                        <section class="panel">
+                            <div class="panel-body">
+                                <div class="section-heading"><div><p class="eyebrow">Permanent milestones</p><h2>Achievements</h2></div><span class="soft-badge success">8 earned</span></div>
+                                <div class="achievement-grid">
+                                    <button type="button" data-achievement="Apprentice · 50 hands played"><span>🎴</span><strong>Apprentice</strong></button>
+                                    <button type="button" data-achievement="Centurion · 100 hands played"><span>🏛</span><strong>Centurion</strong></button>
+                                    <button type="button" data-achievement="First Blood · Win your first session"><span>🏆</span><strong>First Blood</strong></button>
+                                    <button type="button" data-achievement="Hat Trick · 3 successful lockouts in one session"><span>🔥</span><strong>Hat Trick</strong></button>
+                                    <button type="button" data-achievement="Perfect Hand · Successfully lock out with 0 or less"><span>🎯</span><strong>Perfect Hand</strong></button>
+                                    <button type="button" class="is-locked" data-achievement="Ruler · Win 10 sessions"><span>🥇</span><strong>Ruler</strong></button>
+                                </div>
+                                <h3 class="subheading">Current form</h3>
+                                <div class="current-form-list"><span>📊 Consistent</span><span>⚡ ELO Climber</span></div>
+                                <p class="fine-print">Current-form badges can change as your statistics change.</p>
+                            </div>
+                        </section>
+                        <section class="panel profile-lockouts">
+                            <div class="panel-body">
+                                <p class="eyebrow">Lockout performance</p>
+                                <dl><div><dt>Attempts</dt><dd>31</dd></div><div><dt>Successful</dt><dd>21</dd></div><div><dt>False</dt><dd>10</dd></div><div><dt>Success rate</dt><dd>67.7%</dd></div></dl>
+                            </div>
+                        </section>
+                    </aside>
+                </div>
+            </section>
+
+            <!-- PREVIOUS SESSIONS -->
+            <section class="screen" data-screen="previous-sessions" aria-labelledby="sessionsTitle" hidden>
+                <div class="page-heading">
+                    <div><p class="eyebrow">The archive</p><h1 id="sessionsTitle">Previous sessions</h1><p>Completed games with full scores, graphs and hand history.</p></div>
+                </div>
+                <div class="toolbar panel">
+                    <label class="search-field"><span class="sr-only">Search sessions</span><input type="search" placeholder="Search by title, player or tag…" data-filter-input="sessionArchive"></label>
+                    <div class="segmented compact-tabs" data-filter-chips="sessionArchive">
+                        <button class="is-active" type="button" data-filter-value="all">All</button>
+                        <button type="button" data-filter-value="official">Official</button>
+                        <button type="button" data-filter-value="testing">Testing</button>
+                    </div>
+                </div>
+                <div class="session-archive" data-filter-list="sessionArchive">
+                    <button class="archive-card" type="button" data-session="280726 Lunch" data-search="280726 lunch jack russ dave jake casual official" data-kind="official">
+                        <span class="session-date"><strong>28</strong><small>JUL</small></span>
+                        <span class="archive-copy"><span><strong>280726 Lunch</strong><span class="soft-badge success">Casual</span></span><small>5 hands · 4 players · Hosted by Jack</small><span class="mini-avatars"><i class="avatar avatar-xs avatar-jack">J</i><i class="avatar avatar-xs avatar-russ">R</i><i class="avatar avatar-xs avatar-photo avatar-dave">D</i><i class="avatar avatar-xs avatar-jake">J</i></span></span>
+                        <span class="archive-winner"><small>Winner</small><strong>Jack</strong><b>−1</b></span><span class="chevron">›</span>
+                    </button>
+                    <button class="archive-card" type="button" data-session="260726 Evening" data-search="260726 evening rhys dave jack russ pub official" data-kind="official">
+                        <span class="session-date"><strong>26</strong><small>JUL</small></span>
+                        <span class="archive-copy"><span><strong>260726 Evening</strong><span class="soft-badge warning">Pub</span></span><small>8 hands · 4 players · Hosted by Dave</small><span class="mini-avatars"><i class="avatar avatar-xs">R</i><i class="avatar avatar-xs avatar-photo avatar-dave">D</i><i class="avatar avatar-xs avatar-jack">J</i><i class="avatar avatar-xs avatar-russ">R</i></span></span>
+                        <span class="archive-winner"><small>Winner</small><strong>Rhys</strong><b>−2</b></span><span class="chevron">›</span>
+                    </button>
+                    <button class="archive-card" type="button" data-session="230726 Rules Test" data-search="230726 rules test testing rhys dave" data-kind="testing">
+                        <span class="session-date"><strong>23</strong><small>JUL</small></span>
+                        <span class="archive-copy"><span><strong>230726 Rules Test</strong><span class="soft-badge muted">Testing</span></span><small>3 hands · 2 players · Excluded from official stats</small><span class="mini-avatars"><i class="avatar avatar-xs">R</i><i class="avatar avatar-xs avatar-photo avatar-dave">D</i></span></span>
+                        <span class="archive-winner"><small>Winner</small><strong>Dave</strong><b>3</b></span><span class="chevron">›</span>
+                    </button>
+                    <button class="archive-card" type="button" data-session="190726 Holiday" data-search="190726 holiday rhys dave jack russ jake official" data-kind="official">
+                        <span class="session-date"><strong>19</strong><small>JUL</small></span>
+                        <span class="archive-copy"><span><strong>190726 Holiday</strong><span class="soft-badge">Holiday</span></span><small>7 hands · 5 players · Hosted by Russ</small><span class="mini-avatars"><i class="avatar avatar-xs">R</i><i class="avatar avatar-xs avatar-photo avatar-dave">D</i><i class="avatar avatar-xs avatar-jack">J</i><i class="avatar avatar-xs avatar-russ">R</i><i class="avatar avatar-xs avatar-jake">J</i></span></span>
+                        <span class="archive-winner"><small>Winner</small><strong>Dave</strong><b>4</b></span><span class="chevron">›</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- SESSION DETAIL -->
+            <section class="screen" data-screen="session-detail" aria-labelledby="sessionDetailTitle" hidden>
+                <div class="back-row"><button class="text-button" type="button" data-go="previous-sessions">← Back to sessions</button></div>
+                <div class="page-heading session-heading">
+                    <div><p class="eyebrow">Completed session</p><h1 id="sessionDetailTitle">280726 Lunch</h1><p>28 July 2026 · Hosted by Jack · 5 hands</p></div>
+                    <div class="heading-actions"><span class="soft-badge success">Official</span><span class="soft-badge">Casual</span><button class="button button-secondary" type="button" data-demo-action="Session edit">Edit session</button></div>
+                </div>
+                <section class="winner-panel panel">
+                    <div class="panel-body"><span class="trophy" aria-hidden="true">♛</span><div><p class="eyebrow">Session winner</p><h2>Jack · −1 point</h2><p>Lowest cumulative score after five hands.</p></div><span class="elo-movement">⚡ 1024 <b>+20</b></span></div>
+                </section>
+                <section class="panel">
+                    <div class="panel-body">
+                        <div class="section-heading"><div><p class="eyebrow">Final table</p><h2>Scores</h2></div><p class="table-note">Select a player to open their profile</p></div>
+                        <div class="table-scroll">
+                            <table class="data-table">
+                                <thead><tr><th>Player</th><th>Total</th><th>Hands</th><th>Avg hand</th><th>Lockouts</th><th>LO rate</th><th>Avg LO score</th><th>False LO</th><th>ELO</th></tr></thead>
+                                <tbody>
+                                    <tr><td><button class="table-player" type="button" data-player="Jack"><span class="avatar avatar-xs avatar-jack">J</span>Jack</button></td><td class="best">−1</td><td>5</td><td>−0.20</td><td>2</td><td>40.0%</td><td>−1.00</td><td>0</td><td><span class="elo-pill small">1024</span> <b class="positive">+20</b></td></tr>
+                                    <tr><td><button class="table-player" type="button" data-player="Russ"><span class="avatar avatar-xs avatar-russ">R</span>Russ <small>(H2)</small></button></td><td>8</td><td>4</td><td>2.00</td><td>1</td><td>25.0%</td><td>6.00</td><td>1</td><td><span class="elo-pill small">932</span> <b class="positive">+7</b></td></tr>
+                                    <tr><td><button class="table-player" type="button" data-player="Dave"><span class="avatar avatar-xs avatar-photo avatar-dave">D</span>Dave</button></td><td>10</td><td>5</td><td>2.00</td><td>0</td><td>0.0%</td><td>N/A</td><td>0</td><td><span class="elo-pill small">1069</span> <b class="negative">−7</b></td></tr>
+                                    <tr><td><button class="table-player" type="button" data-player="Jake"><span class="avatar avatar-xs avatar-jake">J</span>Jake</button></td><td>16</td><td>5</td><td>3.20</td><td>0</td><td>0.0%</td><td>N/A</td><td>0</td><td><span class="elo-pill small">971</span> <b class="negative">−19</b></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="fine-print">Russ joined at Hand 2 with a starting score of 1, the rounded average of the existing players’ cumulative scores.</p>
+                    </div>
+                </section>
+                <section class="panel">
+                    <div class="panel-body">
+                        <div class="section-heading"><div><p class="eyebrow">Score progression</p><h2>Graphs</h2></div><div class="segmented" data-chart-tabs="sessionChart"><button type="button" class="is-active" data-chart-type="line">Worm</button><button type="button" data-chart-type="bar">Manhattan</button></div></div>
+                        <div class="chart-legend"><span><i class="legend-jack"></i>Jack</span><span><i class="legend-russ"></i>Russ (H2)</span><span><i class="legend-dave"></i>Dave</span><span><i class="legend-jake"></i>Jake</span></div>
+                        <div class="chart-wrap chart-large"><canvas id="sessionChart" aria-label="Session score chart"></canvas></div>
+                    </div>
+                </section>
+                <section class="panel">
+                    <div class="panel-body">
+                        <div class="section-heading"><div><p class="eyebrow">Every round</p><h2>Hand history</h2></div><span class="soft-badge">5 hands</span></div>
+                        <div class="hand-history">
+                            <details><summary><span>Hand 5</span><span><strong>Russ</strong> called lockout</span><span class="result-badge false">False · LO score 6</span><span>Jack −1 · Russ 8 · Dave 0 · Jake 5</span></summary><div><p>Russ’s declared lockout score was 6. The 5-point false-lockout penalty produced a scored hand of 11; session display includes his late-join starting score.</p></div></details>
+                            <details><summary><span>Hand 4</span><span><strong>Jack</strong> called lockout</span><span class="result-badge success">Successful · LO score 0</span><span>Jack 0 · Russ 1 · Dave 4 · Jake 4</span></summary><div><p>Jack was strictly lowest and scored 0.</p></div></details>
+                            <details><summary><span>Hand 3</span><span>No lockout</span><span class="result-badge neutral">Scores recorded</span><span>Jack 1 · Russ −1 · Dave 1 · Jake 0</span></summary><div><p>No player declared lockout in this hand.</p></div></details>
+                            <details><summary><span>Hand 2</span><span><strong>Jack</strong> called lockout</span><span class="result-badge success">Successful · LO score 1</span><span>Jack 0 · Russ 6 · Dave 5 · Jake 5</span></summary><div><p>Russ joined at the start of this hand with a starting score of 1.</p></div></details>
+                            <details><summary><span>Hand 1</span><span>No lockout</span><span class="result-badge neutral">Scores recorded</span><span>Jack −1 · Dave 0 · Jake 2</span></summary><div><p>Three players started the session.</p></div></details>
+                        </div>
+                    </div>
+                </section>
+            </section>
+
+            <!-- ACTIVE SESSION -->
+            <section class="screen" data-screen="active-session" aria-labelledby="activeTitle" hidden>
+                <div class="page-heading session-heading">
+                    <div><p class="eyebrow"><span class="live-dot"></span> Live session · Hand 4</p><h1 id="activeTitle">29/07/26 Evening</h1><p>Hosted by Rhys · Casual · False lockout penalty: 10</p></div>
+                    <div class="heading-actions"><span class="save-status"><i></i>All changes saved</span><button class="button button-secondary" type="button" data-demo-action="Session details editor">Session details</button></div>
+                </div>
+                <div class="active-layout">
+                    <div class="stack">
+                        <section class="panel">
+                            <div class="panel-body">
+                                <div class="section-heading"><div><p class="eyebrow">The table</p><h2>Current scores</h2></div><span class="soft-badge">Lowest wins</span></div>
+                                <div class="live-score-list">
+                                    <button type="button" class="live-score-row is-leading" data-player="Dave"><span class="position">1</span><span class="avatar avatar-sm avatar-photo avatar-dave">D</span><span><strong>Dave</strong><small>Avg hand −0.33</small></span><b>−1</b><em>Leading</em></button>
+                                    <button type="button" class="live-score-row" data-player="Rhys"><span class="position">2</span><span class="avatar avatar-sm">R</span><span><strong>Rhys</strong><small>Avg hand 1.33</small></span><b>4</b><em></em></button>
+                                    <button type="button" class="live-score-row" data-player="Jack"><span class="position">3</span><span class="avatar avatar-sm avatar-jack">J</span><span><strong>Jack</strong><small>Avg hand 3.00</small></span><b>9</b><em></em></button>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="panel">
+                            <div class="panel-body">
+                                <div class="section-heading"><div><p class="eyebrow">Live view</p><h2>Score progression</h2></div><div class="segmented" data-chart-tabs="activeChart"><button type="button" class="is-active" data-chart-type="line">Worm</button><button type="button" data-chart-type="bar">Manhattan</button></div></div>
+                                <div class="chart-legend"><span><i class="legend-dave"></i>Dave</span><span><i class="legend-rhys"></i>Rhys</span><span><i class="legend-jack"></i>Jack</span></div>
+                                <div class="chart-wrap chart-medium"><canvas id="activeChart" aria-label="Active session score chart"></canvas></div>
+                            </div>
+                        </section>
+                        <section class="panel">
+                            <div class="panel-body">
+                                <div class="section-heading"><div><p class="eyebrow">Recorded</p><h2>Recent hands</h2></div><button class="text-button" type="button" data-demo-action="Full hand history">View full history</button></div>
+                                <div class="recent-hands">
+                                    <div><span>H3</span><span><strong>Rhys called lockout</strong><small>Dave −1 · Rhys 3 · Jack 4</small></span><span class="result-badge false">False</span><button type="button" data-demo-action="Edit Hand 3">Edit</button></div>
+                                    <div><span>H2</span><span><strong>Dave called lockout</strong><small>Dave 0 · Rhys 0 · Jack 3</small></span><span class="result-badge success">Successful</span><button type="button" data-demo-action="Edit Hand 2">Edit</button></div>
+                                    <div><span>H1</span><span><strong>No lockout</strong><small>Dave 0 · Rhys 1 · Jack 2</small></span><span class="result-badge neutral">Recorded</span><button type="button" data-demo-action="Edit Hand 1">Edit</button></div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                    <aside class="stack active-entry-column">
+                        <form class="panel hand-entry" data-demo-form="hand">
+                            <div class="panel-body">
+                                <p class="eyebrow">Next hand</p>
+                                <h2>Enter Hand 4</h2>
+                                <p class="supporting-copy">Enter each player’s score, then select who locked out. The app checks whether it was successful or false.</p>
+                                <div class="score-inputs">
+                                    <label><span><i class="avatar avatar-xs avatar-photo avatar-dave">D</i>Dave</span><input type="number" value="-1"></label>
+                                    <label><span><i class="avatar avatar-xs">R</i>Rhys</span><input type="number" value="0"></label>
+                                    <label><span><i class="avatar avatar-xs avatar-jack">J</i>Jack</span><input type="number" value="2"></label>
+                                </div>
+                                <fieldset class="lockout-choice">
+                                    <legend>Who locked out?</legend>
+                                    <label><input type="radio" name="lockout" checked><span>No lockout</span></label>
+                                    <label><input type="radio" name="lockout"><span>Dave</span></label>
+                                    <label><input type="radio" name="lockout"><span>Rhys</span></label>
+                                    <label><input type="radio" name="lockout"><span>Jack</span></label>
+                                </fieldset>
+                                <label class="field"><span>Hand note <em>Optional</em></span><input type="text" placeholder="e.g. Epic comeback, close call…"></label>
+                                <button class="button button-primary button-full" type="submit">Submit hand</button>
+                            </div>
+                        </form>
+                        <section class="panel">
+                            <div class="panel-body session-tools">
+                                <h3>Session tools</h3>
+                                <button class="button button-secondary button-full" type="button" data-demo-action="Late joiner selector">＋ Add late joiner</button>
+                                <button class="button button-secondary button-full" type="button" data-demo-action="Session photo">Add session photo</button>
+                                <button class="button button-danger-quiet button-full" type="button" data-demo-action="End session confirmation">End session</button>
+                            </div>
+                        </section>
+                    </aside>
+                </div>
+            </section>
+
+            <!-- STATS -->
+            <section class="screen" data-screen="stats" aria-labelledby="statsTitle" hidden>
+                <div class="page-heading"><div><p class="eyebrow">Official sessions only</p><h1 id="statsTitle">Statistics</h1><p>Overall performance, direct records, comparisons and ELO ratings.</p></div></div>
+                <div class="tab-shell">
+                    <nav class="stats-tabs" aria-label="Statistics views">
+                        <button class="is-active" type="button" data-stats-tab="overall">Overall</button>
+                        <button type="button" data-stats-tab="head-to-head">Head-to-head</button>
+                        <button type="button" data-stats-tab="comparison">Detailed comparison</button>
+                        <button type="button" data-stats-tab="elo">⚡ ELO rankings</button>
+                    </nav>
+                    <div class="stats-view is-active" data-stats-view="overall">
+                        <div class="highlight-grid">
+                            <article><p>Most sessions won</p><button type="button" data-player="Dave"><span class="avatar avatar-sm avatar-photo avatar-dave">D</span><span><strong>Dave</strong><small>8 wins · 42.1%</small></span></button></article>
+                            <article><p>Best average hand</p><button type="button" data-player="Jack"><span class="avatar avatar-sm avatar-jack">J</span><span><strong>Jack</strong><small>2.34 points</small></span></button></article>
+                            <article><p>Best avg lockout score</p><button type="button" data-player="Rhys"><span class="avatar avatar-sm">R</span><span><strong>Rhys</strong><small>1.42 points</small></span></button></article>
+                            <article><p>Most lockouts</p><button type="button" data-player="Dave"><span class="avatar avatar-sm avatar-photo avatar-dave">D</span><span><strong>Dave</strong><small>29 successful</small></span></button></article>
+                        </div>
+                        <section class="panel">
+                            <div class="panel-body">
+                                <div class="section-heading"><div><p class="eyebrow">Sortable table</p><h2>Overall player statistics</h2></div><span class="fine-print">Select a name for their profile</span></div>
+                                <div class="table-scroll"><table class="data-table"><thead><tr><th>Player</th><th>Sessions</th><th>Wins</th><th>Win rate</th><th>Hands</th><th>Avg hand</th><th>Lockouts</th><th>LO rate</th><th>Avg LO score</th><th>False LO</th></tr></thead><tbody>
+                                    <tr><td><button class="table-player" type="button" data-player="Dave"><span class="avatar avatar-xs avatar-photo avatar-dave">D</span>Dave</button></td><td>19</td><td>8</td><td>42.1%</td><td>117</td><td>2.62</td><td>29</td><td>24.8%</td><td>1.83</td><td>8</td></tr>
+                                    <tr><td><button class="table-player" type="button" data-player="Rhys"><span class="avatar avatar-xs">R</span>Rhys</button></td><td>22</td><td>7</td><td>31.8%</td><td>138</td><td>3.28</td><td>21</td><td>15.2%</td><td class="best">1.42</td><td>10</td></tr>
+                                    <tr><td><button class="table-player" type="button" data-player="Jack"><span class="avatar avatar-xs avatar-jack">J</span>Jack</button></td><td>15</td><td>5</td><td>33.3%</td><td>95</td><td class="best">2.34</td><td>17</td><td>17.9%</td><td>1.71</td><td>4</td></tr>
+                                    <tr><td><button class="table-player" type="button" data-player="Russ"><span class="avatar avatar-xs avatar-russ">R</span>Russ</button></td><td>13</td><td>3</td><td>23.1%</td><td>80</td><td>3.85</td><td>14</td><td>17.5%</td><td>2.21</td><td>7</td></tr>
+                                    <tr><td><button class="table-player" type="button" data-player="Jake"><span class="avatar avatar-xs avatar-jake">J</span>Jake</button></td><td>11</td><td>2</td><td>18.2%</td><td>72</td><td>4.12</td><td>9</td><td>12.5%</td><td>2.67</td><td>5</td></tr>
+                                </tbody></table></div>
+                                <p class="fine-print">Avg LO score is the average score at which a player declared lockout, including both successful and false lockouts. Lower is better.</p>
+                            </div>
+                        </section>
+                    </div>
+                    <div class="stats-view" data-stats-view="head-to-head" hidden>
+                        <section class="panel">
+                            <div class="panel-body">
+                                <div class="section-heading"><div><p class="eyebrow">Direct records</p><h2>Head-to-head</h2></div><label class="mini-search"><span class="sr-only">Search head-to-head records</span><input type="search" placeholder="Search player…" data-filter-input="h2hRecords"></label></div>
+                                <div class="h2h-cards" data-filter-list="h2hRecords">
+                                    <button type="button" data-compare="Dave,Rhys" data-search="dave rhys"><span><b>Dave</b><small>7 wins</small></span><span class="versus">12 sessions<br><i>1 draw</i></span><span><b>Rhys</b><small>4 wins</small></span></button>
+                                    <button type="button" data-compare="Rhys,Jack" data-search="rhys jack"><span><b>Rhys</b><small>6 wins</small></span><span class="versus">10 sessions<br><i>No draws</i></span><span><b>Jack</b><small>4 wins</small></span></button>
+                                    <button type="button" data-compare="Jack,Russ" data-search="jack russ"><span><b>Jack</b><small>5 wins</small></span><span class="versus">9 sessions<br><i>1 draw</i></span><span><b>Russ</b><small>3 wins</small></span></button>
+                                    <button type="button" data-compare="Dave,Jake" data-search="dave jake"><span><b>Dave</b><small>6 wins</small></span><span class="versus">8 sessions<br><i>No draws</i></span><span><b>Jake</b><small>2 wins</small></span></button>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                    <div class="stats-view" data-stats-view="comparison" hidden>
+                        <section class="panel comparison-panel">
+                            <div class="panel-body">
+                                <div class="section-heading"><div><p class="eyebrow">Choose two people</p><h2>Detailed comparison</h2></div></div>
+                                <div class="comparison-selectors"><label class="field"><span>Player one</span><select id="compareA"><option>Rhys</option><option>Dave</option><option>Jack</option><option>Russ</option><option>Jake</option></select></label><span>vs</span><label class="field"><span>Player two</span><select id="compareB"><option>Dave</option><option>Rhys</option><option>Jack</option><option>Russ</option><option>Jake</option></select></label><button class="button button-primary" type="button" id="compareButton">Compare</button></div>
+                                <div class="comparison-result" id="comparisonResult">
+                                    <div class="comparison-person"><span class="avatar avatar-lg">R</span><strong>Rhys</strong><small>⚡ 1020</small></div>
+                                    <div class="comparison-score"><span>12 sessions together</span><strong>4 <i>– 1 –</i> 7</strong><small>Wins · Draws · Losses</small></div>
+                                    <div class="comparison-person"><span class="avatar avatar-lg avatar-photo avatar-dave">D</span><strong>Dave</strong><small>⚡ 1079</small></div>
+                                </div>
+                                <div class="comparison-metrics"><div><span>Avg hand</span><strong>3.18</strong><i>vs</i><strong class="best">2.47</strong></div><div><span>Lockout rate</span><strong>15.4%</strong><i>vs</i><strong class="best">24.1%</strong></div><div><span>Avg LO score</span><strong class="best">1.39</strong><i>vs</i><strong>1.88</strong></div></div>
+                            </div>
+                        </section>
+                    </div>
+                    <div class="stats-view" data-stats-view="elo" hidden>
+                        <section class="panel">
+                            <div class="panel-body">
+                                <div class="section-heading"><div><p class="eyebrow">Rank-based rating</p><h2>⚡ ELO rankings</h2></div><button class="text-button" type="button" data-go="how-to" data-scroll-target="eloHowTo">How ELO works</button></div>
+                                <p class="supporting-copy">All players start at 1000. A ? marks a provisional rating with fewer than 50 hands.</p>
+                                <div class="elo-table">
+                                    <button type="button" data-player="Dave"><span class="rank medal">1</span><span class="avatar avatar-sm avatar-photo avatar-dave">D</span><span><strong>Dave</strong><small>117 hands</small></span><b>1079</b><em class="positive">+10</em></button>
+                                    <button type="button" data-player="Jack"><span class="rank">2</span><span class="avatar avatar-sm avatar-jack">J</span><span><strong>Jack</strong><small>95 hands</small></span><b>1024</b><em class="positive">+20</em></button>
+                                    <button type="button" data-player="Rhys"><span class="rank">3</span><span class="avatar avatar-sm">R</span><span><strong>Rhys</strong><small>138 hands</small></span><b>1020</b><em class="negative">−4</em></button>
+                                    <button type="button" data-player="Dan"><span class="rank">4</span><span class="avatar avatar-sm avatar-dan">D</span><span><strong>Dan</strong><small>24 hands</small></span><b>1000?</b><em class="neutral">0</em></button>
+                                    <button type="button" data-player="Lewis"><span class="rank">5</span><span class="avatar avatar-sm avatar-lewis">L</span><span><strong>Lewis</strong><small>19 hands</small></span><b>986?</b><em class="negative">−6</em></button>
+                                    <button type="button" data-player="Jake"><span class="rank">6</span><span class="avatar avatar-sm avatar-jake">J</span><span><strong>Jake</strong><small>72 hands</small></span><b>971</b><em class="negative">−19</em></button>
+                                    <button type="button" data-player="Russ"><span class="rank">7</span><span class="avatar avatar-sm avatar-russ">R</span><span><strong>Russ</strong><small>80 hands</small></span><b>932</b><em class="positive">+7</em></button>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PODCASTS -->
+            <section class="screen" data-screen="podcasts" aria-labelledby="podcastsTitle" hidden>
+                <div class="page-heading"><div><p class="eyebrow">Audio recaps</p><h1 id="podcastsTitle">Lockout Podcast</h1><p>Listen to the latest Lockout recaps.</p></div></div>
+                <section class="featured-podcast panel">
+                    <div class="panel-body">
+                        <div class="podcast-art"><span aria-hidden="true">◉</span><small>LOCKOUT<br>WEEKLY</small></div>
+                        <div class="podcast-details"><span class="soft-badge">Latest episode</span><h2>20–26 July 2026 weekly recap</h2><p>Results, rating moves and the main stories from the latest week of Lockout.</p><small>26 July 2026 · 2 min</small></div>
+                        <button class="podcast-play" type="button" data-audio-toggle><span>▶</span><strong>Play episode</strong></button>
+                        <div class="fake-audio" hidden><button type="button" aria-label="Pause" data-audio-toggle>Ⅱ</button><span class="audio-progress"><i></i></span><time>0:42 / 2:08</time></div>
+                    </div>
+                </section>
+                <div class="episode-list">
+                    <article class="panel"><div class="panel-body"><div><p class="eyebrow">Episode 1</p><h2>13–19 July 2026 weekly recap</h2><p>The first weekly review: completed sessions, stand-out numbers and early ELO movement.</p><small>19 July 2026 · 2 min</small></div><button class="round-button" type="button" data-demo-action="Episode 1 player" aria-label="Play episode 1">▶</button></div></article>
+                    <article class="panel"><div class="panel-body"><div><p class="eyebrow">Coming soon</p><h2>Next weekly recap</h2><p>Future episodes appear here when their audio and episode entry are published.</p></div><span class="soft-badge muted">Not yet available</span></div></article>
+                </div>
+            </section>
+
+            <!-- ADD PLAYER -->
+            <section class="screen" data-screen="add-player" aria-labelledby="addPlayerTitle" hidden>
+                <div class="page-heading"><div><p class="eyebrow">New profile</p><h1 id="addPlayerTitle">Add new player</h1><p>Create a player now; they can choose a PIN when they first sign in.</p></div><button class="button button-secondary" type="button" data-go="players">Cancel</button></div>
+                <form class="onboarding-layout panel" data-demo-form="add-player">
+                    <div class="panel-body">
+                        <div class="onboarding-preview"><span class="avatar avatar-profile">N</span><button type="button" class="text-button" data-demo-action="Profile picture picker">Add picture</button></div>
+                        <div class="onboarding-fields">
+                            <label class="field"><span>Player name</span><input id="newPlayerName" type="text" placeholder="Enter player name"></label>
+                            <fieldset class="ownership-choice"><legend>Whose profile is this?</legend><label><input type="radio" name="ownership" value="self" checked><span><strong>This is my profile</strong><small>Choose your four-digit PIN next, then add an optional bio and picture.</small></span></label><label><input type="radio" name="ownership" value="other"><span><strong>I am adding someone else</strong><small>They can choose their PIN when they first sign in.</small></span></label></fieldset>
+                            <div class="privacy-note"><span aria-hidden="true">⌁</span><p><strong>Simple member access</strong><br>Signed-in friends can score games. Each player can edit only their own profile.</p></div>
+                            <button class="button button-primary" type="submit">Add player</button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+
+            <!-- HOW TO -->
+            <section class="screen reading-screen" data-screen="how-to" aria-labelledby="howToTitle" hidden>
+                <div class="page-heading"><div><p class="eyebrow">App guide</p><h1 id="howToTitle">How to use the Lockout Tracker</h1><p>This app records hand-by-hand scores and generates detailed statistics.</p></div></div>
+                <div class="reading-layout">
+                    <nav class="contents panel" aria-label="How-to contents">
+                        <strong>On this page</strong>
+                        <a href="#guideOverview">Overview</a><a href="#guideSignIn">Sign in and access</a><a href="#guideStart">Start a session</a><a href="#guideScore">Score hands</a><a href="#guideLate">Late joiners</a><a href="#guideProfiles">Profiles and stats</a><a href="#eloHowTo">ELO ratings</a><a href="#guidePrivacy">Data and privacy</a>
+                    </nav>
+                    <article class="reading-content panel">
+                        <div class="panel-body">
+                            <section id="guideOverview"><p class="eyebrow">Overview</p><h2>Everything needed to record a game</h2><p>The tracker records sessions, hand-by-hand scores, lockout attempts and player performance. Players enter each hand’s scores and choose who declared lockout; the app handles successful and false-lockout calculations automatically.</p></section>
+                            <section id="guideSignIn"><p class="eyebrow">Member access</p><h2>Sign in with your player PIN</h2><ol><li>Select <strong>Sign in to edit</strong> or the identity control in the header.</li><li>Choose your player name.</li><li>Enter your personal four-digit PIN.</li></ol><p>Your signed-in identity is remembered on that device until you sign out. Signed-in friends can create and score sessions; a player can edit only their own profile.</p></section>
+                            <section id="guideStart"><p class="eyebrow">Starting a game</p><h2>Create a session</h2><ol><li>Add a session title and choose the host.</li><li>Add optional notes and tags such as Casual, Holiday, Pub or Tournament.</li><li>Set the false-lockout penalty.</li><li>Select at least two players and add an optional session photo.</li><li>Press <strong>Start session</strong>.</li></ol><div class="info-callout">Testing sessions stay visible in history but are excluded from official statistics, profiles, comparisons, achievements and ELO.</div></section>
+                            <section id="guideScore"><p class="eyebrow">During play</p><h2>Record each hand</h2><ol><li>Enter every player’s score.</li><li>Select who declared lockout, or choose <strong>No lockout</strong>.</li><li>When someone locked out, input their actual lockout score—the score they called lockout with.</li><li>Add an optional note and submit the hand.</li></ol><p>The tracker determines whether the lockout was successful. Successful lockouts score 0 unless the player’s actual total was negative. False lockouts score the declared total plus the session penalty.</p></section>
+                            <section id="guideLate"><p class="eyebrow">Mid-session</p><h2>Add a late joiner</h2><p>Use <strong>Add late joiner</strong> in the active session. Their starting score is the current players’ average cumulative score, rounded to the nearest whole number. Their tables and graph labels show the hand at which they joined, for example <strong>Russ (H2)</strong>.</p></section>
+                            <section id="guideProfiles"><p class="eyebrow">After and between games</p><h2>Profiles, sessions and statistics</h2><ul><li><strong>Players</strong> contains bios, ELO history, achievements, head-to-head records and recent sessions.</li><li><strong>Previous sessions</strong> contains final scores, Worm and Manhattan graphs, and full hand history.</li><li><strong>Statistics</strong> contains overall tables, head-to-head records, detailed comparisons and ELO rankings.</li><li><strong>Avg lockout score</strong> is the mean score at which a player declared lockout, including both successful and false attempts.</li></ul></section>
+                            <section id="eloHowTo"><p class="eyebrow">Skill rating</p><h2>How ELO works</h2><p>All players start at 1000. The current tracker uses finishing position rather than raw score: a player gains rating for finishing above expectation and loses rating for finishing below expectation.</p><ul><li>Provisional players with fewer than 50 hands are marked with <strong>?</strong> and use K=40, so their rating finds its level faster.</li><li>Established players use K=24 for more stable movement.</li><li>Different K-factors and whole-number rounding mean the displayed changes may not add up to exactly zero.</li><li>Testing sessions do not affect ELO.</li></ul></section>
+                            <section id="guidePrivacy"><p class="eyebrow">Data and privacy</p><h2>A trusted group with clear boundaries</h2><ul><li>Anyone can view public scores and statistics.</li><li>A player name and four-digit PIN are required before making changes.</li><li>Each player can edit only their own profile.</li><li>Edit history records who changed sessions and hands, and when.</li><li>The administrator can manage data and access through the connected Google Sheet and Apps Script project.</li></ul></section>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <!-- DICTIONARY -->
+            <section class="screen reading-screen" data-screen="dictionary" aria-labelledby="dictionaryTitle" hidden>
+                <div class="page-heading"><div><p class="eyebrow">Reference</p><h1 id="dictionaryTitle">Dictionary</h1><p>Lockout Lingo and the game and app terms used throughout the tracker.</p></div></div>
+                <div class="dictionary-shell panel">
+                    <nav class="dictionary-tabs"><button class="is-active" type="button" data-dictionary-tab="lingo">Lockout Lingo</button><button type="button" data-dictionary-tab="glossary">Glossary</button></nav>
+                    <div class="dictionary-view is-active" data-dictionary-view="lingo">
+                        <div class="dictionary-intro"><p class="eyebrow">Lockout Lingo</p><h2>The group’s dictionary</h2><p>Nicknames with 3+ cards refer to the first two cards you turn at the start, then the next card drawn or revealed.</p></div>
+                        <label class="search-field dictionary-search"><span class="sr-only">Search Lockout Lingo</span><input type="search" placeholder="Search Lockout Lingo…" data-filter-input="lingoTerms"></label>
+                        <div class="term-grid" data-filter-list="lingoTerms">
+                            <article data-search="desmond 2 2"><span>👔</span><div><h3>Desmond <small>2–2</small></h3><p>Desmond Tutu. When you turn over two 2s at the start.</p></div></article>
+                            <article data-search="sven 4 4 2"><span>⚽</span><div><h3>Sven <small>4–4 turned, then draw a 2</small></h3><p>Sven-Göran Eriksson’s 4-4-2 formation. Tactical genius.</p></div></article>
+                            <article data-search="brexit 5 2"><span>🇪🇺</span><div><h3>The Brexit <small>5–2</small></h3><p>52% voted leave. Controversial hand.</p></div></article>
+                            <article data-search="meme 6 7"><span>🤚</span><div><h3>Meme <small>6–7</small></h3><p>Hand emoji vibes.</p></div></article>
+                            <article data-search="omen 6 6 6"><span>😈</span><div><h3>The Omen <small>6–6 turned, then 6</small></h3><p>Three 6s. Biblically cursed. Probably going to false lockout.</p></div></article>
+                            <article data-search="pocket peters pocket ps 7 7"><span>⛪</span><div><h3>Pocket Peters / Pocket Ps <small>7–7</small></h3><p>7s → Heaven → St. Peter at the gates.</p></div></article>
+                            <article data-search="caesar wilde 8 8"><span>🏛</span><div><h3>Caesar / A Wilde <small>8–8</small></h3><p>Roman salute → HH → 88. Oscar Wilde also works.</p></div></article>
+                            <article data-search="dolly 9 5"><span>💼</span><div><h3>Dolly <small>9–5</small></h3><p>Dolly Parton’s 9 to 5. Classic.</p></div></article>
+                            <article data-search="german 9 9 nein"><span>🇩🇪</span><div><h3>The German <small>9–9</small></h3><p>“Nein, nein!” Refusing that lockout.</p></div></article>
+                            <article data-search="half margot 10 10"><span>💋</span><div><h3>Half Margot <small>10–10</small></h3><p>Margot Robbie is all 10s... you’ve got half of them. Four 10s would be a Full Margot.</p></div></article>
+                            <article data-search="drag race queen queen"><span>💅</span><div><h3>Drag Race <small>Queen–Queen</small></h3><p>Two queens. Sashay away if you false lockout.</p></div></article>
+                            <article data-search="diana lady di queen jack"><span>🌹</span><div><h3>Diana / Lady Di <small>Queen–Jack</small></h3><p>Queen and Jack together. The People’s Princess.</p></div></article>
+                            <article data-search="nelson 1 1 1"><span>⚓</span><div><h3>Nelson <small>1–1 turned, then 1</small></h3><p>Three 1s. One eye, one arm, one... you get it. Cricket’s cursed number.</p></div></article>
+                            <article data-search="pep red king 9"><span>⚽</span><div><h3>Pep <small>Red King–9</small></h3><p>Fluid football. Guardiola’s philosophy in card form.</p></div></article>
+                            <article data-search="charlie red king"><span>🤴</span><div><h3>Charlie <small>Red King turned</small></h3><p>Because of his fingers. RIP.</p></div></article>
+                            <article data-search="national anthem red king red king"><span>🎺</span><div><h3>National Anthem <small>Red King–Red King</small></h3><p>Two red kings? Stand up and sing. House rules.</p></div></article>
+                        </div>
+                    </div>
+                    <div class="dictionary-view" data-dictionary-view="glossary" hidden>
+                        <div class="dictionary-intro"><p class="eyebrow">Glossary of terms</p><h2>Game and app reference</h2><p>Definitions used in the rules, score entry and statistics.</p></div>
+                        <label class="search-field dictionary-search"><span class="sr-only">Search glossary</span><input type="search" placeholder="Search the glossary…" data-filter-input="glossaryTerms"></label>
+                        <div class="glossary-list" data-filter-list="glossaryTerms">
+                            <article data-search="lockout"><h3>Lockout</h3><p>Declaring that you have 5 points or less at the start of your turn. If successful—strictly lowest score—you score 0 for the hand.</p></article>
+                            <article data-search="false lockout penalty"><h3>False Lockout</h3><p>A failed attempt where your score is greater than 5, or tied with or higher than another player. Your scored hand is the lockout score plus the session penalty.</p></article>
+                            <article data-search="lockout score average lo"><h3>Lockout Score</h3><p>The actual hand total when a player declared lockout. It is stored separately for statistics, even when a successful attempt scores 0.</p></article>
+                            <article data-search="hand round"><h3>Hand</h3><p>A single round of play, from deal to lockout reveal. Multiple hands make up a session.</p></article>
+                            <article data-search="session game"><h3>Session</h3><p>A complete game consisting of multiple hands.</p></article>
+                            <article data-search="formation 2x2 cards"><h3>Formation</h3><p>The arrangement of face-down cards, typically a 2×2 grid or 1×4 row. Cards stay in their original positions for memory tracking.</p></article>
+                            <article data-search="magic cards seven eight nine ten red jack"><h3>Magic Cards</h3><p>Drawn cards with abilities: 7 looks at your own card, 8 at an opponent’s, 9 is a blind swap, 10 an open swap, and a Red Jack swaps between two opponents.</p></article>
+                            <article data-search="slam"><h3>Slam</h3><p>An out-of-turn action matching a discarded card with one in your hand or an opponent’s hand.</p></article>
+                            <article data-search="late joiner h2 starting score average"><h3>Late Joiner</h3><p>A player who joins mid-session. Their starting score is the existing players’ average cumulative score, rounded to the nearest whole number.</p></article>
+                            <article data-search="worm chart cricket cumulative"><h3>Worm Chart</h3><p>A line graph showing cumulative scores over time.</p></article>
+                            <article data-search="manhattan chart bar hand"><h3>Manhattan Chart</h3><p>A bar chart showing hand-by-hand scores.</p></article>
+                            <article data-search="head to head h2h"><h3>Head-to-Head Record</h3><p>Direct win, draw and loss record between two players when they appear in the same completed official session.</p></article>
+                            <article data-search="average lockout score avg lo"><h3>Average Lockout Score</h3><p>The mean score at which a player declared lockout, including successful and false attempts. Lower is better.</p></article>
+                            <article data-search="win rate ties"><h3>Win Rate</h3><p>Sessions won divided by sessions played. A tied session shares one win equally between its tied winners.</p></article>
+                            <article data-search="testing tags official"><h3>Session Tags</h3><p>Categories such as Casual, Holiday, Pub and Tournament. Testing sessions remain in history but are excluded from official statistics, profiles, comparisons, achievements and ELO.</p></article>
+                            <article data-search="pin sign in player identity"><h3>Player Sign-In</h3><p>Select your name and enter your four-digit PIN. This identifies who is making changes and is remembered on that device until sign-out.</p></article>
+                            <article data-search="edit history audit"><h3>Edit History</h3><p>A log of changes to sessions and hands, tracking who changed what and when.</p></article>
+                            <article data-search="elo rating skill 1000"><h3>ELO Rating</h3><p>A skill rating that starts at 1000 and moves when a player finishes above or below expectation.</p></article>
+                            <article data-search="provisional rating 50 hands"><h3>Provisional Rating (?)</h3><p>A rating for a player with fewer than 50 hands. It moves faster to help find the player’s level.</p></article>
+                            <article data-search="k factor 40 24"><h3>K-Factor</h3><p>Controls the size of an ELO change. Provisional players use K=40; established players use K=24.</p></article>
+                            <article data-search="rank based elo finishing position"><h3>Rank-Based ELO</h3><p>ELO calculated from finishing position rather than raw score. It supports any number of players.</p></article>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RULES -->
+            <section class="screen reading-screen" data-screen="rules" aria-labelledby="rulesTitle" hidden>
+                <div class="page-heading"><div><p class="eyebrow">Game reference</p><h1 id="rulesTitle">Lockout rules</h1><p>Be the player with the lowest cumulative score at the end of the session.</p></div></div>
+                <article class="rules-layout">
+                    <section class="rule-card rule-intro"><span class="rule-number">01</span><div><h2>Set up</h2><ul><li>Use one standard 52-card deck; no jokers.</li><li>Deal 4 cards face down to every player.</li><li>Arrange cards in a formation, commonly 2×2 or 1×4.</li><li>Look at any 2 of your own cards once, then return them face down in the same positions.</li></ul></div></section>
+                    <section class="rule-card"><span class="rule-number">02</span><div><h2>Card values</h2><div class="value-grid"><span><b>−1</b>Red King</span><span><b>0</b>Black King</span><span><b>1</b>Ace</span><span><b>2–10</b>Number cards</span><span><b>10</b>Jack / Queen</span></div></div></section>
+                    <section class="rule-card"><span class="rule-number">03</span><div><h2>Taking a turn</h2><p>Draw from the deck or discard pile. Either swap the drawn card into your formation and discard the replaced card, or discard the drawn card. Cards stay in position unless removed by a slam.</p></div></section>
+                    <section class="rule-card"><span class="rule-number">04</span><div><h2>Magic cards</h2><ul><li><strong>7:</strong> look at one of your own cards.</li><li><strong>8:</strong> look at one opponent’s card.</li><li><strong>9:</strong> blindly swap one of your cards with an opponent’s.</li><li><strong>10:</strong> look at both cards, then choose whether to swap.</li><li><strong>Red Jack:</strong> swap cards between two opponents.</li></ul><p>The ability applies only when the card is drawn from the deck and immediately discarded.</p></div></section>
+                    <section class="rule-card"><span class="rule-number">05</span><div><h2>Slams</h2><p>Match the top discard with a card in your own or another player’s formation. A correct own slam removes your card. A correct opponent slam gives them a face-down penalty card. Incorrect slams give the slammer a penalty card.</p><ul><li>Suits do not matter.</li><li>Red Kings cannot be slammed.</li><li>You cannot slam the card you just discarded.</li><li>You may defend your card by touching it first.</li></ul></div></section>
+                    <section class="rule-card rule-lockout"><span class="rule-number">06</span><div><h2>Lockout</h2><p>Declare “Lockout” only at the start of your turn, before drawing, when your hand total is 5 or less. Your hand freezes and every other player takes one final turn.</p><div class="rule-outcomes"><div><strong>Successful lockout</strong><p>You are strictly lower than every other player. Score 0, unless your actual total is negative—in that case keep the negative score.</p></div><div><strong>False lockout</strong><p>Your total is above 5, tied with, or higher than another player. Score your actual hand total plus the agreed penalty.</p></div></div></div></section>
+                    <section class="rule-card"><span class="rule-number">07</span><div><h2>Winning the session</h2><p>Add scores across every hand. The player with the lowest cumulative score wins. The group can choose when to finish: after a fixed number of hands, at a score target or at the end of the event.</p></div></section>
+                    <section class="rules-footer"><strong>Good luck, and may the lowest score win.</strong><button class="button button-primary" type="button" data-go="start-session">Start a session</button></section>
+                </article>
+            </section>
+
+            <!-- MORE -->
+            <section class="screen" data-screen="more" aria-labelledby="moreTitle" hidden>
+                <div class="page-heading"><div><p class="eyebrow">More</p><h1 id="moreTitle">Help and extras</h1><p>Guides, reference material and account actions.</p></div></div>
+                <div class="more-grid">
+                    <button class="panel more-card" type="button" data-go="how-to"><span>?</span><div><strong>How to use the app</strong><small>Sessions, scoring, access and statistics</small></div><i>›</i></button>
+                    <button class="panel more-card" type="button" data-go="dictionary"><span>⌘</span><div><strong>Dictionary</strong><small>Lockout Lingo and glossary</small></div><i>›</i></button>
+                    <button class="panel more-card" type="button" data-go="rules"><span>§</span><div><strong>Rules</strong><small>Set-up, cards, slams and lockout</small></div><i>›</i></button>
+                    <button class="panel more-card" type="button" data-go="add-player"><span>＋</span><div><strong>Add player</strong><small>Create a new player profile</small></div><i>›</i></button>
+                    <button class="panel more-card" type="button" data-modal="sign-in"><span>◎</span><div><strong>Player sign-in</strong><small>Change identity or sign out</small></div><i>›</i></button>
+                    <button class="panel more-card" type="button" data-demo-action="Feedback form"><span>↗</span><div><strong>Feedback</strong><small>Send an idea or report a problem</small></div><i>›</i></button>
+                </div>
+            </section>
+        </main>
+
+        <footer class="site-footer">
+            <span>Lockout Tracker · Classic Refined prototype</span>
+            <span>No live data is used on this page.</span>
+        </footer>
+    </div>
+
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+        <button class="is-active" type="button" data-go="home"><span>⌂</span>Home</button>
+        <button type="button" data-go="start-session"><span>＋</span>Play</button>
+        <button type="button" data-go="previous-sessions"><span>▤</span>Sessions</button>
+        <button type="button" data-go="stats"><span>↗</span>Stats</button>
+        <button type="button" data-go="players"><span>◎</span>Players</button>
+        <button type="button" data-go="more"><span>•••</span>More</button>
+    </nav>
+
+    <!-- SIGN IN / PIN MODAL -->
+    <div class="modal" id="signInModal" role="dialog" aria-modal="true" aria-labelledby="signInTitle" hidden>
+        <div class="modal-backdrop" data-close-modal></div>
+        <div class="modal-card">
+            <button class="modal-close" type="button" data-close-modal aria-label="Close">×</button>
+            <div class="modal-step is-active" data-signin-step="player">
+                <p class="eyebrow">Member access</p>
+                <h2 id="signInTitle">Who’s playing?</h2>
+                <p>Choose your player name to continue.</p>
+                <label class="search-field"><span class="sr-only">Search players</span><input type="search" placeholder="Search players…" data-filter-input="signInPlayers"></label>
+                <div class="signin-player-list" data-filter-list="signInPlayers">
+                    <button type="button" data-signin-player="Rhys" data-search="rhys"><span class="avatar avatar-sm">R</span><span><strong>Rhys</strong><small>PIN set</small></span><i>›</i></button>
+                    <button type="button" data-signin-player="Dave" data-search="dave"><span class="avatar avatar-sm avatar-photo avatar-dave">D</span><span><strong>Dave</strong><small>PIN set</small></span><i>›</i></button>
+                    <button type="button" data-signin-player="Jack" data-search="jack"><span class="avatar avatar-sm avatar-jack">J</span><span><strong>Jack</strong><small>PIN set</small></span><i>›</i></button>
+                    <button type="button" data-signin-player="Russ" data-search="russ"><span class="avatar avatar-sm avatar-russ">R</span><span><strong>Russ</strong><small>PIN set</small></span><i>›</i></button>
+                    <button type="button" data-signin-player="Jake" data-search="jake"><span class="avatar avatar-sm avatar-jake">J</span><span><strong>Jake</strong><small>PIN set</small></span><i>›</i></button>
+                </div>
+            </div>
+            <div class="modal-step pin-step" data-signin-step="pin" hidden>
+                <button class="text-button modal-back" type="button" data-signin-back>← Choose another player</button>
+                <span class="avatar avatar-lg" id="pinAvatar">R</span>
+                <p class="eyebrow">Playing as <span id="pinPlayerName">Rhys</span></p>
+                <h2>Enter your four-digit PIN</h2>
+                <div class="pin-dots" aria-label="PIN digits entered"><i></i><i></i><i></i><i></i></div>
+                <div class="pin-pad">
+                    <button type="button" data-pin="1">1</button><button type="button" data-pin="2">2</button><button type="button" data-pin="3">3</button>
+                    <button type="button" data-pin="4">4</button><button type="button" data-pin="5">5</button><button type="button" data-pin="6">6</button>
+                    <button type="button" data-pin="7">7</button><button type="button" data-pin="8">8</button><button type="button" data-pin="9">9</button>
+                    <span></span><button type="button" data-pin="0">0</button><button type="button" data-pin-delete aria-label="Delete last digit">⌫</button>
+                </div>
+                <p class="pin-help">This prototype accepts any four digits. Nothing is checked or saved.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT PROFILE MODAL -->
+    <div class="modal" id="editProfileModal" role="dialog" aria-modal="true" aria-labelledby="editProfileTitle" hidden>
+        <div class="modal-backdrop" data-close-modal></div>
+        <form class="modal-card" data-demo-form="profile">
+            <button class="modal-close" type="button" data-close-modal aria-label="Close">×</button>
+            <p class="eyebrow">Your profile</p>
+            <h2 id="editProfileTitle">Edit profile</h2>
+            <div class="edit-avatar"><span class="avatar avatar-profile">R</span><button class="button button-secondary" type="button" data-demo-action="Profile picture picker">Change picture</button></div>
+            <label class="field"><span>Player name</span><input type="text" value="Rhys" disabled><small>Player names are managed by the administrator.</small></label>
+            <label class="field"><span>Bio <em>Optional</em></span><textarea>Regular host and scorekeeper.</textarea></label>
+            <div class="modal-actions"><button class="button button-secondary" type="button" data-close-modal>Cancel</button><button class="button button-primary" type="submit">Save profile</button></div>
+        </form>
+    </div>
+
+    <!-- GENERIC DEMO MODAL -->
+    <div class="modal" id="demoModal" role="dialog" aria-modal="true" aria-labelledby="demoModalTitle" hidden>
+        <div class="modal-backdrop" data-close-modal></div>
+        <div class="modal-card modal-card-small">
+            <button class="modal-close" type="button" data-close-modal aria-label="Close">×</button>
+            <span class="demo-symbol" aria-hidden="true">✓</span>
+            <p class="eyebrow">Prototype interaction</p>
+            <h2 id="demoModalTitle">Preview only</h2>
+            <p id="demoModalCopy">This control is represented visually. No live data was changed.</p>
+            <button class="button button-primary button-full" type="button" data-close-modal>Got it</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+    <script src="app.js?v=2"></script>
+</body>
+</html>

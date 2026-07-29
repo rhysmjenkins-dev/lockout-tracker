@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lockout Tracker — Full visual review</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            min-width: 320px;
+            margin: 0;
+            background: #f4f5fa;
+            color: #181b2c;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.5;
+        }
+        main { width: min(920px, calc(100% - 28px)); margin: 0 auto; padding: 42px 0; }
+        header { margin-bottom: 25px; }
+        h1 { margin: 0 0 8px; font-size: clamp(1.7rem, 5vw, 2.6rem); }
+        p { margin: 0; color: #667086; }
+        .notice {
+            margin: 20px 0;
+            padding: 13px 15px;
+            border: 1px solid #d9deea;
+            border-radius: 11px;
+            background: #fff;
+            font-weight: 650;
+        }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+        article {
+            display: flex;
+            min-height: 260px;
+            flex-direction: column;
+            padding: 20px;
+            border: 1px solid #d9deea;
+            border-radius: 16px;
+            background: #fff;
+            box-shadow: 0 12px 30px rgba(31, 40, 77, .08);
+        }
+        article span { color: #667086; font-size: .75rem; font-weight: 800; letter-spacing: .1em; }
+        h2 { margin: 9px 0; font-size: 1.25rem; }
+        article p { font-size: .9rem; }
+        a {
+            display: block;
+            margin-top: auto;
+            padding: 11px 13px;
+            border-radius: 10px;
+            background: #5969de;
+            color: #fff;
+            font-weight: 750;
+            text-align: center;
+            text-decoration: none;
+        }
+        footer { margin-top: 22px; font-size: .82rem; text-align: center; }
+        @media (max-width: 720px) {
+            main { padding-top: 24px; }
+            .grid { grid-template-columns: 1fr; }
+            article { min-height: 210px; }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <header>
+            <h1>Lockout Tracker visual review</h1>
+            <p>Three complete design options using the same screens, functions, sample data and underlying wording.</p>
+        </header>
+        <div class="notice">These are read-only visual prototypes. They do not connect to the live spreadsheet and cannot save or change anything.</div>
+        <div class="grid">
+            <article>
+                <span>OPTION 1</span>
+                <h2>Classic Refined</h2>
+                <p>A cleaner and more professional evolution of the current indigo and purple design. Familiar, bright and relatively low-risk.</p>
+                <a href="full-classic/">Open full prototype</a>
+            </article>
+            <article>
+                <span>OPTION 2</span>
+                <h2>Night Match</h2>
+                <p>A premium dark presentation with restrained violet and teal accents. Stronger visual impact while retaining clear game controls.</p>
+                <a href="full-night/">Open full prototype</a>
+            </article>
+            <article>
+                <span>OPTION 3</span>
+                <h2>Table Edition</h2>
+                <p>Warm neutral surfaces with deep card-table green accents. Contemporary and distinctive without turning into a novelty theme.</p>
+                <a href="full-table/">Open full prototype</a>
+            </article>
+        </div>
+        <footer><p>Review each option on both mobile and desktop. Nothing here affects the live app.</p></footer>
+    </main>
+</body>
+</html>
