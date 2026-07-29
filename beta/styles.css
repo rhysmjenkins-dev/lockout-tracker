@@ -284,6 +284,21 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
     padding: 2px 8px; border-radius: 8px; font-size: 0.75em;
     margin-left: 5px; font-weight: 600;
 }
+.late-join-link {
+    cursor: pointer;
+    text-decoration: none;
+}
+.late-join-link:not(.late-join-badge) {
+    color: inherit;
+    border-bottom: 1px dotted currentColor;
+}
+.late-join-badge.late-join-link {
+    border-bottom: 1px dotted rgba(255,255,255,0.85);
+}
+.late-join-link:hover,
+.late-join-link:focus-visible {
+    opacity: 0.82;
+}
 .chart-note {
     margin: 8px 0 0;
     color: var(--text-muted);
@@ -1031,25 +1046,86 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
     color: inherit;
     font-weight: 600;
     cursor: pointer;
-    border-bottom: 1px dotted rgba(51,51,51,0.38);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 100%;
+    vertical-align: middle;
     transition: opacity 0.15s;
     text-decoration: none;
+}
+.player-link-name {
+    min-width: 0;
+    border-bottom: 1px dotted rgba(51,51,51,0.38);
+}
+.player-link-avatar-wrap {
+    width: 1.4rem;
+    height: 1.4rem;
+    flex: 0 0 1.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.player-link-avatar {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(51,51,51,0.16);
+    background: var(--bg-light);
+}
+.player-link-avatar-initial {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    background: var(--gradient-primary);
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1;
+}
+.player-link-avatar-initial[hidden] {
+    display: none;
 }
 .player-link:hover,
 .player-link:focus-visible {
     color: var(--primary);
-    border-bottom-color: var(--primary);
     opacity: 1;
+}
+.player-link:hover .player-link-name,
+.player-link:focus-visible .player-link-name {
+    border-bottom-color: var(--primary);
 }
 .player-link-on-dark {
     color: var(--white);
+}
+.player-link-on-dark .player-link-name {
     border-bottom-color: rgba(255,255,255,0.75);
+}
+.player-link-on-dark .player-link-avatar {
+    border-color: rgba(255,255,255,0.55);
 }
 .scores-table .player-link-on-dark,
 .scores-table .player-link-on-dark:hover,
 .scores-table .player-link-on-dark:focus-visible {
     color: var(--white);
+}
+.scores-table .player-link-on-dark .player-link-name,
+.scores-table .player-link-on-dark:hover .player-link-name,
+.scores-table .player-link-on-dark:focus-visible .player-link-name {
     border-bottom-color: rgba(255,255,255,0.75);
+}
+table .player-link-avatar-wrap {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-basis: 1.25rem;
+}
+.active-session-leader-name .player-link-avatar-wrap,
+.comparison-vs-title .player-link-avatar-wrap {
+    width: 1.75rem;
+    height: 1.75rem;
+    flex-basis: 1.75rem;
 }
 .player-card {
     width: 100%;

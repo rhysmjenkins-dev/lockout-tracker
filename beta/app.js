@@ -1455,8 +1455,20 @@ function getSessionPlayerJoinDetails(session, playerId) {
 
 function formatLateJoinBadge(joinHand, startingScore) {
     if (Number(joinHand) <= 1) return '';
-    return ' <span class="late-join-badge" title="Joined Hand ' + joinHand +
-        ' with starting score ' + startingScore + '">H' + joinHand + ' · Start ' + startingScore + '</span>';
+    return ' ' + makeLateJoinDictionaryLink(
+        'H' + joinHand + ' · Start ' + startingScore,
+        'late-join-badge',
+        'Joined Hand ' + joinHand + ' with starting score ' + startingScore
+    );
+}
+
+function makeLateJoinDictionaryLink(label, extraClass, title) {
+    const className = 'inline-link late-join-link' + (extraClass ? ' ' + extraClass : '');
+    const titleAttr = title ? ' title="' + escapeAttr(title) + '"' : '';
+    return '<a href="#dictionaryScreen" class="' + className + '"' + titleAttr +
+        ' onclick="event.stopPropagation(); showScreen(\'dictionaryScreen\'); ' +
+        'showDictionarySection(\'glossary\', \'glossaryLateJoiner\'); return false;">' +
+        label + '</a>';
 }
 
 function formatWormTooltip(context) {
@@ -2221,7 +2233,11 @@ function showActiveSession(requestedIntentId) {
         const joinHand = getPlayerJoinHand(p.player_id);
         const eloBadge = formatEloBadge(p.player_id);
         const playerLink = makePlayerLink(p.player_id, p.username);
-        if (joinHand > 1) return playerLink + ' <span class="late-join-badge">Joined H' + joinHand + '</span> ' + eloBadge;
+        if (joinHand > 1) return playerLink + ' ' + makeLateJoinDictionaryLink(
+            'Joined H' + joinHand,
+            'late-join-badge',
+            'Late joiner — open the Dictionary'
+        ) + ' ' + eloBadge;
         return playerLink + ' ' + eloBadge;
     }).join(', ');
     document.getElementById('activeSessionInfo').innerHTML =
@@ -2861,7 +2877,7 @@ if (handsData.length === 0) {
         let chartsHtml = '<h3 class="mt-20">Session Graphs</h3>';
         chartsHtml += '<div class="chart-container"><canvas id="activeWormChart"></canvas></div>';
         chartsHtml += '<div class="chart-container"><canvas id="activeManhattanChart"></canvas></div>';
-        if (scores.some(p => p.joinHand > 1)) chartsHtml += '<p class="chart-note">Worm includes late-join starts; Manhattan shows hand scores only.</p>';
+        if (scores.some(p => p.joinHand > 1)) chartsHtml += '<p class="chart-note">Worm includes ' + makeLateJoinDictionaryLink('late-join starts') + '; Manhattan shows hand scores only.</p>';
         chartSection.innerHTML = chartsHtml;
         const playerHandsData = {}, playerIdsArray = [];
         for (let i = 0; i < scores.length; i++) {
@@ -3263,7 +3279,7 @@ document.getElementById('sessionDetailHandHistory').innerHTML = handHistoryHtml;
     let graphsHtml = '<h3 class="mt-20">Graphs</h3>';
     graphsHtml += '<div class="chart-container"><canvas id="wormChart"></canvas></div>';
     graphsHtml += '<div class="chart-container"><canvas id="manhattanChart"></canvas></div>';
-    if (Object.keys(joinInfo).length > 0) graphsHtml += '<p class="chart-note">Worm includes late-join starts; Manhattan shows hand scores only.</p>';
+    if (Object.keys(joinInfo).length > 0) graphsHtml += '<p class="chart-note">Worm includes ' + makeLateJoinDictionaryLink('late-join starts') + '; Manhattan shows hand scores only.</p>';
     document.getElementById('sessionDetailGraphs').innerHTML = graphsHtml;
     showScreen('sessionDetailScreen', false, intentId);
     setTimeout(function() {
@@ -4194,7 +4210,29 @@ function makePlayerLink(playerId, displayName, beforeNavigation, extraClass) {
     if (playerId === null || playerId === undefined || String(playerId) === '') return displayName;
     const className = 'player-link' + (extraClass ? ' ' + extraClass : '');
     const before = beforeNavigation ? beforeNavigation + ' ' : '';
-    return '<a href="#playerProfileScreen" class="' + className + '" onclick="' + before + 'showPlayerProfile(\'' + escapeAttr(playerId) + '\'); return false;">' + displayName + '</a>';
+    const player = allPlayers.find(function(item) {
+        return String(item.player_id) === String(playerId);
+    });
+    const plainName = decodeHtml(String(player && player.username ? player.username : displayName || '')).trim();
+    const initial = escapeHtml((plainName.charAt(0) || '?').toUpperCase());
+    const avatarUrl = player && player.avatar_url ? String(player.avatar_url) : '';
+    let avatarHtml;
+    if (avatarUrl) {
+        avatarHtml =
+            '<span class="player-link-avatar-wrap" aria-hidden="true">' +
+                '<img src="' + escapeAttr(avatarUrl) + '" class="player-link-avatar" alt="" loading="lazy" decoding="async" ' +
+                    'onerror="this.hidden=true; this.nextElementSibling.hidden=false;">' +
+                '<span class="player-link-avatar player-link-avatar-initial" hidden>' + initial + '</span>' +
+            '</span>';
+    } else {
+        avatarHtml =
+            '<span class="player-link-avatar-wrap" aria-hidden="true">' +
+                '<span class="player-link-avatar player-link-avatar-initial">' + initial + '</span>' +
+            '</span>';
+    }
+    return '<a href="#playerProfileScreen" class="' + className + '" onclick="' + before +
+        'showPlayerProfile(\'' + escapeAttr(playerId) + '\'); return false;">' +
+        avatarHtml + '<span class="player-link-name">' + displayName + '</span></a>';
 }
 
 async function loadPlayersScreen(requestedIntentId) {
