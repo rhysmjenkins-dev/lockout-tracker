@@ -41,6 +41,9 @@ let playerCache = {};
 let eloCache = [];
 let eloHistoryAllCache = null;
 let eloHistoryAllCachedAt = 0;
+let eloDropdownOpen = false;
+let activePhotoOverlay = null;
+let photoViewerHistoryActive = false;
 let publicConfig = {
     version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1',
     photos_enabled: false
@@ -1040,6 +1043,10 @@ function formatEloBadge(playerId) {
 async function displayEloLeaderboard(preloadedData) {
     const data = Array.isArray(preloadedData) ? preloadedData : await loadEloRatings();
     if (!data || data.length === 0) return;
+    const existingDropdown = document.getElementById('eloDropdownContent');
+    if (existingDropdown) {
+        eloDropdownOpen = existingDropdown.style.display !== 'none';
+    }
     const medals = ['🥇', '🥈', '🥉'];
     const top = data[0];
     const changeColor = top.change >= 0 ? '#4caf50' : '#f44336';
@@ -1050,10 +1057,12 @@ async function displayEloLeaderboard(preloadedData) {
     html += '<span>⚡ ELO Rankings</span>';
     html += '<span class="elo-dropdown-preview">';
     html += '🥇 ' + makePlayerLink(top.player_id, top.username, 'event.stopPropagation();', 'player-link-on-dark') + ' ' + top.rating + (top.provisional ? '?' : '');
-    html += '<span class="elo-dropdown-arrow" id="eloDropdownArrow"> ▼</span>';
+    html += '<span class="elo-dropdown-arrow" id="eloDropdownArrow">' +
+        (eloDropdownOpen ? ' ▲' : ' ▼') + '</span>';
     html += '</span>';
     html += '</div>';
-    html += '<div class="elo-leaderboard-list" id="eloDropdownContent" style="display:none;">';
+    html += '<div class="elo-leaderboard-list" id="eloDropdownContent" style="display:' +
+        (eloDropdownOpen ? 'block' : 'none') + ';">';
     for (let i = 0; i < data.length; i++) {
         const p = data[i];
         const medal = medals[i] || (i + 1) + '.';
@@ -1086,6 +1095,7 @@ function toggleEloDropdown() {
     const arrow = document.getElementById('eloDropdownArrow');
     if (!content) return;
     const isOpen = content.style.display !== 'none';
+    eloDropdownOpen = !isOpen;
     content.style.display = isOpen ? 'none' : 'block';
     if (arrow) arrow.textContent = isOpen ? ' ▼' : ' ▲';
     hapticFeedback('light');
@@ -1697,15 +1707,46 @@ function removeSessionPhoto() {
 }
 
 function openPhotoFullscreen(url) {
+    if (activePhotoOverlay) return;
     const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:10000;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+    overlay.className = 'photo-viewer-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Full-size photo');
     const image = document.createElement('img');
     image.src = url;
     image.alt = 'Full-size uploaded photo';
-    image.style.cssText = 'max-width:95%;max-height:95%;border-radius:8px;object-fit:contain;';
+    image.className = 'photo-viewer-image';
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'photo-viewer-close';
+    closeButton.setAttribute('aria-label', 'Close full-size photo');
+    closeButton.textContent = '×';
     overlay.appendChild(image);
-    overlay.onclick = function() { document.body.removeChild(overlay); };
+    overlay.appendChild(closeButton);
+    overlay.onclick = function(event) {
+        if (event.target === overlay || event.target === closeButton) closePhotoFullscreen();
+    };
     document.body.appendChild(overlay);
+    activePhotoOverlay = overlay;
+    photoViewerHistoryActive = true;
+    history.pushState(
+        Object.assign({}, history.state || {}, { photoViewer: true }),
+        '',
+        window.location.href
+    );
+    closeButton.focus();
+}
+
+function closePhotoFullscreen(fromHistory) {
+    if (!activePhotoOverlay) return;
+    if (photoViewerHistoryActive && !fromHistory) {
+        history.back();
+        return;
+    }
+    activePhotoOverlay.remove();
+    activePhotoOverlay = null;
+    photoViewerHistoryActive = false;
 }
 
 // ============================================
@@ -3888,10 +3929,20 @@ window.addEventListener('DOMContentLoaded', function() {
 // BROWSER BACK BUTTON HANDLING
 // ============================================
 window.addEventListener('popstate', function(event) {
+    if (activePhotoOverlay) {
+        closePhotoFullscreen(true);
+        return;
+    }
     if (event.state && event.state.screen) {
         showScreen(event.state.screen, true);
     } else {
         showScreen('homeScreen', true);
+    }
+});
+
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape' && activePhotoOverlay) {
+        closePhotoFullscreen();
     }
 });
 
