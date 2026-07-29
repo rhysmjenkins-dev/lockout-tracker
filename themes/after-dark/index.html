@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Lockout Theme Test — After Dark</title>
+    <link rel="stylesheet" href="../theme-preview.css">
+</head>
+<body class="theme-after-dark">
+    <div class="preview-banner">VISUAL TEST ONLY · NO LIVE DATA · NOTHING CAN BE SAVED</div>
+    <div class="site-shell">
+        <header class="app-header">
+            <div class="brand-mark" aria-hidden="true">🎴</div>
+            <div class="brand-copy"><h1>Lockout Tracker</h1><p>Track your games, dominate the leaderboard</p></div>
+            <div class="identity"><span class="avatar">R</span>Playing as Rhys</div>
+        </header>
+        <div class="preview-tabs" role="tablist" data-preview-tabs>
+            <button class="tab-button is-active" type="button" role="tab" aria-selected="true" data-target="home">Home</button>
+            <button class="tab-button" type="button" role="tab" aria-selected="false" data-target="game">Active game</button>
+        </div>
+
+        <main class="screen" data-screen="home">
+            <div class="home-grid">
+                <div class="column">
+                    <section class="panel active-game"><div class="panel-body">
+                        <div class="active-top"><span class="live-dot"></span><div><p class="eyebrow muted">GAME IN PROGRESS · HAND 4</p><h2>29/07/26</h2></div><span class="badge">3 players</span></div>
+                        <div class="leader"><span class="avatar large">D</span><div class="leader-copy"><small>Current leader</small><strong>Dave</strong></div><span class="leader-score">−1</span></div>
+                        <button class="button primary full" type="button">Resume scoring</button>
+                    </div></section>
+                    <section class="panel"><div class="panel-body">
+                        <div class="section-title"><h3>What are we doing?</h3><span>Choose wisely.</span></div>
+                        <div class="action-grid">
+                            <button class="action-card" type="button"><span class="action-icon">＋</span><strong>Start new game</strong><small>Chaos, but recorded</small></button>
+                            <button class="action-card" type="button"><span class="action-icon">▤</span><strong>Previous sessions</strong><small>Receipts and regrets</small></button>
+                            <button class="action-card" type="button"><span class="action-icon">↗</span><strong>Stats</strong><small>Far too much detail</small></button>
+                            <button class="action-card" type="button"><span class="action-icon">●</span><strong>Players</strong><small>Profiles and form</small></button>
+                        </div>
+                    </div></section>
+                </div>
+                <aside class="column">
+                    <section class="panel"><div class="panel-body">
+                        <div class="section-title"><div><p class="eyebrow">CURRENT ORDER</p><h3>⚡ ELO rankings</h3></div><span>View all</span></div>
+                        <div class="ranking-row"><span class="position">1</span><span class="avatar">D</span><strong>Dave</strong><span class="rating"><b>1079</b><small>+10</small></span></div>
+                        <div class="ranking-row"><span class="position">2</span><span class="avatar">J</span><strong>Jack</strong><span class="rating"><b>1024</b><small>+20</small></span></div>
+                        <div class="ranking-row"><span class="position">3</span><span class="avatar">R</span><strong>Rhys</strong><span class="rating"><b>1020</b><small>−4</small></span></div>
+                        <p class="panel-note">Provisional ratings remain legally questionable.</p>
+                    </div></section>
+                    <section class="panel"><div class="panel-body">
+                        <p class="eyebrow">LATEST FROM THE BOOTH</p><h3>🎙️ The Dave Redemption Tour</h3>
+                        <p class="podcast-copy">A 70-point collapse, three victories and the continuing mystery of Jack scoring exactly 33.</p>
+                        <button class="button" type="button">Listen · 2 min</button>
+                    </div></section>
+                </aside>
+            </div>
+            <nav class="utility-links"><a href="#">How to play</a><a href="#">Dictionary</a><a href="#">Rules</a><a href="#">Feedback</a></nav>
+        </main>
+
+        <main class="screen" data-screen="game" hidden>
+            <div class="status-strip"><div><span class="live-dot"></span><strong>Hand 4</strong><small>Last saved just now</small></div><button class="button" type="button">Game details</button></div>
+            <div class="game-grid">
+                <section class="panel"><div class="panel-body">
+                    <div class="section-title"><div><p class="eyebrow">THE TABLE</p><h2>Current scores</h2></div><span>Lowest wins</span></div>
+                    <div class="score-row is-leading"><span class="position">1</span><span class="avatar">D</span><div class="player-copy"><strong>Dave</strong><small>Avg hand −0.25</small></div><span class="player-total">−1</span><span class="badge">Leading</span></div>
+                    <div class="score-row"><span class="position">2</span><span class="avatar">R</span><div class="player-copy"><strong>Rhys</strong><small>Avg hand 1.00</small></div><span class="player-total">4</span><span></span></div>
+                    <div class="score-row"><span class="position">3</span><span class="avatar">J</span><div class="player-copy"><strong>Jack</strong><small>Avg hand 2.25</small></div><span class="player-total">9</span><span></span></div>
+                </div></section>
+                <aside class="panel hand-panel"><div class="panel-body">
+                    <p class="eyebrow">NEXT UP</p><h2>Enter Hand 5</h2><p>Scores are checked before anything is saved. Even Jack’s.</p>
+                    <div class="hand-actions"><button class="button primary full" type="button">Enter scores</button><button class="button full" type="button">Add late joiner</button><button class="button full" type="button">View graphs</button></div>
+                </div></aside>
+            </div>
+            <section class="panel recent-panel"><div class="panel-body">
+                <div class="section-title"><h3>Recent hands</h3><span>View full table</span></div>
+                <div class="recent-row"><span>H4</span><div><strong>Dave called it</strong><br><small>Dave −1 · Rhys 0 · Jack 2</small></div><span class="recent-result good">Successful</span></div>
+                <div class="recent-row"><span>H3</span><div><strong>Rhys called it</strong><br><small>Dave 1 · Rhys 3 · Jack 4</small></div><span class="recent-result bad">False lockout</span></div>
+            </div></section>
+        </main>
+        <a class="theme-switch-link" href="../classic-plus/">← Try the calmer Classic Plus version</a>
+    </div>
+    <script src="../theme-preview.js"></script>
+</body>
+</html>
