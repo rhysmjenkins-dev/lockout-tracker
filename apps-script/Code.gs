@@ -91,7 +91,7 @@ case 'checkPlayerPin': return v2CheckPlayerPin(v2Id(p.player_id, 'Player'));
 case 'getHomeData':
 return {
 players: v2GetPublicPlayers(),
-sessions_with_hands: v2GetVisibleSessionsWithHands(),
+active_sessions_with_hands: v2GetActiveSessionsWithHands(),
 elo_ratings: getEloRatings(),
 public_config: v2GetPublicConfig()
 };
@@ -105,15 +105,17 @@ return getSessionsWithHands().filter(function(item) {
 return !item.session || String(item.session.status || '').toLowerCase() !== 'void';
 });
 }
+function v2GetActiveSessionsWithHands() {
+return v2GetVisibleSessionsWithHands().filter(function(item) {
+if (!item.session) return false;
+var ended = String(item.session.date_ended || '').trim();
+return ended === '' || ended === 'null' || ended === 'undefined';
+});
+}
 function v2GetAppBootstrap() {
 var players = v2GetPublicPlayers();
-var playerProfiles = {};
-players.forEach(function(player) {
-playerProfiles[String(player.player_id)] = getPlayerProfile(player.player_id);
-});
 return {
 players: players,
-player_profiles: playerProfiles,
 sessions_with_hands: v2GetVisibleSessionsWithHands(),
 elo_ratings: getEloRatings(),
 elo_history_all: sheetToObjects('elo_history'),
@@ -141,21 +143,21 @@ photos_enabled: Boolean(PropertiesService.getScriptProperties().getProperty('IMG
 };
 }
 var V2_READ_CACHE_SECONDS = {
-getPlayers: 120,
-getSessions: 30,
-getRecentSessions: 30,
+getPlayers: 300,
+getSessions: 120,
+getRecentSessions: 120,
 getSession: 15,
 getHands: 15,
-getSessionsWithHands: 30,
-getHeadToHeadMatrix: 60,
+getSessionsWithHands: 120,
+getHeadToHeadMatrix: 300,
 getPlayerComparisonDetailed: 21600,
-getEloRatings: 60,
-getEloHistory: 60,
-getEloHistoryAll: 60,
-getPlayerProfile: 60,
-getStatsSummary: 60,
-getPublicConfig: 60,
-getHomeData: 30,
+getEloRatings: 300,
+getEloHistory: 300,
+getEloHistoryAll: 300,
+getPlayerProfile: 21600,
+getStatsSummary: 300,
+getPublicConfig: 300,
+getHomeData: 300,
 getAppBootstrap: 21600
 };
 function v2ReadThroughCache(action, params, loader) {

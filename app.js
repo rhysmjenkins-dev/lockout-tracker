@@ -19,14 +19,19 @@ const DEFAULT_FALSE_LOCKOUT_PENALTY = 10;
 const MIN_SCORE = -2;
 const PUBLIC_SNAPSHOT_STORAGE_KEY = 'lockout_public_snapshot_2_1';
 const PUBLIC_SNAPSHOT_DIRTY_KEY = 'lockout_public_snapshot_2_1_dirty';
+const PROFILE_SNAPSHOT_PREFIX = 'lockout_player_profile_2_1_';
+const PROFILE_SNAPSHOT_INDEX_KEY = 'lockout_player_profile_2_1_index';
 const LEGACY_PUBLIC_SNAPSHOT_STORAGE_KEYS = [
     'lockout_public_snapshot_2_1_beta_8',
     'lockout_public_snapshot_2_1_beta_7'
 ];
 const PUBLIC_SNAPSHOT_SCHEMA_VERSION = 1;
 const PUBLIC_SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const PROFILE_SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const PROFILE_BACKGROUND_REFRESH_MS = 60000;
 const HOME_BACKGROUND_REFRESH_MS = 60000;
 const API_REQUEST_TIMEOUT_MS = 24000;
+const READ_HEDGE_DELAY_MS = 6000;
 
 let currentSession = null;
 let currentHandNumber = 1;
@@ -50,6 +55,7 @@ let publicConfig = {
 };
 let homeDashboardPromise = null;
 let homeDashboardRefreshPromise = null;
+let homeBackgroundRefreshTimer = null;
 let publicSnapshotNeedsRefresh = false;
 let navigationIntentId = 0;
 let screenTransitionTimer = null;
@@ -108,6 +114,13 @@ const SESSION_ACTIONS = new Set([
 ]);
 const UNAUTHENTICATED_WRITE_ACTIONS = new Set(['setPlayerPin', 'verifyPlayerPin']);
 const SAFE_POST_RETRY_ACTIONS = new Set(['verifyPlayerPin']);
+const HEDGED_READ_ACTIONS = new Set([
+    'getHomeData', 'getPlayers', 'getSessions', 'getRecentSessions',
+    'getSession', 'getHands', 'getEditHistory', 'getSessionsWithHands',
+    'getHeadToHeadMatrix', 'getPlayerComparisonDetailed', 'getEloRatings',
+    'getEloHistory', 'getEloHistoryAll', 'getPlayerProfile',
+    'getStatsSummary', 'checkPlayerPin', 'getPublicConfig'
+]);
 const DATA_CHANGING_WRITE_ACTIONS = new Set([
     'setPlayerPin', 'addPlayer', 'createSession', 'updateSession',
     'updateSessionPhoto', 'addPlayerToSession', 'closeSession',
@@ -611,6 +624,7 @@ function clearFrontendReadCaches(options) {
     readRequestInFlight.clear();
     eloHistoryAllCache = null;
     eloHistoryAllCachedAt = 0;
+    clearStoredPlayerProfiles();
     markPublicSnapshotDirty();
     if (options && options.players) {
         playersLoaded = false;
@@ -746,11 +760,49 @@ function waitForRetry(delayMs) {
 }
 
 async function requestWithSafeRetry(action, params, isRead) {
-    let data = await rawApiRequest(action, params, isRead);
+    const firstRequest = rawApiRequest(action, params, isRead);
+    let data;
+    if (isRead && HEDGED_READ_ACTIONS.has(action)) {
+        let hedgeTimer = null;
+        const firstResult = firstRequest.then(function(value) {
+            return { source: 'first', data: value };
+        });
+        const hedgeGate = new Promise(function(resolve) {
+            hedgeTimer = setTimeout(function() {
+                hedgeTimer = null;
+                resolve({ source: 'hedge' });
+            }, READ_HEDGE_DELAY_MS);
+        });
+        const gateResult = await Promise.race([firstResult, hedgeGate]);
+        if (gateResult.source === 'first') {
+            if (hedgeTimer) clearTimeout(hedgeTimer);
+            data = gateResult.data;
+        } else {
+            const hedgeRequest = rawApiRequest(action, params, true);
+            const winner = await Promise.race([
+                firstResult,
+                hedgeRequest.then(function(value) {
+                    return { source: 'hedge', data: value };
+                })
+            ]);
+            if (!isTransientApiFailure(winner.data)) return winner.data;
+            data = winner.source === 'first' ? await hedgeRequest : (await firstRequest);
+        }
+    } else {
+        data = await firstRequest;
+    }
     if (!isTransientApiFailure(data) || (!isRead && !SAFE_POST_RETRY_ACTIONS.has(action))) return data;
     await waitForRetry(350);
     data = await rawApiRequest(action, params, isRead);
     return data;
+}
+
+async function brieflyAwaitHomeData(maxWaitMs) {
+    if (!homeDashboardPromise) return;
+    await Promise.race([
+        homeDashboardPromise.catch(function() { return false; }),
+        waitForRetry(maxWaitMs)
+    ]);
 }
 
 async function apiCall(action, params, options) {
@@ -806,10 +858,8 @@ async function apiCall(action, params, options) {
 
 async function ensurePlayersLoaded() {
     if (playersLoaded && Date.now() - playersLoadedAt < READ_CACHE_TTL.getPlayers) return allPlayers;
-    if (homeDashboardPromise) {
-        await homeDashboardPromise;
-        if (playersLoaded && Date.now() - playersLoadedAt < READ_CACHE_TTL.getPlayers) return allPlayers;
-    }
+    await brieflyAwaitHomeData(500);
+    if (playersLoaded && Date.now() - playersLoadedAt < READ_CACHE_TTL.getPlayers) return allPlayers;
     const data = await apiCall('getPlayers', {});
     if (data.error) {
         console.error('Error loading players:', data.error);
@@ -857,14 +907,23 @@ function storeSessionReadResponses(item, storedAt) {
 function primeBootstrapReadCaches(data, storedAt) {
     if (!data || typeof data !== 'object') return;
     const at = Number(storedAt || Date.now());
-    storeReadResponse('getAppBootstrap', {}, data, at);
-    storeReadResponse('getPlayers', {}, data.players || [], at);
-    storeReadResponse('getSessionsWithHands', {}, data.sessions_with_hands || [], at);
-    storeReadResponse('getEloRatings', {}, data.elo_ratings || [], at);
-    storeReadResponse('getEloHistoryAll', {}, data.elo_history_all || [], at);
-    storeReadResponse('getStatsSummary', {}, data.stats_summary || {}, at);
-    storeReadResponse('getHeadToHeadMatrix', {}, data.head_to_head_matrix || [], at);
-    storeReadResponse('getPublicConfig', {}, data.public_config || {}, at);
+    if (Array.isArray(data.players)) storeReadResponse('getPlayers', {}, data.players, at);
+    if (Array.isArray(data.sessions_with_hands)) {
+        storeReadResponse('getSessionsWithHands', {}, data.sessions_with_hands, at);
+    }
+    if (Array.isArray(data.elo_ratings)) storeReadResponse('getEloRatings', {}, data.elo_ratings, at);
+    if (Array.isArray(data.elo_history_all)) {
+        storeReadResponse('getEloHistoryAll', {}, data.elo_history_all, at);
+    }
+    if (data.stats_summary && typeof data.stats_summary === 'object') {
+        storeReadResponse('getStatsSummary', {}, data.stats_summary, at);
+    }
+    if (Array.isArray(data.head_to_head_matrix)) {
+        storeReadResponse('getHeadToHeadMatrix', {}, data.head_to_head_matrix, at);
+    }
+    if (data.public_config && typeof data.public_config === 'object') {
+        storeReadResponse('getPublicConfig', {}, data.public_config, at);
+    }
     Object.keys(data.player_profiles || {}).forEach(function(playerId) {
         storeReadResponse('getPlayerProfile', { player_id: playerId }, data.player_profiles[playerId], at);
         if (/^\d+$/.test(playerId)) {
@@ -878,11 +937,13 @@ function primeBootstrapReadCaches(data, storedAt) {
 
 function applyBootstrapData(data, storedAt) {
     if (!data || typeof data !== 'object') return false;
-    applyPublicConfig(data.public_config);
-    applyPlayersData(data.players || [], storedAt);
-    eloCache = Array.isArray(data.elo_ratings) ? data.elo_ratings : [];
-    eloHistoryAllCache = Array.isArray(data.elo_history_all) ? data.elo_history_all : null;
-    eloHistoryAllCachedAt = eloHistoryAllCache ? Number(storedAt || Date.now()) : 0;
+    if (data.public_config) applyPublicConfig(data.public_config);
+    if (Array.isArray(data.players)) applyPlayersData(data.players, storedAt);
+    if (Array.isArray(data.elo_ratings)) eloCache = data.elo_ratings;
+    if (Array.isArray(data.elo_history_all)) {
+        eloHistoryAllCache = data.elo_history_all;
+        eloHistoryAllCachedAt = Number(storedAt || Date.now());
+    }
     primeBootstrapReadCaches(data, storedAt);
     return true;
 }
@@ -928,25 +989,72 @@ function saveStoredPublicSnapshot(data) {
     }
 }
 
+function loadStoredPlayerProfile(playerId) {
+    try {
+        const raw = localStorage.getItem(PROFILE_SNAPSHOT_PREFIX + String(playerId));
+        if (!raw) return null;
+        const stored = JSON.parse(raw);
+        if (!stored || !stored.data || !Number(stored.stored_at)) return null;
+        if (Date.now() - Number(stored.stored_at) > PROFILE_SNAPSHOT_MAX_AGE_MS) return null;
+        return stored;
+    } catch (error) {
+        return null;
+    }
+}
+
+function saveStoredPlayerProfile(playerId, data) {
+    try {
+        const id = String(playerId);
+        localStorage.setItem(PROFILE_SNAPSHOT_PREFIX + id, JSON.stringify({
+            stored_at: Date.now(),
+            data: data
+        }));
+        let index = [];
+        try {
+            index = JSON.parse(localStorage.getItem(PROFILE_SNAPSHOT_INDEX_KEY) || '[]');
+        } catch (ignore) {}
+        if (!Array.isArray(index)) index = [];
+        if (index.indexOf(id) === -1) index.push(id);
+        localStorage.setItem(PROFILE_SNAPSHOT_INDEX_KEY, JSON.stringify(index));
+    } catch (error) {
+        // The in-memory cache still works if storage is unavailable.
+    }
+}
+
+function clearStoredPlayerProfiles() {
+    try {
+        let index = [];
+        try {
+            index = JSON.parse(localStorage.getItem(PROFILE_SNAPSHOT_INDEX_KEY) || '[]');
+        } catch (ignore) {}
+        if (Array.isArray(index)) {
+            index.forEach(function(playerId) {
+                localStorage.removeItem(PROFILE_SNAPSHOT_PREFIX + String(playerId));
+            });
+        }
+        localStorage.removeItem(PROFILE_SNAPSHOT_INDEX_KEY);
+    } catch (error) {
+        // Memory caches have already been cleared.
+    }
+}
+
 async function renderHomeBootstrap(data) {
+    const activeSessionData = Array.isArray(data.active_sessions_with_hands)
+        ? data.active_sessions_with_hands
+        : (data.sessions_with_hands || []);
     await Promise.all([
-        checkActiveSessions(data.sessions_with_hands || []),
+        checkActiveSessions(activeSessionData),
         displayEloLeaderboard(data.elo_ratings || [])
     ]);
 }
 
 async function refreshHomeDashboardFromServer() {
     const requestedGeneration = readCacheGeneration;
-    let data = await apiCall('getAppBootstrap', {}, { forceRefresh: true });
-    if (data.error) {
-        data = await apiCall('getHomeData', {}, { forceRefresh: true });
-        if (data.error) return false;
-    }
+    const data = await apiCall('getHomeData', {}, { forceRefresh: true });
+    if (data.error) return false;
     if (requestedGeneration !== readCacheGeneration) return true;
     applyBootstrapData(data, Date.now());
-    if (Array.isArray(data.elo_history_all)) {
-        saveStoredPublicSnapshot(data);
-    }
+    saveStoredPublicSnapshot(data);
     await renderHomeBootstrap(data);
     return true;
 }
@@ -962,6 +1070,15 @@ function refreshHomeDashboardInBackground() {
             homeDashboardRefreshPromise = null;
         });
     return homeDashboardRefreshPromise;
+}
+
+function scheduleHomeDashboardRefresh() {
+    if (homeBackgroundRefreshTimer) clearTimeout(homeBackgroundRefreshTimer);
+    homeBackgroundRefreshTimer = setTimeout(function() {
+        homeBackgroundRefreshTimer = null;
+        const home = document.getElementById('homeScreen');
+        if (home && home.classList.contains('active')) refreshHomeDashboardInBackground();
+    }, 2500);
 }
 
 async function loadHomeDashboard() {
@@ -981,7 +1098,7 @@ async function loadHomeDashboard() {
             applyBootstrapData(stored.data, stored.stored_at);
             await renderHomeBootstrap(stored.data);
             if (snapshotAge >= HOME_BACKGROUND_REFRESH_MS) {
-                refreshHomeDashboardInBackground();
+                scheduleHomeDashboardRefresh();
             }
             return true;
         }
@@ -1004,6 +1121,18 @@ async function loadHomeDashboard() {
 // ELO FUNCTIONS
 // ============================================
 async function loadEloRatings() {
+    const cacheKey = apiCacheKey('getEloRatings', {});
+    let cached = readResponseCache.get(cacheKey);
+    if (cached && Date.now() - cached.storedAt < READ_CACHE_TTL.getEloRatings) {
+        eloCache = cached.data;
+        return eloCache;
+    }
+    await brieflyAwaitHomeData(700);
+    cached = readResponseCache.get(cacheKey);
+    if (cached && Date.now() - cached.storedAt < READ_CACHE_TTL.getEloRatings) {
+        eloCache = cached.data;
+        return eloCache;
+    }
     const data = await apiCall('getEloRatings', {});
     if (!data.error) {
         eloCache = data;
@@ -1081,6 +1210,33 @@ function buildHistoricalEloStatusMap(sessionsWithHands, eloHistory) {
         });
     }
 
+    return statusMap;
+}
+
+function buildPlayerHistoricalEloStatusMap(playerId, recentSessions, eloHistory) {
+    const statusMap = {};
+    if (!Array.isArray(recentSessions) || !Array.isArray(eloHistory)) return statusMap;
+
+    const handCountBySession = {};
+    for (let i = 0; i < recentSessions.length; i++) {
+        handCountBySession[String(recentSessions[i].session_id)] =
+            Math.max(0, Number(recentSessions[i].hand_count || 0));
+    }
+
+    let priorRatedHands = 0;
+    const sortedHistory = eloHistory.slice().sort(function(a, b) {
+        return Number(a.elo_id) - Number(b.elo_id);
+    });
+    for (let i = 0; i < sortedHistory.length; i++) {
+        const entry = sortedHistory[i];
+        if (String(entry.player_id) !== String(playerId)) continue;
+        const sessionId = String(entry.session_id);
+        statusMap[sessionId + '_' + String(playerId)] = {
+            provisional: priorRatedHands < PROVISIONAL_HANDS,
+            hands_before: priorRatedHands
+        };
+        priorRatedHands += handCountBySession[sessionId] || 0;
+    }
     return statusMap;
 }
 
@@ -2290,11 +2446,6 @@ async function resumeSession(sessionId, buttonElement, requestedIntentId) {
         ? requestedIntentId
         : beginNavigationIntent();
     if (buttonElement) setButtonLoading(buttonElement, true);
-    if (homeDashboardPromise) await homeDashboardPromise;
-    if (!isCurrentNavigationIntent(intentId)) {
-        if (buttonElement) setButtonLoading(buttonElement, false);
-        return;
-    }
     clearSessionReadCaches(sessionId);
     const results = await Promise.all([
         apiCall('getSession', { session_id: sessionId }, { forceRefresh: true }),
@@ -3084,9 +3235,11 @@ async function loadPreviousSessions(requestedIntentId) {
 
     const results = await Promise.all([
         ensurePlayersLoaded(),
-        apiCall('getSessionsWithHands', {})
+        apiCall('getSessionsWithHands', {}),
+        getCachedEloHistoryAll(false)
     ]);
     const sessionsWithHands = results[1];
+    const eloHistoryAll = results[2];
     if (!isCurrentNavigationIntent(intentId)) return false;
     if (sessionsWithHands.error) { contentDiv.innerHTML = '<div class="error">Error loading sessions: ' + sessionsWithHands.error + '</div>'; return; }
 
@@ -3106,8 +3259,6 @@ async function loadPreviousSessions(requestedIntentId) {
 
     if (completedSessions.length === 0) { contentDiv.innerHTML = '<div class="placeholder-content"><h3>No Completed Sessions</h3><p>Complete a session to see it here!</p></div>'; return; }
 
-    const eloHistoryAll = await getCachedEloHistoryAll(false);
-    if (!isCurrentNavigationIntent(intentId)) return false;
     const eloHistoryMap = {};
     if (!eloHistoryAll.error) {
         for (let i = 0; i < eloHistoryAll.length; i++) {
@@ -4374,13 +4525,27 @@ async function loadPlayersScreen(requestedIntentId) {
                 '<div class="skeleton-player-card"><div class="shimmer-wrapper skeleton-avatar"></div><div class="shimmer-wrapper skeleton-text skeleton-w-70 mt-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-50 mt-10"></div></div>' +
             '</div>' +
         '</div>';
+    if (allPlayers.length > 0 && eloCache.length > 0) {
+        renderPlayersDirectory(contentDiv);
+        setTimeout(function() {
+            if (!isCurrentNavigationIntent(intentId)) return;
+            Promise.all([ensurePlayersLoaded(), loadEloRatings()]).then(function() {
+                if (isCurrentNavigationIntent(intentId)) renderPlayersDirectory(contentDiv);
+            });
+        }, 5000);
+        return true;
+    }
     await ensurePlayersLoaded();
     if (!isCurrentNavigationIntent(intentId)) return false;
     await loadEloRatings();
     if (!isCurrentNavigationIntent(intentId)) return false;
+    return renderPlayersDirectory(contentDiv);
+}
+
+function renderPlayersDirectory(contentDiv) {
     if (allPlayers.length === 0) {
         contentDiv.innerHTML = '<div class="placeholder-content"><p>No players found.</p></div>';
-        return;
+        return false;
     }
     let html = '<div class="players-grid">';
     for (let i = 0; i < allPlayers.length; i++) {
@@ -4409,21 +4574,35 @@ async function showPlayerProfile(playerId, requestedIntentId) {
     _currentProfileId = playerId;
     const intentId = showScreen('playerProfileScreen', false, requestedIntentId);
     const contentDiv = document.getElementById('playerProfileContent');
-    contentDiv.innerHTML =
-        '<div class="skeleton-card">' +
-            '<div class="shimmer-wrapper" style="height:120px; border-radius:12px; margin-bottom:20px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:80px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:120px;"></div>' +
-        '</div>';
+    const storedProfile = loadStoredPlayerProfile(playerId);
+    if (storedProfile) {
+        _currentProfileData = storedProfile.data;
+        renderPlayerProfile(storedProfile.data);
+        if (Date.now() - Number(storedProfile.stored_at) < PROFILE_BACKGROUND_REFRESH_MS) return;
+    } else {
+        contentDiv.innerHTML =
+            '<div class="skeleton-card">' +
+                '<div class="shimmer-wrapper" style="height:120px; border-radius:12px; margin-bottom:20px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:80px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:120px;"></div>' +
+            '</div>';
+    }
 
-    const data = await apiCall('getPlayerProfile', { player_id: playerId });
+    const data = await apiCall(
+        'getPlayerProfile',
+        { player_id: playerId },
+        { forceRefresh: Boolean(storedProfile) }
+    );
+    if (!data.error) saveStoredPlayerProfile(playerId, data);
     if (!isCurrentNavigationIntent(intentId)) return;
     if (data.error) {
-        contentDiv.innerHTML = loadErrorHtml(
-            data,
-            'This player profile could not be loaded.',
-            'showPlayerProfile(' + Number(playerId) + ')'
-        );
+        if (!storedProfile) {
+            contentDiv.innerHTML = loadErrorHtml(
+                data,
+                'This player profile could not be loaded.',
+                'showPlayerProfile(' + Number(playerId) + ')'
+            );
+        }
         return;
     }
     const identity = getStoredIdentity();
@@ -4526,9 +4705,13 @@ function renderPlayerProfile(data) {
 
     // All sessions — scrollable and searchable
     if (data.recent_sessions && data.recent_sessions.length > 0) {
-        const historicalEloStatusMap = buildHistoricalEloStatusMap(
-            getCachedSessionsWithHands(),
-            Array.isArray(eloHistoryAllCache) ? eloHistoryAllCache : []
+        const historicalEloStatusMap = Object.assign(
+            {},
+            buildHistoricalEloStatusMap(
+                getCachedSessionsWithHands(),
+                Array.isArray(eloHistoryAllCache) ? eloHistoryAllCache : []
+            ),
+            buildPlayerHistoricalEloStatusMap(p.player_id, data.recent_sessions, elo.history || [])
         );
         html += '<div class="section-box section-box-green mt-20">';
         html += '<h3 class="section-heading-green">🎴 Sessions (' + data.recent_sessions.length + ')</h3>';
