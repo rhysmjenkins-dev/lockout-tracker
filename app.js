@@ -1024,6 +1024,76 @@ async function getCachedEloHistoryAll(forceRefresh) {
     return data;
 }
 
+function getCachedSessionsWithHands() {
+    const cached = readResponseCache.get(apiCacheKey('getSessionsWithHands', {}));
+    return cached && Array.isArray(cached.data) ? cached.data : [];
+}
+
+function buildHistoricalEloStatusMap(sessionsWithHands, eloHistory) {
+    const statusMap = {};
+    if (!Array.isArray(sessionsWithHands) || !Array.isArray(eloHistory)) return statusMap;
+
+    const sessionsById = {};
+    for (let i = 0; i < sessionsWithHands.length; i++) {
+        const item = sessionsWithHands[i];
+        if (item && item.session) sessionsById[String(item.session.session_id)] = item;
+    }
+
+    const historyBySession = {};
+    const sessionOrder = [];
+    const sortedHistory = eloHistory.slice().sort(function(a, b) {
+        return Number(a.elo_id) - Number(b.elo_id);
+    });
+    for (let i = 0; i < sortedHistory.length; i++) {
+        const entry = sortedHistory[i];
+        const sessionId = String(entry.session_id);
+        if (!historyBySession[sessionId]) {
+            historyBySession[sessionId] = [];
+            sessionOrder.push(sessionId);
+        }
+        historyBySession[sessionId].push(entry);
+    }
+
+    const priorRatedHands = {};
+    for (let i = 0; i < sessionOrder.length; i++) {
+        const sessionId = sessionOrder[i];
+        const entries = historyBySession[sessionId];
+        for (let j = 0; j < entries.length; j++) {
+            const playerId = String(entries[j].player_id);
+            const handsBefore = priorRatedHands[playerId] || 0;
+            statusMap[sessionId + '_' + playerId] = {
+                provisional: handsBefore < PROVISIONAL_HANDS,
+                hands_before: handsBefore
+            };
+        }
+
+        const item = sessionsById[sessionId];
+        if (!item || !Array.isArray(item.hands)) continue;
+        const handNumbersByPlayer = {};
+        for (let j = 0; j < item.hands.length; j++) {
+            const hand = item.hands[j];
+            const playerId = String(hand.player_id);
+            if (!handNumbersByPlayer[playerId]) handNumbersByPlayer[playerId] = new Set();
+            handNumbersByPlayer[playerId].add(String(hand.hand_number));
+        }
+        Object.keys(handNumbersByPlayer).forEach(function(playerId) {
+            priorRatedHands[playerId] = (priorRatedHands[playerId] || 0) + handNumbersByPlayer[playerId].size;
+        });
+    }
+
+    return statusMap;
+}
+
+function formatHistoricalEloRating(rating, sessionId, playerId, statusMap) {
+    const status = statusMap[String(sessionId) + '_' + String(playerId)];
+    if (status) return String(rating) + (status.provisional ? '?' : '');
+
+    // Bootstrap data normally supplies the exact historical status. If it is
+    // unavailable, retaining the current marker is safer than hiding it.
+    const currentElo = getPlayerElo(playerId);
+    return String(rating) + (currentElo && currentElo.provisional ? '?' : '');
+}
+
 function getPlayerElo(playerId) {
     for (let i = 0; i < eloCache.length; i++) {
         if (String(eloCache[i].player_id) === String(playerId)) {
@@ -3046,6 +3116,7 @@ async function loadPreviousSessions(requestedIntentId) {
             eloHistoryMap[key] = entry;
         }
     }
+    const historicalEloStatusMap = buildHistoricalEloStatusMap(sessionsWithHands, eloHistoryAll);
 
     let html = '<div class="mb-20"><input type="text" id="sessionSearchInput" placeholder="🔍 Search sessions by title, player, or tag..." style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em;" oninput="filterSessions()"></div>';
     html += '<div id="sessionListContainer" style="max-height: 600px; overflow-y: auto; padding-right: 5px;"><ul class="session-list" id="sessionList">';
@@ -3109,7 +3180,8 @@ html += '<span>' + escapeAttr(session.title) + '</span>';
                 const change = Math.round(Number(eloEntry.change));
                 const changeStr = change >= 0 ? '+' + change : String(change);
                 const changeColor = change > 0 ? '#4caf50' : change < 0 ? '#f5576c' : '#666';
-                winnerLine += ' <span class="elo-badge" style="background:#1a1a2e; color:#ffd700; font-size:0.75em;">⚡ ' + newRating + '</span>' +
+                const displayedRating = formatHistoricalEloRating(newRating, session.session_id, winnerId, historicalEloStatusMap);
+                winnerLine += ' <span class="elo-badge" style="background:#1a1a2e; color:#ffd700; font-size:0.75em;">⚡ ' + displayedRating + '</span>' +
                               ' <span style="color:' + changeColor + '; font-weight:600; font-size:0.8em;">(' + changeStr + ')</span>' +
                               ' <span style="color:#888; font-size:0.85em;">• ' + formatPoints(lowestScore) + '</span>';
             } else {
@@ -3243,6 +3315,7 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return pla
             }
         }
     }
+    const historicalEloStatusMap = buildHistoricalEloStatusMap(getCachedSessionsWithHands(), eloHistoryAll);
     const hasElo = Object.keys(sessionElo).length > 0;
 
     let html = '<h3>Final Scores</h3>';
@@ -3275,7 +3348,8 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return pla
             const change = sessionElo[playerId].change;
             const changeStr = change >= 0 ? '+' + change : String(change);
             const changeColor = change > 0 ? '#4caf50' : change < 0 ? '#f5576c' : '#666';
-            eloBadge = ' <span class="elo-badge" style="background:#1a1a2e; color:#ffd700; font-size:0.75em;">⚡ ' + sessionElo[playerId].new_rating + '</span>' +
+            const displayedRating = formatHistoricalEloRating(sessionElo[playerId].new_rating, session.session_id, playerId, historicalEloStatusMap);
+            eloBadge = ' <span class="elo-badge" style="background:#1a1a2e; color:#ffd700; font-size:0.75em;">⚡ ' + displayedRating + '</span>' +
                        '<span style="color:' + changeColor + '; font-weight:600; font-size:0.8em;"> (' + changeStr + ')</span>';
         }
         const joinDetails = getSessionPlayerJoinDetails(session, playerId);
@@ -4452,6 +4526,10 @@ function renderPlayerProfile(data) {
 
     // All sessions — scrollable and searchable
     if (data.recent_sessions && data.recent_sessions.length > 0) {
+        const historicalEloStatusMap = buildHistoricalEloStatusMap(
+            getCachedSessionsWithHands(),
+            Array.isArray(eloHistoryAllCache) ? eloHistoryAllCache : []
+        );
         html += '<div class="section-box section-box-green mt-20">';
         html += '<h3 class="section-heading-green">🎴 Sessions (' + data.recent_sessions.length + ')</h3>';
         html += '<input type="text" id="profileSessionSearch" placeholder="🔍 Search sessions..." style="margin-bottom:10px;" oninput="filterProfileSessions()">';
@@ -4463,7 +4541,8 @@ function renderPlayerProfile(data) {
             if (s.elo_after !== null && s.elo_after !== undefined) {
                 const eloChangeStr = s.elo_change >= 0 ? '+' + s.elo_change : String(s.elo_change);
                 const eloChangeColor = s.elo_change > 0 ? '#4caf50' : s.elo_change < 0 ? '#f5576c' : '#888';
-                eloHtml = ' <span class="elo-badge" style="font-size:0.72em;">⚡ ' + s.elo_after + '</span>' +
+                const displayedRating = formatHistoricalEloRating(s.elo_after, s.session_id, p.player_id, historicalEloStatusMap);
+                eloHtml = ' <span class="elo-badge" style="font-size:0.72em;">⚡ ' + displayedRating + '</span>' +
                           ' <span style="color:' + eloChangeColor + ';font-weight:600;font-size:0.78em;">(' + eloChangeStr + ')</span>';
             }
             html += '<div class="profile-session-row" data-title="' + escapeAttr(s.title) + '" onclick="viewSessionFromProfileWithLoading(this, \'' + s.session_id + '\')">';
