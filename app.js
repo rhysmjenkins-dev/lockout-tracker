@@ -32,19 +32,17 @@ const PROFILE_SNAPSHOT_SCHEMA_VERSION = 2;
 const READ_SNAPSHOT_SCHEMA_VERSION = 1;
 const PUBLIC_SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const PROFILE_SNAPSHOT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-const READ_SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const READ_SNAPSHOT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const READ_SNAPSHOT_REFRESH_MS = 2 * 60 * 1000;
 const READ_SNAPSHOT_MAX_ENTRIES = 16;
 const PROFILE_BACKGROUND_REFRESH_MS = 2 * 60 * 1000;
-const PLAYERS_BACKGROUND_REFRESH_MS = 2 * 60 * 1000;
 const HOME_BACKGROUND_REFRESH_MS = 30000;
 // Do not cut off a valid Apps Script write while Google is still processing it.
 const WRITE_REQUEST_TIMEOUT_MS = 0;
 const CLOSE_SESSION_TIMEOUT_MS = 60000;
-const ACTIVE_SESSION_REFRESH_MS = 30000;
-const VISIBLE_REFRESH_MIN_INTERVAL_MS = 15000;
 
 let currentSession = null;
+let currentSessionHands = [];
 let currentHandNumber = 1;
 let allPlayers = [];
 let sessionPlayers = [];
@@ -67,10 +65,7 @@ let publicConfig = {
 let homeDashboardPromise = null;
 let homeDashboardRefreshPromise = null;
 let homeBackgroundRefreshTimer = null;
-let activeSessionRefreshTimer = null;
-let activeSessionRefreshPromise = null;
 let publicSnapshotNeedsRefresh = false;
-let lastVisibleRefreshAt = 0;
 let navigationIntentId = 0;
 let screenTransitionTimer = null;
 const readResponseCache = new Map();
@@ -650,7 +645,7 @@ function saveStoredReadSnapshot(action, params, data) {
     }
 }
 
-function clearStoredReadSnapshots(actions) {
+function markStoredReadSnapshotsStale(actions) {
     try {
         let index = [];
         try {
@@ -662,18 +657,19 @@ function clearStoredReadSnapshots(actions) {
                 return READ_SNAPSHOT_PREFIX + encodeURIComponent(action + ':');
             })
             : null;
-        const retained = [];
+        const staleAt = Date.now() - READ_SNAPSHOT_REFRESH_MS - 1;
         index.forEach(function(key) {
             if (!actionPrefixes || actionPrefixes.some(function(prefix) { return key.indexOf(prefix) === 0; })) {
-                localStorage.removeItem(key);
-            } else {
-                retained.push(key);
+                try {
+                    const stored = JSON.parse(localStorage.getItem(key) || 'null');
+                    if (!stored || stored.data === undefined) return;
+                    stored.stored_at = Math.min(Number(stored.stored_at || staleAt), staleAt);
+                    localStorage.setItem(key, JSON.stringify(stored));
+                } catch (ignore) {}
             }
         });
-        if (retained.length) localStorage.setItem(READ_SNAPSHOT_INDEX_KEY, JSON.stringify(retained));
-        else localStorage.removeItem(READ_SNAPSHOT_INDEX_KEY);
     } catch (error) {
-        // In-memory invalidation still applies.
+        // The in-memory entries are still invalidated below.
     }
 }
 
@@ -729,8 +725,8 @@ function clearFrontendReadCaches(options) {
     readRequestInFlight.clear();
     eloHistoryAllCache = null;
     eloHistoryAllCachedAt = 0;
-    clearStoredPlayerProfiles();
-    clearStoredReadSnapshots();
+    markStoredPlayerProfilesStale(options && options.profilePlayerId);
+    markStoredReadSnapshotsStale();
     markPublicSnapshotDirty();
     if (options && options.players) {
         playersLoaded = false;
@@ -758,7 +754,10 @@ function clearFrontendReadActions(actions) {
 
 function invalidateFrontendDataForAction(action, params) {
     if (action === 'addPlayer' || action === 'closeSession' || action === 'updatePlayerProfile') {
-        clearFrontendReadCaches({ players: action === 'addPlayer' });
+        clearFrontendReadCaches({
+            players: action === 'addPlayer',
+            profilePlayerId: action === 'updatePlayerProfile' && params ? params.player_id : undefined
+        });
         return;
     }
     if (action === 'setPlayerPin') {
@@ -773,9 +772,9 @@ function invalidateFrontendDataForAction(action, params) {
             'getHomeData', 'getSessions', 'getRecentSessions', 'getStatsSummary'
         ]);
         if (action === 'updateSession' || action === 'updateSessionPhoto') {
-            clearStoredReadSnapshots();
+            markStoredReadSnapshotsStale();
         } else {
-            clearStoredReadSnapshots(['getStatsSummary']);
+            markStoredReadSnapshotsStale(['getStatsSummary']);
         }
         markPublicSnapshotDirty();
     }
@@ -841,7 +840,7 @@ async function refreshActiveSessionAfterConflict(buttonElement) {
     await resumeSession(sessionId, buttonElement);
 }
 
-async function rawApiRequest(action, params, isRead) {
+async function rawApiRequest(action, params, isRead, bypassHttpCache) {
     if (!API_URL || API_URL.includes('PASTE_APPS_SCRIPT_')) {
         return { error: 'The app backend has not been connected yet.', code: 'APP_NOT_CONFIGURED' };
     }
@@ -858,15 +857,16 @@ async function rawApiRequest(action, params, isRead) {
         if (isRead) {
             const url = new URL(API_URL);
             url.searchParams.append('action', action);
-            url.searchParams.append('_', createClientRequestId());
+            if (bypassHttpCache) url.searchParams.append('_', createClientRequestId());
             for (const key in params) {
                 if (params[key] !== undefined && params[key] !== null) url.searchParams.append(key, params[key]);
             }
-            response = await fetch(url, {
+            const fetchOptions = {
                 method: 'GET',
-                cache: 'no-store',
                 signal: controller ? controller.signal : undefined
-            });
+            };
+            if (bypassHttpCache) fetchOptions.cache = 'no-store';
+            response = await fetch(url, fetchOptions);
         } else {
             response = await fetch(API_URL, {
                 method: 'POST',
@@ -920,15 +920,15 @@ function createClientRequestId() {
         Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 }
 
-async function requestWithSafeWriteRetry(action, params, isRead) {
-    let data = await rawApiRequest(action, params, isRead);
+async function requestWithSafeWriteRetry(action, params, isRead, bypassHttpCache) {
+    let data = await rawApiRequest(action, params, isRead, bypassHttpCache);
     const canRetry = !isRead && SAFE_POST_RETRY_ACTIONS.has(action);
     if (!isTransientApiFailure(data) || !canRetry) return data;
     await waitForRetry(350);
     const retryParams = !isRead
         ? Object.assign({}, params, { client_retry: '1' })
         : params;
-    data = await rawApiRequest(action, retryParams, isRead);
+    data = await rawApiRequest(action, retryParams, isRead, bypassHttpCache);
     return data;
 }
 
@@ -955,7 +955,7 @@ async function apiCall(action, params, options) {
         if (!options.forceRefresh && ttl > 0 && cached && Date.now() - cached.storedAt < ttl) return cached.data;
         if (readRequestInFlight.has(requestKey)) return readRequestInFlight.get(requestKey);
         const cacheGeneration = readCacheGeneration;
-        const request = requestWithSafeWriteRetry(action, params, true)
+        const request = requestWithSafeWriteRetry(action, params, true, Boolean(options.bypassHttpCache))
             .then(function(data) {
                 if (ttl > 0 && data && !data.error && cacheGeneration === readCacheGeneration) {
                     readResponseCache.set(cacheKey, { data: data, storedAt: Date.now() });
@@ -983,7 +983,7 @@ async function apiCall(action, params, options) {
                 : Number(params.revision || 1);
         }
     }
-    const data = await requestWithSafeWriteRetry(action, params, isRead);
+    const data = await requestWithSafeWriteRetry(action, params, isRead, false);
     if (data && (data.code === 'AUTH_EXPIRED' || data.code === 'AUTH_REQUIRED') &&
         !UNAUTHENTICATED_WRITE_ACTIONS.has(action)) signOutPlayer();
     if (data && data.revision && currentSession && String(currentSession.session_id) === String(params.session_id)) {
@@ -1187,20 +1187,27 @@ function saveStoredPlayerProfile(playerId, data) {
     }
 }
 
-function clearStoredPlayerProfiles() {
+function markStoredPlayerProfilesStale(playerId) {
     try {
         let index = [];
         try {
             index = JSON.parse(localStorage.getItem(PROFILE_SNAPSHOT_INDEX_KEY) || '[]');
         } catch (ignore) {}
-        if (Array.isArray(index)) {
-            index.forEach(function(playerId) {
-                localStorage.removeItem(PROFILE_SNAPSHOT_PREFIX + String(playerId));
-            });
-        }
-        localStorage.removeItem(PROFILE_SNAPSHOT_INDEX_KEY);
+        if (!Array.isArray(index)) return;
+        const staleAt = Date.now() - PROFILE_BACKGROUND_REFRESH_MS - 1;
+        index.forEach(function(storedPlayerId) {
+            if (playerId !== undefined && playerId !== null &&
+                String(storedPlayerId) !== String(playerId)) return;
+            const key = PROFILE_SNAPSHOT_PREFIX + String(storedPlayerId);
+            try {
+                const stored = JSON.parse(localStorage.getItem(key) || 'null');
+                if (!stored || stored.data === undefined) return;
+                stored.stored_at = Math.min(Number(stored.stored_at || staleAt), staleAt);
+                localStorage.setItem(key, JSON.stringify(stored));
+            } catch (ignore) {}
+        });
     } catch (error) {
-        // Memory caches have already been cleared.
+        // The in-memory profile is still refreshed on its next visit.
     }
 }
 
@@ -2200,11 +2207,6 @@ function showScreen(screenId, skipHistory, requestedIntentId) {
         : beginNavigationIntent();
     if (!isCurrentNavigationIntent(intentId)) return false;
 
-    if (screenId !== 'activeSessionScreen' && activeSessionRefreshTimer) {
-        clearTimeout(activeSessionRefreshTimer);
-        activeSessionRefreshTimer = null;
-    }
-
     const screens = document.querySelectorAll('.screen');
     const currentScreen = document.querySelector('.screen.active');
     if (currentScreen) {
@@ -2645,7 +2647,8 @@ async function createSession(event) {
         document.getElementById('sessionScores').innerHTML = '';
         document.getElementById('handHistorySection').style.display = 'none';
         document.getElementById('activeSessionCharts').innerHTML = '';
-        showActiveSession();
+        currentSessionHands = [];
+        showActiveSession(undefined, currentSessionHands);
         setButtonLoading(createBtn, false);
     }
 }
@@ -2659,7 +2662,7 @@ async function resumeSession(sessionId, buttonElement, requestedIntentId) {
     const stateData = await apiCall(
         'getSessionState',
         { session_id: sessionId },
-        { forceRefresh: true }
+        { forceRefresh: true, bypassHttpCache: true }
     );
     let sessionData;
     let handsData;
@@ -2703,12 +2706,14 @@ async function resumeSession(sessionId, buttonElement, requestedIntentId) {
         photo_url: sessionData.photo_url || '',
         revision: Number(sessionData.revision || 1)
     };
+    currentSessionHands = handsData.slice();
     currentHandNumber = handsData.length === 0 ? 1 : Math.max(...handsData.map(h => h.hand_number)) + 1;
     showActiveSession(intentId, handsData);
     if (buttonElement) setButtonLoading(buttonElement, false);
 }
 
 function showActiveSession(requestedIntentId, prefetchedHands) {
+    if (Array.isArray(prefetchedHands)) currentSessionHands = prefetchedHands.slice();
     document.getElementById('activeSessionTitle').textContent = currentSession.title;
     let playerNames = sessionPlayers.map(p => {
         const joinHand = getPlayerJoinHand(p.player_id);
@@ -2732,104 +2737,6 @@ function showActiveSession(requestedIntentId, prefetchedHands) {
     document.getElementById('activeHandHistoryBottom').innerHTML = '';
     updateSessionScores(prefetchedHands);
     showScreen('activeSessionScreen', false, requestedIntentId);
-    scheduleActiveSessionRefresh();
-}
-
-function hasUnsavedHandInput() {
-    const scoreInputs = document.querySelectorAll('#handScoreInputs input[type="number"]');
-    for (let i = 0; i < scoreInputs.length; i++) {
-        if (String(scoreInputs[i].value || '').trim() !== '') return true;
-    }
-    const lockout = document.querySelector('input[name="lockout_player"]:checked');
-    const comment = document.getElementById('handComment');
-    return Boolean(lockout || (comment && String(comment.value || '').trim()));
-}
-
-async function refreshActiveSessionData() {
-    const screen = document.getElementById('activeSessionScreen');
-    if (!currentSession || !screen || !screen.classList.contains('active')) return false;
-    if (activeSessionRefreshPromise) return activeSessionRefreshPromise;
-    const sessionId = currentSession.session_id;
-    activeSessionRefreshPromise = (async function() {
-        const state = await apiCall(
-            'getSessionState',
-            { session_id: sessionId },
-            { forceRefresh: true }
-        );
-        if (!state || state.error || !state.session || !Array.isArray(state.hands)) return false;
-        if (!currentSession || String(currentSession.session_id) !== String(sessionId)) return false;
-        const nextHand = state.hands.length
-            ? Math.max.apply(null, state.hands.map(function(hand) { return Number(hand.hand_number); })) + 1
-            : 1;
-        if (nextHand !== currentHandNumber && hasUnsavedHandInput()) {
-            showStatusToast('This game changed on another device. Refresh before submitting this hand.');
-            return false;
-        }
-        if (Array.isArray(state.players)) applyPlayersData(state.players, Date.now());
-        currentSession.revision = Number(state.session.revision || currentSession.revision || 1);
-        currentSession.players_involved = state.session.players_involved;
-        currentSession.player_join_info = state.session.player_join_info || '{}';
-        currentSession.notes = state.session.notes || '';
-        currentSession.tags = state.session.tags || '';
-        currentSession.photo_url = state.session.photo_url || '';
-        const playerIds = String(state.session.players_involved || '').split(',');
-        sessionPlayers = playerIds.map(function(playerId) {
-            return allPlayers.find(function(player) {
-                return String(player.player_id) === String(playerId).trim();
-            });
-        }).filter(Boolean);
-        if (nextHand !== currentHandNumber) {
-            currentHandNumber = nextHand;
-            setupHandInputs();
-            showStatusToast('Game updated with the latest hand');
-        }
-        await updateSessionScores(state.hands, { silent: true });
-        return true;
-    })().finally(function() {
-        activeSessionRefreshPromise = null;
-        scheduleActiveSessionRefresh();
-    });
-    return activeSessionRefreshPromise;
-}
-
-function scheduleActiveSessionRefresh() {
-    if (activeSessionRefreshTimer) clearTimeout(activeSessionRefreshTimer);
-    if (!currentSession) return;
-    activeSessionRefreshTimer = setTimeout(function() {
-        activeSessionRefreshTimer = null;
-        refreshActiveSessionData();
-    }, ACTIVE_SESSION_REFRESH_MS);
-}
-
-function refreshVisibleLiveData() {
-    if (document.visibilityState && document.visibilityState !== 'visible') return;
-    const now = Date.now();
-    if (now - lastVisibleRefreshAt < VISIBLE_REFRESH_MIN_INTERVAL_MS) return;
-    lastVisibleRefreshAt = now;
-    const active = document.querySelector('.screen.active');
-    if (!active) return;
-    if (active.id === 'activeSessionScreen') refreshActiveSessionData();
-    else if (active.id === 'homeScreen') refreshHomeDashboardInBackground();
-    else if (active.id === 'playersScreen') {
-        if (Date.now() - playersLoadedAt >= PLAYERS_BACKGROUND_REFRESH_MS) {
-            refreshHomeDashboardInBackground();
-        }
-    }
-    else if (active.id === 'playerProfileScreen' && _currentProfileId) {
-        if (Date.now() - _currentProfileLoadedAt < PROFILE_BACKGROUND_REFRESH_MS) return;
-        const playerId = _currentProfileId;
-        apiCall('getPlayerProfile', { player_id: playerId }, { forceRefresh: true })
-            .then(function(data) {
-                const profileScreen = document.getElementById('playerProfileScreen');
-                if (!data.error && profileScreen && profileScreen.classList.contains('active') &&
-                    String(_currentProfileId) === String(playerId)) {
-                    saveStoredPlayerProfile(playerId, data);
-                    _currentProfileData = reconcileProfileWithCurrentRating(data);
-                    _currentProfileLoadedAt = Date.now();
-                    renderPlayerProfile(_currentProfileData);
-                }
-            });
-    }
 }
 
 function displaySessionMetadata(containerId) {
@@ -2930,6 +2837,7 @@ async function endSession(event) {
     }
     if (!isCurrentNavigationIntent(intentId)) {
         currentSession = null;
+        currentSessionHands = [];
         setButtonLoading(endBtn, false);
         return;
     }
@@ -2954,6 +2862,7 @@ async function endSession(event) {
     eloHistoryAllCachedAt = 0;
     eloCache = [];
     currentSession = null;
+    currentSessionHands = [];
     showScreen('homeScreen', false, intentId);
     setTimeout(function() {
         const popup = document.getElementById('sessionEndPopup');
@@ -3044,7 +2953,7 @@ async function recoverSubmittedHand(payload) {
     const state = await apiCall(
         'getSessionState',
         { session_id: payload.session_id },
-        { forceRefresh: true }
+        { forceRefresh: true, bypassHttpCache: true }
     );
     if (!state || state.error || !state.session || !Array.isArray(state.hands)) {
         return { status: 'unknown' };
@@ -3114,17 +3023,7 @@ async function submitHand(event) {
         comment: comment, lockout_score: lockoutScoreValue,
         client_request_id: createClientRequestId()
     };
-    const slowSaveTimer = setTimeout(function() {
-        if (submitBtn.disabled) {
-            messageDiv.innerHTML = '<div class="pin-progress"><span class="loading-spinner" aria-hidden="true"></span><span>Still saving…</span></div>';
-        }
-    }, 8000);
-    let data;
-    try {
-        data = await apiCall('addHand', payload);
-    } finally {
-        clearTimeout(slowSaveTimer);
-    }
+    let data = await apiCall('addHand', payload);
     if (data.error && isTransientApiFailure(data)) {
         messageDiv.innerHTML = '<div class="pin-progress"><span class="loading-spinner" aria-hidden="true"></span><span>Checking whether the hand saved…</span></div>';
         const recovery = await recoverSubmittedHand(payload);
@@ -3172,9 +3071,7 @@ async function submitHand(event) {
 // HAND HISTORY & EDITING
 // ============================================
 async function displayHandHistory(handsData) {
-    if (!handsData) {
-        handsData = await apiCall('getHands', { session_id: currentSession.session_id });
-    }
+    handsData = Array.isArray(handsData) ? handsData : currentSessionHands;
     if (handsData.error) {
         document.getElementById('activeHandHistoryBottom').innerHTML =
             '<div class="error">Hand history could not be loaded. Check your connection and try refreshing.</div>';
@@ -3235,12 +3132,7 @@ if (h.lockout_score !== null && h.lockout_score !== undefined && h.lockout_score
 
 async function editHand(handNumber, event) {
     if (event && event.target) setButtonLoading(event.target, true);
-    const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
-    if (handsData.error) {
-        alert(apiErrorMessage(handsData, 'The hand could not be loaded.'));
-        if (event && event.target) setButtonLoading(event.target, false);
-        return;
-    }
+    const handsData = currentSessionHands;
     const handsToEdit = handsData.filter(h => h.hand_number == handNumber);
     if (handsToEdit.length === 0) {
         alert('Hand not found');
@@ -3436,6 +3328,7 @@ document.getElementById('activeHandHistoryBottom').innerHTML =
             '</div>';
         return;
     }
+    currentSessionHands = handsData.slice();
 
 if (handsData.length === 0) {
     document.getElementById('sessionScores').innerHTML =
@@ -4666,11 +4559,6 @@ window.addEventListener('popstate', function(event) {
     }
 });
 
-window.addEventListener('focus', refreshVisibleLiveData);
-document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'visible') refreshVisibleLiveData();
-});
-
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape' && activePhotoOverlay) {
         closePhotoFullscreen();
@@ -5039,9 +4927,6 @@ async function loadPlayersScreen(requestedIntentId) {
         '</div>';
     if (allPlayers.length > 0 && eloCache.length > 0) {
         renderPlayersDirectory(contentDiv);
-        if (Date.now() - playersLoadedAt >= PLAYERS_BACKGROUND_REFRESH_MS) {
-            refreshHomeDashboardInBackground();
-        }
         return true;
     }
     await ensurePlayersLoaded();
