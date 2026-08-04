@@ -1,8 +1,8 @@
-// Lockout Tracker v2.1.1 - paste-ready Apps Script runtime bundle
+// Lockout Tracker v2.1.2 - paste-ready Apps Script runtime bundle
 // Generated from the modular files in apps-script/. Do not edit both copies.
 // Migration.gs is intentionally excluded after the completed migration.
 // ===== Code.gs =====
-var V2_VERSION = '2.1.1';
+var V2_VERSION = '2.1.2';
 var V2_READ_ACTIONS = {
 getPlayers: true,
 getSessions: true,
@@ -49,6 +49,7 @@ return v2Respond({ error: 'The request could not be completed.', code: 'SERVER_E
 }
 function doPost(e) {
 var requestId = Utilities.getUuid();
+var startedAt = Date.now();
 try {
 if (typeof v2ResetExecutionSheetCache === 'function') v2ResetExecutionSheetCache(false);
 var raw = e && e.postData && e.postData.contents ? e.postData.contents : '{}';
@@ -59,13 +60,20 @@ var action = String(payload.action || '');
 if (!action) throw v2Error('VALIDATION', 'Action is required.');
 var result = v2RunMutation(action, payload, requestId);
 v2InvalidateReadCache(action);
+if (result && typeof result === 'object' && !Array.isArray(result)) {
+result.server_ms = Date.now() - startedAt;
+}
 return v2Respond(result, requestId);
 } catch (err) {
 var safe = v2NormaliseError(err);
 if (safe.code === 'SERVER_ERROR') {
 console.error('Lockout v2 write error [' + requestId + ']: ' + String(err && err.stack || err));
 }
-return v2Respond({ error: safe.message, code: safe.code }, requestId);
+return v2Respond({
+error: safe.message,
+code: safe.code,
+server_ms: Date.now() - startedAt
+}, requestId);
 }
 }
 function v2RunRead(action, p) {
@@ -897,13 +905,28 @@ var result = v2WriteHand(p, requestId, true);
 result.hands = getHands(v2Id(p.session_id, 'Session'));
 return result;
 }
+function v2GetHandWriteState(sessionId) {
+var allHands = sheetToObjects('hands');
+var sessionHands = [];
+var maxHandId = 0;
+for (var i = 0; i < allHands.length; i++) {
+var handId = Number(allHands[i].hand_id || 0);
+if (handId > maxHandId) maxHandId = handId;
+if (String(allHands[i].session_id) === String(sessionId)) sessionHands.push(allHands[i]);
+}
+return {
+hands: sessionHands,
+nextHandId: maxHandId + 1
+};
+}
 function v2WriteHand(p, requestId, isUpdate) {
 var handNumber = v2Integer(p.hand_number, 'Hand number', 1, 10000);
 var prepared = null;
 var existingHands = null;
 var insertedHands = null;
 var result = v2MutateSession(p, requestId, isUpdate ? 'UPDATED_HAND' : 'ADDED_HAND', function(context) {
-existingHands = getHands(context.id);
+var handWriteState = v2GetHandWriteState(context.id);
+existingHands = handWriteState.hands;
 var nextHand = v2NextHandNumberFromHands(existingHands);
 if (!isUpdate && handNumber !== nextHand) {
 throw v2Error('SESSION_CONFLICT', 'Another hand was saved first. Reload the session.');
@@ -917,7 +940,7 @@ throw v2Error('NOT_FOUND', 'That hand no longer exists.');
 prepared = v2PrepareHand(context.object, handNumber, p);
 var handSheet = getSheet('hands');
 var existingRows = isUpdate ? v2ExistingHandRows(handSheet, context.id, handNumber) : {};
-var nextId = isUpdate ? 0 : getNextId('hands');
+var nextId = isUpdate ? 0 : handWriteState.nextHandId;
 var rows = [];
 for (var i = 0; i < prepared.scores.length; i++) {
 var score = prepared.scores[i];
@@ -960,11 +983,13 @@ lockout_score: row[8]
 }
 }
 var updatedHands = !isUpdate ? (existingHands || []).concat(insertedHands || []) : null;
+if (isUpdate) {
 var recalculatedJoinInfo = v2RecalculateLateJoinStartingScores(context.object, context.id, updatedHands);
 if (recalculatedJoinInfo !== String(context.object.player_join_info || '{}')) {
 v2SetRowValues(context.sheet, context.rowNumber, context.headers, {
 player_join_info: recalculatedJoinInfo
 });
+}
 }
 return {
 hand_number: handNumber,
