@@ -815,15 +815,19 @@ function v2CloseSession(p, requestId) {
 var lock = LockService.getScriptLock();
 lock.waitLock(30000);
 try {
+var skipElo = false;
 var result = v2MutateSession(p, requestId, 'CLOSED', function(context) {
-if (v2NextHandNumber(context.id) <= 1) throw v2Error('VALIDATION', 'Add at least one hand before closing the session.');
-var finalScores = v2GetFinalSessionScores(context.object, context.id);
+var sessionHands = getHands(context.id);
+if (!sessionHands.length) throw v2Error('VALIDATION', 'Add at least one hand before closing the session.');
+var finalScores = v2GetFinalSessionScoresFromHands(context.object, sessionHands);
+skipElo = hasSessionTag(context.object, 'testing');
 v2SetRowValues(context.sheet, context.rowNumber, context.headers, {
 date_ended: v2Timestamp(),
 status: 'completed'
 });
 return { final_scores: finalScores };
 }, true);
+if (skipElo) return result;
 SpreadsheetApp.flush();
 try {
 calculateEloForSessionUnlocked(v2Id(p.session_id, 'Session'));
@@ -901,7 +905,9 @@ lockout_score: prepared.rawLockoutScore
 });
 }
 function v2GetFinalSessionScores(session, sessionId) {
-var hands = getHands(sessionId);
+return v2GetFinalSessionScoresFromHands(session, getHands(sessionId));
+}
+function v2GetFinalSessionScoresFromHands(session, hands) {
 var joinInfo = parseJoinInfo(session);
 var totals = {};
 for (var i = 0; i < hands.length; i++) {

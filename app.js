@@ -32,6 +32,7 @@ const PROFILE_SNAPSHOT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const PROFILE_BACKGROUND_REFRESH_MS = 15000;
 const HOME_BACKGROUND_REFRESH_MS = 30000;
 const API_REQUEST_TIMEOUT_MS = 24000;
+const CLOSE_SESSION_TIMEOUT_MS = 60000;
 const READ_HEDGE_DELAY_MS = 4500;
 const SAFE_POST_HEDGE_DELAY_MS = 7000;
 const ACTIVE_SESSION_REFRESH_MS = 30000;
@@ -711,7 +712,8 @@ async function rawApiRequest(action, params, isRead) {
     }
     const startedAt = Date.now();
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timeoutId = controller ? setTimeout(function() { controller.abort(); }, API_REQUEST_TIMEOUT_MS) : null;
+    const requestTimeoutMs = action === 'closeSession' ? CLOSE_SESSION_TIMEOUT_MS : API_REQUEST_TIMEOUT_MS;
+    const timeoutId = controller ? setTimeout(function() { controller.abort(); }, requestTimeoutMs) : null;
     try {
         let response;
         if (isRead) {
