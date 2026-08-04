@@ -534,6 +534,19 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
     overscroll-behavior-inline: contain;
     scrollbar-gutter: stable both-edges;
 }
+.long-list-scroll {
+    max-height: min(600px, 65vh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding-right: 5px;
+}
+.h2h-matchup-list {
+    display: grid;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+.comparison-session-history .session-history-card:last-child { margin-bottom: 0; }
 .player-select-search {
     width: 100%;
     margin: 0 0 8px;
@@ -1230,6 +1243,7 @@ table .player-link-avatar-wrap {
     padding-right: 4px;
 }
 @media (max-width: 600px) {
+    .long-list-scroll { max-height: 52vh; }
     .profile-session-list { max-height: 300px; }
     .active-session-card { padding: 15px; }
     .active-session-card-header { align-items: stretch; flex-direction: column; }

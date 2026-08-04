@@ -837,7 +837,7 @@ return {};
 function v2AddPlayerToSession(p, requestId) {
 var playerId = v2Id(p.player_id, 'Player');
 var joinHand = v2Integer(p.join_hand_number, 'Join hand number', 1, 10000);
-return v2MutateSession(p, requestId, 'ADDED_PLAYER_TO_SESSION', function(context) {
+var result = v2MutateSession(p, requestId, 'ADDED_PLAYER_TO_SESSION', function(context) {
 v2AssertPlayersExist([String(playerId)]);
 var players = v2IdList(context.object.players_involved, 'Players');
 if (players.indexOf(String(playerId)) !== -1) throw v2Error('DUPLICATE', 'Player is already in this session.');
@@ -857,6 +857,8 @@ player_join_info: JSON.stringify(joinInfo),
 starting_score: startingScore
 };
 });
+result.hands = getHands(v2Id(p.session_id, 'Session'));
+return result;
 }
 function v2CloseSession(p, requestId) {
 var lock = LockService.getScriptLock();
@@ -888,22 +890,28 @@ lock.releaseLock();
 }
 }
 function v2AddHand(p, requestId) {
-var result = v2WriteHand(p, requestId, false);
-result.hands = getHands(v2Id(p.session_id, 'Session'));
-return result;
+return v2WriteHand(p, requestId, false);
 }
 function v2UpdateHand(p, requestId) {
-return v2WriteHand(p, requestId, true);
+var result = v2WriteHand(p, requestId, true);
+result.hands = getHands(v2Id(p.session_id, 'Session'));
+return result;
 }
 function v2WriteHand(p, requestId, isUpdate) {
 var handNumber = v2Integer(p.hand_number, 'Hand number', 1, 10000);
 var prepared = null;
-return v2MutateSession(p, requestId, isUpdate ? 'UPDATED_HAND' : 'ADDED_HAND', function(context) {
-var nextHand = v2NextHandNumber(context.id);
+var existingHands = null;
+var insertedHands = null;
+var result = v2MutateSession(p, requestId, isUpdate ? 'UPDATED_HAND' : 'ADDED_HAND', function(context) {
+existingHands = getHands(context.id);
+var nextHand = v2NextHandNumberFromHands(existingHands);
 if (!isUpdate && handNumber !== nextHand) {
 throw v2Error('SESSION_CONFLICT', 'Another hand was saved first. Reload the session.');
 }
-if (isUpdate && (handNumber >= nextHand || !v2HandExists(context.id, handNumber))) {
+var handExists = existingHands.some(function(hand) {
+return Number(hand.hand_number) === Number(handNumber);
+});
+if (isUpdate && (handNumber >= nextHand || !handExists)) {
 throw v2Error('NOT_FOUND', 'That hand no longer exists.');
 }
 prepared = v2PrepareHand(context.object, handNumber, p);
@@ -936,9 +944,23 @@ throw v2Error('DATA_INTEGRITY', 'The stored hand has duplicate or unexpected pla
 v2ReplaceHandRows(handSheet, existingRows, rows);
 } else {
 handSheet.getRange(handSheet.getLastRow() + 1, 1, rows.length, 9).setValues(rows);
+insertedHands = rows.map(function(row) {
+return {
+hand_id: row[0],
+session_id: row[1],
+hand_number: row[2],
+player_id: row[3],
+score: row[4],
+lockout_player_id: row[5],
+false_lockout: row[6],
+comment: row[7],
+lockout_score: row[8]
+};
+});
 }
 }
-var recalculatedJoinInfo = v2RecalculateLateJoinStartingScores(context.object, context.id);
+var updatedHands = !isUpdate ? (existingHands || []).concat(insertedHands || []) : null;
+var recalculatedJoinInfo = v2RecalculateLateJoinStartingScores(context.object, context.id, updatedHands);
 if (recalculatedJoinInfo !== String(context.object.player_join_info || '{}')) {
 v2SetRowValues(context.sheet, context.rowNumber, context.headers, {
 player_join_info: recalculatedJoinInfo
@@ -950,6 +972,10 @@ false_lockout: prepared.falseLockout,
 lockout_score: prepared.rawLockoutScore
 };
 });
+if (!isUpdate && result && !result.replayed) {
+result.hands = (existingHands || []).concat(insertedHands || []);
+}
+return result;
 }
 function v2GetFinalSessionScores(session, sessionId) {
 return v2GetFinalSessionScoresFromHands(session, getHands(sessionId));
@@ -1003,7 +1029,7 @@ range.setValues(values);
 }
 function v2DeleteHand(p, requestId) {
 var handNumber = v2Integer(p.hand_number, 'Hand number', 1, 10000);
-return v2MutateSession(p, requestId, 'DELETED_HAND', function(context) {
+var result = v2MutateSession(p, requestId, 'DELETED_HAND', function(context) {
 var latest = v2NextHandNumber(context.id) - 1;
 if (handNumber !== latest || latest < 1) {
 throw v2Error('SESSION_CONFLICT', 'Only the latest hand can be deleted.');
@@ -1017,6 +1043,8 @@ player_join_info: recalculatedJoinInfo
 }
 return { hand_number: handNumber };
 });
+result.hands = getHands(v2Id(p.session_id, 'Session'));
+return result;
 }
 function v2UpdatePlayerProfile(p, requestId) {
 var playerId = v2Id(p.player_id, 'Player');
@@ -1243,17 +1271,12 @@ return !joinInfo[pid] || Number(joinInfo[pid].hand || 1) <= handNumber;
 });
 }
 function v2NextHandNumber(sessionId) {
-var hands = getHands(sessionId);
+return v2NextHandNumberFromHands(getHands(sessionId));
+}
+function v2NextHandNumberFromHands(hands) {
 var max = 0;
 for (var i = 0; i < hands.length; i++) max = Math.max(max, Number(hands[i].hand_number || 0));
 return max + 1;
-}
-function v2HandExists(sessionId, handNumber) {
-var hands = getHands(sessionId);
-for (var i = 0; i < hands.length; i++) {
-if (Number(hands[i].hand_number) === Number(handNumber)) return true;
-}
-return false;
 }
 function v2DeleteHandRows(sheet, sessionId, handNumber) {
 var data = sheet.getDataRange().getValues();
@@ -1320,11 +1343,11 @@ item.starting_score === '' || item.starting_score === null || item.starting_scor
 });
 return result;
 }
-function v2RecalculateLateJoinStartingScores(session, sessionId) {
+function v2RecalculateLateJoinStartingScores(session, sessionId, suppliedHands) {
 var joinInfo = v2ParsePlayerJoinInfo(session);
 var joinerIds = Object.keys(joinInfo);
 if (!joinerIds.length) return '{}';
-var hands = getHands(sessionId);
+var hands = Array.isArray(suppliedHands) ? suppliedHands : getHands(sessionId);
 var handsByNumber = {};
 hands.forEach(function(hand) {
 var handNumber = Number(hand.hand_number);

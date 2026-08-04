@@ -21,18 +21,25 @@ const PUBLIC_SNAPSHOT_STORAGE_KEY = 'lockout_public_snapshot_2_1';
 const PUBLIC_SNAPSHOT_DIRTY_KEY = 'lockout_public_snapshot_2_1_dirty';
 const PROFILE_SNAPSHOT_PREFIX = 'lockout_player_profile_2_1_';
 const PROFILE_SNAPSHOT_INDEX_KEY = 'lockout_player_profile_2_1_index';
+const READ_SNAPSHOT_PREFIX = 'lockout_read_snapshot_2_1_';
+const READ_SNAPSHOT_INDEX_KEY = 'lockout_read_snapshot_2_1_index';
 const LEGACY_PUBLIC_SNAPSHOT_STORAGE_KEYS = [
     'lockout_public_snapshot_2_1_beta_8',
     'lockout_public_snapshot_2_1_beta_7'
 ];
 const PUBLIC_SNAPSHOT_SCHEMA_VERSION = 2;
 const PROFILE_SNAPSHOT_SCHEMA_VERSION = 2;
+const READ_SNAPSHOT_SCHEMA_VERSION = 1;
 const PUBLIC_SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const PROFILE_SNAPSHOT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const READ_SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const READ_SNAPSHOT_REFRESH_MS = 2 * 60 * 1000;
+const READ_SNAPSHOT_MAX_ENTRIES = 16;
 const PROFILE_BACKGROUND_REFRESH_MS = 2 * 60 * 1000;
 const PLAYERS_BACKGROUND_REFRESH_MS = 2 * 60 * 1000;
 const HOME_BACKGROUND_REFRESH_MS = 30000;
-const WRITE_REQUEST_TIMEOUT_MS = 35000;
+// Do not cut off a valid Apps Script write while Google is still processing it.
+const WRITE_REQUEST_TIMEOUT_MS = 0;
 const CLOSE_SESSION_TIMEOUT_MS = 60000;
 const ACTIVE_SESSION_REFRESH_MS = 30000;
 const VISIBLE_REFRESH_MIN_INTERVAL_MS = 15000;
@@ -68,6 +75,7 @@ let navigationIntentId = 0;
 let screenTransitionTimer = null;
 const readResponseCache = new Map();
 const readRequestInFlight = new Map();
+const readSnapshotRefreshInFlight = new Map();
 let readCacheGeneration = 0;
 const externalScriptPromises = new Map();
 window.lockoutPerformance = window.lockoutPerformance || [];
@@ -117,6 +125,10 @@ const READ_ACTIONS = new Set([
     'getPlayerComparisonDetailed', 'getEloRatings', 'getEloHistory',
     'getEloHistoryAll', 'getPlayerProfile', 'checkPlayerPin', 'getPublicConfig',
     'getHomeData', 'getStatsSummary'
+]);
+const READ_SNAPSHOT_ACTIONS = new Set([
+    'getStatsSummary', 'getPreviousSessionsData', 'getHeadToHeadMatrix',
+    'getPlayerComparisonDetailed', 'getEloStatsData'
 ]);
 const SESSION_ACTIONS = new Set([
     'updateSession', 'updateSessionPhoto', 'addPlayerToSession', 'closeSession',
@@ -595,6 +607,104 @@ function apiCacheKey(action, params) {
     return action + ':' + JSON.stringify(sorted);
 }
 
+function readSnapshotStorageKey(action, params) {
+    return READ_SNAPSHOT_PREFIX + encodeURIComponent(apiCacheKey(action, params || {}));
+}
+
+function loadStoredReadSnapshot(action, params) {
+    if (!READ_SNAPSHOT_ACTIONS.has(action)) return null;
+    try {
+        const raw = localStorage.getItem(readSnapshotStorageKey(action, params));
+        if (!raw) return null;
+        const stored = JSON.parse(raw);
+        if (!stored || stored.data === undefined || !Number(stored.stored_at)) return null;
+        if (Number(stored.snapshot_schema || 0) !== READ_SNAPSHOT_SCHEMA_VERSION) return null;
+        if (Date.now() - Number(stored.stored_at) > READ_SNAPSHOT_MAX_AGE_MS) return null;
+        return stored;
+    } catch (error) {
+        return null;
+    }
+}
+
+function saveStoredReadSnapshot(action, params, data) {
+    if (!READ_SNAPSHOT_ACTIONS.has(action) || data === undefined || data === null || data.error) return;
+    try {
+        const key = readSnapshotStorageKey(action, params);
+        localStorage.setItem(key, JSON.stringify({
+            snapshot_schema: READ_SNAPSHOT_SCHEMA_VERSION,
+            stored_at: Date.now(),
+            data: data
+        }));
+        let index = [];
+        try {
+            index = JSON.parse(localStorage.getItem(READ_SNAPSHOT_INDEX_KEY) || '[]');
+        } catch (ignore) {}
+        if (!Array.isArray(index)) index = [];
+        index = [key].concat(index.filter(function(item) { return item !== key; }));
+        while (index.length > READ_SNAPSHOT_MAX_ENTRIES) {
+            localStorage.removeItem(index.pop());
+        }
+        localStorage.setItem(READ_SNAPSHOT_INDEX_KEY, JSON.stringify(index));
+    } catch (error) {
+        // Memory caching remains available if storage is full or unavailable.
+    }
+}
+
+function clearStoredReadSnapshots(actions) {
+    try {
+        let index = [];
+        try {
+            index = JSON.parse(localStorage.getItem(READ_SNAPSHOT_INDEX_KEY) || '[]');
+        } catch (ignore) {}
+        if (!Array.isArray(index)) index = [];
+        const actionPrefixes = Array.isArray(actions)
+            ? actions.map(function(action) {
+                return READ_SNAPSHOT_PREFIX + encodeURIComponent(action + ':');
+            })
+            : null;
+        const retained = [];
+        index.forEach(function(key) {
+            if (!actionPrefixes || actionPrefixes.some(function(prefix) { return key.indexOf(prefix) === 0; })) {
+                localStorage.removeItem(key);
+            } else {
+                retained.push(key);
+            }
+        });
+        if (retained.length) localStorage.setItem(READ_SNAPSHOT_INDEX_KEY, JSON.stringify(retained));
+        else localStorage.removeItem(READ_SNAPSHOT_INDEX_KEY);
+    } catch (error) {
+        // In-memory invalidation still applies.
+    }
+}
+
+function hydrateStoredReadSnapshot(action, params) {
+    const stored = loadStoredReadSnapshot(action, params);
+    if (!stored) return null;
+    const cacheKey = apiCacheKey(action, params || {});
+    if (!readResponseCache.has(cacheKey)) {
+        storeReadResponse(action, params || {}, stored.data, Date.now());
+    }
+    return stored;
+}
+
+function refreshStoredReadInBackground(action, params, onData) {
+    const key = apiCacheKey(action, params || {});
+    if (readSnapshotRefreshInFlight.has(key)) return readSnapshotRefreshInFlight.get(key);
+    const promise = apiCall(action, params || {}, { forceRefresh: true })
+        .then(function(data) {
+            if (data && !data.error && typeof onData === 'function') onData(data);
+            return data;
+        })
+        .catch(function() { return null; })
+        .finally(function() {
+            if (readSnapshotRefreshInFlight.get(key) === promise) {
+                readSnapshotRefreshInFlight.delete(key);
+            }
+        });
+    readSnapshotRefreshInFlight.set(key, promise);
+    return promise;
+}
+
 function markPublicSnapshotDirty() {
     publicSnapshotNeedsRefresh = true;
     try {
@@ -620,6 +730,7 @@ function clearFrontendReadCaches(options) {
     eloHistoryAllCache = null;
     eloHistoryAllCachedAt = 0;
     clearStoredPlayerProfiles();
+    clearStoredReadSnapshots();
     markPublicSnapshotDirty();
     if (options && options.players) {
         playersLoaded = false;
@@ -661,6 +772,11 @@ function invalidateFrontendDataForAction(action, params) {
         clearFrontendReadActions([
             'getHomeData', 'getSessions', 'getRecentSessions', 'getStatsSummary'
         ]);
+        if (action === 'updateSession' || action === 'updateSessionPhoto') {
+            clearStoredReadSnapshots();
+        } else {
+            clearStoredReadSnapshots(['getStatsSummary']);
+        }
         markPublicSnapshotDirty();
     }
 }
@@ -843,6 +959,7 @@ async function apiCall(action, params, options) {
             .then(function(data) {
                 if (ttl > 0 && data && !data.error && cacheGeneration === readCacheGeneration) {
                     readResponseCache.set(cacheKey, { data: data, storedAt: Date.now() });
+                    saveStoredReadSnapshot(action, params, data);
                 }
                 return data;
             })
@@ -1401,19 +1518,23 @@ function toggleEloDropdown() {
     hapticFeedback('light');
 }
 
-async function showEloStats(requestedIntentId) {
+async function showEloStats(requestedIntentId, options) {
+    options = options || {};
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
         : beginNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
-    contentDiv.innerHTML =
-        '<div class="skeleton-card">' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-50 mb-10" style="height:22px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10" style="height:36px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-60 mb-10" style="height:36px;"></div>' +
-            '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
-        '</div>';
+    const storedSnapshot = hydrateStoredReadSnapshot('getEloStatsData', {});
+    if (!storedSnapshot) {
+        contentDiv.innerHTML =
+            '<div class="skeleton-card">' +
+                '<div class="shimmer-wrapper skeleton-text skeleton-w-50 mb-10" style="height:22px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10" style="height:36px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text skeleton-w-60 mb-10" style="height:36px;"></div>' +
+                '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
+            '</div>';
+    }
 
     // One combined read avoids three separate Apps Script round-trips.
     let eloStatsData = await apiCall('getEloStatsData', {});
@@ -1472,6 +1593,14 @@ async function showEloStats(requestedIntentId) {
 
     // Canvas now exists in the DOM — draw immediately with pre-fetched data
     drawEloHistoryChart(sessionsData, allHistoryData);
+    if (!options.skipStoredRefresh && storedSnapshot &&
+        Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
+        refreshStoredReadInBackground('getEloStatsData', {}, function() {
+            if (isCurrentNavigationIntent(intentId)) {
+                showEloStats(intentId, { skipStoredRefresh: true });
+            }
+        });
+    }
 }
 
 function drawEloHistoryChart(sessionsData, allHistoryData) {
@@ -2336,8 +2465,7 @@ async function confirmAddPlayer() {
         if (newPlayer) sessionPlayers.push(newPlayer);
         setTimeout(function() {
             closeAddPlayerModal();
-            showActiveSession();
-            updateSessionScores();
+            showActiveSession(undefined, Array.isArray(data.hands) ? data.hands : null);
             if (addBtn) setButtonLoading(addBtn, false);
         }, 1500);
     }
@@ -2886,6 +3014,60 @@ function checkLockoutValidity() {
     }
 }
 
+function submittedHandMatchesState(payload, hands) {
+    let expectedScores;
+    try {
+        expectedScores = JSON.parse(String(payload.scores || '[]'));
+    } catch (error) {
+        return false;
+    }
+    const storedRows = (hands || []).filter(function(hand) {
+        return Number(hand.hand_number) === Number(payload.hand_number);
+    });
+    if (storedRows.length !== expectedScores.length) return false;
+    const storedByPlayer = {};
+    storedRows.forEach(function(hand) { storedByPlayer[String(hand.player_id)] = hand; });
+    for (let i = 0; i < expectedScores.length; i++) {
+        const expected = expectedScores[i];
+        const stored = storedByPlayer[String(expected.player_id)];
+        if (!stored || Number(stored.score) !== Number(expected.score)) return false;
+    }
+    const lockoutRow = storedByPlayer[String(payload.lockout_player_id)];
+    if (!lockoutRow || String(lockoutRow.lockout_player_id) !== String(payload.lockout_player_id)) return false;
+    const storedFalse = lockoutRow.false_lockout == 1 || lockoutRow.false_lockout === true ||
+        String(lockoutRow.false_lockout).toLowerCase() === 'true';
+    if (storedFalse !== Boolean(payload.false_lockout)) return false;
+    return Number(lockoutRow.lockout_score) === Number(payload.lockout_score);
+}
+
+async function recoverSubmittedHand(payload) {
+    const state = await apiCall(
+        'getSessionState',
+        { session_id: payload.session_id },
+        { forceRefresh: true }
+    );
+    if (!state || state.error || !state.session || !Array.isArray(state.hands)) {
+        return { status: 'unknown' };
+    }
+    const submittedRows = state.hands.filter(function(hand) {
+        return Number(hand.hand_number) === Number(payload.hand_number);
+    });
+    if (submittedHandMatchesState(payload, state.hands)) {
+        return {
+            status: 'saved',
+            data: {
+                success: true,
+                hand_number: Number(payload.hand_number),
+                hands: state.hands,
+                revision: Number(state.session.revision || 1),
+                recovered: true
+            }
+        };
+    }
+    if (submittedRows.length) return { status: 'conflict', state: state };
+    return { status: 'not_saved', state: state };
+}
+
 async function submitHand(event) {
     const messageDiv = document.getElementById('handMessage');
     const submitBtn = event.target;
@@ -2925,17 +3107,58 @@ async function submitHand(event) {
     }
     const comment = document.getElementById('handComment').value.trim();
     let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
-    const data = await apiCall('addHand', {
+    const payload = {
         session_id: currentSession.session_id, hand_number: currentHandNumber,
         scores: JSON.stringify(scores), lockout_player_id: lockoutPlayerId,
         false_lockout: falseLockout, editor_name: hostPlayer ? hostPlayer.username : 'Unknown',
-        comment: comment, lockout_score: lockoutScoreValue
-    });
+        comment: comment, lockout_score: lockoutScoreValue,
+        client_request_id: createClientRequestId()
+    };
+    const slowSaveTimer = setTimeout(function() {
+        if (submitBtn.disabled) {
+            messageDiv.innerHTML = '<div class="pin-progress"><span class="loading-spinner" aria-hidden="true"></span><span>Still saving…</span></div>';
+        }
+    }, 8000);
+    let data;
+    try {
+        data = await apiCall('addHand', payload);
+    } finally {
+        clearTimeout(slowSaveTimer);
+    }
+    if (data.error && isTransientApiFailure(data)) {
+        messageDiv.innerHTML = '<div class="pin-progress"><span class="loading-spinner" aria-hidden="true"></span><span>Checking whether the hand saved…</span></div>';
+        const recovery = await recoverSubmittedHand(payload);
+        if (recovery.status === 'saved') {
+            data = recovery.data;
+        } else if (recovery.status === 'not_saved') {
+            if (recovery.state && recovery.state.session) {
+                currentSession.revision = Number(recovery.state.session.revision || currentSession.revision || 1);
+            }
+            messageDiv.innerHTML = '<div class="error">The hand was not saved. Your entries are still here—tap Submit again.</div>';
+            hapticFeedback('error');
+            setButtonLoading(submitBtn, false);
+            return;
+        } else if (recovery.status === 'conflict') {
+            messageDiv.innerHTML = '<div class="error" role="alert">Another device saved Hand ' +
+                Number(payload.hand_number) +
+                '. Refresh the session before entering the next hand.' +
+                '<div class="error-actions"><button type="button" class="btn btn-small btn-info" onclick="refreshActiveSessionAfterConflict(this)">Refresh session</button></div></div>';
+            hapticFeedback('error');
+            setButtonLoading(submitBtn, false);
+            return;
+        } else {
+            messageDiv.innerHTML = '<div class="error">The connection dropped before the app could confirm the save. Your entries are still here. Tap Submit again—duplicate hands are blocked automatically.</div>';
+            hapticFeedback('error');
+            setButtonLoading(submitBtn, false);
+            return;
+        }
+    }
     if (data.error) {
         messageDiv.innerHTML = actionErrorHtml(data, 'The hand could not be saved.', true);
         hapticFeedback('error');
         setButtonLoading(submitBtn, false);
     } else {
+        if (data.revision) currentSession.revision = Number(data.revision);
         currentHandNumber = Number(data.hand_number || currentHandNumber) + 1;
         hapticFeedback('success');
         showStatusToast('Hand saved');
@@ -3133,7 +3356,11 @@ async function saveEditedHand(event) {
     } else {
         showStatusToast('Hand changes saved');
         messageDiv.innerHTML = '<div class="success">Hand updated!</div>';
-        setTimeout(function() { closeEditModal(); updateSessionScores(); setButtonLoading(saveBtn, false); }, 1000);
+        setTimeout(function() {
+            closeEditModal();
+            updateSessionScores(Array.isArray(data.hands) ? data.hands : null);
+            setButtonLoading(saveBtn, false);
+        }, 1000);
     }
 }
 
@@ -3160,7 +3387,7 @@ async function deleteHand(handNumber, event) {
         if (handNumber == currentHandNumber - 1) { currentHandNumber--; setupHandInputs(); }
         hapticFeedback('success');
         showStatusToast('Hand deleted');
-        updateSessionScores();
+        updateSessionScores(Array.isArray(data.hands) ? data.hands : null);
         if (event && event.target) setButtonLoading(event.target, false);
     }
 }
@@ -3417,18 +3644,22 @@ function drawActiveManhattanChart(playerHands, playerIds) {
 // ============================================
 // PREVIOUS SESSIONS & SESSION DETAIL
 // ============================================
-async function loadPreviousSessions(requestedIntentId) {
+async function loadPreviousSessions(requestedIntentId, options) {
+    options = options || {};
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
         : getNavigationIntent();
     const contentDiv = document.getElementById('previousSessionsContent');
-    contentDiv.innerHTML =
-        '<div class="skeleton-card">' +
-            '<h3 class="section-heading-blue mb-15">Loading previous sessions...</h3>' +
-            '<div class="skeleton-session-item"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div></div>' +
-            '<div class="skeleton-session-item"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div></div>' +
-            '<div class="skeleton-session-item"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div></div>' +
-        '</div>';
+    const storedSnapshot = hydrateStoredReadSnapshot('getPreviousSessionsData', {});
+    if (!storedSnapshot) {
+        contentDiv.innerHTML =
+            '<div class="skeleton-card">' +
+                '<h3 class="section-heading-blue mb-15">Loading previous sessions...</h3>' +
+                '<div class="skeleton-session-item"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div></div>' +
+                '<div class="skeleton-session-item"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div></div>' +
+                '<div class="skeleton-session-item"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div></div>' +
+            '</div>';
+    }
 
     const results = await Promise.all([
         ensurePlayersLoaded(),
@@ -3480,7 +3711,7 @@ async function loadPreviousSessions(requestedIntentId) {
     const historicalEloStatusMap = buildHistoricalEloStatusMap(sessionsWithHands, eloHistoryAll);
 
     let html = '<div class="mb-20"><input type="text" id="sessionSearchInput" placeholder="🔍 Search sessions by title, player, or tag..." style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em;" oninput="filterSessions()"></div>';
-    html += '<div id="sessionListContainer" style="max-height: 600px; overflow-y: auto; padding-right: 5px;"><ul class="session-list" id="sessionList">';
+    html += '<div id="sessionListContainer" class="long-list-scroll"><ul class="session-list" id="sessionList">';
 
     for (let i = 0; i < completedSessions.length; i++) {
         const session = completedSessions[i].session;
@@ -3577,6 +3808,14 @@ html += '<span>' + escapeAttr(session.title) + '</span>';
     }
     html += '</ul></div>';
     contentDiv.innerHTML = html;
+    if (!options.skipStoredRefresh && storedSnapshot &&
+        Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
+        refreshStoredReadInBackground('getPreviousSessionsData', {}, function(freshBundle) {
+            if (!isCurrentNavigationIntent(intentId)) return;
+            applySessionHistoryBundle(freshBundle, Date.now());
+            loadPreviousSessions(intentId, { skipStoredRefresh: true });
+        });
+    }
     return true;
 }
 
@@ -3858,18 +4097,21 @@ async function loadStats(requestedIntentId) {
         ? requestedIntentId
         : getNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
-    contentDiv.innerHTML =
-        '<div class="skeleton-card">' +
-            '<h3 class="section-heading-blue mb-20">Loading statistics...</h3>' +
-            '<div class="stats-grid">' +
-                '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
-                '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
-                '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
-                '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
-                '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
-                '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
-            '</div>' +
-        '</div>';
+    const storedSnapshot = hydrateStoredReadSnapshot('getStatsSummary', {});
+    if (!storedSnapshot) {
+        contentDiv.innerHTML =
+            '<div class="skeleton-card">' +
+                '<h3 class="section-heading-blue mb-20">Loading statistics...</h3>' +
+                '<div class="stats-grid">' +
+                    '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+                    '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+                    '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+                    '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+                    '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+                    '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+                '</div>' +
+            '</div>';
+    }
 
     await ensurePlayersLoaded();
     if (!isCurrentNavigationIntent(intentId)) return false;
@@ -3881,6 +4123,14 @@ async function loadStats(requestedIntentId) {
     }
     if (!isCurrentNavigationIntent(intentId)) return false;
     displayOverallStats(summary.stats || {}, Number(summary.total_sessions || 0));
+    if (storedSnapshot && Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
+        refreshStoredReadInBackground('getStatsSummary', {}, function(freshSummary) {
+            const statsScreen = document.getElementById('statsScreen');
+            if (isCurrentNavigationIntent(intentId) && statsScreen && statsScreen.classList.contains('active')) {
+                displayOverallStats(freshSummary.stats || {}, Number(freshSummary.total_sessions || 0));
+            }
+        });
+    }
     return true;
 }
 
@@ -4058,18 +4308,22 @@ async function recalculateElo(event) {
 // ============================================
 // HEAD-TO-HEAD STATS
 // ============================================
-async function showHeadToHeadList(requestedIntentId) {
+async function showHeadToHeadList(requestedIntentId, options) {
+    options = options || {};
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
         : beginNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
-    contentDiv.innerHTML =
-        '<div class="skeleton-card">' +
-            '<h3 class="section-heading-blue mb-15">Loading head-to-head records...</h3>' +
-            '<div class="h2h-matchup-card"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-100 skeleton-h-8 mb-10"></div><div class="shimmer-wrapper skeleton-button skeleton-h-40"></div></div>' +
-            '<div class="h2h-matchup-card"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-100 skeleton-h-8 mb-10"></div><div class="shimmer-wrapper skeleton-button skeleton-h-40"></div></div>' +
-            '<div class="h2h-matchup-card"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-100 skeleton-h-8 mb-10"></div><div class="shimmer-wrapper skeleton-button skeleton-h-40"></div></div>' +
-        '</div>';
+    const storedSnapshot = hydrateStoredReadSnapshot('getHeadToHeadMatrix', {});
+    if (!storedSnapshot) {
+        contentDiv.innerHTML =
+            '<div class="skeleton-card">' +
+                '<h3 class="section-heading-blue mb-15">Loading head-to-head records...</h3>' +
+                '<div class="h2h-matchup-card"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-100 skeleton-h-8 mb-10"></div><div class="shimmer-wrapper skeleton-button skeleton-h-40"></div></div>' +
+                '<div class="h2h-matchup-card"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-100 skeleton-h-8 mb-10"></div><div class="shimmer-wrapper skeleton-button skeleton-h-40"></div></div>' +
+                '<div class="h2h-matchup-card"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-100 skeleton-h-8 mb-10"></div><div class="shimmer-wrapper skeleton-button skeleton-h-40"></div></div>' +
+            '</div>';
+    }
 
     await ensurePlayersLoaded();
     if (!isCurrentNavigationIntent(intentId)) return;
@@ -4085,7 +4339,7 @@ async function showHeadToHeadList(requestedIntentId) {
 
     let html = '<h2>⚔️ Head-to-Head Records</h2>';
     html += '<p class="text-muted mb-20">Direct records when playing in the same session (who finished with a lower score)</p>';
-    html += '<div style="display: grid; gap: 15px; margin-bottom: 20px;">';
+    html += '<div class="long-list-scroll h2h-matchup-list">';
 
     for (let i = 0; i < data.length; i++) {
         const m = data[i];
@@ -4118,6 +4372,14 @@ async function showHeadToHeadList(requestedIntentId) {
 
     html += '</div>';
     contentDiv.innerHTML = html;
+    if (!options.skipStoredRefresh && storedSnapshot &&
+        Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
+        refreshStoredReadInBackground('getHeadToHeadMatrix', {}, function() {
+            if (isCurrentNavigationIntent(intentId)) {
+                showHeadToHeadList(intentId, { skipStoredRefresh: true });
+            }
+        });
+    }
 }
 
 async function quickCompare(p1Id, p2Id) {
@@ -4159,7 +4421,8 @@ async function showPlayerComparisonUI(requestedIntentId) {
     return true;
 }
 
-async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, requestedPlayer2Id) {
+async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, requestedPlayer2Id, options) {
+    options = options || {};
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
         : beginNavigationIntent();
@@ -4179,20 +4442,24 @@ async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, reque
     if (p1Id === p2Id) { contentDiv.innerHTML = '<div class="error">Please select two different players</div>'; return; }
 
     const loadingComparisonLabel = getPlayerName(p1Id) + ' vs ' + getPlayerName(p2Id);
-    contentDiv.innerHTML =
-        '<div class="skeleton-card">' +
-            '<h3 class="section-heading-blue mb-20">Loading ' + escapeHtml(loadingComparisonLabel) + '…</h3>' +
-            '<div class="overflow-x-auto">' +
-                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
-                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
-                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
-                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
-                '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
-            '</div>' +
-        '</div>';
+    const comparisonParams = { player1_id: p1Id, player2_id: p2Id };
+    const storedSnapshot = hydrateStoredReadSnapshot('getPlayerComparisonDetailed', comparisonParams);
+    if (!storedSnapshot) {
+        contentDiv.innerHTML =
+            '<div class="skeleton-card">' +
+                '<h3 class="section-heading-blue mb-20">Loading ' + escapeHtml(loadingComparisonLabel) + '…</h3>' +
+                '<div class="overflow-x-auto">' +
+                    '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+                    '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+                    '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+                    '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+                    '<div class="skeleton-table-row"><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div><div class="shimmer-wrapper skeleton-table-cell"></div></div>' +
+                '</div>' +
+            '</div>';
+    }
 
     showScreen('statsScreen', false, intentId);
-    const data = await apiCall('getPlayerComparisonDetailed', { player1_id: p1Id, player2_id: p2Id });
+    const data = await apiCall('getPlayerComparisonDetailed', comparisonParams);
     if (!isCurrentNavigationIntent(intentId)) return;
     if (data.error) {
         contentDiv.innerHTML = loadErrorHtml(
@@ -4271,6 +4538,7 @@ async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, reque
         html += '<div class="section-box section-box-purple">';
         html += '<h3 class="section-heading-purple">📅 Session History</h3>';
         html += '<p class="text-muted text-sm mb-20">Sessions where both players competed (click to view details)</p>';
+        html += '<div class="long-list-scroll comparison-session-history">';
 
         for (let i = data.sessions_together.length - 1; i >= 0; i--) {
             const s = data.sessions_together[i];
@@ -4289,10 +4557,18 @@ async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, reque
             html += '<div class="text-sm"><strong class="heading-red">' + p2Name + ':</strong> ' + formatPoints(s.p2_score) + '</div>';
             html += '</div></div>';
         }
-        html += '</div>';
+        html += '</div></div>';
     }
 
     contentDiv.innerHTML = html;
+    if (!options.skipStoredRefresh && storedSnapshot &&
+        Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
+        refreshStoredReadInBackground('getPlayerComparisonDetailed', comparisonParams, function() {
+            if (isCurrentNavigationIntent(intentId)) {
+                showPlayerComparison(intentId, p1Id, p2Id, { skipStoredRefresh: true });
+            }
+        });
+    }
 }
 
 // ============================================
