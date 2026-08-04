@@ -1346,7 +1346,7 @@ function becameEstablishedInSession(sessionId, playerId, statusMap) {
 
 function formatEstablishedThisGameBadge(sessionId, playerId, statusMap) {
     return becameEstablishedInSession(sessionId, playerId, statusMap)
-        ? ' <a href="#" class="elo-established-badge" onclick="event.stopPropagation(); showScreen(\'dictionaryScreen\'); showDictionarySection(\'glossary\', \'glossaryProvisionalRating\'); return false;">Established this game</a>'
+        ? ' <a href="#" class="elo-established-badge" onclick="event.stopPropagation(); showScreen(\'dictionaryScreen\'); showDictionarySection(\'glossary\', \'glossaryProvisionalRating\'); return false;">Became established</a>'
         : '';
 }
 

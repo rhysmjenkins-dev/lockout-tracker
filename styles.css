@@ -706,6 +706,14 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
     padding: 1px 6px; border-radius: 6px; font-size: 0.7em;
     font-weight: 600; margin-left: 5px; vertical-align: middle;
     text-decoration: none; cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.elo-established-badge:hover,
+.elo-established-badge:focus-visible {
+    background: var(--primary);
+    color: var(--white);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.22);
+    outline: none;
 }
 .elo-history-section { margin-top: 20px; }
 .stats-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
