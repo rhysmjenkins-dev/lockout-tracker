@@ -23,8 +23,7 @@ getPublicConfig: true,
 getHomeData: true,
 getPreviousSessionsData: true,
 getEloStatsData: true,
-getSessionState: true,
-getAppBootstrap: true
+getSessionState: true
 };
 function doGet(e) {
 var requestId = Utilities.getUuid();
@@ -59,7 +58,7 @@ if (/^[A-Za-z0-9_-]{16,80}$/.test(clientRequestId)) requestId = clientRequestId;
 var action = String(payload.action || '');
 if (!action) throw v2Error('VALIDATION', 'Action is required.');
 var result = v2RunMutation(action, payload, requestId);
-if (v2MutationChangesReadData(action)) v2InvalidateReadCache();
+v2InvalidateReadCache(action);
 return v2Respond(result, requestId);
 } catch (err) {
 var safe = v2NormaliseError(err);
@@ -95,21 +94,31 @@ case 'getStatsSummary': return v2GetStatsSummary();
 case 'checkPlayerPin': return v2CheckPlayerPin(v2Id(p.player_id, 'Player'));
 case 'getHomeData':
 return {
-players: v2GetPublicPlayers(),
-active_sessions_with_hands: v2GetActiveSessionsWithHands(),
-elo_ratings: getEloRatings(),
-public_config: v2GetPublicConfig()
+players: v2CachedReadComponent('getPlayers', {}, function() { return v2GetPublicPlayers(); }),
+active_sessions_with_hands: v2CachedReadComponent('getActiveSessionsWithHands', {}, function() {
+return v2GetActiveSessionsWithHands();
+}),
+elo_ratings: v2CachedReadComponent('getEloRatings', {}, function() { return getEloRatings(); }),
+public_config: v2CachedReadComponent('getPublicConfig', {}, function() { return v2GetPublicConfig(); })
 };
 case 'getPreviousSessionsData':
 return {
-sessions_with_hands: v2GetVisibleSessionsWithHands(),
-elo_history_all: sheetToObjects('elo_history')
+sessions_with_hands: v2CachedReadComponent('getCompletedSessionsWithHands', {}, function() {
+return v2GetCompletedSessionsWithHands();
+}),
+elo_history_all: v2CachedReadComponent('getEloHistoryAll', {}, function() {
+return sheetToObjects('elo_history');
+})
 };
 case 'getEloStatsData':
 return {
-elo_ratings: getEloRatings(),
-sessions_with_hands: v2GetVisibleSessionsWithHands(),
-elo_history_all: sheetToObjects('elo_history')
+elo_ratings: v2CachedReadComponent('getEloRatings', {}, function() { return getEloRatings(); }),
+sessions_with_hands: v2CachedReadComponent('getCompletedSessionsWithHands', {}, function() {
+return v2GetCompletedSessionsWithHands();
+}),
+elo_history_all: v2CachedReadComponent('getEloHistoryAll', {}, function() {
+return sheetToObjects('elo_history');
+})
 };
 case 'getSessionState':
 var stateSessionId = v2Id(p.session_id, 'Session');
@@ -120,10 +129,11 @@ throw v2Error('NOT_FOUND', 'Session not found.');
 }
 return {
 session: stateSession,
-hands: getHands(stateSessionId),
-players: v2GetPublicPlayers()
+hands: v2CachedReadComponent('getHands', { session_id: stateSessionId }, function() {
+return getHands(stateSessionId);
+}),
+players: v2CachedReadComponent('getPlayers', {}, function() { return v2GetPublicPlayers(); })
 };
-case 'getAppBootstrap': return v2GetAppBootstrap();
 case 'getPublicConfig': return v2GetPublicConfig();
 default: throw v2Error('READ_ONLY', 'Unknown read action.');
 }
@@ -140,18 +150,12 @@ var ended = String(item.session.date_ended || '').trim();
 return ended === '' || ended === 'null' || ended === 'undefined';
 });
 }
-function v2GetAppBootstrap() {
-var players = v2GetPublicPlayers();
-return {
-players: players,
-sessions_with_hands: v2GetVisibleSessionsWithHands(),
-elo_ratings: getEloRatings(),
-elo_history_all: sheetToObjects('elo_history'),
-stats_summary: v2GetStatsSummary(),
-head_to_head_matrix: getHeadToHeadMatrix(),
-public_config: v2GetPublicConfig(),
-generated_at: new Date().toISOString()
-};
+function v2GetCompletedSessionsWithHands() {
+return v2GetVisibleSessionsWithHands().filter(function(item) {
+if (!item.session) return false;
+var ended = String(item.session.date_ended || '').trim();
+return ended !== '' && ended !== 'null' && ended !== 'undefined';
+});
 }
 function v2GetPublicPlayers() {
 return getPlayers().map(function(player) {
@@ -177,6 +181,8 @@ getRecentSessions: 120,
 getSession: 5,
 getHands: 5,
 getSessionsWithHands: 120,
+getActiveSessionsWithHands: 60,
+getCompletedSessionsWithHands: 300,
 getHeadToHeadMatrix: 300,
 getPlayerComparisonDetailed: 21600,
 getEloRatings: 60,
@@ -188,14 +194,16 @@ getPublicConfig: 300,
 getHomeData: 60,
 getPreviousSessionsData: 300,
 getEloStatsData: 300,
-getSessionState: 5,
-getAppBootstrap: 21600
+getSessionState: 5
 };
+function v2CachedReadComponent(action, params, loader) {
+return v2ReadThroughCache(action, params || {}, loader);
+}
 function v2ReadThroughCache(action, params, loader) {
 var ttl = Number(V2_READ_CACHE_SECONDS[action] || 0);
 if (!ttl) return loader();
 var cache = CacheService.getScriptCache();
-var version = cache.get('v2:data-version') || '1';
+var version = v2ReadCacheVersion(cache, action);
 var key = 'v2:' + version + ':' + action + ':' + v2StableCacheParams(params);
 var cached = cache.get(key);
 if (cached) {
@@ -217,23 +225,62 @@ var safe = {};
 keys.forEach(function(key) { safe[key] = String(source[key]); });
 return Utilities.base64EncodeWebSafe(JSON.stringify(safe)).substring(0, 180);
 }
-function v2InvalidateReadCache() {
-CacheService.getScriptCache().put('v2:data-version', Utilities.getUuid(), 21600);
+function v2ReadCacheGroups(action) {
+var groups = {
+getPlayers: ['players'],
+getSessions: ['live'],
+getRecentSessions: ['live'],
+getSession: ['live'],
+getHands: ['live'],
+getSessionsWithHands: ['live'],
+getActiveSessionsWithHands: ['live'],
+getCompletedSessionsWithHands: ['history'],
+getHeadToHeadMatrix: ['history', 'players'],
+getPlayerComparisonDetailed: ['history', 'players'],
+getEloRatings: ['history', 'players'],
+getEloHistory: ['history'],
+getEloHistoryAll: ['history'],
+getPlayerProfile: ['history', 'players'],
+getStatsSummary: ['live', 'history', 'players'],
+checkPlayerPin: ['players'],
+getPublicConfig: ['config'],
+getHomeData: ['players', 'live', 'history', 'config'],
+getPreviousSessionsData: ['history'],
+getEloStatsData: ['history', 'players'],
+getSessionState: ['live', 'players']
+};
+return groups[action] || ['players', 'live', 'history', 'config'];
 }
-function v2MutationChangesReadData(action) {
-return {
-setPlayerPin: true,
-addPlayer: true,
-createSession: true,
-updateSession: true,
-updateSessionPhoto: true,
-addPlayerToSession: true,
-closeSession: true,
-addHand: true,
-updateHand: true,
-deleteHand: true,
-updatePlayerProfile: true
-}[action] === true;
+function v2ReadCacheVersion(cache, action) {
+var groups = v2ReadCacheGroups(action);
+var keys = groups.map(function(group) { return 'v2:data-version:' + group; });
+var stored = cache.getAll(keys);
+return keys.map(function(key) { return stored[key] || '1'; }).join('.');
+}
+function v2MutationCacheGroups(action) {
+var groups = {
+setPlayerPin: ['players'],
+addPlayer: ['players'],
+createSession: ['live'],
+updateSession: ['live'],
+updateSessionPhoto: ['live'],
+addPlayerToSession: ['live'],
+closeSession: ['live', 'history'],
+addHand: ['live'],
+updateHand: ['live'],
+deleteHand: ['live'],
+updatePlayerProfile: ['players']
+};
+return groups[action] || [];
+}
+function v2InvalidateReadCache(action) {
+var groups = v2MutationCacheGroups(action);
+if (!groups.length) return;
+var values = {};
+groups.forEach(function(group) {
+values['v2:data-version:' + group] = Utilities.getUuid().substring(0, 8);
+});
+CacheService.getScriptCache().putAll(values, 21600);
 }
 function v2VisibleSessions(sessions) {
 return (sessions || []).filter(function(session) {

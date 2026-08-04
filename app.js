@@ -28,14 +28,15 @@ const LEGACY_PUBLIC_SNAPSHOT_STORAGE_KEYS = [
 const PUBLIC_SNAPSHOT_SCHEMA_VERSION = 2;
 const PROFILE_SNAPSHOT_SCHEMA_VERSION = 2;
 const PUBLIC_SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-const PROFILE_SNAPSHOT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-const PROFILE_BACKGROUND_REFRESH_MS = 15000;
+const PROFILE_SNAPSHOT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const PROFILE_BACKGROUND_REFRESH_MS = 2 * 60 * 1000;
+const PLAYERS_BACKGROUND_REFRESH_MS = 2 * 60 * 1000;
 const HOME_BACKGROUND_REFRESH_MS = 30000;
-const API_REQUEST_TIMEOUT_MS = 24000;
+const READ_REQUEST_TIMEOUT_MS = 12000;
+const WRITE_REQUEST_TIMEOUT_MS = 35000;
 const CLOSE_SESSION_TIMEOUT_MS = 60000;
-const READ_HEDGE_DELAY_MS = 4500;
-const SAFE_POST_HEDGE_DELAY_MS = 7000;
 const ACTIVE_SESSION_REFRESH_MS = 30000;
+const VISIBLE_REFRESH_MIN_INTERVAL_MS = 15000;
 
 let currentSession = null;
 let currentHandNumber = 1;
@@ -63,6 +64,7 @@ let homeBackgroundRefreshTimer = null;
 let activeSessionRefreshTimer = null;
 let activeSessionRefreshPromise = null;
 let publicSnapshotNeedsRefresh = false;
+let lastVisibleRefreshAt = 0;
 let navigationIntentId = 0;
 let screenTransitionTimer = null;
 const readResponseCache = new Map();
@@ -72,23 +74,22 @@ const externalScriptPromises = new Map();
 window.lockoutPerformance = window.lockoutPerformance || [];
 
 const READ_CACHE_TTL = {
-    getAppBootstrap: 120000,
     getHomeData: 60000,
-    getPlayers: 60000,
-    getSessions: 60000,
-    getRecentSessions: 60000,
+    getPlayers: 120000,
+    getSessions: 120000,
+    getRecentSessions: 120000,
     getSessionsWithHands: 120000,
     getPreviousSessionsData: 120000,
     getEloStatsData: 120000,
     getSessionState: 5000,
     getHeadToHeadMatrix: 120000,
     getPlayerComparisonDetailed: 120000,
-    getEloRatings: 30000,
+    getEloRatings: 120000,
     getEloHistory: 120000,
     getEloHistoryAll: 120000,
     getSession: 5000,
     getHands: 5000,
-    getPlayerProfile: 30000,
+    getPlayerProfile: 120000,
     getStatsSummary: 120000,
     getPublicConfig: 300000
 };
@@ -116,7 +117,7 @@ const READ_ACTIONS = new Set([
     'getEloStatsData', 'getSessionState', 'getHeadToHeadMatrix',
     'getPlayerComparisonDetailed', 'getEloRatings', 'getEloHistory',
     'getEloHistoryAll', 'getPlayerProfile', 'checkPlayerPin', 'getPublicConfig',
-    'getHomeData', 'getStatsSummary', 'getAppBootstrap'
+    'getHomeData', 'getStatsSummary'
 ]);
 const SESSION_ACTIONS = new Set([
     'updateSession', 'updateSessionPhoto', 'addPlayerToSession', 'closeSession',
@@ -124,15 +125,6 @@ const SESSION_ACTIONS = new Set([
 ]);
 const UNAUTHENTICATED_WRITE_ACTIONS = new Set(['setPlayerPin', 'verifyPlayerPin']);
 const SAFE_POST_RETRY_ACTIONS = new Set(['verifyPlayerPin', 'addHand']);
-const HEDGED_SAFE_POST_ACTIONS = new Set(['addHand']);
-const HEDGED_READ_ACTIONS = new Set([
-    'getHomeData', 'getPlayers', 'getSessions', 'getRecentSessions',
-    'getSession', 'getHands', 'getEditHistory', 'getSessionsWithHands',
-    'getPreviousSessionsData', 'getEloStatsData', 'getSessionState',
-    'getHeadToHeadMatrix', 'getPlayerComparisonDetailed', 'getEloRatings',
-    'getEloHistory', 'getEloHistoryAll', 'getPlayerProfile',
-    'getStatsSummary', 'checkPlayerPin', 'getPublicConfig'
-]);
 const DATA_CHANGING_WRITE_ACTIONS = new Set([
     'setPlayerPin', 'addPlayer', 'createSession', 'updateSession',
     'updateSessionPhoto', 'addPlayerToSession', 'closeSession',
@@ -396,17 +388,9 @@ function setSignInChecking(isChecking, statusText) {
     }
 }
 
-function isRetryablePinStatusError(data) {
-    return data && (data.code === 'NETWORK_TIMEOUT' || data.code === 'NETWORK_ERROR');
-}
-
-async function checkPlayerPinWithRetry(playerId, attemptId) {
-    let check = await apiCall('checkPlayerPin', { player_id: playerId });
-    if (!isRetryablePinStatusError(check) || attemptId !== _signInAttemptId) return check;
-    setSignInChecking(true, 'The server is taking a moment — trying once more…');
-    await new Promise(function(resolve) { setTimeout(resolve, 350); });
+async function checkPlayerPinStatus(playerId, attemptId) {
+    const check = await apiCall('checkPlayerPin', { player_id: playerId });
     if (attemptId !== _signInAttemptId) return { error: 'Sign-in cancelled.', code: 'CANCELLED' };
-    check = await apiCall('checkPlayerPin', { player_id: playerId });
     return check;
 }
 
@@ -456,7 +440,7 @@ async function continuePlayerSignIn() {
     let hasPin = false;
     {
         setSignInChecking(true, 'Checking this player’s PIN status…');
-        const check = await checkPlayerPinWithRetry(playerId, attemptId);
+        const check = await checkPlayerPinStatus(playerId, attemptId);
         if (attemptId !== _signInAttemptId) return;
         if (check.error) {
             setSignInChecking(false);
@@ -646,6 +630,42 @@ function clearFrontendReadCaches(options) {
     }
 }
 
+function clearFrontendReadActions(actions) {
+    const prefixes = (actions || []).map(function(action) { return action + ':'; });
+    if (!prefixes.length) return;
+    readCacheGeneration++;
+    Array.from(readResponseCache.keys()).forEach(function(key) {
+        if (prefixes.some(function(prefix) { return key.indexOf(prefix) === 0; })) {
+            readResponseCache.delete(key);
+        }
+    });
+    Array.from(readRequestInFlight.keys()).forEach(function(key) {
+        if (prefixes.some(function(prefix) { return key.indexOf(prefix) === 0; })) {
+            readRequestInFlight.delete(key);
+        }
+    });
+}
+
+function invalidateFrontendDataForAction(action, params) {
+    if (action === 'addPlayer' || action === 'closeSession' || action === 'updatePlayerProfile') {
+        clearFrontendReadCaches({ players: action === 'addPlayer' });
+        return;
+    }
+    if (action === 'setPlayerPin') {
+        clearFrontendReadActions(['getPlayers', 'checkPlayerPin', 'getHomeData']);
+        markPublicSnapshotDirty();
+        return;
+    }
+    if (SESSION_ACTIONS.has(action)) {
+        const sessionId = params && params.session_id || (currentSession && currentSession.session_id);
+        clearSessionReadCaches(sessionId);
+        clearFrontendReadActions([
+            'getHomeData', 'getSessions', 'getRecentSessions', 'getStatsSummary'
+        ]);
+        markPublicSnapshotDirty();
+    }
+}
+
 function clearSessionReadCaches(sessionId) {
     readCacheGeneration++;
     const idVariants = [sessionId, String(sessionId)];
@@ -656,7 +676,7 @@ function clearSessionReadCaches(sessionId) {
         const marker = typeof id + ':' + String(id);
         if (seen.has(marker)) return;
         seen.add(marker);
-        ['getSession', 'getHands'].forEach(function(action) {
+        ['getSession', 'getHands', 'getSessionState'].forEach(function(action) {
             const key = apiCacheKey(action, { session_id: id });
             readResponseCache.delete(key);
             readRequestInFlight.delete(key);
@@ -712,7 +732,9 @@ async function rawApiRequest(action, params, isRead) {
     }
     const startedAt = Date.now();
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const requestTimeoutMs = action === 'closeSession' ? CLOSE_SESSION_TIMEOUT_MS : API_REQUEST_TIMEOUT_MS;
+    const requestTimeoutMs = isRead
+        ? READ_REQUEST_TIMEOUT_MS
+        : (action === 'closeSession' ? CLOSE_SESSION_TIMEOUT_MS : WRITE_REQUEST_TIMEOUT_MS);
     const timeoutId = controller ? setTimeout(function() { controller.abort(); }, requestTimeoutMs) : null;
     try {
         let response;
@@ -780,44 +802,10 @@ function createClientRequestId() {
         Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 }
 
-async function requestWithSafeRetry(action, params, isRead) {
-    const firstRequest = rawApiRequest(action, params, isRead);
-    let data;
-    const shouldHedge = (isRead && HEDGED_READ_ACTIONS.has(action)) ||
-        (!isRead && HEDGED_SAFE_POST_ACTIONS.has(action));
-    if (shouldHedge) {
-        let hedgeTimer = null;
-        const firstResult = firstRequest.then(function(value) {
-            return { source: 'first', data: value };
-        });
-        const hedgeGate = new Promise(function(resolve) {
-            hedgeTimer = setTimeout(function() {
-                hedgeTimer = null;
-                resolve({ source: 'hedge' });
-            }, isRead ? READ_HEDGE_DELAY_MS : SAFE_POST_HEDGE_DELAY_MS);
-        });
-        const gateResult = await Promise.race([firstResult, hedgeGate]);
-        if (gateResult.source === 'first') {
-            if (hedgeTimer) clearTimeout(hedgeTimer);
-            data = gateResult.data;
-        } else {
-            const hedgeParams = !isRead
-                ? Object.assign({}, params, { client_retry: '1' })
-                : params;
-            const hedgeRequest = rawApiRequest(action, hedgeParams, isRead);
-            const winner = await Promise.race([
-                firstResult,
-                hedgeRequest.then(function(value) {
-                    return { source: 'hedge', data: value };
-                })
-            ]);
-            if (!isTransientApiFailure(winner.data)) return winner.data;
-            data = winner.source === 'first' ? await hedgeRequest : (await firstRequest);
-        }
-    } else {
-        data = await firstRequest;
-    }
-    if (!isTransientApiFailure(data) || (!isRead && !SAFE_POST_RETRY_ACTIONS.has(action))) return data;
+async function requestWithSafeRetry(action, params, isRead, allowRetry) {
+    let data = await rawApiRequest(action, params, isRead);
+    const canRetry = allowRetry !== false && (isRead || SAFE_POST_RETRY_ACTIONS.has(action));
+    if (!isTransientApiFailure(data) || !canRetry) return data;
     await waitForRetry(350);
     const retryParams = !isRead
         ? Object.assign({}, params, { client_retry: '1' })
@@ -849,7 +837,7 @@ async function apiCall(action, params, options) {
         if (!options.forceRefresh && ttl > 0 && cached && Date.now() - cached.storedAt < ttl) return cached.data;
         if (readRequestInFlight.has(requestKey)) return readRequestInFlight.get(requestKey);
         const cacheGeneration = readCacheGeneration;
-        const request = requestWithSafeRetry(action, params, true)
+        const request = requestWithSafeRetry(action, params, true, options.retry !== false)
             .then(function(data) {
                 if (ttl > 0 && data && !data.error && cacheGeneration === readCacheGeneration) {
                     readResponseCache.set(cacheKey, { data: data, storedAt: Date.now() });
@@ -876,14 +864,14 @@ async function apiCall(action, params, options) {
                 : Number(params.revision || 1);
         }
     }
-    const data = await requestWithSafeRetry(action, params, isRead);
+    const data = await requestWithSafeRetry(action, params, isRead, options.retry !== false);
     if (data && (data.code === 'AUTH_EXPIRED' || data.code === 'AUTH_REQUIRED') &&
         !UNAUTHENTICATED_WRITE_ACTIONS.has(action)) signOutPlayer();
     if (data && data.revision && currentSession && String(currentSession.session_id) === String(params.session_id)) {
         currentSession.revision = Number(data.revision);
     }
     if (data && !data.error && DATA_CHANGING_WRITE_ACTIONS.has(action)) {
-        clearFrontendReadCaches({ players: action === 'addPlayer' });
+        invalidateFrontendDataForAction(action, params);
     }
     return data;
 }
@@ -936,47 +924,22 @@ function storeSessionReadResponses(item, storedAt) {
     }
 }
 
-function primeBootstrapReadCaches(data, storedAt) {
+function primeHomeReadCaches(data, storedAt) {
     if (!data || typeof data !== 'object') return;
     const at = Number(storedAt || Date.now());
     if (Array.isArray(data.players)) storeReadResponse('getPlayers', {}, data.players, at);
-    if (Array.isArray(data.sessions_with_hands)) {
-        storeReadResponse('getSessionsWithHands', {}, data.sessions_with_hands, at);
-    }
     if (Array.isArray(data.elo_ratings)) storeReadResponse('getEloRatings', {}, data.elo_ratings, at);
-    if (Array.isArray(data.elo_history_all)) {
-        storeReadResponse('getEloHistoryAll', {}, data.elo_history_all, at);
-    }
-    if (data.stats_summary && typeof data.stats_summary === 'object') {
-        storeReadResponse('getStatsSummary', {}, data.stats_summary, at);
-    }
-    if (Array.isArray(data.head_to_head_matrix)) {
-        storeReadResponse('getHeadToHeadMatrix', {}, data.head_to_head_matrix, at);
-    }
     if (data.public_config && typeof data.public_config === 'object') {
         storeReadResponse('getPublicConfig', {}, data.public_config, at);
     }
-    Object.keys(data.player_profiles || {}).forEach(function(playerId) {
-        storeReadResponse('getPlayerProfile', { player_id: playerId }, data.player_profiles[playerId], at);
-        if (/^\d+$/.test(playerId)) {
-            storeReadResponse('getPlayerProfile', { player_id: Number(playerId) }, data.player_profiles[playerId], at);
-        }
-    });
-    (data.sessions_with_hands || []).forEach(function(item) {
-        storeSessionReadResponses(item, at);
-    });
 }
 
-function applyBootstrapData(data, storedAt) {
+function applyHomeData(data, storedAt) {
     if (!data || typeof data !== 'object') return false;
     if (data.public_config) applyPublicConfig(data.public_config);
     if (Array.isArray(data.players)) applyPlayersData(data.players, storedAt);
     if (Array.isArray(data.elo_ratings)) eloCache = data.elo_ratings;
-    if (Array.isArray(data.elo_history_all)) {
-        eloHistoryAllCache = data.elo_history_all;
-        eloHistoryAllCachedAt = Number(storedAt || Date.now());
-    }
-    primeBootstrapReadCaches(data, storedAt);
+    primeHomeReadCaches(data, storedAt);
     refreshVisiblePlayerViewsFromCurrentData();
     return true;
 }
@@ -1122,7 +1085,7 @@ function clearStoredPlayerProfiles() {
     }
 }
 
-async function renderHomeBootstrap(data) {
+async function renderHomeData(data) {
     const activeSessionData = Array.isArray(data.active_sessions_with_hands)
         ? data.active_sessions_with_hands
         : (data.sessions_with_hands || []);
@@ -1132,20 +1095,21 @@ async function renderHomeBootstrap(data) {
     ]);
 }
 
-async function refreshHomeDashboardFromServer() {
+async function refreshHomeDashboardFromServer(options) {
     const requestedGeneration = readCacheGeneration;
-    const data = await apiCall('getHomeData', {}, { forceRefresh: true });
+    const requestOptions = Object.assign({ forceRefresh: true }, options || {});
+    const data = await apiCall('getHomeData', {}, requestOptions);
     if (data.error) return false;
     if (requestedGeneration !== readCacheGeneration) return true;
-    applyBootstrapData(data, Date.now());
+    applyHomeData(data, Date.now());
     saveStoredPublicSnapshot(data);
-    await renderHomeBootstrap(data);
+    await renderHomeData(data);
     return true;
 }
 
 function refreshHomeDashboardInBackground() {
     if (homeDashboardRefreshPromise) return homeDashboardRefreshPromise;
-    homeDashboardRefreshPromise = refreshHomeDashboardFromServer()
+    homeDashboardRefreshPromise = refreshHomeDashboardFromServer({ retry: false })
         .catch(function(error) {
             console.warn('Background dashboard refresh failed:', error && error.message || error);
             return false;
@@ -1172,15 +1136,15 @@ async function loadHomeDashboard() {
         if (stored) {
             const snapshotAge = Date.now() - Number(stored.stored_at);
             if (isPublicSnapshotDirty()) {
-                const refreshed = await refreshHomeDashboardFromServer();
-                if (refreshed) return true;
-                applyBootstrapData(stored.data, stored.stored_at);
-                await renderHomeBootstrap(stored.data);
-                showStatusToast('Showing saved data — refresh when online');
-                return false;
+                applyHomeData(stored.data, stored.stored_at);
+                await renderHomeData(stored.data);
+                refreshHomeDashboardInBackground().then(function(refreshed) {
+                    if (!refreshed) showStatusToast('Showing saved data — refresh when online');
+                });
+                return true;
             }
-            applyBootstrapData(stored.data, stored.stored_at);
-            await renderHomeBootstrap(stored.data);
+            applyHomeData(stored.data, stored.stored_at);
+            await renderHomeData(stored.data);
             if (snapshotAge >= HOME_BACKGROUND_REFRESH_MS) {
                 scheduleHomeDashboardRefresh();
             }
@@ -1189,7 +1153,13 @@ async function loadHomeDashboard() {
 
         const loaded = await refreshHomeDashboardFromServer();
         if (!loaded) {
-            await Promise.all([loadPublicConfig(), checkActiveSessions(), displayEloLeaderboard()]);
+            const message = loadErrorHtml(
+                { error: 'The latest data could not be loaded. Check your connection and try again.' },
+                'The latest data could not be loaded.',
+                'loadHomeDashboard()'
+            );
+            document.getElementById('activeSessionsSection').innerHTML = message;
+            document.getElementById('eloLeaderboardSection').innerHTML = message;
             return false;
         }
         return true;
@@ -1226,7 +1196,8 @@ async function loadEloRatings() {
 
 async function getCachedEloHistoryAll(forceRefresh) {
     const now = Date.now();
-    if (!forceRefresh && eloHistoryAllCache && now - eloHistoryAllCachedAt < 60000) {
+    if (!forceRefresh && eloHistoryAllCache &&
+        now - eloHistoryAllCachedAt < READ_CACHE_TTL.getEloHistoryAll) {
         return eloHistoryAllCache;
     }
     const data = await apiCall('getEloHistoryAll', {});
@@ -1333,7 +1304,7 @@ function formatHistoricalEloRating(rating, sessionId, playerId, statusMap) {
     const status = statusMap[String(sessionId) + '_' + String(playerId)];
     if (status) return String(rating) + (status.provisional ? '?' : '');
 
-    // Bootstrap data normally supplies the exact historical status. If it is
+    // Session history normally supplies the exact historical status. If it is
     // unavailable, retaining the current marker is safer than hiding it.
     const currentElo = getPlayerElo(playerId);
     return String(rating) + (currentElo && currentElo.provisional ? '?' : '');
@@ -1454,15 +1425,13 @@ async function showEloStats(requestedIntentId) {
         sessionsData = eloStatsData.sessions_with_hands || [];
         allHistoryData = eloStatsData.elo_history_all || [];
     } else {
-        // Keeps the front end usable while a newly committed Apps Script is being deployed.
-        const legacyResults = await Promise.all([
-            apiCall('getEloRatings', {}),
-            apiCall('getSessionsWithHands', {}),
-            getCachedEloHistoryAll(false)
-        ]);
-        ratingsData = legacyResults[0];
-        sessionsData = legacyResults[1];
-        allHistoryData = legacyResults[2];
+        if (!isCurrentNavigationIntent(intentId)) return;
+        contentDiv.innerHTML = loadErrorHtml(
+            eloStatsData,
+            'ELO statistics could not be loaded.',
+            'showEloStats()'
+        );
+        return;
     }
     if (!isCurrentNavigationIntent(intentId)) return;
 
@@ -2383,18 +2352,7 @@ function closeAddPlayerModal() {
 // SESSION MANAGEMENT
 // ============================================
 async function checkActiveSessions(preloadedSessions) {
-    let sessionsWithHands = preloadedSessions;
-    if (!Array.isArray(sessionsWithHands)) {
-        const results = await Promise.all([
-            ensurePlayersLoaded(),
-            apiCall('getSessionsWithHands', {})
-        ]);
-        sessionsWithHands = results[1];
-    }
-    if (sessionsWithHands.error) {
-        document.getElementById('activeSessionsSection').innerHTML = '<p style="color: #c33;">Error loading sessions</p>';
-        return;
-    }
+    const sessionsWithHands = Array.isArray(preloadedSessions) ? preloadedSessions : [];
 
     const activeSessions = sessionsWithHands.filter(item => {
         const dateEnded = item.session.date_ended;
@@ -2584,14 +2542,8 @@ async function resumeSession(sessionId, buttonElement, requestedIntentId) {
         storeReadResponse('getSession', { session_id: sessionId }, sessionData, storedAt);
         storeReadResponse('getHands', { session_id: sessionId }, handsData, storedAt);
     } else {
-        // Backward-compatible fallback for the short window before the script deployment.
-        const legacyResults = await Promise.all([
-            apiCall('getSession', { session_id: sessionId }, { forceRefresh: true }),
-            ensurePlayersLoaded(),
-            apiCall('getHands', { session_id: sessionId }, { forceRefresh: true })
-        ]);
-        sessionData = legacyResults[0];
-        handsData = legacyResults[2];
+        sessionData = stateData || { error: 'The session could not be loaded.' };
+        handsData = stateData || { error: 'The hand history could not be loaded.' };
     }
     if (!isCurrentNavigationIntent(intentId)) {
         if (buttonElement) setButtonLoading(buttonElement, false);
@@ -2673,7 +2625,7 @@ async function refreshActiveSessionData() {
         const state = await apiCall(
             'getSessionState',
             { session_id: sessionId },
-            { forceRefresh: true }
+            { forceRefresh: true, retry: false }
         );
         if (!state || state.error || !state.session || !Array.isArray(state.hands)) return false;
         if (!currentSession || String(currentSession.session_id) !== String(sessionId)) return false;
@@ -2722,20 +2674,29 @@ function scheduleActiveSessionRefresh() {
 
 function refreshVisibleLiveData() {
     if (document.visibilityState && document.visibilityState !== 'visible') return;
+    const now = Date.now();
+    if (now - lastVisibleRefreshAt < VISIBLE_REFRESH_MIN_INTERVAL_MS) return;
+    lastVisibleRefreshAt = now;
     const active = document.querySelector('.screen.active');
     if (!active) return;
     if (active.id === 'activeSessionScreen') refreshActiveSessionData();
     else if (active.id === 'homeScreen') refreshHomeDashboardInBackground();
-    else if (active.id === 'playersScreen') loadPlayersScreen(getNavigationIntent());
+    else if (active.id === 'playersScreen') {
+        if (Date.now() - playersLoadedAt >= PLAYERS_BACKGROUND_REFRESH_MS) {
+            refreshHomeDashboardInBackground();
+        }
+    }
     else if (active.id === 'playerProfileScreen' && _currentProfileId) {
+        if (Date.now() - _currentProfileLoadedAt < PROFILE_BACKGROUND_REFRESH_MS) return;
         const playerId = _currentProfileId;
-        apiCall('getPlayerProfile', { player_id: playerId }, { forceRefresh: true })
+        apiCall('getPlayerProfile', { player_id: playerId }, { forceRefresh: true, retry: false })
             .then(function(data) {
                 const profileScreen = document.getElementById('playerProfileScreen');
                 if (!data.error && profileScreen && profileScreen.classList.contains('active') &&
                     String(_currentProfileId) === String(playerId)) {
                     saveStoredPlayerProfile(playerId, data);
                     _currentProfileData = reconcileProfileWithCurrentRating(data);
+                    _currentProfileLoadedAt = Date.now();
                     renderPlayerProfile(_currentProfileData);
                 }
             });
@@ -3480,13 +3441,13 @@ async function loadPreviousSessions(requestedIntentId) {
         sessionsWithHands = historyBundle.sessions_with_hands || [];
         eloHistoryAll = historyBundle.elo_history_all || [];
     } else {
-        // Backward-compatible fallback for the short window before the script deployment.
-        const legacyResults = await Promise.all([
-            apiCall('getSessionsWithHands', {}),
-            getCachedEloHistoryAll(false)
-        ]);
-        sessionsWithHands = legacyResults[0];
-        eloHistoryAll = legacyResults[1];
+        if (!isCurrentNavigationIntent(intentId)) return false;
+        contentDiv.innerHTML = loadErrorHtml(
+            historyBundle,
+            'Previous sessions could not be loaded.',
+            'loadPreviousSessions()'
+        );
+        return false;
     }
     if (!isCurrentNavigationIntent(intentId)) return false;
     if (sessionsWithHands.error) { contentDiv.innerHTML = '<div class="error">Error loading sessions: ' + sessionsWithHands.error + '</div>'; return; }
@@ -4404,6 +4365,8 @@ window.addEventListener('DOMContentLoaded', function() {
     if (initialScreen === 'homeScreen') {
         loadHomeDashboard();
     } else {
+        const stored = loadStoredPublicSnapshot();
+        if (stored) applyHomeData(stored.data, stored.stored_at);
         loadPublicConfig();
         const intentId = showScreen(initialScreen, true);
         loadRestoredScreen(initialScreen, intentId);
@@ -4747,6 +4710,7 @@ async function submitPinEntry() {
 // ============================================
 let _currentProfileId = null;
 let _currentProfileData = null;
+let _currentProfileLoadedAt = 0;
 
 function returnToPlayersFromProfile() {
     const intentId = showScreen('playersScreen');
@@ -4798,17 +4762,9 @@ async function loadPlayersScreen(requestedIntentId) {
         '</div>';
     if (allPlayers.length > 0 && eloCache.length > 0) {
         renderPlayersDirectory(contentDiv);
-        setTimeout(function() {
-            if (!isCurrentNavigationIntent(intentId)) return;
-            Promise.all([
-                apiCall('getPlayers', {}, { forceRefresh: true }),
-                apiCall('getEloRatings', {}, { forceRefresh: true })
-            ]).then(function(results) {
-                if (!results[0].error) applyPlayersData(results[0], Date.now());
-                if (!results[1].error) eloCache = results[1];
-                if (isCurrentNavigationIntent(intentId)) renderPlayersDirectory(contentDiv);
-            });
-        }, 250);
+        if (Date.now() - playersLoadedAt >= PLAYERS_BACKGROUND_REFRESH_MS) {
+            refreshHomeDashboardInBackground();
+        }
         return true;
     }
     await ensurePlayersLoaded();
@@ -4853,6 +4809,7 @@ async function showPlayerProfile(playerId, requestedIntentId) {
     const storedProfile = loadStoredPlayerProfile(playerId);
     if (storedProfile) {
         _currentProfileData = reconcileProfileWithCurrentRating(storedProfile.data);
+        _currentProfileLoadedAt = Number(storedProfile.stored_at || 0);
         renderPlayerProfile(_currentProfileData);
         if (Date.now() - Number(storedProfile.stored_at) < PROFILE_BACKGROUND_REFRESH_MS) return;
     } else {
@@ -4867,7 +4824,7 @@ async function showPlayerProfile(playerId, requestedIntentId) {
     const data = await apiCall(
         'getPlayerProfile',
         { player_id: playerId },
-        { forceRefresh: Boolean(storedProfile) }
+        { forceRefresh: Boolean(storedProfile), retry: !storedProfile }
     );
     if (!data.error) saveStoredPlayerProfile(playerId, data);
     if (!isCurrentNavigationIntent(intentId)) return;
@@ -4887,6 +4844,7 @@ async function showPlayerProfile(playerId, requestedIntentId) {
         signOutPlayer();
     }
     _currentProfileData = data;
+    _currentProfileLoadedAt = Date.now();
     renderPlayerProfile(data);
 }
 
