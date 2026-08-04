@@ -1,8 +1,8 @@
-// Lockout Tracker v2.1.2 - paste-ready Apps Script runtime bundle
-// Generated from the modular files in apps-script/. Do not edit both copies.
-// Migration.gs is intentionally excluded after the completed migration.
+// Lockout Tracker v2.1.3 - Apps Script runtime bundle
+// This file is the GitHub source of truth for the deployed backend.
+// The bundled sections are retained in one file; completed migration code is excluded.
 // ===== Code.gs =====
-var V2_VERSION = '2.1.2';
+var V2_VERSION = '2.1.3';
 var V2_READ_ACTIONS = {
 getPlayers: true,
 getSessions: true,
@@ -97,7 +97,7 @@ return getPlayerComparisonDetailed(v2Id(p.player1_id, 'Player 1'), v2Id(p.player
 case 'getEloRatings': return getEloRatings();
 case 'getEloHistory': return getEloHistory(v2Id(p.player_id, 'Player'));
 case 'getEloHistoryAll': return sheetToObjects('elo_history');
-case 'getPlayerProfile': return getPlayerProfile(v2Id(p.player_id, 'Player'));
+case 'getPlayerProfile': return v2GetPlayerProfile(v2Id(p.player_id, 'Player'));
 case 'getStatsSummary': return v2GetStatsSummary();
 case 'checkPlayerPin': return v2CheckPlayerPin(v2Id(p.player_id, 'Player'));
 case 'getHomeData':
@@ -296,9 +296,11 @@ return String(session.status || '').toLowerCase() !== 'void';
 });
 }
 function v2GetStatsSummary() {
-var players = getPlayers();
-var stored = getSessionsWithHands().filter(function(item) {
-return item.session && String(item.session.status || '').toLowerCase() !== 'void';
+var players = v2CachedReadComponent('getPlayers', {}, function() {
+return v2GetPublicPlayers();
+});
+var stored = v2CachedReadComponent('getSessionsWithHands', {}, function() {
+return v2GetVisibleSessionsWithHands();
 });
 var allSessions = [];
 var completedSessions = [];
@@ -428,6 +430,31 @@ return {
 stats: stats,
 total_sessions: completedSessions.length
 };
+}
+function v2GetPlayerProfile(playerId) {
+var players = v2CachedReadComponent('getPlayers', {}, function() {
+return v2GetPublicPlayers();
+});
+var completed = v2CachedReadComponent('getCompletedSessionsWithHands', {}, function() {
+return v2GetCompletedSessionsWithHands();
+});
+var eloHistory = v2CachedReadComponent('getEloHistoryAll', {}, function() {
+return sheetToObjects('elo_history');
+});
+var sessions = [];
+var hands = [];
+for (var i = 0; i < completed.length; i++) {
+if (!completed[i] || !completed[i].session) continue;
+sessions.push(completed[i].session);
+var sessionHands = completed[i].hands || [];
+for (var h = 0; h < sessionHands.length; h++) hands.push(sessionHands[h]);
+}
+return getPlayerProfile(playerId, {
+sessions: sessions,
+hands: hands,
+elo_history: eloHistory,
+players: players
+});
 }
 function v2RunMutation(action, p, requestId) {
 switch (action) {
@@ -1448,7 +1475,7 @@ function v2SetRowValues(sheet, rowNumber, headers, valuesByHeader) {
 var indexes = {};
 Object.keys(valuesByHeader).forEach(function(header) {
 var index = headers.indexOf(header);
-if (index < 0) throw new Error('Run migrateLockoutV2Beta(); missing header: ' + header);
+if (index < 0) throw new Error('Missing required sheet header: ' + header + '. Run Lockout Admin → Validate workbook.');
 indexes[header] = index;
 });
 var range = sheet.getRange(rowNumber, 1, 1, headers.length);
@@ -2143,12 +2170,13 @@ false_lockout_rate: totalLockouts > 0 ? ((falseLockouts / totalLockouts) * 100).
 avg_false_lockout: avg(falseLockoutScores)
 };
 }
-function getPlayerProfile(playerId) {
+function getPlayerProfile(playerId, preparedData) {
 if (!playerId) return { error: 'Missing player ID' };
-var sessions = sheetToObjects('sessions');
-var hands = sheetToObjects('hands');
-var eloHistory = sheetToObjects('elo_history');
-var players = sheetToObjects('players');
+preparedData = preparedData || {};
+var sessions = preparedData.sessions || sheetToObjects('sessions');
+var hands = preparedData.hands || sheetToObjects('hands');
+var eloHistory = preparedData.elo_history || sheetToObjects('elo_history');
+var players = preparedData.players || sheetToObjects('players');
 var player = null;
 for (var i = 0; i < players.length; i++) {
 if (String(players[i].player_id) === String(playerId)) {
@@ -2403,7 +2431,9 @@ username: player.username,
 date_joined: player.date_joined,
 avatar_url: player.avatar_url || '',
 bio: player.bio || '',
-has_pin: Boolean(String(player.pin_verifier || player.pin_hash || '').trim())
+has_pin: player.has_pin !== undefined
+? Boolean(player.has_pin)
+: Boolean(String(player.pin_verifier || player.pin_hash || '').trim())
 },
 stats: {
 sessions_played: sessionsPlayed,
