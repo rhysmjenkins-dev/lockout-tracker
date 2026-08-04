@@ -1,8 +1,8 @@
-// Lockout Tracker v2.1 - paste-ready Apps Script runtime bundle
+// Lockout Tracker v2.1.1 - paste-ready Apps Script runtime bundle
 // Generated from the modular files in apps-script/. Do not edit both copies.
 // Migration.gs is intentionally excluded after the completed migration.
 // ===== Code.gs =====
-var V2_VERSION = '2.1';
+var V2_VERSION = '2.1.1';
 var V2_READ_ACTIONS = {
 getPlayers: true,
 getSessions: true,
@@ -54,6 +54,8 @@ try {
 if (typeof v2ResetExecutionSheetCache === 'function') v2ResetExecutionSheetCache(false);
 var raw = e && e.postData && e.postData.contents ? e.postData.contents : '{}';
 var payload = JSON.parse(raw);
+var clientRequestId = String(payload.client_request_id || '').trim();
+if (/^[A-Za-z0-9_-]{16,80}$/.test(clientRequestId)) requestId = clientRequestId;
 var action = String(payload.action || '');
 if (!action) throw v2Error('VALIDATION', 'Action is required.');
 var result = v2RunMutation(action, payload, requestId);
@@ -172,21 +174,21 @@ var V2_READ_CACHE_SECONDS = {
 getPlayers: 300,
 getSessions: 120,
 getRecentSessions: 120,
-getSession: 15,
-getHands: 15,
+getSession: 5,
+getHands: 5,
 getSessionsWithHands: 120,
 getHeadToHeadMatrix: 300,
 getPlayerComparisonDetailed: 21600,
-getEloRatings: 300,
+getEloRatings: 60,
 getEloHistory: 300,
 getEloHistoryAll: 300,
-getPlayerProfile: 21600,
+getPlayerProfile: 300,
 getStatsSummary: 300,
 getPublicConfig: 300,
-getHomeData: 300,
+getHomeData: 60,
 getPreviousSessionsData: 300,
 getEloStatsData: 300,
-getSessionState: 15,
+getSessionState: 5,
 getAppBootstrap: 21600
 };
 function v2ReadThroughCache(action, params, loader) {
@@ -835,7 +837,9 @@ lock.releaseLock();
 }
 }
 function v2AddHand(p, requestId) {
-return v2WriteHand(p, requestId, false);
+var result = v2WriteHand(p, requestId, false);
+result.hands = getHands(v2Id(p.session_id, 'Session'));
+return result;
 }
 function v2UpdateHand(p, requestId) {
 return v2WriteHand(p, requestId, true);
@@ -1046,6 +1050,30 @@ throw v2Error('PHOTO_INVALID', 'The photo could not be uploaded.');
 }
 return { success: true, url: v2HttpsUrl(parsed.data.url, 'Uploaded photo URL') };
 }
+function v2FindSessionMutationReplay(requestId, action, sessionId) {
+if (!requestId || !action || !sessionId) return null;
+var entries = sheetToObjects('edit_history');
+for (var i = entries.length - 1; i >= 0; i--) {
+var entry = entries[i];
+if (String(entry.request_id || '') !== String(requestId)) continue;
+if (String(entry.action || '') !== String(action)) continue;
+if (String(entry.record_type || '') !== 'session') continue;
+if (String(entry.record_id || '') !== String(sessionId)) continue;
+var details = {};
+try { details = JSON.parse(String(entry.details || '{}')); } catch (ignore) {}
+var replay = {
+success: true,
+revision: Number(details.revision || 1),
+replayed: true
+};
+if (details.hand_number !== null && details.hand_number !== undefined) {
+replay.hand_number = Number(details.hand_number);
+}
+if (action === 'ADDED_HAND') replay.hands = getHands(sessionId);
+return replay;
+}
+return null;
+}
 function v2MutateSession(p, requestId, action, callback, lockAlreadyHeld) {
 var sessionId = v2Id(p.session_id, 'Session');
 var expectedRevision = v2Integer(p.revision, 'Session revision', 1, 1000000000);
@@ -1055,6 +1083,10 @@ lock = LockService.getScriptLock();
 lock.waitLock(10000);
 }
 try {
+var replay = p.client_request_id && String(p.client_retry || '') === '1'
+? v2FindSessionMutationReplay(requestId, action, sessionId)
+: null;
+if (replay) return replay;
 var found = v2FindRow('sessions', 'session_id', sessionId);
 if (!found) throw v2Error('NOT_FOUND', 'Session not found.');
 if (String(found.object.status || '').toLowerCase() === 'void') throw v2Error('SESSION_CLOSED', 'This session has been voided.');
