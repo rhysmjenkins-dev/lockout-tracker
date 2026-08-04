@@ -1337,6 +1337,19 @@ function formatHistoricalEloRating(rating, sessionId, playerId, statusMap) {
     return String(rating) + (currentElo && currentElo.provisional ? '?' : '');
 }
 
+function becameEstablishedInSession(sessionId, playerId, statusMap) {
+    const status = statusMap[String(sessionId) + '_' + String(playerId)];
+    return Boolean(status &&
+        Number(status.hands_before) < PROVISIONAL_HANDS &&
+        Number(status.hands_after) >= PROVISIONAL_HANDS);
+}
+
+function formatEstablishedThisGameBadge(sessionId, playerId, statusMap) {
+    return becameEstablishedInSession(sessionId, playerId, statusMap)
+        ? ' <span class="elo-established-badge">Established this game</span>'
+        : '';
+}
+
 function getPlayerElo(playerId) {
     for (let i = 0; i < eloCache.length; i++) {
         if (String(eloCache[i].player_id) === String(playerId)) {
@@ -3576,6 +3589,17 @@ html += '<span>' + escapeAttr(session.title) + '</span>';
         }
         html += '<div style="color: ' + (isTiedSession ? '#b26a00' : '#4caf50') + '; font-weight: 600;">' + winnerLine + '</div>';
 
+        const establishedPlayerIds = playerIds.filter(function(playerId) {
+            return becameEstablishedInSession(session.session_id, playerId, historicalEloStatusMap);
+        });
+        if (establishedPlayerIds.length) {
+            const establishedNames = establishedPlayerIds.map(function(playerId) {
+                return makePlayerLink(playerId, getPlayerName(playerId), 'event.stopPropagation();');
+            }).join(' & ');
+            html += '<div style="margin-top:2px;">' + establishedNames +
+                ' <span class="elo-established-badge">Established this game</span></div>';
+        }
+
         if (session.tags && session.tags !== '') {
             var tagsArray = session.tags.split(',').filter(function(t) { return t.trim(); });
             if (tagsArray.length > 0) {
@@ -3734,7 +3758,8 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return pla
             const changeColor = change > 0 ? '#4caf50' : change < 0 ? '#f5576c' : '#666';
             const displayedRating = formatHistoricalEloRating(sessionElo[playerId].new_rating, session.session_id, playerId, historicalEloStatusMap);
             eloBadge = ' <span class="elo-badge" style="background:#1a1a2e; color:#ffd700; font-size:0.75em;">⚡ ' + displayedRating + '</span>' +
-                       '<span style="color:' + changeColor + '; font-weight:600; font-size:0.8em;"> (' + changeStr + ')</span>';
+                       '<span style="color:' + changeColor + '; font-weight:600; font-size:0.8em;"> (' + changeStr + ')</span>' +
+                       formatEstablishedThisGameBadge(session.session_id, playerId, historicalEloStatusMap);
         }
         const joinDetails = getSessionPlayerJoinDetails(session, playerId);
         html += '<tr><td><strong>' + makePlayerLink(playerId, getPlayerName(playerId)) + '</strong>' + formatLateJoinBadge(joinDetails.hand, joinDetails.startingScore) + eloBadge + '</td><td>' + total + '</td><td>' + handsPlayed + '</td><td>' + avgHand + '</td><td>' + stats.lockouts + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + stats.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
@@ -4974,7 +4999,8 @@ function renderPlayerProfile(data) {
                 const eloChangeColor = s.elo_change > 0 ? '#4caf50' : s.elo_change < 0 ? '#f5576c' : '#888';
                 const displayedRating = formatHistoricalEloRating(s.elo_after, s.session_id, p.player_id, historicalEloStatusMap);
                 eloHtml = ' <span class="elo-badge" style="font-size:0.72em;">⚡ ' + displayedRating + '</span>' +
-                          ' <span style="color:' + eloChangeColor + ';font-weight:600;font-size:0.78em;">(' + eloChangeStr + ')</span>';
+                          ' <span style="color:' + eloChangeColor + ';font-weight:600;font-size:0.78em;">(' + eloChangeStr + ')</span>' +
+                          formatEstablishedThisGameBadge(s.session_id, p.player_id, historicalEloStatusMap);
             }
             html += '<div class="profile-session-row" data-title="' + escapeAttr(s.title) + '" onclick="viewSessionFromProfileWithLoading(this, \'' + s.session_id + '\')">';
             html += '<div style="flex:1;min-width:0;">';
