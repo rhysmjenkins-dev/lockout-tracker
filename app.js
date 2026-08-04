@@ -25,13 +25,16 @@ const LEGACY_PUBLIC_SNAPSHOT_STORAGE_KEYS = [
     'lockout_public_snapshot_2_1_beta_8',
     'lockout_public_snapshot_2_1_beta_7'
 ];
-const PUBLIC_SNAPSHOT_SCHEMA_VERSION = 1;
+const PUBLIC_SNAPSHOT_SCHEMA_VERSION = 2;
+const PROFILE_SNAPSHOT_SCHEMA_VERSION = 2;
 const PUBLIC_SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-const PROFILE_SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-const PROFILE_BACKGROUND_REFRESH_MS = 60000;
-const HOME_BACKGROUND_REFRESH_MS = 60000;
+const PROFILE_SNAPSHOT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const PROFILE_BACKGROUND_REFRESH_MS = 15000;
+const HOME_BACKGROUND_REFRESH_MS = 30000;
 const API_REQUEST_TIMEOUT_MS = 24000;
 const READ_HEDGE_DELAY_MS = 4500;
+const SAFE_POST_HEDGE_DELAY_MS = 7000;
+const ACTIVE_SESSION_REFRESH_MS = 30000;
 
 let currentSession = null;
 let currentHandNumber = 1;
@@ -50,12 +53,14 @@ let eloDropdownOpen = false;
 let activePhotoOverlay = null;
 let photoViewerHistoryActive = false;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1.1',
     photos_enabled: false
 };
 let homeDashboardPromise = null;
 let homeDashboardRefreshPromise = null;
 let homeBackgroundRefreshTimer = null;
+let activeSessionRefreshTimer = null;
+let activeSessionRefreshPromise = null;
 let publicSnapshotNeedsRefresh = false;
 let navigationIntentId = 0;
 let screenTransitionTimer = null;
@@ -74,15 +79,15 @@ const READ_CACHE_TTL = {
     getSessionsWithHands: 120000,
     getPreviousSessionsData: 120000,
     getEloStatsData: 120000,
-    getSessionState: 15000,
+    getSessionState: 5000,
     getHeadToHeadMatrix: 120000,
     getPlayerComparisonDetailed: 120000,
-    getEloRatings: 120000,
+    getEloRatings: 30000,
     getEloHistory: 120000,
     getEloHistoryAll: 120000,
-    getSession: 15000,
-    getHands: 15000,
-    getPlayerProfile: 120000,
+    getSession: 5000,
+    getHands: 5000,
+    getPlayerProfile: 30000,
     getStatsSummary: 120000,
     getPublicConfig: 300000
 };
@@ -117,7 +122,8 @@ const SESSION_ACTIONS = new Set([
     'addHand', 'updateHand', 'deleteHand'
 ]);
 const UNAUTHENTICATED_WRITE_ACTIONS = new Set(['setPlayerPin', 'verifyPlayerPin']);
-const SAFE_POST_RETRY_ACTIONS = new Set(['verifyPlayerPin']);
+const SAFE_POST_RETRY_ACTIONS = new Set(['verifyPlayerPin', 'addHand']);
+const HEDGED_SAFE_POST_ACTIONS = new Set(['addHand']);
 const HEDGED_READ_ACTIONS = new Set([
     'getHomeData', 'getPlayers', 'getSessions', 'getRecentSessions',
     'getSession', 'getHands', 'getEditHistory', 'getSessionsWithHands',
@@ -764,10 +770,20 @@ function waitForRetry(delayMs) {
     return new Promise(function(resolve) { setTimeout(resolve, delayMs); });
 }
 
+function createClientRequestId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID();
+    }
+    return 'lockout-' + Date.now().toString(36) + '-' +
+        Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+}
+
 async function requestWithSafeRetry(action, params, isRead) {
     const firstRequest = rawApiRequest(action, params, isRead);
     let data;
-    if (isRead && HEDGED_READ_ACTIONS.has(action)) {
+    const shouldHedge = (isRead && HEDGED_READ_ACTIONS.has(action)) ||
+        (!isRead && HEDGED_SAFE_POST_ACTIONS.has(action));
+    if (shouldHedge) {
         let hedgeTimer = null;
         const firstResult = firstRequest.then(function(value) {
             return { source: 'first', data: value };
@@ -776,14 +792,17 @@ async function requestWithSafeRetry(action, params, isRead) {
             hedgeTimer = setTimeout(function() {
                 hedgeTimer = null;
                 resolve({ source: 'hedge' });
-            }, READ_HEDGE_DELAY_MS);
+            }, isRead ? READ_HEDGE_DELAY_MS : SAFE_POST_HEDGE_DELAY_MS);
         });
         const gateResult = await Promise.race([firstResult, hedgeGate]);
         if (gateResult.source === 'first') {
             if (hedgeTimer) clearTimeout(hedgeTimer);
             data = gateResult.data;
         } else {
-            const hedgeRequest = rawApiRequest(action, params, true);
+            const hedgeParams = !isRead
+                ? Object.assign({}, params, { client_retry: '1' })
+                : params;
+            const hedgeRequest = rawApiRequest(action, hedgeParams, isRead);
             const winner = await Promise.race([
                 firstResult,
                 hedgeRequest.then(function(value) {
@@ -798,7 +817,10 @@ async function requestWithSafeRetry(action, params, isRead) {
     }
     if (!isTransientApiFailure(data) || (!isRead && !SAFE_POST_RETRY_ACTIONS.has(action))) return data;
     await waitForRetry(350);
-    data = await rawApiRequest(action, params, isRead);
+    const retryParams = !isRead
+        ? Object.assign({}, params, { client_retry: '1' })
+        : params;
+    data = await rawApiRequest(action, retryParams, isRead);
     return data;
 }
 
@@ -814,6 +836,9 @@ async function apiCall(action, params, options) {
     params = Object.assign({}, params || {});
     options = options || {};
     const isRead = READ_ACTIONS.has(action);
+    if (!isRead && SAFE_POST_RETRY_ACTIONS.has(action) && !params.client_request_id) {
+        params.client_request_id = createClientRequestId();
+    }
     if (isRead) {
         const ttl = Number(READ_CACHE_TTL[action] || 0);
         const cacheKey = apiCacheKey(action, params);
@@ -950,7 +975,36 @@ function applyBootstrapData(data, storedAt) {
         eloHistoryAllCachedAt = Number(storedAt || Date.now());
     }
     primeBootstrapReadCaches(data, storedAt);
+    refreshVisiblePlayerViewsFromCurrentData();
     return true;
+}
+
+function reconcileProfileWithCurrentRating(data) {
+    if (!data || !data.player || !data.elo || !data.stats) return data;
+    const current = eloCache.find(function(entry) {
+        return String(entry.player_id) === String(data.player.player_id);
+    });
+    if (!current) return data;
+    data.elo.current = Number(current.rating);
+    data.elo.change = Number(current.change || 0);
+    data.elo.provisional = Boolean(current.provisional);
+    if (Number.isFinite(Number(current.hands_played))) {
+        data.stats.hands_played = Number(current.hands_played);
+    }
+    return data;
+}
+
+function refreshVisiblePlayerViewsFromCurrentData() {
+    const playersScreen = document.getElementById('playersScreen');
+    if (playersScreen && playersScreen.classList.contains('active') && allPlayers.length && eloCache.length) {
+        const directory = document.getElementById('playersScreenContent');
+        if (directory) renderPlayersDirectory(directory);
+    }
+    const profileScreen = document.getElementById('playerProfileScreen');
+    if (profileScreen && profileScreen.classList.contains('active') && _currentProfileData) {
+        reconcileProfileWithCurrentRating(_currentProfileData);
+        renderPlayerProfile(_currentProfileData);
+    }
 }
 
 function applySessionHistoryBundle(data, storedAt) {
@@ -1021,6 +1075,7 @@ function loadStoredPlayerProfile(playerId) {
         if (!raw) return null;
         const stored = JSON.parse(raw);
         if (!stored || !stored.data || !Number(stored.stored_at)) return null;
+        if (Number(stored.snapshot_schema || 0) !== PROFILE_SNAPSHOT_SCHEMA_VERSION) return null;
         if (Date.now() - Number(stored.stored_at) > PROFILE_SNAPSHOT_MAX_AGE_MS) return null;
         return stored;
     } catch (error) {
@@ -1032,6 +1087,7 @@ function saveStoredPlayerProfile(playerId, data) {
     try {
         const id = String(playerId);
         localStorage.setItem(PROFILE_SNAPSHOT_PREFIX + id, JSON.stringify({
+            snapshot_schema: PROFILE_SNAPSHOT_SCHEMA_VERSION,
             stored_at: Date.now(),
             data: data
         }));
@@ -2025,6 +2081,11 @@ function showScreen(screenId, skipHistory, requestedIntentId) {
         : beginNavigationIntent();
     if (!isCurrentNavigationIntent(intentId)) return false;
 
+    if (screenId !== 'activeSessionScreen' && activeSessionRefreshTimer) {
+        clearTimeout(activeSessionRefreshTimer);
+        activeSessionRefreshTimer = null;
+    }
+
     const screens = document.querySelectorAll('.screen');
     const currentScreen = document.querySelector('.screen.active');
     if (currentScreen) {
@@ -2542,12 +2603,11 @@ async function resumeSession(sessionId, buttonElement, requestedIntentId) {
         revision: Number(sessionData.revision || 1)
     };
     currentHandNumber = handsData.length === 0 ? 1 : Math.max(...handsData.map(h => h.hand_number)) + 1;
-    showActiveSession(intentId);
-    updateSessionScores();
+    showActiveSession(intentId, handsData);
     if (buttonElement) setButtonLoading(buttonElement, false);
 }
 
-function showActiveSession(requestedIntentId) {
+function showActiveSession(requestedIntentId, prefetchedHands) {
     document.getElementById('activeSessionTitle').textContent = currentSession.title;
     let playerNames = sessionPlayers.map(p => {
         const joinHand = getPlayerJoinHand(p.player_id);
@@ -2569,8 +2629,97 @@ function showActiveSession(requestedIntentId) {
     document.getElementById('handHistorySection').style.display = 'none';
     document.getElementById('activeSessionCharts').innerHTML = '';
     document.getElementById('activeHandHistoryBottom').innerHTML = '';
-    updateSessionScores();
+    updateSessionScores(prefetchedHands);
     showScreen('activeSessionScreen', false, requestedIntentId);
+    scheduleActiveSessionRefresh();
+}
+
+function hasUnsavedHandInput() {
+    const scoreInputs = document.querySelectorAll('#handScoreInputs input[type="number"]');
+    for (let i = 0; i < scoreInputs.length; i++) {
+        if (String(scoreInputs[i].value || '').trim() !== '') return true;
+    }
+    const lockout = document.querySelector('input[name="lockout_player"]:checked');
+    const comment = document.getElementById('handComment');
+    return Boolean(lockout || (comment && String(comment.value || '').trim()));
+}
+
+async function refreshActiveSessionData() {
+    const screen = document.getElementById('activeSessionScreen');
+    if (!currentSession || !screen || !screen.classList.contains('active')) return false;
+    if (activeSessionRefreshPromise) return activeSessionRefreshPromise;
+    const sessionId = currentSession.session_id;
+    activeSessionRefreshPromise = (async function() {
+        const state = await apiCall(
+            'getSessionState',
+            { session_id: sessionId },
+            { forceRefresh: true }
+        );
+        if (!state || state.error || !state.session || !Array.isArray(state.hands)) return false;
+        if (!currentSession || String(currentSession.session_id) !== String(sessionId)) return false;
+        const nextHand = state.hands.length
+            ? Math.max.apply(null, state.hands.map(function(hand) { return Number(hand.hand_number); })) + 1
+            : 1;
+        if (nextHand !== currentHandNumber && hasUnsavedHandInput()) {
+            showStatusToast('This game changed on another device. Refresh before submitting this hand.');
+            return false;
+        }
+        if (Array.isArray(state.players)) applyPlayersData(state.players, Date.now());
+        currentSession.revision = Number(state.session.revision || currentSession.revision || 1);
+        currentSession.players_involved = state.session.players_involved;
+        currentSession.player_join_info = state.session.player_join_info || '{}';
+        currentSession.notes = state.session.notes || '';
+        currentSession.tags = state.session.tags || '';
+        currentSession.photo_url = state.session.photo_url || '';
+        const playerIds = String(state.session.players_involved || '').split(',');
+        sessionPlayers = playerIds.map(function(playerId) {
+            return allPlayers.find(function(player) {
+                return String(player.player_id) === String(playerId).trim();
+            });
+        }).filter(Boolean);
+        if (nextHand !== currentHandNumber) {
+            currentHandNumber = nextHand;
+            setupHandInputs();
+            showStatusToast('Game updated with the latest hand');
+        }
+        await updateSessionScores(state.hands, { silent: true });
+        return true;
+    })().finally(function() {
+        activeSessionRefreshPromise = null;
+        scheduleActiveSessionRefresh();
+    });
+    return activeSessionRefreshPromise;
+}
+
+function scheduleActiveSessionRefresh() {
+    if (activeSessionRefreshTimer) clearTimeout(activeSessionRefreshTimer);
+    if (!currentSession) return;
+    activeSessionRefreshTimer = setTimeout(function() {
+        activeSessionRefreshTimer = null;
+        refreshActiveSessionData();
+    }, ACTIVE_SESSION_REFRESH_MS);
+}
+
+function refreshVisibleLiveData() {
+    if (document.visibilityState && document.visibilityState !== 'visible') return;
+    const active = document.querySelector('.screen.active');
+    if (!active) return;
+    if (active.id === 'activeSessionScreen') refreshActiveSessionData();
+    else if (active.id === 'homeScreen') refreshHomeDashboardInBackground();
+    else if (active.id === 'playersScreen') loadPlayersScreen(getNavigationIntent());
+    else if (active.id === 'playerProfileScreen' && _currentProfileId) {
+        const playerId = _currentProfileId;
+        apiCall('getPlayerProfile', { player_id: playerId }, { forceRefresh: true })
+            .then(function(data) {
+                const profileScreen = document.getElementById('playerProfileScreen');
+                if (!data.error && profileScreen && profileScreen.classList.contains('active') &&
+                    String(_currentProfileId) === String(playerId)) {
+                    saveStoredPlayerProfile(playerId, data);
+                    _currentProfileData = reconcileProfileWithCurrentRating(data);
+                    renderPlayerProfile(_currentProfileData);
+                }
+            });
+    }
 }
 
 function displaySessionMetadata(containerId) {
@@ -2805,11 +2954,11 @@ async function submitHand(event) {
         hapticFeedback('error');
         setButtonLoading(submitBtn, false);
     } else {
-        currentHandNumber++;
+        currentHandNumber = Number(data.hand_number || currentHandNumber) + 1;
         hapticFeedback('success');
         showStatusToast('Hand saved');
         setupHandInputs();
-        updateSessionScores();
+        await updateSessionScores(Array.isArray(data.hands) ? data.hands : null, { silent: true });
         setButtonLoading(submitBtn, false);
     }
 }
@@ -3037,7 +3186,9 @@ async function deleteHand(handNumber, event) {
 // ============================================
 // ACTIVE SESSION SCORING & CHARTS
 // ============================================
-async function updateSessionScores() {
+async function updateSessionScores(prefetchedHands, options) {
+    options = options || {};
+    if (!options.silent) {
     document.getElementById('sessionScores').innerHTML =
         '<div class="skeleton-card">' +
             '<h3 class="section-heading-blue mb-15">Calculating scores...</h3>' +
@@ -3056,8 +3207,14 @@ document.getElementById('activeHandHistoryBottom').innerHTML =
         '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:40px;"></div>' +
         '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:40px;"></div>' +
     '</div>';
+    }
 
-    const handsData = await apiCall('getHands', { session_id: currentSession.session_id });
+    const handsData = Array.isArray(prefetchedHands)
+        ? prefetchedHands
+        : await apiCall('getHands', { session_id: currentSession.session_id });
+    if (Array.isArray(prefetchedHands)) {
+        storeReadResponse('getHands', { session_id: currentSession.session_id }, prefetchedHands, Date.now());
+    }
     if (handsData.error) {
         document.getElementById('sessionScores').innerHTML = loadErrorHtml(
             handsData,
@@ -4185,7 +4342,7 @@ async function viewSessionDetailFromComparison(sessionId, buttonElement) {
 // INITIALIZATION
 // ============================================
 window.addEventListener('DOMContentLoaded', function() {
-    console.log('Lockout Tracker ' + (window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || 'v2.1'));
+    console.log('Lockout Tracker ' + (window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || 'v2.1.1'));
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     window.scrollTo(0, 0);
     updateEditingStatus();
@@ -4234,6 +4391,11 @@ window.addEventListener('popstate', function(event) {
     } else {
         showScreen('homeScreen', true);
     }
+});
+
+window.addEventListener('focus', refreshVisibleLiveData);
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') refreshVisibleLiveData();
 });
 
 document.addEventListener('keydown', function(event) {
@@ -4553,6 +4715,11 @@ async function submitPinEntry() {
 let _currentProfileId = null;
 let _currentProfileData = null;
 
+function returnToPlayersFromProfile() {
+    const intentId = showScreen('playersScreen');
+    loadPlayersScreen(intentId);
+}
+
 function makePlayerLink(playerId, displayName, beforeNavigation, extraClass) {
     if (playerId === null || playerId === undefined || String(playerId) === '') return displayName;
     const className = 'player-link' + (extraClass ? ' ' + extraClass : '');
@@ -4600,10 +4767,15 @@ async function loadPlayersScreen(requestedIntentId) {
         renderPlayersDirectory(contentDiv);
         setTimeout(function() {
             if (!isCurrentNavigationIntent(intentId)) return;
-            Promise.all([ensurePlayersLoaded(), loadEloRatings()]).then(function() {
+            Promise.all([
+                apiCall('getPlayers', {}, { forceRefresh: true }),
+                apiCall('getEloRatings', {}, { forceRefresh: true })
+            ]).then(function(results) {
+                if (!results[0].error) applyPlayersData(results[0], Date.now());
+                if (!results[1].error) eloCache = results[1];
                 if (isCurrentNavigationIntent(intentId)) renderPlayersDirectory(contentDiv);
             });
-        }, 5000);
+        }, 250);
         return true;
     }
     await ensurePlayersLoaded();
@@ -4647,8 +4819,8 @@ async function showPlayerProfile(playerId, requestedIntentId) {
     const contentDiv = document.getElementById('playerProfileContent');
     const storedProfile = loadStoredPlayerProfile(playerId);
     if (storedProfile) {
-        _currentProfileData = storedProfile.data;
-        renderPlayerProfile(storedProfile.data);
+        _currentProfileData = reconcileProfileWithCurrentRating(storedProfile.data);
+        renderPlayerProfile(_currentProfileData);
         if (Date.now() - Number(storedProfile.stored_at) < PROFILE_BACKGROUND_REFRESH_MS) return;
     } else {
         contentDiv.innerHTML =
@@ -5095,9 +5267,6 @@ async function viewSessionFromProfile(sessionId) {
     if (!isCurrentNavigationIntent(intentId)) return;
     const sessionIndex = allSessions.findIndex(s => String(s.session_id) === String(sessionId));
     if (sessionIndex !== -1) {
-        document.getElementById('profileBackBtn').onclick = function() {
-            showScreen('playerProfileScreen');
-        };
         viewSessionDetail(sessionIndex, null, intentId);
     }
 }
@@ -5123,9 +5292,6 @@ async function viewSessionFromProfileWithLoading(rowElement, sessionId) {
     const sessionIndex = allSessions.findIndex(s => String(s.session_id) === String(sessionId));
 
     if (sessionIndex !== -1) {
-        document.getElementById('profileBackBtn').onclick = function() {
-            showScreen('playerProfileScreen');
-        };
         viewSessionDetail(sessionIndex, null, intentId);
     } else {
         // Restore all rows if not found
