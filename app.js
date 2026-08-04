@@ -1269,23 +1269,26 @@ function buildHistoricalEloStatusMap(sessionsWithHands, eloHistory) {
     for (let i = 0; i < sessionOrder.length; i++) {
         const sessionId = sessionOrder[i];
         const entries = historyBySession[sessionId];
+        const item = sessionsById[sessionId];
+        const handNumbersByPlayer = {};
+        if (item && Array.isArray(item.hands)) {
+            for (let j = 0; j < item.hands.length; j++) {
+                const hand = item.hands[j];
+                const playerId = String(hand.player_id);
+                if (!handNumbersByPlayer[playerId]) handNumbersByPlayer[playerId] = new Set();
+                handNumbersByPlayer[playerId].add(String(hand.hand_number));
+            }
+        }
         for (let j = 0; j < entries.length; j++) {
             const playerId = String(entries[j].player_id);
             const handsBefore = priorRatedHands[playerId] || 0;
+            const handsAfter = handsBefore +
+                (handNumbersByPlayer[playerId] ? handNumbersByPlayer[playerId].size : 0);
             statusMap[sessionId + '_' + playerId] = {
-                provisional: handsBefore < PROVISIONAL_HANDS,
-                hands_before: handsBefore
+                provisional: handsAfter < PROVISIONAL_HANDS,
+                hands_before: handsBefore,
+                hands_after: handsAfter
             };
-        }
-
-        const item = sessionsById[sessionId];
-        if (!item || !Array.isArray(item.hands)) continue;
-        const handNumbersByPlayer = {};
-        for (let j = 0; j < item.hands.length; j++) {
-            const hand = item.hands[j];
-            const playerId = String(hand.player_id);
-            if (!handNumbersByPlayer[playerId]) handNumbersByPlayer[playerId] = new Set();
-            handNumbersByPlayer[playerId].add(String(hand.hand_number));
         }
         Object.keys(handNumbersByPlayer).forEach(function(playerId) {
             priorRatedHands[playerId] = (priorRatedHands[playerId] || 0) + handNumbersByPlayer[playerId].size;
@@ -1313,11 +1316,13 @@ function buildPlayerHistoricalEloStatusMap(playerId, recentSessions, eloHistory)
         const entry = sortedHistory[i];
         if (String(entry.player_id) !== String(playerId)) continue;
         const sessionId = String(entry.session_id);
+        const handsAfter = priorRatedHands + (handCountBySession[sessionId] || 0);
         statusMap[sessionId + '_' + String(playerId)] = {
-            provisional: priorRatedHands < PROVISIONAL_HANDS,
-            hands_before: priorRatedHands
+            provisional: handsAfter < PROVISIONAL_HANDS,
+            hands_before: priorRatedHands,
+            hands_after: handsAfter
         };
-        priorRatedHands += handCountBySession[sessionId] || 0;
+        priorRatedHands = handsAfter;
     }
     return statusMap;
 }
