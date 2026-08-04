@@ -32,7 +32,6 @@ const PROFILE_SNAPSHOT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const PROFILE_BACKGROUND_REFRESH_MS = 2 * 60 * 1000;
 const PLAYERS_BACKGROUND_REFRESH_MS = 2 * 60 * 1000;
 const HOME_BACKGROUND_REFRESH_MS = 30000;
-const READ_REQUEST_TIMEOUT_MS = 12000;
 const WRITE_REQUEST_TIMEOUT_MS = 35000;
 const CLOSE_SESSION_TIMEOUT_MS = 60000;
 const ACTIVE_SESSION_REFRESH_MS = 30000;
@@ -690,10 +689,10 @@ function apiErrorMessage(data, fallback) {
         return 'This game changed on another device. Nothing was saved. Refresh the session before trying again.';
     }
     if (data.code === 'NETWORK_TIMEOUT') {
-        return 'The request took too long. Nothing was saved. Check your connection and try again.';
+        return 'The request took too long. Check your connection and try again.';
     }
     if (data.code === 'NETWORK_ERROR') {
-        return 'The app could not reach the server. Nothing was saved. Check your connection and try again.';
+        return 'The app could not reach the server. Check your connection and try again.';
     }
     if (data.code === 'READ_ONLY') {
         return 'This page is using an older cached app file. Refresh the page, then try again.';
@@ -731,16 +730,19 @@ async function rawApiRequest(action, params, isRead) {
         return { error: 'The app backend has not been connected yet.', code: 'APP_NOT_CONFIGURED' };
     }
     const startedAt = Date.now();
-    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const requestTimeoutMs = isRead
-        ? READ_REQUEST_TIMEOUT_MS
+        ? 0
         : (action === 'closeSession' ? CLOSE_SESSION_TIMEOUT_MS : WRITE_REQUEST_TIMEOUT_MS);
+    const controller = requestTimeoutMs > 0 && typeof AbortController !== 'undefined'
+        ? new AbortController()
+        : null;
     const timeoutId = controller ? setTimeout(function() { controller.abort(); }, requestTimeoutMs) : null;
     try {
         let response;
         if (isRead) {
             const url = new URL(API_URL);
             url.searchParams.append('action', action);
+            url.searchParams.append('_', createClientRequestId());
             for (const key in params) {
                 if (params[key] !== undefined && params[key] !== null) url.searchParams.append(key, params[key]);
             }
@@ -802,9 +804,9 @@ function createClientRequestId() {
         Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 }
 
-async function requestWithSafeRetry(action, params, isRead, allowRetry) {
+async function requestWithSafeWriteRetry(action, params, isRead) {
     let data = await rawApiRequest(action, params, isRead);
-    const canRetry = allowRetry !== false && (isRead || SAFE_POST_RETRY_ACTIONS.has(action));
+    const canRetry = !isRead && SAFE_POST_RETRY_ACTIONS.has(action);
     if (!isTransientApiFailure(data) || !canRetry) return data;
     await waitForRetry(350);
     const retryParams = !isRead
@@ -837,7 +839,7 @@ async function apiCall(action, params, options) {
         if (!options.forceRefresh && ttl > 0 && cached && Date.now() - cached.storedAt < ttl) return cached.data;
         if (readRequestInFlight.has(requestKey)) return readRequestInFlight.get(requestKey);
         const cacheGeneration = readCacheGeneration;
-        const request = requestWithSafeRetry(action, params, true, options.retry !== false)
+        const request = requestWithSafeWriteRetry(action, params, true)
             .then(function(data) {
                 if (ttl > 0 && data && !data.error && cacheGeneration === readCacheGeneration) {
                     readResponseCache.set(cacheKey, { data: data, storedAt: Date.now() });
@@ -864,7 +866,7 @@ async function apiCall(action, params, options) {
                 : Number(params.revision || 1);
         }
     }
-    const data = await requestWithSafeRetry(action, params, isRead, options.retry !== false);
+    const data = await requestWithSafeWriteRetry(action, params, isRead);
     if (data && (data.code === 'AUTH_EXPIRED' || data.code === 'AUTH_REQUIRED') &&
         !UNAUTHENTICATED_WRITE_ACTIONS.has(action)) signOutPlayer();
     if (data && data.revision && currentSession && String(currentSession.session_id) === String(params.session_id)) {
@@ -1095,10 +1097,9 @@ async function renderHomeData(data) {
     ]);
 }
 
-async function refreshHomeDashboardFromServer(options) {
+async function refreshHomeDashboardFromServer() {
     const requestedGeneration = readCacheGeneration;
-    const requestOptions = Object.assign({ forceRefresh: true }, options || {});
-    const data = await apiCall('getHomeData', {}, requestOptions);
+    const data = await apiCall('getHomeData', {}, { forceRefresh: true });
     if (data.error) return false;
     if (requestedGeneration !== readCacheGeneration) return true;
     applyHomeData(data, Date.now());
@@ -1109,7 +1110,7 @@ async function refreshHomeDashboardFromServer(options) {
 
 function refreshHomeDashboardInBackground() {
     if (homeDashboardRefreshPromise) return homeDashboardRefreshPromise;
-    homeDashboardRefreshPromise = refreshHomeDashboardFromServer({ retry: false })
+    homeDashboardRefreshPromise = refreshHomeDashboardFromServer()
         .catch(function(error) {
             console.warn('Background dashboard refresh failed:', error && error.message || error);
             return false;
@@ -2625,7 +2626,7 @@ async function refreshActiveSessionData() {
         const state = await apiCall(
             'getSessionState',
             { session_id: sessionId },
-            { forceRefresh: true, retry: false }
+            { forceRefresh: true }
         );
         if (!state || state.error || !state.session || !Array.isArray(state.hands)) return false;
         if (!currentSession || String(currentSession.session_id) !== String(sessionId)) return false;
@@ -2689,7 +2690,7 @@ function refreshVisibleLiveData() {
     else if (active.id === 'playerProfileScreen' && _currentProfileId) {
         if (Date.now() - _currentProfileLoadedAt < PROFILE_BACKGROUND_REFRESH_MS) return;
         const playerId = _currentProfileId;
-        apiCall('getPlayerProfile', { player_id: playerId }, { forceRefresh: true, retry: false })
+        apiCall('getPlayerProfile', { player_id: playerId }, { forceRefresh: true })
             .then(function(data) {
                 const profileScreen = document.getElementById('playerProfileScreen');
                 if (!data.error && profileScreen && profileScreen.classList.contains('active') &&
@@ -4824,7 +4825,7 @@ async function showPlayerProfile(playerId, requestedIntentId) {
     const data = await apiCall(
         'getPlayerProfile',
         { player_id: playerId },
-        { forceRefresh: Boolean(storedProfile), retry: !storedProfile }
+        { forceRefresh: Boolean(storedProfile) }
     );
     if (!data.error) saveStoredPlayerProfile(playerId, data);
     if (!isCurrentNavigationIntent(intentId)) return;
