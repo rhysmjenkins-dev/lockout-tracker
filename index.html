@@ -7,7 +7,7 @@
         // changes to app.js or styles.css
         // ============================================
         const APP_VERSION = '2.1.1';
-        const ASSET_VERSION = APP_VERSION + '-reliability-3';
+        const ASSET_VERSION = APP_VERSION + '-reliability-4';
         document.write('<link rel="stylesheet" href="styles.css?v=' + ASSET_VERSION + '">');
     </script>
     <meta charset="UTF-8">
@@ -196,7 +196,7 @@
                             <div class="content-card-sm" id="glossaryProfilePin"><h4 class="heading-blue-sm">Player PIN</h4><p class="p-muted">A personal four-digit PIN used to sign in. Signed-in friends can score games, while each player can edit only their own profile.</p></div>
                             <div class="content-card-sm" id="glossaryEditHistory"><h4 class="heading-blue-sm">Edit History</h4><p class="p-muted">A log of all changes made to sessions and hands, tracking who edited what and when.</p></div>
                             <div class="content-card-sm" id="glossaryEloRating"><h4 class="heading-blue-sm">ELO Rating</h4><p class="p-muted">A number representing a player's skill level. All players start at 1000. Goes up when you finish higher than expected, down when you finish lower. Visible on the home screen and stats page.</p></div>
-                            <div class="content-card-sm" id="glossaryProvisionalRating"><h4 class="heading-blue-sm">Provisional Rating (?)</h4><p class="p-muted">A rating marked with ? meaning the player has played fewer than 50 hands. Provisional ratings move faster to help find your true level quickly. Once you hit 50 hands the ? disappears and your rating stabilises.</p></div>
+                            <div class="content-card-sm" id="glossaryProvisionalRating"><h4 class="heading-blue-sm">Provisional and Established Ratings</h4><p class="p-muted">A provisional rating is marked with ? while a player has played fewer than 50 hands. Provisional ratings move faster to help find your true level quickly. Once you hit 50 hands, you become established: the ? disappears and your rating stabilises.</p></div>
                             <div class="content-card-sm" id="kFactorEntry"><h4 class="heading-blue-sm">K-Factor</h4><p class="p-muted">Controls how much your ELO changes per session. Provisional players use K=40 (bigger swings), established players use K=24 (more stable). Named after the chess rating system it's borrowed from.</p></div>
                             <div class="content-card-sm" id="glossaryRankBasedElo"><h4 class="heading-blue-sm">Rank-Based ELO</h4><p class="p-muted">ELO calculated from finishing position (1st, 2nd, 3rd etc.) rather than raw score. It handles any number of players; provisional K-factors and whole-number rounding mean a session's displayed changes may not add up to exactly zero.</p></div>
                         </div>
@@ -531,7 +531,7 @@
                                 <li>New players show a <strong>?</strong> next to their rating (e.g. <strong>1045?</strong>)</li>
                                 <li>Provisional = under 50 hands played</li>
                                 <li>Provisional ratings move faster (K=40) to find your true level quickly — <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'kFactorEntry'); return false;">what is K-Factor?</a></li>
-                                <li>Once you hit 50 hands the ? disappears and rating stabilises (K=24)</li>
+                                <li>Once you hit 50 hands, you become <strong>established</strong>: the ? disappears and your rating stabilises (K=24)</li>
                                 <li>The 50-hand threshold is checked at the <strong>start of each session</strong> — K won't switch mid-session</li>
                             </ul>
                         </div>

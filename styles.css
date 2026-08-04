@@ -705,6 +705,7 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
     display: inline-block; background: var(--success); color: var(--white);
     padding: 1px 6px; border-radius: 6px; font-size: 0.7em;
     font-weight: 600; margin-left: 5px; vertical-align: middle;
+    text-decoration: none; cursor: pointer;
 }
 .elo-history-section { margin-top: 20px; }
 .stats-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }

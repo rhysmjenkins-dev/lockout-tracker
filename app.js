@@ -1346,7 +1346,7 @@ function becameEstablishedInSession(sessionId, playerId, statusMap) {
 
 function formatEstablishedThisGameBadge(sessionId, playerId, statusMap) {
     return becameEstablishedInSession(sessionId, playerId, statusMap)
-        ? ' <span class="elo-established-badge">Established this game</span>'
+        ? ' <a href="#" class="elo-established-badge" onclick="event.stopPropagation(); showScreen(\'dictionaryScreen\'); showDictionarySection(\'glossary\', \'glossaryProvisionalRating\'); return false;">Established this game</a>'
         : '';
 }
 
@@ -3597,7 +3597,8 @@ html += '<span>' + escapeAttr(session.title) + '</span>';
                 return makePlayerLink(playerId, getPlayerName(playerId), 'event.stopPropagation();');
             }).join(' & ');
             html += '<div style="margin-top:2px;">' + establishedNames +
-                ' <span class="elo-established-badge">Established this game</span></div>';
+                formatEstablishedThisGameBadge(session.session_id, establishedPlayerIds[0], historicalEloStatusMap) +
+                '</div>';
         }
 
         if (session.tags && session.tags !== '') {
