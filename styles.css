@@ -764,6 +764,10 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
 .elo-history-section { margin-top: 20px; }
 .stats-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
 .stats-nav .btn { flex: 1 1 145px; margin: 0; }
+.stats-nav .btn.is-active {
+    filter: brightness(0.88);
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.9), 0 2px 8px rgba(48,55,105,0.22);
+}
 .elo-dropdown-header {
     display: flex; justify-content: space-between; align-items: center;
     cursor: pointer; padding: 5px 0 12px 0;

@@ -7,7 +7,7 @@
         // changes to app.js or styles.css
         // ============================================
         const APP_VERSION = '2.1.4';
-        const ASSET_VERSION = APP_VERSION + '-reliable-reads-1';
+        const ASSET_VERSION = APP_VERSION + '-navigation-audit-1';
         document.write('<link rel="stylesheet" href="styles.css?v=' + ASSET_VERSION + '">');
         document.write('<link rel="preload" href="config.js?v=' + APP_VERSION + '" as="script">');
         document.write('<link rel="preload" href="app.js?v=' + ASSET_VERSION + '" as="script">');
@@ -68,7 +68,7 @@
                 </fieldset>
                 <p class="text-muted text-sm">If it is yours, you will next choose a four-digit PIN, then be prompted for an optional bio and picture. If it belongs to someone else, they can choose their PIN when they first sign in.</p>
                 <button class="btn btn-success" onclick="addPlayer(event)">Add Player</button>
-                <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back</button>
+                <button class="btn btn-secondary" onclick="returnToPreviousScreen('homeScreen')">Back</button>
                 <div id="addPlayerMessage" role="status" aria-live="polite"></div>
             </div>
         </div>
@@ -209,7 +209,7 @@
                     </div>
                 </div>
 
-                <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
+                <button class="btn btn-secondary" onclick="returnToHome()">Back to Home</button>
             </div>
         </div>
 
@@ -572,7 +572,7 @@
                     </div>
 
                 </div>
-                <button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
+                <button class="btn btn-secondary mt-20" onclick="returnToHome()">Back to Home</button>
             </div>
         </div>
 
@@ -823,7 +823,7 @@
                     <div class="closing-banner">Good luck, and may the lowest score win! 🎴</div>
 
                 </div>
-                <button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
+                <button class="btn btn-secondary mt-20" onclick="returnToHome()">Back to Home</button>
             </div>
         </div>
 
@@ -832,7 +832,7 @@
             <div class="card">
                 <h2>👤 Players</h2>
                 <div id="playersScreenContent" class="loading">Loading players...</div>
-                <button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
+                <button class="btn btn-secondary mt-20" onclick="returnToHome()">Back to Home</button>
             </div>
         </div>
 
@@ -840,7 +840,7 @@
         <div id="playerProfileScreen" class="screen">
             <div class="card">
                 <div id="playerProfileContent"></div>
-                <button class="btn btn-secondary mt-20" id="profileBackBtn" onclick="returnToPlayersFromProfile()">← Back to Players</button>
+                <button class="btn btn-secondary mt-20" id="profileBackBtn" onclick="returnFromPlayerProfile()">← Back to Players</button>
             </div>
         </div>
 
@@ -849,7 +849,7 @@
             <div class="card">
                 <h2>Previous Sessions</h2>
                 <div id="previousSessionsContent" class="loading">Loading...</div>
-                <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
+                <button class="btn btn-secondary" onclick="returnToHome()">Back to Home</button>
             </div>
         </div>
 
@@ -861,7 +861,7 @@
                 <div id="podcastsContent">
                     <div class="loading">Loading episodes...</div>
                 </div>
-                <button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
+                <button class="btn btn-secondary mt-20" onclick="returnToHome()">Back to Home</button>
             </div>
         </div>
 
@@ -874,7 +874,7 @@
                 <div id="sessionDetailContent"></div>
                 <div id="sessionDetailGraphs"></div>
                 <div id="sessionDetailHandHistory"></div>
-                <button class="btn btn-secondary" onclick="showScreen('previousSessionsScreen'); loadPreviousSessions();">Back to Sessions</button>
+                <button class="btn btn-secondary" id="sessionDetailBackBtn" onclick="returnToPreviousScreen('previousSessionsScreen')">← Back to Sessions</button>
             </div>
         </div>
 
@@ -883,13 +883,13 @@
             <div class="card">
                 <h2>📊 Statistics</h2>
                 <div id="statsNav" class="stats-nav">
-                    <button class="btn btn-small btn-info" onclick="showOverallStats()">Overall Stats</button>
-                    <button class="btn btn-small btn-info" onclick="showHeadToHeadList()">Head-to-Head Records</button>
-                    <button class="btn btn-small btn-info" onclick="showPlayerComparisonUI()">Detailed Comparison</button>
-                    <button class="btn btn-small btn-success" onclick="showEloStats()">⚡ ELO Rankings</button>
+                    <button class="btn btn-small btn-info" data-stats-view="overall" onclick="showOverallStats()">Overall Stats</button>
+                    <button class="btn btn-small btn-info" data-stats-view="head-to-head" onclick="showHeadToHeadList()">Head-to-Head Records</button>
+                    <button class="btn btn-small btn-info" data-stats-view="compare" onclick="showPlayerComparisonUI()">Detailed Comparison</button>
+                    <button class="btn btn-small btn-success" data-stats-view="elo" onclick="showEloStats()">⚡ ELO Rankings</button>
                 </div>
                 <div id="statsContent">Loading...</div>
-                <button class="btn btn-secondary mt-20" onclick="showScreen('homeScreen')">Back to Home</button>
+                <button class="btn btn-secondary mt-20" onclick="returnToHome()">Back to Home</button>
             </div>
         </div>
 
@@ -923,7 +923,7 @@
                 <label>Session Photo (Optional)</label>
                 <div id="createSessionPhotoUpload"></div>
                 <button class="btn btn-success" onclick="createSession(event)">Start Session</button>
-                <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Cancel</button>
+                <button class="btn btn-secondary" onclick="returnToPreviousScreen('homeScreen')">Cancel</button>
                 <div id="sessionMessage" role="status" aria-live="polite"></div>
             </div>
         </div>
@@ -956,7 +956,7 @@
                 <div class="nav-buttons">
                     <button class="btn btn-info btn-small" onclick="showAddPlayerModal()">➕ Add Player</button>
                     <button class="btn btn-warning btn-small" onclick="showEditSessionModal()">✏️ Edit Session</button>
-                    <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Back to Home</button>
+                    <button class="btn btn-secondary" onclick="returnToHome()">Back to Home</button>
                     <button class="btn btn-danger" onclick="endSession(event)">End Session</button>
                 </div>
             </div>

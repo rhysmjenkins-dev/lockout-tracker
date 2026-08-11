@@ -960,7 +960,7 @@ async function requestWithSafeRetry(action, params, isRead, bypassHttpCache) {
     let data = await rawApiRequest(action, params, isRead, bypassHttpCache);
     const canRetry = isRead || SAFE_POST_RETRY_ACTIONS.has(action);
     if (!isTransientApiFailure(data) || !canRetry) return data;
-    await waitForRetry(350);
+    await waitForRetry(isRead ? 1200 : 350);
     const retryParams = !isRead
         ? Object.assign({}, params, { client_retry: '1' })
         : params;
@@ -1579,6 +1579,7 @@ function toggleEloDropdown() {
 
 async function showEloStats(requestedIntentId, options) {
     options = options || {};
+    setActiveStatsView('elo');
     saveRefreshRoute('statsScreen', { view: 'elo' });
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
@@ -2338,6 +2339,82 @@ function storedRefreshRouteForScreen(screen) {
     }
 }
 
+function appHistoryDepth() {
+    const depth = Number(history.state && history.state.lockoutDepth);
+    return Number.isFinite(depth) && depth > 0 ? depth : 0;
+}
+
+function replaceWithScreen(screenId, params, requestedIntentId) {
+    const route = safeRefreshRoute(screenId, params || {});
+    const intentId = typeof requestedIntentId === 'number'
+        ? requestedIntentId
+        : beginNavigationIntent();
+    history.replaceState({
+        screen: route.screen,
+        routeParams: route.params,
+        previousScreen: '',
+        lockoutDepth: 0,
+        lockoutRootScreen: route.screen
+    }, '', '#' + route.screen);
+    saveRefreshRoute(route.screen, route.params);
+    showScreen(route.screen, true, intentId);
+    if (route.screen !== 'homeScreen') loadRestoredScreen(route.screen, intentId, route.params);
+    return intentId;
+}
+
+function returnToPreviousScreen(fallbackScreen) {
+    if (appHistoryDepth() > 0) {
+        beginNavigationIntent();
+        history.back();
+        return;
+    }
+    replaceWithScreen(fallbackScreen || 'homeScreen', {});
+}
+
+function returnToHome() {
+    const state = history.state || {};
+    const depth = appHistoryDepth();
+    if (depth > 0 && state.lockoutRootScreen === 'homeScreen') {
+        beginNavigationIntent();
+        history.go(-depth);
+        return;
+    }
+    replaceWithScreen('homeScreen', {});
+}
+
+function navigationScreenLabel(screenId) {
+    const labels = {
+        homeScreen: 'Home',
+        playersScreen: 'Players',
+        previousSessionsScreen: 'Sessions',
+        statsScreen: 'Stats',
+        playerProfileScreen: 'Player Profile',
+        sessionDetailScreen: 'Session',
+        activeSessionScreen: 'Active Session',
+        podcastsScreen: 'Podcasts',
+        addPlayerScreen: 'Add Player',
+        startSessionScreen: 'Session Setup',
+        appInstructionsScreen: 'Instructions',
+        dictionaryScreen: 'Dictionary',
+        rulesScreen: 'Rules'
+    };
+    return labels[String(screenId || '')] || '';
+}
+
+function updateContextBackButton(screenId, previousScreen) {
+    let button;
+    let fallbackLabel;
+    if (screenId === 'playerProfileScreen') {
+        button = document.getElementById('profileBackBtn');
+        fallbackLabel = 'Players';
+    } else if (screenId === 'sessionDetailScreen') {
+        button = document.getElementById('sessionDetailBackBtn');
+        fallbackLabel = 'Sessions';
+    }
+    if (!button) return;
+    button.textContent = '\u2190 Back to ' + (navigationScreenLabel(previousScreen) || fallbackLabel);
+}
+
 function showScreen(screenId, skipHistory, requestedIntentId) {
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
@@ -2373,9 +2450,23 @@ function showScreen(screenId, skipHistory, requestedIntentId) {
     }, 150);
 
     if (!skipHistory) {
-        history.pushState({ screen: screenId }, '', '#' + screenId);
+        const currentState = history.state || {};
+        const previousScreen = currentScreen && currentScreen.id
+            ? currentScreen.id
+            : String(currentState.screen || '');
+        const currentDepth = Number(currentState.lockoutDepth);
+        history.pushState({
+            screen: screenId,
+            previousScreen: previousScreen,
+            lockoutDepth: (Number.isFinite(currentDepth) ? currentDepth : 0) + 1,
+            lockoutRootScreen: String(currentState.lockoutRootScreen || currentState.screen || 'homeScreen')
+        }, '', '#' + screenId);
         saveRefreshRoute(screenId, {});
     }
+    updateContextBackButton(
+        screenId,
+        history.state && history.state.previousScreen
+    );
     if (screenId === 'dictionaryScreen') {
         showDictionarySection('lingo');
     }
@@ -2597,7 +2688,7 @@ async function addPlayer(event) {
             return;
         }
         setTimeout(function() {
-            showScreen('homeScreen', false, intentId);
+            replaceWithScreen('homeScreen', {}, intentId);
             setButtonLoading(addBtn, false);
         }, 1000);
     }
@@ -3130,7 +3221,7 @@ async function endSession(event) {
     eloCache = [];
     currentSession = null;
     currentSessionHands = [];
-    showScreen('homeScreen', false, intentId);
+    replaceWithScreen('homeScreen', {}, intentId);
     setTimeout(function() {
         const popup = document.getElementById('sessionEndPopup');
         document.getElementById('sessionEndTitle').textContent = hasFinalScores
@@ -4258,14 +4349,30 @@ function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, 
 // ============================================
 // OVERALL STATS
 // ============================================
+function setActiveStatsView(view) {
+    const buttons = document.querySelectorAll('#statsNav [data-stats-view]');
+    for (let i = 0; i < buttons.length; i++) {
+        const active = buttons[i].dataset.statsView === view;
+        buttons[i].classList.toggle('is-active', active);
+        if (active) buttons[i].setAttribute('aria-current', 'page');
+        else buttons[i].removeAttribute('aria-current');
+    }
+}
+
 async function loadStats(requestedIntentId, options) {
     options = options || {};
+    setActiveStatsView('overall');
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
         : getNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
     const storedSnapshot = hydrateStoredReadSnapshot('getStatsSummary', {});
-    if (!storedSnapshot && !options.preserveContent) {
+    if (storedSnapshot && storedSnapshot.data && !storedSnapshot.data.error) {
+        displayOverallStats(
+            storedSnapshot.data.stats || {},
+            Number(storedSnapshot.data.total_sessions || 0)
+        );
+    } else if (!options.preserveContent) {
         contentDiv.innerHTML = statsLoadingSkeletonHtml();
     }
 
@@ -4520,6 +4627,7 @@ function displayOverallStats(stats, totalSessions) {
 }
 
 async function showOverallStats() {
+    setActiveStatsView('overall');
     saveRefreshRoute('statsScreen', { view: 'overall' });
     const intentId = beginNavigationIntent();
     await loadStats(intentId);
@@ -4534,6 +4642,7 @@ async function recalculateElo(event) {
 // ============================================
 async function showHeadToHeadList(requestedIntentId, options) {
     options = options || {};
+    setActiveStatsView('head-to-head');
     saveRefreshRoute('statsScreen', { view: 'head-to-head' });
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
@@ -4611,6 +4720,7 @@ async function quickCompare(p1Id, p2Id) {
 // PLAYER COMPARISON
 // ============================================
 async function showPlayerComparisonUI(requestedIntentId) {
+    setActiveStatsView('compare');
     saveRefreshRoute('statsScreen', { view: 'compare' });
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
@@ -4647,6 +4757,7 @@ async function showPlayerComparisonUI(requestedIntentId) {
 
 async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, requestedPlayer2Id, options) {
     options = options || {};
+    setActiveStatsView('compare');
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
         : beginNavigationIntent();
@@ -4872,7 +4983,13 @@ window.addEventListener('DOMContentLoaded', function() {
     const initialScreen = initialRoute.screen;
     saveRefreshRoute(initialScreen, initialRoute.params);
     history.replaceState(
-        { screen: initialScreen, routeParams: initialRoute.params },
+        {
+            screen: initialScreen,
+            routeParams: initialRoute.params,
+            previousScreen: '',
+            lockoutDepth: 0,
+            lockoutRootScreen: initialScreen
+        },
         '',
         '#' + initialScreen
     );
@@ -4896,15 +5013,19 @@ window.addEventListener('popstate', function(event) {
         closePhotoFullscreen(true);
         return;
     }
-    const requestedScreen = event.state && event.state.screen
-        ? event.state.screen
+    const requestedState = event.state || {};
+    const requestedScreen = requestedState.screen
+        ? requestedState.screen
         : 'homeScreen';
     if (requestedScreen === 'activeSessionScreen' && !currentSession) {
-        history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
-        showScreen('homeScreen', true);
+        replaceWithScreen('homeScreen', {});
         return;
     }
-    showScreen(requestedScreen, true);
+    const route = safeRefreshRoute(requestedScreen, requestedState.routeParams || {});
+    const intentId = showScreen(requestedScreen, true);
+    if (requestedScreen !== 'homeScreen') {
+        loadRestoredScreen(requestedScreen, intentId, route.params);
+    }
 });
 
 document.addEventListener('keydown', function(event) {
@@ -4947,7 +5068,7 @@ function handleHeaderClick(event) {
         }, 800);
     } else {
         headerTapTimeout = setTimeout(function() {
-            if (headerTapCount < 7) showScreen('homeScreen', false, intentId);
+            if (headerTapCount < 7 && isCurrentNavigationIntent(intentId)) returnToHome();
             headerTapCount = 0;
         }, 800);
     }
@@ -5222,9 +5343,8 @@ let _currentProfileId = null;
 let _currentProfileData = null;
 let _currentProfileLoadedAt = 0;
 
-function returnToPlayersFromProfile() {
-    const intentId = showScreen('playersScreen');
-    loadPlayersScreen(intentId);
+function returnFromPlayerProfile() {
+    returnToPreviousScreen('playersScreen');
 }
 
 function makePlayerLink(playerId, displayName, beforeNavigation, extraClass) {
