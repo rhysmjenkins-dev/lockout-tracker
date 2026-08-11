@@ -23,6 +23,7 @@ const PROFILE_SNAPSHOT_PREFIX = 'lockout_player_profile_2_1_';
 const PROFILE_SNAPSHOT_INDEX_KEY = 'lockout_player_profile_2_1_index';
 const READ_SNAPSHOT_PREFIX = 'lockout_read_snapshot_2_1_';
 const READ_SNAPSHOT_INDEX_KEY = 'lockout_read_snapshot_2_1_index';
+const REFRESH_ROUTE_STORAGE_KEY = 'lockout_refresh_route_2_1';
 const LEGACY_PUBLIC_SNAPSHOT_STORAGE_KEYS = [
     'lockout_public_snapshot_2_1_beta_8',
     'lockout_public_snapshot_2_1_beta_7'
@@ -1567,6 +1568,7 @@ function toggleEloDropdown() {
 
 async function showEloStats(requestedIntentId, options) {
     options = options || {};
+    saveRefreshRoute('statsScreen', { view: 'elo' });
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
         : beginNavigationIntent();
@@ -2271,6 +2273,60 @@ function closePhotoFullscreen(fromHistory) {
 // ============================================
 // SCREEN NAVIGATION
 // ============================================
+function safeRefreshRoute(screen, params) {
+    const route = { screen: String(screen || ''), params: {} };
+    const source = params && typeof params === 'object' ? params : {};
+    const numericId = function(value) {
+        const text = String(value === undefined || value === null ? '' : value);
+        return /^\d+$/.test(text) && Number(text) > 0 ? text : '';
+    };
+    if (route.screen === 'activeSessionScreen' || route.screen === 'sessionDetailScreen') {
+        route.params.session_id = numericId(source.session_id);
+    } else if (route.screen === 'playerProfileScreen') {
+        route.params.player_id = numericId(source.player_id);
+    } else if (route.screen === 'statsScreen') {
+        const allowedViews = ['overall', 'elo', 'head-to-head', 'compare', 'comparison'];
+        route.params.view = allowedViews.indexOf(String(source.view || '')) !== -1
+            ? String(source.view)
+            : 'overall';
+        if (route.params.view === 'comparison') {
+            route.params.player1_id = numericId(source.player1_id);
+            route.params.player2_id = numericId(source.player2_id);
+        }
+    } else if (route.screen === 'dictionaryScreen') {
+        route.params.section = source.section === 'glossary' ? 'glossary' : 'lingo';
+    }
+    return route;
+}
+
+function saveRefreshRoute(screen, params) {
+    const route = safeRefreshRoute(screen, params);
+    try {
+        sessionStorage.setItem(REFRESH_ROUTE_STORAGE_KEY, JSON.stringify(route));
+    } catch (error) {
+        // Static hash restoration still works when storage is unavailable.
+    }
+    if (String(window.location.hash || '') === '#' + route.screen &&
+        history.state && String(history.state.screen || '') === route.screen) {
+        history.replaceState(
+            Object.assign({}, history.state, { routeParams: route.params }),
+            '',
+            '#' + route.screen
+        );
+    }
+    return route;
+}
+
+function storedRefreshRouteForScreen(screen) {
+    try {
+        const stored = JSON.parse(sessionStorage.getItem(REFRESH_ROUTE_STORAGE_KEY) || 'null');
+        if (!stored || String(stored.screen) !== String(screen)) return null;
+        return safeRefreshRoute(stored.screen, stored.params);
+    } catch (error) {
+        return null;
+    }
+}
+
 function showScreen(screenId, skipHistory, requestedIntentId) {
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
@@ -2305,7 +2361,10 @@ function showScreen(screenId, skipHistory, requestedIntentId) {
         screenTransitionTimer = null;
     }, 150);
 
-    if (!skipHistory) history.pushState({ screen: screenId }, '', '#' + screenId);
+    if (!skipHistory) {
+        history.pushState({ screen: screenId }, '', '#' + screenId);
+        saveRefreshRoute(screenId, {});
+    }
     if (screenId === 'dictionaryScreen') {
         showDictionarySection('lingo');
     }
@@ -2323,7 +2382,7 @@ function showScreen(screenId, skipHistory, requestedIntentId) {
     return intentId;
 }
 
-function getRestorableScreenFromHash() {
+function getRestorableRouteFromHash() {
     const requested = String(window.location.hash || '').replace(/^#/, '');
     const restorable = [
         'homeScreen',
@@ -2335,18 +2394,63 @@ function getRestorableScreenFromHash() {
         'addPlayerScreen',
         'appInstructionsScreen',
         'dictionaryScreen',
-        'rulesScreen'
+        'rulesScreen',
+        'activeSessionScreen',
+        'sessionDetailScreen',
+        'playerProfileScreen'
     ];
-    return restorable.indexOf(requested) !== -1 && document.getElementById(requested)
-        ? requested
-        : 'homeScreen';
+    if (restorable.indexOf(requested) === -1 || !document.getElementById(requested)) {
+        return safeRefreshRoute('homeScreen', {});
+    }
+    const stateRoute = history.state && history.state.routeParams &&
+        String(history.state.screen || '') === requested
+        ? safeRefreshRoute(requested, history.state.routeParams)
+        : null;
+    const stored = storedRefreshRouteForScreen(requested);
+    const route = stateRoute || stored || safeRefreshRoute(requested, {});
+    if ((requested === 'activeSessionScreen' || requested === 'sessionDetailScreen') &&
+        !route.params.session_id) return safeRefreshRoute('homeScreen', {});
+    if (requested === 'playerProfileScreen' && !route.params.player_id) {
+        return safeRefreshRoute('homeScreen', {});
+    }
+    if (requested === 'statsScreen' && route.params.view === 'comparison' &&
+        (!route.params.player1_id || !route.params.player2_id)) {
+        route.params = { view: 'compare' };
+    }
+    return route;
 }
 
-function loadRestoredScreen(screenId, intentId) {
+async function loadRestoredScreen(screenId, intentId, params) {
+    params = params || {};
     if (screenId === 'playersScreen') loadPlayersScreen();
     else if (screenId === 'previousSessionsScreen') loadPreviousSessions();
     else if (screenId === 'podcastsScreen') loadPodcasts();
-    else if (screenId === 'statsScreen') loadStats(intentId);
+    else if (screenId === 'statsScreen') {
+        if (params.view === 'elo') await showEloStats(intentId);
+        else if (params.view === 'head-to-head') await showHeadToHeadList(intentId);
+        else if (params.view === 'compare') await showPlayerComparisonUI(intentId);
+        else if (params.view === 'comparison') {
+            await showPlayerComparison(intentId, params.player1_id, params.player2_id, { skipHistory: true });
+        } else await loadStats(intentId);
+    } else if (screenId === 'playerProfileScreen') {
+        await showPlayerProfile(params.player_id, intentId, true);
+    } else if (screenId === 'activeSessionScreen') {
+        await resumeSession(params.session_id, null, intentId, true);
+    } else if (screenId === 'sessionDetailScreen') {
+        if (allSessions.length === 0) await loadPreviousSessions(intentId);
+        if (!isCurrentNavigationIntent(intentId)) return;
+        const sessionIndex = allSessions.findIndex(function(session) {
+            return String(session.session_id) === String(params.session_id);
+        });
+        if (sessionIndex !== -1) await viewSessionDetail(sessionIndex, null, intentId, true);
+        else {
+            saveRefreshRoute('previousSessionsScreen', {});
+            history.replaceState({ screen: 'previousSessionsScreen' }, '', '#previousSessionsScreen');
+            showScreen('previousSessionsScreen', true, intentId);
+        }
+    } else if (screenId === 'dictionaryScreen') {
+        showDictionarySection(params.section || 'lingo');
+    }
 }
 
 // ============================================
@@ -2741,7 +2845,7 @@ async function createSession(event) {
     }
 }
 
-async function resumeSession(sessionId, buttonElement, requestedIntentId) {
+async function resumeSession(sessionId, buttonElement, requestedIntentId, skipHistory) {
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
         : beginNavigationIntent();
@@ -2796,11 +2900,11 @@ async function resumeSession(sessionId, buttonElement, requestedIntentId) {
     };
     currentSessionHands = handsData.slice();
     currentHandNumber = handsData.length === 0 ? 1 : Math.max(...handsData.map(h => h.hand_number)) + 1;
-    showActiveSession(intentId, handsData);
+    showActiveSession(intentId, handsData, skipHistory);
     if (buttonElement) setButtonLoading(buttonElement, false);
 }
 
-function showActiveSession(requestedIntentId, prefetchedHands) {
+function showActiveSession(requestedIntentId, prefetchedHands, skipHistory) {
     if (Array.isArray(prefetchedHands)) currentSessionHands = prefetchedHands.slice();
     document.getElementById('activeSessionTitle').textContent = currentSession.title;
     let playerNames = sessionPlayers.map(p => {
@@ -2824,7 +2928,8 @@ function showActiveSession(requestedIntentId, prefetchedHands) {
     document.getElementById('activeSessionCharts').innerHTML = '';
     document.getElementById('activeHandHistoryBottom').innerHTML = '';
     updateSessionScores(prefetchedHands);
-    showScreen('activeSessionScreen', false, requestedIntentId);
+    showScreen('activeSessionScreen', Boolean(skipHistory), requestedIntentId);
+    saveRefreshRoute('activeSessionScreen', { session_id: currentSession.session_id });
 }
 
 function displaySessionMetadata(containerId) {
@@ -3848,7 +3953,7 @@ html += '<span>' + escapeAttr(session.title) + '</span>';
     return true;
 }
 
-async function viewSessionDetail(sessionIndex, buttonElement, requestedIntentId) {
+async function viewSessionDetail(sessionIndex, buttonElement, requestedIntentId, skipHistory) {
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
         : beginNavigationIntent();
@@ -4040,7 +4145,8 @@ document.getElementById('sessionDetailHandHistory').innerHTML = handHistoryHtml;
     graphsHtml += '<div class="chart-container"><canvas id="manhattanChart"></canvas></div>';
     if (Object.keys(joinInfo).length > 0) graphsHtml += '<p class="chart-note">Worm includes ' + makeLateJoinDictionaryLink('late-join starts') + '; Manhattan shows hand scores only.</p>';
     document.getElementById('sessionDetailGraphs').innerHTML = graphsHtml;
-    showScreen('sessionDetailScreen', false, intentId);
+    showScreen('sessionDetailScreen', Boolean(skipHistory), intentId);
+    saveRefreshRoute('sessionDetailScreen', { session_id: session.session_id });
     setTimeout(function() {
         if (!isCurrentNavigationIntent(intentId)) return;
         drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
@@ -4382,6 +4488,7 @@ function displayOverallStats(stats, totalSessions) {
 }
 
 async function showOverallStats() {
+    saveRefreshRoute('statsScreen', { view: 'overall' });
     const intentId = beginNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
     contentDiv.innerHTML = statsLoadingSkeletonHtml();
@@ -4397,6 +4504,7 @@ async function recalculateElo(event) {
 // ============================================
 async function showHeadToHeadList(requestedIntentId, options) {
     options = options || {};
+    saveRefreshRoute('statsScreen', { view: 'head-to-head' });
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
         : beginNavigationIntent();
@@ -4473,6 +4581,7 @@ async function quickCompare(p1Id, p2Id) {
 // PLAYER COMPARISON
 // ============================================
 async function showPlayerComparisonUI(requestedIntentId) {
+    saveRefreshRoute('statsScreen', { view: 'compare' });
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
         : beginNavigationIntent();
@@ -4523,7 +4632,6 @@ async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, reque
     const p2Id = directComparison ? String(requestedPlayer2Id) : p2Select.value;
     if (!p1Id || !p2Id) { contentDiv.innerHTML = '<div class="error">Please select two players</div>'; return; }
     if (p1Id === p2Id) { contentDiv.innerHTML = '<div class="error">Please select two different players</div>'; return; }
-
     const loadingComparisonLabel = getPlayerName(p1Id) + ' vs ' + getPlayerName(p2Id);
     const comparisonParams = { player1_id: p1Id, player2_id: p2Id };
     const storedSnapshot = hydrateStoredReadSnapshot('getPlayerComparisonDetailed', comparisonParams);
@@ -4541,7 +4649,12 @@ async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, reque
             '</div>';
     }
 
-    showScreen('statsScreen', false, intentId);
+    showScreen('statsScreen', Boolean(options.skipHistory), intentId);
+    saveRefreshRoute('statsScreen', {
+        view: 'comparison',
+        player1_id: p1Id,
+        player2_id: p2Id
+    });
     const data = await apiCall('getPlayerComparisonDetailed', comparisonParams);
     if (!isCurrentNavigationIntent(intentId)) return;
     if (data.error) {
@@ -4659,6 +4772,9 @@ async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, reque
 // ============================================
 function showDictionarySection(section, targetId) {
     const intentId = getNavigationIntent();
+    if (String(window.location.hash || '') === '#dictionaryScreen') {
+        saveRefreshRoute('dictionaryScreen', { section: section === 'glossary' ? 'glossary' : 'lingo' });
+    }
     if (section === 'lingo') {
         document.getElementById('lingoSection').style.display = 'block';
         document.getElementById('glossarySection').style.display = 'none';
@@ -4720,8 +4836,14 @@ window.addEventListener('DOMContentLoaded', function() {
             '<div class="shimmer-wrapper skeleton-text skeleton-w-60" style="height:36px;"></div>' +
         '</div>';
 
-    const initialScreen = getRestorableScreenFromHash();
-    history.replaceState({ screen: initialScreen }, '', '#' + initialScreen);
+    const initialRoute = getRestorableRouteFromHash();
+    const initialScreen = initialRoute.screen;
+    saveRefreshRoute(initialScreen, initialRoute.params);
+    history.replaceState(
+        { screen: initialScreen, routeParams: initialRoute.params },
+        '',
+        '#' + initialScreen
+    );
     if (initialScreen === 'homeScreen') {
         loadHomeDashboard();
     } else {
@@ -4729,9 +4851,9 @@ window.addEventListener('DOMContentLoaded', function() {
         if (stored) applyHomeData(stored.data, stored.stored_at);
         loadPublicConfig();
         const intentId = showScreen(initialScreen, true);
-        loadRestoredScreen(initialScreen, intentId);
+        loadRestoredScreen(initialScreen, intentId, initialRoute.params);
     }
-    showDictionarySection('lingo');
+    if (initialScreen !== 'dictionaryScreen') showDictionarySection('lingo');
 });
 
 // ============================================
@@ -5151,9 +5273,10 @@ function renderPlayersDirectory(contentDiv) {
     return true;
 }
 
-async function showPlayerProfile(playerId, requestedIntentId) {
+async function showPlayerProfile(playerId, requestedIntentId, skipHistory) {
     _currentProfileId = playerId;
-    const intentId = showScreen('playerProfileScreen', false, requestedIntentId);
+    const intentId = showScreen('playerProfileScreen', Boolean(skipHistory), requestedIntentId);
+    saveRefreshRoute('playerProfileScreen', { player_id: playerId });
     const contentDiv = document.getElementById('playerProfileContent');
     const storedProfile = loadStoredPlayerProfile(playerId);
     if (storedProfile) {
