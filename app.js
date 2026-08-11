@@ -345,6 +345,14 @@ function filterPlayerList(list, query, status) {
         : '';
 }
 
+function playersAlphabetically(players) {
+    return (Array.isArray(players) ? players : []).slice().sort(function(a, b) {
+        const aName = decodeHtml(String(a && a.username || '')).trim();
+        const bName = decodeHtml(String(b && b.username || '')).trim();
+        return aName.localeCompare(bName, 'en-GB', { sensitivity: 'base', numeric: true });
+    });
+}
+
 function getDeviceId() {
     let id = localStorage.getItem('lockout_device_id');
     if (!id) {
@@ -407,7 +415,7 @@ async function signInToEdit(forcePrompt, preferredPlayerId, callback) {
         _signInResolver = resolve;
         _signInCallback = callback || null;
         const select = document.getElementById('signInPlayerSelect');
-        select.innerHTML = '<option value="">Choose player...</option>' + allPlayers.map(function(player) {
+        select.innerHTML = '<option value="">Choose player...</option>' + playersAlphabetically(allPlayers).map(function(player) {
             const selected = String(player.player_id) === String(preferredPlayerId || '') ? ' selected' : '';
             return '<option value="' + player.player_id + '"' + selected + '>' + escapeHtml(player.username) + '</option>';
         }).join('');
@@ -2412,16 +2420,17 @@ async function loadPodcasts(forceRefresh) {
 // ============================================
 async function loadPlayersForSession() {
     await ensurePlayersLoaded();
+    const sortedPlayers = playersAlphabetically(allPlayers);
     const hostSelect = document.getElementById('sessionHost');
     hostSelect.innerHTML = '<option value="">Select host...</option>';
-    for (let i = 0; i < allPlayers.length; i++) {
-        hostSelect.innerHTML += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
+    for (let i = 0; i < sortedPlayers.length; i++) {
+        hostSelect.innerHTML += '<option value="' + sortedPlayers[i].player_id + '">' + sortedPlayers[i].username + '</option>';
     }
     installSearchableSelect(hostSelect, 'Search hosts…');
     const playerList = document.getElementById('playerSelectionList');
     let html = '<ul class="player-list">';
-    for (let i = 0; i < allPlayers.length; i++) {
-        html += '<li class="player-item"><label><input type="checkbox" value="' + allPlayers[i].player_id + '" class="player-checkbox"> ' + allPlayers[i].username + '</label></li>';
+    for (let i = 0; i < sortedPlayers.length; i++) {
+        html += '<li class="player-item"><label><input type="checkbox" value="' + sortedPlayers[i].player_id + '" class="player-checkbox"> ' + sortedPlayers[i].username + '</label></li>';
     }
     html += '</ul>';
     playerList.innerHTML = html;
@@ -2475,7 +2484,9 @@ async function addPlayer(event) {
 async function showAddPlayerModal() {
     await ensurePlayersLoaded();
     const currentPlayerIds = sessionPlayers.map(p => String(p.player_id));
-    const availablePlayers = allPlayers.filter(p => currentPlayerIds.indexOf(String(p.player_id)) === -1);
+    const availablePlayers = playersAlphabetically(
+        allPlayers.filter(p => currentPlayerIds.indexOf(String(p.player_id)) === -1)
+    );
     if (availablePlayers.length === 0) { alert('All players are already in this session!'); return; }
     const playerList = document.getElementById('addPlayerList');
     let html = '<ul class="player-list">';
@@ -3572,7 +3583,7 @@ function drawActiveWormChart(playerHands, playerIds) {
     const labels = [];
     for (let i = 1; i <= maxHands; i++) labels.push('Hand ' + i);
     if (window._activeWormChart) window._activeWormChart.destroy();
-    window._activeWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, plugins: [zeroScoreLinePlugin], options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Cricket Worm' }, legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: formatWormTooltip } } }, scales: { y: { title: { display: true, text: 'Cumulative Score' }, grid: zeroScoreAxisGrid() } } } });
+    window._activeWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, plugins: [zeroScoreLinePlugin], options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Worm' }, legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: formatWormTooltip } } }, scales: { y: { title: { display: true, text: 'Cumulative Score' }, grid: zeroScoreAxisGrid() } } } });
 }
 
 function drawActiveManhattanChart(playerHands, playerIds) {
@@ -4019,7 +4030,7 @@ function drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playe
     const labels = [];
     for (let i = 1; i <= maxHand; i++) labels.push('Hand ' + i);
     if (window._sessionWormChart) window._sessionWormChart.destroy();
-    window._sessionWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, plugins: [zeroScoreLinePlugin], options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Cricket Worm' }, legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: formatWormTooltip } } }, scales: { y: { title: { display: true, text: 'Cumulative Score' }, grid: zeroScoreAxisGrid() } } } });
+    window._sessionWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, plugins: [zeroScoreLinePlugin], options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Worm' }, legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: formatWormTooltip } } }, scales: { y: { title: { display: true, text: 'Cumulative Score' }, grid: zeroScoreAxisGrid() } } } });
 }
 
 function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session) {
@@ -4360,15 +4371,16 @@ async function showPlayerComparisonUI(requestedIntentId) {
     await ensurePlayersLoaded();
     if (!isCurrentNavigationIntent(intentId)) return false;
     const contentDiv = document.getElementById('statsContent');
+    const sortedPlayers = playersAlphabetically(allPlayers);
     let html = '<h3 class="mb-20">⚔️ Compare Two Players</h3>';
     html += '<div class="comparison-player-grid">';
     html += '<div><label class="heading-blue">Player 1</label>';
     html += '<select id="comparisonPlayer1" class="comparison-select-p1"><option value="">Select player...</option>';
-    for (let i = 0; i < allPlayers.length; i++) html += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
+    for (let i = 0; i < sortedPlayers.length; i++) html += '<option value="' + sortedPlayers[i].player_id + '">' + sortedPlayers[i].username + '</option>';
     html += '</select></div>';
     html += '<div><label class="heading-red">Player 2</label>';
     html += '<select id="comparisonPlayer2" class="comparison-select-p2"><option value="">Select player...</option>';
-    for (let i = 0; i < allPlayers.length; i++) html += '<option value="' + allPlayers[i].player_id + '">' + allPlayers[i].username + '</option>';
+    for (let i = 0; i < sortedPlayers.length; i++) html += '<option value="' + sortedPlayers[i].player_id + '">' + sortedPlayers[i].username + '</option>';
     html += '</select></div>';
     html += '</div>';
     html += '<button class="btn btn-success" id="comparePlayersBtn" style="width: 100%;">Compare Players</button>';
@@ -5010,9 +5022,10 @@ function renderPlayersDirectory(contentDiv) {
         contentDiv.innerHTML = '<div class="placeholder-content"><p>No players found.</p></div>';
         return false;
     }
+    const sortedPlayers = playersAlphabetically(allPlayers);
     let html = '<div class="players-grid">';
-    for (let i = 0; i < allPlayers.length; i++) {
-        const p = allPlayers[i];
+    for (let i = 0; i < sortedPlayers.length; i++) {
+        const p = sortedPlayers[i];
         const elo = getPlayerElo(p.player_id);
         const eloText = elo ? '⚡ ' + elo.rating + (elo.provisional ? '?' : '') : '';
         const avatarUrl = p.avatar_url || '';
