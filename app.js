@@ -404,6 +404,12 @@ function setSignInChecking(isChecking, statusText) {
 }
 
 async function checkPlayerPinStatus(playerId, attemptId) {
+    const knownPlayer = allPlayers.find(function(player) {
+        return String(player.player_id) === String(playerId);
+    });
+    if (knownPlayer && typeof knownPlayer.has_pin === 'boolean') {
+        return { success: true, has_pin: knownPlayer.has_pin, source: 'loaded_players' };
+    }
     const check = await apiCall('checkPlayerPin', { player_id: playerId });
     if (attemptId !== _signInAttemptId) return { error: 'Sign-in cancelled.', code: 'CANCELLED' };
     return check;
@@ -1574,7 +1580,7 @@ async function showEloStats(requestedIntentId, options) {
         : beginNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
     const storedSnapshot = hydrateStoredReadSnapshot('getEloStatsData', {});
-    if (!options.preserveContent) {
+    if (!storedSnapshot && !options.preserveContent) {
         contentDiv.innerHTML = tableLoadingSkeletonHtml('Loading ELO statistics...', 5, 4);
     }
 
@@ -2531,7 +2537,9 @@ async function loadPodcasts(forceRefresh) {
 // ============================================
 async function loadPlayersForSession() {
     const playerList = document.getElementById('playerSelectionList');
-    playerList.innerHTML = listLoadingSkeletonHtml('Loading players...', 3);
+    if (!allPlayers.length) {
+        playerList.innerHTML = listLoadingSkeletonHtml('Loading players...', 3);
+    }
     await ensurePlayersLoaded();
     const sortedPlayers = playersAlphabetically(allPlayers);
     const hostSelect = document.getElementById('sessionHost');
@@ -3791,7 +3799,7 @@ async function loadPreviousSessions(requestedIntentId, options) {
         : getNavigationIntent();
     const contentDiv = document.getElementById('previousSessionsContent');
     const storedSnapshot = hydrateStoredReadSnapshot('getPreviousSessionsData', {});
-    if (!options.preserveContent) {
+    if (!storedSnapshot && !options.preserveContent) {
         contentDiv.innerHTML = listLoadingSkeletonHtml('Loading previous sessions...', 3);
     }
 
@@ -4229,13 +4237,16 @@ function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, 
 // ============================================
 // OVERALL STATS
 // ============================================
-async function loadStats(requestedIntentId) {
+async function loadStats(requestedIntentId, options) {
+    options = options || {};
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
         : getNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
     const storedSnapshot = hydrateStoredReadSnapshot('getStatsSummary', {});
-    contentDiv.innerHTML = statsLoadingSkeletonHtml();
+    if (!storedSnapshot && !options.preserveContent) {
+        contentDiv.innerHTML = statsLoadingSkeletonHtml();
+    }
 
     await ensurePlayersLoaded();
     if (!isCurrentNavigationIntent(intentId)) return false;
@@ -4490,8 +4501,6 @@ function displayOverallStats(stats, totalSessions) {
 async function showOverallStats() {
     saveRefreshRoute('statsScreen', { view: 'overall' });
     const intentId = beginNavigationIntent();
-    const contentDiv = document.getElementById('statsContent');
-    contentDiv.innerHTML = statsLoadingSkeletonHtml();
     await loadStats(intentId);
 }
 
@@ -4510,7 +4519,7 @@ async function showHeadToHeadList(requestedIntentId, options) {
         : beginNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
     const storedSnapshot = hydrateStoredReadSnapshot('getHeadToHeadMatrix', {});
-    if (!options.preserveContent) {
+    if (!storedSnapshot && !options.preserveContent) {
         contentDiv.innerHTML = listLoadingSkeletonHtml('Loading head-to-head records...', 3);
     }
 
@@ -4586,7 +4595,9 @@ async function showPlayerComparisonUI(requestedIntentId) {
         ? requestedIntentId
         : beginNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
-    contentDiv.innerHTML = playerGridLoadingSkeletonHtml('Loading players...');
+    if (!allPlayers.length) {
+        contentDiv.innerHTML = playerGridLoadingSkeletonHtml('Loading players...');
+    }
     await ensurePlayersLoaded();
     if (!isCurrentNavigationIntent(intentId)) return false;
     const sortedPlayers = playersAlphabetically(allPlayers);
@@ -4635,7 +4646,7 @@ async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, reque
     const loadingComparisonLabel = getPlayerName(p1Id) + ' vs ' + getPlayerName(p2Id);
     const comparisonParams = { player1_id: p1Id, player2_id: p2Id };
     const storedSnapshot = hydrateStoredReadSnapshot('getPlayerComparisonDetailed', comparisonParams);
-    if (!options.preserveContent) {
+    if (!storedSnapshot && !options.preserveContent) {
         contentDiv.innerHTML =
             '<div class="skeleton-card">' +
                 '<h3 class="section-heading-blue mb-20">Loading ' + escapeHtml(loadingComparisonLabel) + '…</h3>' +
@@ -5229,11 +5240,11 @@ async function loadPlayersScreen(requestedIntentId) {
         ? requestedIntentId
         : getNavigationIntent();
     const contentDiv = document.getElementById('playersScreenContent');
-    contentDiv.innerHTML = playerGridLoadingSkeletonHtml('Loading players...');
     if (allPlayers.length > 0 && eloCache.length > 0) {
         renderPlayersDirectory(contentDiv);
         return true;
     }
+    contentDiv.innerHTML = playerGridLoadingSkeletonHtml('Loading players...');
     await ensurePlayersLoaded();
     if (!isCurrentNavigationIntent(intentId)) return false;
     await loadEloRatings();
