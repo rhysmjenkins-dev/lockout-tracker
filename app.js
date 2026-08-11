@@ -5127,9 +5127,6 @@ function pinEntryInput(digit) {
     _pinEntryBuffer += digit;
     updatePinDots('pinEntry', _pinEntryBuffer.length);
     hapticFeedback('light');
-    if (_pinEntryBuffer.length === 4) {
-        setTimeout(submitPinEntry, 200);
-    }
 }
 
 function pinEntryClear() {

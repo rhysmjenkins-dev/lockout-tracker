@@ -7,7 +7,7 @@
         // changes to app.js or styles.css
         // ============================================
         const APP_VERSION = '2.1.4';
-        const ASSET_VERSION = APP_VERSION + '-refresh-route-1';
+        const ASSET_VERSION = APP_VERSION + '-pin-submit-1';
         document.write('<link rel="stylesheet" href="styles.css?v=' + ASSET_VERSION + '">');
     </script>
     <meta charset="UTF-8">
@@ -1126,7 +1126,7 @@
                 <button type="button" class="pin-key" onclick="pinEntryInput('9')">9</button>
                 <button type="button" class="pin-key pin-key-clear" onclick="pinEntryClear()" aria-label="Delete last digit">⌫</button>
                 <button type="button" class="pin-key" onclick="pinEntryInput('0')">0</button>
-                <button class="pin-key pin-key-empty" type="button" aria-hidden="true" disabled></button>
+                <button class="pin-key pin-key-submit" type="button" onclick="submitPinEntry()" aria-label="Submit PIN">✓</button>
             </div>
             <div id="pinEntryMessage" class="pin-message" role="status" aria-live="polite" aria-atomic="true"></div>
             <button type="button" class="btn btn-secondary modal-cancel" onclick="closePinEntryModal()">Cancel</button>
