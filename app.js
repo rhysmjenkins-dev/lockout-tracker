@@ -1728,7 +1728,9 @@ function drawEloHistoryChart(sessionsData, allHistoryData) {
             backgroundColor: 'transparent',
             borderWidth: 2,
             tension: 0.1,
-            pointRadius: 4
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            pointHitRadius: 8
         });
     }
 
@@ -5388,7 +5390,9 @@ function drawProfileEloChart(history) {
                 backgroundColor: 'rgba(102,126,234,0.1)',
                 borderWidth: 2,
                 tension: 0.1,
-                pointRadius: 3,
+                pointRadius: 2,
+                pointHoverRadius: 4,
+                pointHitRadius: 8,
                 fill: true
             }]
         },
