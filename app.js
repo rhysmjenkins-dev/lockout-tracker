@@ -33,9 +33,9 @@ const READ_SNAPSHOT_SCHEMA_VERSION = 1;
 const PUBLIC_SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const PROFILE_SNAPSHOT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const READ_SNAPSHOT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-const READ_SNAPSHOT_REFRESH_MS = 2 * 60 * 1000;
+const READ_SNAPSHOT_REFRESH_MS = 30 * 1000;
 const READ_SNAPSHOT_MAX_ENTRIES = 16;
-const PROFILE_BACKGROUND_REFRESH_MS = 2 * 60 * 1000;
+const PROFILE_BACKGROUND_REFRESH_MS = 30 * 1000;
 const HOME_BACKGROUND_REFRESH_MS = 30000;
 // Do not cut off a valid Apps Script write while Google is still processing it.
 const WRITE_REQUEST_TIMEOUT_MS = 0;
@@ -1274,13 +1274,20 @@ function refreshHomeDashboardInBackground() {
     return homeDashboardRefreshPromise;
 }
 
-function scheduleHomeDashboardRefresh() {
+function scheduleHomeDashboardRefresh(delayMs) {
     if (homeBackgroundRefreshTimer) clearTimeout(homeBackgroundRefreshTimer);
-    homeBackgroundRefreshTimer = setTimeout(function() {
+    const delay = Number.isFinite(Number(delayMs))
+        ? Math.max(0, Number(delayMs))
+        : HOME_BACKGROUND_REFRESH_MS;
+    homeBackgroundRefreshTimer = setTimeout(async function() {
         homeBackgroundRefreshTimer = null;
         const home = document.getElementById('homeScreen');
-        if (home && home.classList.contains('active')) refreshHomeDashboardInBackground();
-    }, 2500);
+        if (!home || !home.classList.contains('active')) return;
+        if (!document.hidden) await refreshHomeDashboardInBackground();
+        if (home.classList.contains('active')) {
+            scheduleHomeDashboardRefresh(HOME_BACKGROUND_REFRESH_MS);
+        }
+    }, delay);
 }
 
 async function loadHomeDashboard() {
@@ -1295,13 +1302,15 @@ async function loadHomeDashboard() {
                 refreshHomeDashboardInBackground().then(function(refreshed) {
                     if (!refreshed) showStatusToast('Showing saved data — refresh when online');
                 });
+                scheduleHomeDashboardRefresh(HOME_BACKGROUND_REFRESH_MS);
                 return true;
             }
             applyHomeData(stored.data, stored.stored_at);
             await renderHomeData(stored.data);
-            if (snapshotAge >= HOME_BACKGROUND_REFRESH_MS) {
-                scheduleHomeDashboardRefresh();
-            }
+            const nextRefreshDelay = snapshotAge >= HOME_BACKGROUND_REFRESH_MS
+                ? 2500
+                : HOME_BACKGROUND_REFRESH_MS - snapshotAge;
+            scheduleHomeDashboardRefresh(nextRefreshDelay);
             return true;
         }
 
@@ -1314,8 +1323,10 @@ async function loadHomeDashboard() {
             );
             document.getElementById('activeSessionsSection').innerHTML = message;
             document.getElementById('eloLeaderboardSection').innerHTML = message;
+            scheduleHomeDashboardRefresh(HOME_BACKGROUND_REFRESH_MS);
             return false;
         }
+        scheduleHomeDashboardRefresh(HOME_BACKGROUND_REFRESH_MS);
         return true;
     })();
     try {
@@ -2267,6 +2278,11 @@ function showScreen(screenId, skipHistory, requestedIntentId) {
         ? requestedIntentId
         : beginNavigationIntent();
     if (!isCurrentNavigationIntent(intentId)) return false;
+
+    if (screenId !== 'homeScreen' && homeBackgroundRefreshTimer) {
+        clearTimeout(homeBackgroundRefreshTimer);
+        homeBackgroundRefreshTimer = null;
+    }
 
     const screens = document.querySelectorAll('.screen');
     const currentScreen = document.querySelector('.screen.active');
@@ -4220,6 +4236,13 @@ function formatStatWinners(winners, value, suffix) {
 
 function displayOverallStats(stats, totalSessions) {
     let totalHands = stats._totalUniqueHands || 0;
+    const statPlayerIds = Object.keys(stats)
+        .filter(function(playerId) { return playerId !== '_totalUniqueHands'; })
+        .sort(function(a, b) {
+            const aName = String(stats[a] && stats[a].username || '');
+            const bName = String(stats[b] && stats[b].username || '');
+            return aName.localeCompare(bName, 'en-GB', { sensitivity: 'base', numeric: true });
+        });
     const statValues = {
         sessionsWon: { best: -Infinity, winners: [], value: null, suffix: 'wins' },
         handsWon: { best: -Infinity, winners: [], value: null, suffix: 'hands' },
@@ -4230,8 +4253,8 @@ function displayOverallStats(stats, totalSessions) {
         handStreak: { best: -Infinity, winners: [], value: null, suffix: 'hands' },
         avgLockout: { best: Infinity, winners: [], value: null, suffix: '', lower: true }
     };
-    for (let playerId in stats) {
-        if (playerId === '_totalUniqueHands') continue;
+    for (let playerIndex = 0; playerIndex < statPlayerIds.length; playerIndex++) {
+        const playerId = statPlayerIds[playerIndex];
         const ps = stats[playerId];
         const sw = ps.sessionsWon;
         if (sw > statValues.sessionsWon.best) { statValues.sessionsWon.best = sw; statValues.sessionsWon.winners = [ps.username]; statValues.sessionsWon.value = sw.toFixed(1); } else if (sw === statValues.sessionsWon.best) statValues.sessionsWon.winners.push(ps.username);
@@ -4285,8 +4308,8 @@ function displayOverallStats(stats, totalSessions) {
     html += '<th onclick="sortStatsTable(10)" style="cursor: pointer; user-select: none;">False LO Rate ⇅</th>';
     html += '<th onclick="sortStatsTable(11)" style="cursor: pointer; user-select: none;">Avg False LO Score ⇅</th>';
     html += '</tr>';
-    for (let playerId in stats) {
-        if (playerId === '_totalUniqueHands') continue;
+    for (let playerIndex = 0; playerIndex < statPlayerIds.length; playerIndex++) {
+        const playerId = statPlayerIds[playerIndex];
         const ps = stats[playerId];
         const sessionWinRate = ps.sessionsPlayed > 0 ? ((ps.sessionsWon / ps.sessionsPlayed) * 100).toFixed(1) : '0';
         const lockoutRate = ps.handsPlayed > 0 ? ((ps.handsWon / ps.handsPlayed) * 100).toFixed(1) : '0';
