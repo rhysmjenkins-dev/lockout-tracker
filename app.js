@@ -59,7 +59,7 @@ let eloDropdownOpen = false;
 let activePhotoOverlay = null;
 let photoViewerHistoryActive = false;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1.3',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1.4',
     photos_enabled: false
 };
 let homeDashboardPromise = null;
@@ -2689,6 +2689,14 @@ async function createSession(event) {
         messageDiv.innerHTML = '<div class="error">Please fill all required fields</div>';
         return;
     }
+    if (selectedPlayers.length < 2) {
+        messageDiv.innerHTML = '<div class="error">Select at least two players</div>';
+        return;
+    }
+    if (!selectedPlayers.some(playerId => String(playerId) === String(hostId))) {
+        messageDiv.innerHTML = '<div class="error">The host must also be selected as a player</div>';
+        return;
+    }
     const createBtn = event.target;
     setButtonLoading(createBtn, true);
     const existingTitles = allSessions.map(s => s.title.toLowerCase().trim());
@@ -2900,16 +2908,61 @@ function closeEditSessionModal() {
     document.getElementById('editSessionMessage').innerHTML = '';
 }
 
+function sessionStateShowsClosed(session) {
+    if (!session) return false;
+    const status = String(session.status || '').toLowerCase();
+    const ended = String(session.date_ended || '').trim().toLowerCase();
+    return status === 'completed' || (ended !== '' && ended !== 'null' && ended !== 'undefined');
+}
+
+function buildFinalScoresFromSessionState(session, hands) {
+    const totals = {};
+    const storedHands = Array.isArray(hands) ? hands : [];
+    for (let i = 0; i < storedHands.length; i++) {
+        const hand = storedHands[i];
+        const playerId = String(hand.player_id);
+        if (totals[playerId] === undefined) {
+            totals[playerId] = getSessionPlayerJoinDetails(session, playerId).startingScore;
+        }
+        totals[playerId] += Number(hand.score || 0);
+    }
+    return Object.keys(totals).map(function(playerId) {
+        return { player_id: playerId, total: totals[playerId] };
+    }).sort(function(a, b) {
+        if (a.total !== b.total) return a.total - b.total;
+        return Number(a.player_id) - Number(b.player_id);
+    });
+}
+
+async function recoverClosedSession(sessionId) {
+    const state = await apiCall('getSessionState', { session_id: sessionId }, {
+        forceRefresh: true,
+        bypassHttpCache: true
+    });
+    if (state.error || !sessionStateShowsClosed(state.session)) return null;
+    invalidateFrontendDataForAction('closeSession', { session_id: sessionId });
+    return {
+        success: true,
+        recovered: true,
+        final_scores: buildFinalScoresFromSessionState(state.session, state.hands)
+    };
+}
+
 async function endSession(event) {
     if (!confirm('End this session?')) return;
     const intentId = beginNavigationIntent();
     const endBtn = event.target;
     setButtonLoading(endBtn, true);
     let hostPlayer = allPlayers.find(p => p.player_id == currentSession.host_player_id);
-    const data = await apiCall('closeSession', {
-        session_id: currentSession.session_id,
+    const sessionId = currentSession.session_id;
+    let data = await apiCall('closeSession', {
+        session_id: sessionId,
         editor_name: hostPlayer ? hostPlayer.username : 'Unknown'
     });
+    if (data.error && isTransientApiFailure(data)) {
+        const recovered = await recoverClosedSession(sessionId);
+        if (recovered) data = recovered;
+    }
     if (data.error) {
         document.getElementById('handMessage').innerHTML =
             actionErrorHtml(data, 'The session could not be ended.', true);
@@ -2952,6 +3005,9 @@ async function endSession(event) {
             ? (isTie ? 'Tie game!' : winner.username + ' wins!')
             : 'Session complete!';
         document.getElementById('sessionEndScore').textContent = hasFinalScores ? formatPoints(winner.total) : '';
+        const warning = document.getElementById('sessionEndWarning');
+        warning.textContent = data.elo_warning || '';
+        warning.style.display = data.elo_warning ? 'block' : 'none';
         popup.style.display = 'flex';
         if (hasFinalScores && !isTie) celebrateWinner(winner.username);
     }, 300);
@@ -3240,8 +3296,11 @@ async function editHand(handNumber, event) {
             const handData = handsToEdit.find(h => String(h.player_id) === String(player.player_id));
             let displayScore = '';
             if (handData) {
-                displayScore = (lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id))
-                    ? (handData.lockout_score ? handData.lockout_score : handData.score)
+                const isStoredLockout = lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id);
+                const hasRawLockoutScore = handData.lockout_score !== null &&
+                    handData.lockout_score !== undefined && handData.lockout_score !== '';
+                displayScore = isStoredLockout
+                    ? (hasRawLockoutScore ? handData.lockout_score : handData.score)
                     : handData.score;
             }
             const isLockout = (lockoutPlayerId && String(lockoutPlayerId) === String(player.player_id));
@@ -4639,7 +4698,7 @@ async function viewSessionDetailFromComparison(sessionId, buttonElement) {
 // INITIALIZATION
 // ============================================
 window.addEventListener('DOMContentLoaded', function() {
-    console.log('Lockout Tracker ' + (window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || 'v2.1.3'));
+    console.log('Lockout Tracker ' + (window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || 'v2.1.4'));
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     window.scrollTo(0, 0);
     updateEditingStatus();
@@ -4685,11 +4744,15 @@ window.addEventListener('popstate', function(event) {
         closePhotoFullscreen(true);
         return;
     }
-    if (event.state && event.state.screen) {
-        showScreen(event.state.screen, true);
-    } else {
+    const requestedScreen = event.state && event.state.screen
+        ? event.state.screen
+        : 'homeScreen';
+    if (requestedScreen === 'activeSessionScreen' && !currentSession) {
+        history.replaceState({ screen: 'homeScreen' }, '', '#homeScreen');
         showScreen('homeScreen', true);
+        return;
     }
+    showScreen(requestedScreen, true);
 });
 
 document.addEventListener('keydown', function(event) {

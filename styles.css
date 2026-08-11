@@ -1449,6 +1449,7 @@ textarea:focus-visible,
 .session-end-trophy { font-size: 3em; margin-bottom: 10px; }
 .session-end-content h2 { color: var(--primary); margin-bottom: 10px; overflow-wrap: anywhere; }
 .session-end-content p { color: var(--text-muted); margin-bottom: 20px; overflow-wrap: anywhere; }
+.session-end-warning { margin: 0 0 20px; color: var(--text-dark); font-size: 0.9rem; text-align: left; }
 .session-end-content .btn { margin: 0; }
 @media (max-width: 600px) {
     .session-end-popup { padding: 10px; align-items: flex-end; }

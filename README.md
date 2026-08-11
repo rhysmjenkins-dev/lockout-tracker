@@ -4,7 +4,7 @@ A homemade card-game tracker for recording Lockout sessions, scores, statistics,
 
 ## Current release
 
-- Stable release: **v2.1** (current build: **v2.1.3**)
+- Stable release: **v2.1** (current build: **v2.1.4**)
 - Main app: https://rhysmjenkins-dev.github.io/lockout-tracker/
 - Previous stable version: [v2.0](https://github.com/rhysmjenkins-dev/lockout-tracker/releases/tag/v2.0)
 

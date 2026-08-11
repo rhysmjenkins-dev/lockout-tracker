@@ -1,8 +1,8 @@
-// Lockout Tracker v2.1.3 - Apps Script runtime bundle
+// Lockout Tracker v2.1.4 - Apps Script runtime bundle
 // This file is the GitHub source of truth for the deployed backend.
 // The bundled sections are retained in one file; completed migration code is excluded.
 // ===== Code.gs =====
-var V2_VERSION = '2.1.3';
+var V2_VERSION = '2.1.4';
 var V2_READ_ACTIONS = {
 getPlayers: true,
 getSessions: true,
@@ -282,7 +282,9 @@ updatePlayerProfile: ['players']
 return groups[action] || [];
 }
 function v2InvalidateReadCache(action) {
-var groups = v2MutationCacheGroups(action);
+var groups = action
+? v2MutationCacheGroups(action)
+: ['players', 'live', 'history', 'config'];
 if (!groups.length) return;
 var values = {};
 groups.forEach(function(group) {
