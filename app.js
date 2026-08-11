@@ -4058,18 +4058,7 @@ async function loadStats(requestedIntentId) {
     const contentDiv = document.getElementById('statsContent');
     const storedSnapshot = hydrateStoredReadSnapshot('getStatsSummary', {});
     if (!storedSnapshot) {
-        contentDiv.innerHTML =
-            '<div class="skeleton-card">' +
-                '<h3 class="section-heading-blue mb-20">Loading statistics...</h3>' +
-                '<div class="stats-grid">' +
-                    '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
-                    '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
-                    '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
-                    '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
-                    '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
-                    '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
-                '</div>' +
-            '</div>';
+        contentDiv.innerHTML = statsLoadingSkeletonHtml();
     }
 
     await ensurePlayersLoaded();
@@ -4091,6 +4080,20 @@ async function loadStats(requestedIntentId) {
         });
     }
     return true;
+}
+
+function statsLoadingSkeletonHtml() {
+    return '<div class="skeleton-card">' +
+        '<h3 class="section-heading-blue mb-20">Loading statistics...</h3>' +
+        '<div class="stats-grid">' +
+            '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+            '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+            '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+            '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+            '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+            '<div class="skeleton-stat-card"><div class="shimmer-wrapper skeleton-text small skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-stat-value"></div></div>' +
+        '</div>' +
+    '</div>';
 }
 
 function calculateOverallStats(completedSessionsData, allSessionsData, playersData) {
@@ -4256,7 +4259,7 @@ function displayOverallStats(stats, totalSessions) {
 async function showOverallStats() {
     const intentId = beginNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
-    contentDiv.innerHTML = '<div class="loading">Loading overall stats...</div>';
+    contentDiv.innerHTML = statsLoadingSkeletonHtml();
     await loadStats(intentId);
 }
 
@@ -5043,6 +5046,7 @@ async function showPlayerProfile(playerId, requestedIntentId) {
     } else {
         contentDiv.innerHTML =
             '<div class="skeleton-card">' +
+                '<h3 class="section-heading-blue mb-20">Loading profile...</h3>' +
                 '<div class="shimmer-wrapper" style="height:120px; border-radius:12px; margin-bottom:20px;"></div>' +
                 '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:80px;"></div>' +
                 '<div class="shimmer-wrapper skeleton-text skeleton-w-100 mb-10" style="height:120px;"></div>' +
