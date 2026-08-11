@@ -417,21 +417,45 @@ async function checkPlayerPinStatus(playerId, attemptId) {
 
 async function signInToEdit(forcePrompt, preferredPlayerId, callback) {
     if (getPlayerToken() && !forcePrompt) return getPlayerToken();
-    await ensurePlayersLoaded();
-    return new Promise(function(resolve) {
+    const attemptId = ++_signInAttemptId;
+    const signInPromise = new Promise(function(resolve) {
         _signInResolver = resolve;
         _signInCallback = callback || null;
-        const select = document.getElementById('signInPlayerSelect');
-        select.innerHTML = '<option value="">Choose player...</option>' + playersAlphabetically(allPlayers).map(function(player) {
-            const selected = String(player.player_id) === String(preferredPlayerId || '') ? ' selected' : '';
-            return '<option value="' + player.player_id + '"' + selected + '>' + escapeHtml(player.username) + '</option>';
-        }).join('');
-        const search = installSearchableSelect(select, 'Search players…');
-        setSignInChecking(false);
-        document.getElementById('signInMessage').innerHTML = '';
-        document.getElementById('signInModal').classList.add('active');
-        setTimeout(function() { (search || select).focus(); }, 0);
     });
+    const modal = document.getElementById('signInModal');
+    const select = document.getElementById('signInPlayerSelect');
+    const existingSearch = document.getElementById('signInPlayerSelectSearch');
+    select.disabled = true;
+    select.innerHTML = '<option value="">Loading players...</option>';
+    if (existingSearch) {
+        existingSearch.disabled = true;
+        existingSearch.value = '';
+        existingSearch.placeholder = 'Loading players...';
+        const existingResults = document.getElementById('signInPlayerSelectSearchResults');
+        if (existingResults) closePlayerSearchResults(existingSearch, existingResults);
+    }
+    setSignInChecking(true, 'Loading players...');
+    modal.classList.add('active');
+
+    await ensurePlayersLoaded();
+    if (attemptId !== _signInAttemptId || !modal.classList.contains('active')) return signInPromise;
+
+    select.innerHTML = '<option value="">Choose player...</option>' + playersAlphabetically(allPlayers).map(function(player) {
+        const selected = String(player.player_id) === String(preferredPlayerId || '') ? ' selected' : '';
+        return '<option value="' + player.player_id + '"' + selected + '>' + escapeHtml(player.username) + '</option>';
+    }).join('');
+    select.disabled = false;
+    const search = installSearchableSelect(select, 'Search players…');
+    if (search) {
+        search.disabled = false;
+        search.placeholder = 'Search players…';
+    }
+    setSignInChecking(false);
+    document.getElementById('signInMessage').innerHTML = allPlayers.length
+        ? ''
+        : '<div class="error">Players could not be loaded. Close this window and try again.</div>';
+    setTimeout(function() { (search || select).focus(); }, 0);
+    return signInPromise;
 }
 
 function closeSignInModal() {
@@ -971,6 +995,25 @@ async function requestWithSafeRetry(action, params, isRead, bypassHttpCache) {
         isRead ? true : bypassHttpCache
     );
     return data;
+}
+
+function showCachedRefreshIndicator(container, id, label) {
+    if (!container) return function() {};
+    const existing = document.getElementById(id);
+    if (existing) existing.remove();
+    const indicator = document.createElement('div');
+    indicator.id = id;
+    indicator.className = 'cached-refresh-indicator';
+    indicator.setAttribute('role', 'status');
+    indicator.setAttribute('aria-live', 'polite');
+    indicator.innerHTML =
+        '<span>' + escapeHtml(label) + '</span>' +
+        '<span class="shimmer-wrapper cached-refresh-shimmer" aria-hidden="true"></span>';
+    container.insertBefore(indicator, container.firstChild);
+    return function() {
+        const current = document.getElementById(id);
+        if (current) current.remove();
+    };
 }
 
 async function brieflyAwaitHomeData(maxWaitMs) {
@@ -4064,11 +4107,16 @@ html += '<span>' + escapeAttr(session.title) + '</span>';
     contentDiv.innerHTML = html;
     if (!options.skipStoredRefresh && storedSnapshot &&
         Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
+        const removeRefreshIndicator = showCachedRefreshIndicator(
+            contentDiv,
+            'previousSessionsRefreshStatus',
+            'Updating sessions...'
+        );
         refreshStoredReadInBackground('getPreviousSessionsData', {}, function(freshBundle) {
             if (!isCurrentNavigationIntent(intentId)) return;
             applySessionHistoryBundle(freshBundle, Date.now());
             loadPreviousSessions(intentId, { skipStoredRefresh: true, preserveContent: true });
-        });
+        }).finally(removeRefreshIndicator);
     }
     return true;
 }
