@@ -554,22 +554,43 @@ function finishAccessModal(confirmed) {
 // BUTTON LOADING STATE HELPER
 // ============================================
 function setButtonLoading(buttonElement, isLoading, originalText) {
+    if (!buttonElement) return;
+    const isButton = buttonElement.matches && buttonElement.matches('button, input[type="button"], input[type="submit"]');
     if (isLoading) {
-        buttonElement.disabled = true;
+        if (buttonElement.dataset.loadingState === 'true') return;
+        buttonElement.dataset.loadingState = 'true';
         buttonElement.dataset.originalText = buttonElement.textContent;
-        const label = String(buttonElement.textContent || '').toLowerCase();
-        buttonElement.textContent = /submit|save|create|update|end|delete|add|send/.test(label)
-            ? '⏳ Saving...'
-            : '⏳ Loading...';
+        if ('disabled' in buttonElement) buttonElement.disabled = true;
+        if (isButton) {
+            const label = String(buttonElement.textContent || '').toLowerCase();
+            buttonElement.textContent = /submit|save|create|update|end|delete|add|send/.test(label)
+                ? '⏳ Saving...'
+                : '⏳ Loading...';
+        } else {
+            buttonElement.classList.add('is-loading');
+        }
         buttonElement.setAttribute('aria-busy', 'true');
         buttonElement.style.opacity = '0.6';
         buttonElement.style.cursor = 'not-allowed';
     } else {
-        buttonElement.disabled = false;
-        buttonElement.textContent = originalText || buttonElement.dataset.originalText || 'Submit';
+        if ('disabled' in buttonElement) buttonElement.disabled = false;
+        if (isButton) {
+            buttonElement.textContent = originalText || buttonElement.dataset.originalText || buttonElement.textContent || 'Submit';
+        }
+        buttonElement.classList.remove('is-loading');
         buttonElement.removeAttribute('aria-busy');
-        buttonElement.style.opacity = '1';
-        buttonElement.style.cursor = 'pointer';
+        buttonElement.style.opacity = '';
+        buttonElement.style.cursor = '';
+        delete buttonElement.dataset.loadingState;
+        delete buttonElement.dataset.originalText;
+    }
+}
+
+function resetLoadingStates(rootElement) {
+    const root = rootElement || document;
+    const loadingElements = root.querySelectorAll('[data-loading-state="true"]');
+    for (let i = 0; i < loadingElements.length; i++) {
+        setButtonLoading(loadingElements[i], false);
     }
 }
 
@@ -1573,8 +1594,13 @@ async function showEloStats(requestedIntentId, options) {
 
     let html = '<h3>⚡ ELO Ratings</h3>';
     html += '<p class="text-muted text-sm mb-20">Rank-based ELO. All players start at 1000. ? = provisional (under 50 hands played).</p>';
-    html += '<div class="overflow-x-auto"><table class="scores-table"><tr>';
-    html += '<th>Rank</th><th>Player</th><th>Rating</th><th>Last Change</th><th>Hands Played</th>';
+    html += '<p class="text-muted text-sm mb-10">💡 Click column headers to sort</p>';
+    html += '<div class="overflow-x-auto"><table class="scores-table" id="eloRatingsTable"><tr>';
+    html += '<th onclick="sortEloStatsTable(0)" style="cursor:pointer;user-select:none;">Rank ⇅</th>';
+    html += '<th onclick="sortEloStatsTable(1)" style="cursor:pointer;user-select:none;">Player ⇅</th>';
+    html += '<th onclick="sortEloStatsTable(2)" style="cursor:pointer;user-select:none;">Rating ⇅</th>';
+    html += '<th onclick="sortEloStatsTable(3)" style="cursor:pointer;user-select:none;">Last Change ⇅</th>';
+    html += '<th onclick="sortEloStatsTable(4)" style="cursor:pointer;user-select:none;">Hands Played ⇅</th>';
     html += '</tr>';
     const medals = ['🥇', '🥈', '🥉'];
     for (let i = 0; i < eloCache.length; i++) {
@@ -1583,11 +1609,11 @@ async function showEloStats(requestedIntentId, options) {
         const changeColor = p.change >= 0 ? '#4caf50' : '#f44336';
         const changeSign = p.change >= 0 ? '+' : '';
         html += '<tr>';
-        html += '<td>' + medal + '</td>';
-        html += '<td><strong>' + makePlayerLink(p.player_id, p.username) + '</strong></td>';
-        html += '<td><strong>' + p.rating + (p.provisional ? '?' : '') + '</strong></td>';
-        html += '<td style="color:' + changeColor + '; font-weight:600;">' + changeSign + p.change + '</td>';
-        html += '<td>' + p.hands_played + '</td>';
+        html += '<td data-sort-value="' + (i + 1) + '">' + medal + '</td>';
+        html += '<td data-sort-value="' + escapeAttr(String(p.username || '').toLowerCase()) + '"><strong>' + makePlayerLink(p.player_id, p.username) + '</strong></td>';
+        html += '<td data-sort-value="' + Number(p.rating || 0) + '"><strong>' + p.rating + (p.provisional ? '?' : '') + '</strong></td>';
+        html += '<td data-sort-value="' + Number(p.change || 0) + '" style="color:' + changeColor + '; font-weight:600;">' + changeSign + p.change + '</td>';
+        html += '<td data-sort-value="' + Number(p.hands_played || 0) + '">' + p.hands_played + '</td>';
         html += '</tr>';
     }
     html += '</table></div>';
@@ -1608,6 +1634,38 @@ async function showEloStats(requestedIntentId, options) {
             }
         });
     }
+}
+
+let currentEloSortColumn = -1, currentEloSortAscending = true;
+
+function sortEloStatsTable(columnIndex) {
+    const table = document.getElementById('eloRatingsTable');
+    if (!table) return;
+    const rows = Array.from(table.querySelectorAll('tr')).slice(1);
+    if (currentEloSortColumn === columnIndex) {
+        currentEloSortAscending = !currentEloSortAscending;
+    } else {
+        currentEloSortColumn = columnIndex;
+        currentEloSortAscending = columnIndex === 1;
+    }
+    rows.sort(function(a, b) {
+        const aValue = String(a.cells[columnIndex].dataset.sortValue || '').trim();
+        const bValue = String(b.cells[columnIndex].dataset.sortValue || '').trim();
+        const aNumber = Number(aValue), bNumber = Number(bValue);
+        const bothNumeric = aValue !== '' && bValue !== '' && Number.isFinite(aNumber) && Number.isFinite(bNumber);
+        const comparison = bothNumeric ? aNumber - bNumber : aValue.localeCompare(bValue);
+        return currentEloSortAscending ? comparison : -comparison;
+    });
+    for (let i = 0; i < rows.length; i++) table.appendChild(rows[i]);
+    const headers = table.querySelectorAll('th');
+    for (let i = 0; i < headers.length; i++) {
+        const baseText = headers[i].textContent.replace(/\s[↑↓⇅]$/, '');
+        headers[i].textContent = baseText + (i === columnIndex ? (currentEloSortAscending ? ' ↑' : ' ↓') : ' ⇅');
+        headers[i].setAttribute('aria-sort', i === columnIndex
+            ? (currentEloSortAscending ? 'ascending' : 'descending')
+            : 'none');
+    }
+    hapticFeedback('light');
 }
 
 function drawEloHistoryChart(sessionsData, allHistoryData) {
@@ -2225,6 +2283,7 @@ function showScreen(screenId, skipHistory, requestedIntentId) {
         const destination = document.getElementById(screenId);
         if (!destination) return;
         destination.classList.add('active');
+        if (currentScreen && currentScreen !== destination) resetLoadingStates(currentScreen);
         window.scrollTo(0, 0);
         screenTransitionTimer = null;
     }, 150);
@@ -3432,7 +3491,7 @@ if (handsData.length === 0) {
     html += '</div>';
     html += '<div class="lockout-perf-box">';
     html += '<strong class="term-heading-blue">Lockout Performance:</strong><br>';
-    html += '<div class="mt-10">• <strong>Overall Avg:</strong> ' + overallAvgLockout + '</div>';
+    html += '<div class="mt-10">• <strong>Overall Avg (all attempts):</strong> ' + overallAvgLockout + '</div>';
     for (let i = 0; i < scores.length; i++) {
         const p = scores[i];
         const attemptScores = p.lockoutScores.concat(p.falseLockoutScores);
@@ -3442,8 +3501,11 @@ if (handsData.length === 0) {
                 .map(s => s.lockoutScores.concat(s.falseLockoutScores))
                 .filter(values => values.length > 0)
                 .map(values => values.reduce((sum, score) => sum + score, 0) / values.length);
-            const isBest = totalLockouts > 0 && Number(avgLockout) === Math.min(...eligibleAverages);
-            html += '<div>• <strong>' + makePlayerLink(getPlayerIdByName(p.username), p.username) + ':</strong> ' + avgLockout + ' (' + attemptScores.length + ' attempts)' + (isBest ? ' ⭐ Best!' : '') + '</div>';
+            const isLowestAverage = totalLockouts > 0 && Number(avgLockout) === Math.min(...eligibleAverages);
+            html += '<div>• <strong>' + makePlayerLink(getPlayerIdByName(p.username), p.username) + ':</strong> ' +
+                avgLockout + ' avg • ' + p.lockouts + ' successful from ' + attemptScores.length +
+                ' attempt' + (attemptScores.length === 1 ? '' : 's') +
+                (isLowestAverage ? ' ⭐ Lowest avg' : '') + '</div>';
         } else {
             html += '<div>• <strong>' + makePlayerLink(getPlayerIdByName(p.username), p.username) + ':</strong> No lockout attempts yet</div>';
         }
@@ -3746,6 +3808,8 @@ async function viewSessionDetail(sessionIndex, buttonElement, requestedIntentId)
     for (let i = 0; i < handsData.length; i++) { if (!handsData[i].comment) handsData[i].comment = ''; }
 
     document.getElementById('sessionDetailTitle').textContent = session.title;
+    const detailDate = document.getElementById('sessionDetailDate');
+    if (detailDate) detailDate.textContent = '📅 ' + formatUKDate(session.date_started);
     const joinInfo = parsePlayerJoinInfo(session.player_join_info);
 
     let metadataHtml = '';

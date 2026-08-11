@@ -7,7 +7,7 @@
         // changes to app.js or styles.css
         // ============================================
         const APP_VERSION = '2.1.3';
-        const ASSET_VERSION = APP_VERSION + '-simple-data-flow';
+        const ASSET_VERSION = APP_VERSION + '-ui-polish-1';
         document.write('<link rel="stylesheet" href="styles.css?v=' + ASSET_VERSION + '">');
     </script>
     <meta charset="UTF-8">
@@ -863,6 +863,7 @@
         <div id="sessionDetailScreen" class="screen">
             <div class="card">
                 <h2 id="sessionDetailTitle">Session Details</h2>
+                <p id="sessionDetailDate" class="session-detail-date"></p>
                 <div id="sessionDetailMetadata"></div>
                 <div id="sessionDetailContent"></div>
                 <div id="sessionDetailGraphs"></div>

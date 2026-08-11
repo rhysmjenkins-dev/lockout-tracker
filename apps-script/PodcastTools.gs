@@ -90,10 +90,11 @@ function podcastGenerateWeeklyPack(start, end) {
       return podcastSummariseSession(session, hands, weeklyElo, names);
     });
     var aggregate = podcastWeeklyAggregate(summaries, weeklyHands, weeklyElo, names);
+    var leaderboard = podcastLeaderboardAtEnd(players, official, hands, elo, endExclusive);
     var context = podcastHistoricalContext(summaries, previous, hands, names);
     var metadata = podcastSuggestedMetadata(summaries, aggregate, startDay, end, names);
     var content = podcastRenderWeeklyPack(
-      startDay, end, summaries, aggregate, context, metadata, names
+      startDay, end, summaries, aggregate, leaderboard, context, metadata, names
     );
     return {
       filename: 'lockout-weekly-' + podcastIso(startDay) + '-to-' + podcastIso(end) + '.txt',
@@ -184,6 +185,49 @@ function podcastWeeklyAggregate(summaries, weeklyHands, weeklyElo, names) {
   };
 }
 
+function podcastLeaderboardAtEnd(players, officialSessions, allHands, eloHistory, endExclusive) {
+  var eligibleSessionIds = {};
+  officialSessions.forEach(function(session) {
+    var date = podcastSessionDate(session);
+    if (date && date < endExclusive) eligibleSessionIds[String(session.session_id)] = true;
+  });
+
+  var latestByPlayer = {};
+  eloHistory.forEach(function(row) {
+    if (!eligibleSessionIds[String(row.session_id)]) return;
+    var playerId = String(row.player_id);
+    if (!latestByPlayer[playerId] || Number(row.elo_id) > Number(latestByPlayer[playerId].elo_id)) {
+      latestByPlayer[playerId] = row;
+    }
+  });
+
+  var handKeysByPlayer = {};
+  allHands.forEach(function(row) {
+    if (!eligibleSessionIds[String(row.session_id)]) return;
+    var playerId = String(row.player_id);
+    if (!handKeysByPlayer[playerId]) handKeysByPlayer[playerId] = {};
+    handKeysByPlayer[playerId][String(row.session_id) + '|' + String(row.hand_number)] = true;
+  });
+
+  var defaultRating = typeof DEFAULT_ELO === 'number' ? DEFAULT_ELO : 1000;
+  var provisionalHands = typeof PROVISIONAL_HANDS === 'number' ? PROVISIONAL_HANDS : 50;
+  return players.map(function(player) {
+    var playerId = String(player.player_id);
+    var latest = latestByPlayer[playerId];
+    var handsPlayed = Object.keys(handKeysByPlayer[playerId] || {}).length;
+    return {
+      player_id: playerId,
+      username: String(player.username || ('Player ' + playerId)),
+      rating: latest ? Math.round(Number(latest.new_rating)) : defaultRating,
+      change: latest ? Math.round(Number(latest.change || 0)) : 0,
+      hands_played: handsPlayed,
+      provisional: handsPlayed < provisionalHands
+    };
+  }).sort(function(a, b) {
+    return b.rating - a.rating || a.username.localeCompare(b.username);
+  });
+}
+
 function podcastHistoricalContext(summaries, previousSessions, allHands, names) {
   if (!previousSessions.length) {
     return ['This is the opening recorded week, so no earlier official context is available.'];
@@ -246,7 +290,7 @@ function podcastSuggestedMetadata(summaries, aggregate, start, end, names) {
   };
 }
 
-function podcastRenderWeeklyPack(start, end, summaries, aggregate, context, metadata, names) {
+function podcastRenderWeeklyPack(start, end, summaries, aggregate, leaderboard, context, metadata, names) {
   var out = [];
   out.push('THE LOCKOUT WEEKLY — WEEKLY PODCAST PACK');
   out.push('');
@@ -276,6 +320,16 @@ function podcastRenderWeeklyPack(start, end, summaries, aggregate, context, meta
       (aggregate.appearances[id] === 1 ? '' : 's') + ', ' +
       (aggregate.wins[id] || 0) + ' win' + ((aggregate.wins[id] || 0) === 1 ? '' : 's') +
       ', net Elo ' + podcastSigned(aggregate.eloNet[id] || 0) + '.'
+    );
+  });
+  out.push('');
+  out.push('OVERALL ELO LEADERBOARD AT THE END OF THE WEEK');
+  leaderboard.forEach(function(player, index) {
+    out.push(
+      (index + 1) + '. ' + player.username + ' — ' + player.rating +
+      (player.provisional ? '?' : '') + ', ' + player.hands_played +
+      ' hand' + (player.hands_played === 1 ? '' : 's') +
+      ', latest change ' + podcastSigned(player.change) + '.'
     );
   });
   out.push('');
