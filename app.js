@@ -956,15 +956,20 @@ function createClientRequestId() {
         Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 }
 
-async function requestWithSafeWriteRetry(action, params, isRead, bypassHttpCache) {
+async function requestWithSafeRetry(action, params, isRead, bypassHttpCache) {
     let data = await rawApiRequest(action, params, isRead, bypassHttpCache);
-    const canRetry = !isRead && SAFE_POST_RETRY_ACTIONS.has(action);
+    const canRetry = isRead || SAFE_POST_RETRY_ACTIONS.has(action);
     if (!isTransientApiFailure(data) || !canRetry) return data;
     await waitForRetry(350);
     const retryParams = !isRead
         ? Object.assign({}, params, { client_retry: '1' })
         : params;
-    data = await rawApiRequest(action, retryParams, isRead, bypassHttpCache);
+    data = await rawApiRequest(
+        action,
+        retryParams,
+        isRead,
+        isRead ? true : bypassHttpCache
+    );
     return data;
 }
 
@@ -991,7 +996,7 @@ async function apiCall(action, params, options) {
         if (!options.forceRefresh && ttl > 0 && cached && Date.now() - cached.storedAt < ttl) return cached.data;
         if (readRequestInFlight.has(requestKey)) return readRequestInFlight.get(requestKey);
         const cacheGeneration = readCacheGeneration;
-        const request = requestWithSafeWriteRetry(action, params, true, Boolean(options.bypassHttpCache))
+        const request = requestWithSafeRetry(action, params, true, Boolean(options.bypassHttpCache))
             .then(function(data) {
                 if (ttl > 0 && data && !data.error && cacheGeneration === readCacheGeneration) {
                     readResponseCache.set(cacheKey, { data: data, storedAt: Date.now() });
@@ -1019,7 +1024,7 @@ async function apiCall(action, params, options) {
                 : Number(params.revision || 1);
         }
     }
-    const data = await requestWithSafeWriteRetry(action, params, isRead, false);
+    const data = await requestWithSafeRetry(action, params, isRead, false);
     if (data && (data.code === 'AUTH_EXPIRED' || data.code === 'AUTH_REQUIRED') &&
         !UNAUTHENTICATED_WRITE_ACTIONS.has(action)) signOutPlayer();
     if (data && data.revision && currentSession && String(currentSession.session_id) === String(params.session_id)) {
@@ -2602,13 +2607,29 @@ async function addPlayer(event) {
 // ADD PLAYER TO ACTIVE SESSION
 // ============================================
 async function showAddPlayerModal() {
-    await ensurePlayersLoaded();
+    const playerList = document.getElementById('addPlayerList');
+    if (!allPlayers.length) {
+        playerList.innerHTML = listLoadingSkeletonHtml('Loading players...', 3);
+        document.getElementById('addPlayerModal').classList.add('active');
+    }
+    const loadedPlayers = await ensurePlayersLoaded();
+    if (!loadedPlayers.length && !allPlayers.length) {
+        playerList.innerHTML = loadErrorHtml(
+            { error: 'Players could not be loaded.' },
+            'Players could not be loaded.',
+            'showAddPlayerModal()'
+        );
+        return;
+    }
     const currentPlayerIds = sessionPlayers.map(p => String(p.player_id));
     const availablePlayers = playersAlphabetically(
         allPlayers.filter(p => currentPlayerIds.indexOf(String(p.player_id)) === -1)
     );
-    if (availablePlayers.length === 0) { alert('All players are already in this session!'); return; }
-    const playerList = document.getElementById('addPlayerList');
+    if (availablePlayers.length === 0) {
+        document.getElementById('addPlayerModal').classList.remove('active');
+        alert('All players are already in this session!');
+        return;
+    }
     let html = '<ul class="player-list">';
     for (let i = 0; i < availablePlayers.length; i++) {
         const player = availablePlayers[i];
