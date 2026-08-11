@@ -1561,15 +1561,8 @@ async function showEloStats(requestedIntentId, options) {
         : beginNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
     const storedSnapshot = hydrateStoredReadSnapshot('getEloStatsData', {});
-    if (!storedSnapshot) {
-        contentDiv.innerHTML =
-            '<div class="skeleton-card">' +
-                '<div class="shimmer-wrapper skeleton-text skeleton-w-50 mb-10" style="height:22px;"></div>' +
-                '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
-                '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10" style="height:36px;"></div>' +
-                '<div class="shimmer-wrapper skeleton-text skeleton-w-60 mb-10" style="height:36px;"></div>' +
-                '<div class="shimmer-wrapper skeleton-text skeleton-w-80 mb-10" style="height:36px;"></div>' +
-            '</div>';
+    if (!options.preserveContent) {
+        contentDiv.innerHTML = tableLoadingSkeletonHtml('Loading ELO statistics...', 5, 4);
     }
 
     // One combined read avoids three separate Apps Script round-trips.
@@ -1638,7 +1631,7 @@ async function showEloStats(requestedIntentId, options) {
         Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
         refreshStoredReadInBackground('getEloStatsData', {}, function() {
             if (isCurrentNavigationIntent(intentId)) {
-                showEloStats(intentId, { skipStoredRefresh: true });
+                showEloStats(intentId, { skipStoredRefresh: true, preserveContent: true });
             }
         });
     }
@@ -2394,7 +2387,7 @@ async function loadPodcasts(forceRefresh) {
         return;
     }
 
-    content.innerHTML = '<div class="loading">Loading episodes...</div>';
+    content.innerHTML = listLoadingSkeletonHtml('Loading episodes...', 2);
     try {
         const response = await fetch('podcasts/episodes.json?v=' + encodeURIComponent(
             typeof ASSET_VERSION === 'string' ? ASSET_VERSION : APP_VERSION
@@ -2419,6 +2412,8 @@ async function loadPodcasts(forceRefresh) {
 // PLAYER MANAGEMENT
 // ============================================
 async function loadPlayersForSession() {
+    const playerList = document.getElementById('playerSelectionList');
+    playerList.innerHTML = listLoadingSkeletonHtml('Loading players...', 3);
     await ensurePlayersLoaded();
     const sortedPlayers = playersAlphabetically(allPlayers);
     const hostSelect = document.getElementById('sessionHost');
@@ -2427,7 +2422,6 @@ async function loadPlayersForSession() {
         hostSelect.innerHTML += '<option value="' + sortedPlayers[i].player_id + '">' + sortedPlayers[i].username + '</option>';
     }
     installSearchableSelect(hostSelect, 'Search hosts…');
-    const playerList = document.getElementById('playerSelectionList');
     let html = '<ul class="player-list">';
     for (let i = 0; i < sortedPlayers.length; i++) {
         html += '<li class="player-item"><label><input type="checkbox" value="' + sortedPlayers[i].player_id + '" class="player-checkbox"> ' + sortedPlayers[i].username + '</label></li>';
@@ -3619,14 +3613,8 @@ async function loadPreviousSessions(requestedIntentId, options) {
         : getNavigationIntent();
     const contentDiv = document.getElementById('previousSessionsContent');
     const storedSnapshot = hydrateStoredReadSnapshot('getPreviousSessionsData', {});
-    if (!storedSnapshot) {
-        contentDiv.innerHTML =
-            '<div class="skeleton-card">' +
-                '<h3 class="section-heading-blue mb-15">Loading previous sessions...</h3>' +
-                '<div class="skeleton-session-item"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div></div>' +
-                '<div class="skeleton-session-item"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div></div>' +
-                '<div class="skeleton-session-item"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div></div>' +
-            '</div>';
+    if (!options.preserveContent) {
+        contentDiv.innerHTML = listLoadingSkeletonHtml('Loading previous sessions...', 3);
     }
 
     const results = await Promise.all([
@@ -3781,7 +3769,7 @@ html += '<span>' + escapeAttr(session.title) + '</span>';
         refreshStoredReadInBackground('getPreviousSessionsData', {}, function(freshBundle) {
             if (!isCurrentNavigationIntent(intentId)) return;
             applySessionHistoryBundle(freshBundle, Date.now());
-            loadPreviousSessions(intentId, { skipStoredRefresh: true });
+            loadPreviousSessions(intentId, { skipStoredRefresh: true, preserveContent: true });
         });
     }
     return true;
@@ -4068,9 +4056,7 @@ async function loadStats(requestedIntentId) {
         : getNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
     const storedSnapshot = hydrateStoredReadSnapshot('getStatsSummary', {});
-    if (!storedSnapshot) {
-        contentDiv.innerHTML = statsLoadingSkeletonHtml();
-    }
+    contentDiv.innerHTML = statsLoadingSkeletonHtml();
 
     await ensurePlayersLoaded();
     if (!isCurrentNavigationIntent(intentId)) return false;
@@ -4091,6 +4077,54 @@ async function loadStats(requestedIntentId) {
         });
     }
     return true;
+}
+
+// Shared screen-loading skeletons keep every route visually consistent.
+function listLoadingSkeletonHtml(title, rowCount) {
+    let rows = '';
+    const count = Number(rowCount || 3);
+    for (let i = 0; i < count; i++) {
+        rows += '<div class="skeleton-session-item">' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div>' +
+            '<div class="shimmer-wrapper skeleton-text small skeleton-w-50"></div>' +
+        '</div>';
+    }
+    return '<div class="skeleton-card">' +
+        '<h3 class="section-heading-blue mb-15">' + escapeHtml(title) + '</h3>' +
+        rows +
+    '</div>';
+}
+
+function tableLoadingSkeletonHtml(title, columnCount, rowCount) {
+    let rows = '';
+    const columns = Number(columnCount || 3);
+    const count = Number(rowCount || 4);
+    for (let row = 0; row < count; row++) {
+        let cells = '';
+        for (let column = 0; column < columns; column++) {
+            cells += '<div class="shimmer-wrapper skeleton-table-cell"></div>';
+        }
+        rows += '<div class="skeleton-table-row">' + cells + '</div>';
+    }
+    return '<div class="skeleton-card">' +
+        '<h3 class="section-heading-blue mb-15">' + escapeHtml(title) + '</h3>' +
+        '<div class="overflow-x-auto">' + rows + '</div>' +
+    '</div>';
+}
+
+function playerGridLoadingSkeletonHtml(title) {
+    let cards = '';
+    for (let i = 0; i < 4; i++) {
+        cards += '<div class="skeleton-player-card">' +
+            '<div class="shimmer-wrapper skeleton-avatar"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-70 mt-10"></div>' +
+            '<div class="shimmer-wrapper skeleton-text skeleton-w-50 mt-10"></div>' +
+        '</div>';
+    }
+    return '<div class="skeleton-card">' +
+        (title ? '<h3 class="section-heading-blue mb-15">' + escapeHtml(title) + '</h3>' : '') +
+        '<div class="players-grid">' + cards + '</div>' +
+    '</div>';
 }
 
 function statsLoadingSkeletonHtml() {
@@ -4288,14 +4322,8 @@ async function showHeadToHeadList(requestedIntentId, options) {
         : beginNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
     const storedSnapshot = hydrateStoredReadSnapshot('getHeadToHeadMatrix', {});
-    if (!storedSnapshot) {
-        contentDiv.innerHTML =
-            '<div class="skeleton-card">' +
-                '<h3 class="section-heading-blue mb-15">Loading head-to-head records...</h3>' +
-                '<div class="h2h-matchup-card"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-100 skeleton-h-8 mb-10"></div><div class="shimmer-wrapper skeleton-button skeleton-h-40"></div></div>' +
-                '<div class="h2h-matchup-card"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-100 skeleton-h-8 mb-10"></div><div class="shimmer-wrapper skeleton-button skeleton-h-40"></div></div>' +
-                '<div class="h2h-matchup-card"><div class="shimmer-wrapper skeleton-text skeleton-w-70 mb-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-100 skeleton-h-8 mb-10"></div><div class="shimmer-wrapper skeleton-button skeleton-h-40"></div></div>' +
-            '</div>';
+    if (!options.preserveContent) {
+        contentDiv.innerHTML = listLoadingSkeletonHtml('Loading head-to-head records...', 3);
     }
 
     await ensurePlayersLoaded();
@@ -4349,7 +4377,7 @@ async function showHeadToHeadList(requestedIntentId, options) {
         Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
         refreshStoredReadInBackground('getHeadToHeadMatrix', {}, function() {
             if (isCurrentNavigationIntent(intentId)) {
-                showHeadToHeadList(intentId, { skipStoredRefresh: true });
+                showHeadToHeadList(intentId, { skipStoredRefresh: true, preserveContent: true });
             }
         });
     }
@@ -4368,9 +4396,10 @@ async function showPlayerComparisonUI(requestedIntentId) {
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
         : beginNavigationIntent();
+    const contentDiv = document.getElementById('statsContent');
+    contentDiv.innerHTML = playerGridLoadingSkeletonHtml('Loading players...');
     await ensurePlayersLoaded();
     if (!isCurrentNavigationIntent(intentId)) return false;
-    const contentDiv = document.getElementById('statsContent');
     const sortedPlayers = playersAlphabetically(allPlayers);
     let html = '<h3 class="mb-20">⚔️ Compare Two Players</h3>';
     html += '<div class="comparison-player-grid">';
@@ -4418,7 +4447,7 @@ async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, reque
     const loadingComparisonLabel = getPlayerName(p1Id) + ' vs ' + getPlayerName(p2Id);
     const comparisonParams = { player1_id: p1Id, player2_id: p2Id };
     const storedSnapshot = hydrateStoredReadSnapshot('getPlayerComparisonDetailed', comparisonParams);
-    if (!storedSnapshot) {
+    if (!options.preserveContent) {
         contentDiv.innerHTML =
             '<div class="skeleton-card">' +
                 '<h3 class="section-heading-blue mb-20">Loading ' + escapeHtml(loadingComparisonLabel) + '…</h3>' +
@@ -4539,7 +4568,7 @@ async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, reque
         Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
         refreshStoredReadInBackground('getPlayerComparisonDetailed', comparisonParams, function() {
             if (isCurrentNavigationIntent(intentId)) {
-                showPlayerComparison(intentId, p1Id, p2Id, { skipStoredRefresh: true });
+                showPlayerComparison(intentId, p1Id, p2Id, { skipStoredRefresh: true, preserveContent: true });
             }
         });
     }
@@ -4997,15 +5026,7 @@ async function loadPlayersScreen(requestedIntentId) {
         ? requestedIntentId
         : getNavigationIntent();
     const contentDiv = document.getElementById('playersScreenContent');
-    contentDiv.innerHTML =
-        '<div class="skeleton-card">' +
-            '<div class="players-grid">' +
-                '<div class="skeleton-player-card"><div class="shimmer-wrapper skeleton-avatar"></div><div class="shimmer-wrapper skeleton-text skeleton-w-70 mt-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-50 mt-10"></div></div>' +
-                '<div class="skeleton-player-card"><div class="shimmer-wrapper skeleton-avatar"></div><div class="shimmer-wrapper skeleton-text skeleton-w-70 mt-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-50 mt-10"></div></div>' +
-                '<div class="skeleton-player-card"><div class="shimmer-wrapper skeleton-avatar"></div><div class="shimmer-wrapper skeleton-text skeleton-w-70 mt-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-50 mt-10"></div></div>' +
-                '<div class="skeleton-player-card"><div class="shimmer-wrapper skeleton-avatar"></div><div class="shimmer-wrapper skeleton-text skeleton-w-70 mt-10"></div><div class="shimmer-wrapper skeleton-text skeleton-w-50 mt-10"></div></div>' +
-            '</div>' +
-        '</div>';
+    contentDiv.innerHTML = playerGridLoadingSkeletonHtml('Loading players...');
     if (allPlayers.length > 0 && eloCache.length > 0) {
         renderPlayersDirectory(contentDiv);
         return true;
