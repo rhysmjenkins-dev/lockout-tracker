@@ -2016,12 +2016,10 @@ function zeroScoreAxisGrid() {
     return {
         color: function(context) {
             return Number(context.tick && context.tick.value) === 0
-                ? 'rgba(31, 41, 55, 0.9)'
+                ? 'rgba(0, 0, 0, 0)'
                 : 'rgba(148, 163, 184, 0.25)';
         },
-        lineWidth: function(context) {
-            return Number(context.tick && context.tick.value) === 0 ? 1.5 : 1;
-        }
+        lineWidth: 1
     };
 }
 
