@@ -2020,7 +2020,7 @@ function zeroScoreAxisGrid() {
                 : 'rgba(148, 163, 184, 0.25)';
         },
         lineWidth: function(context) {
-            return Number(context.tick && context.tick.value) === 0 ? 2 : 1;
+            return Number(context.tick && context.tick.value) === 0 ? 1.5 : 1;
         }
     };
 }
@@ -2037,7 +2037,7 @@ const zeroScoreLinePlugin = {
         context.beginPath();
         context.moveTo(area.left, y);
         context.lineTo(area.right, y);
-        context.lineWidth = 2;
+        context.lineWidth = 1.5;
         context.strokeStyle = 'rgba(31, 41, 55, 0.95)';
         context.stroke();
         context.restore();
