@@ -3954,6 +3954,12 @@ async function loadPreviousSessions(requestedIntentId, options) {
         : getNavigationIntent();
     const contentDiv = document.getElementById('previousSessionsContent');
     const storedSnapshot = hydrateStoredReadSnapshot('getPreviousSessionsData', {});
+    const showSavedLoading = Boolean(storedSnapshot && !options.preserveContent && !options.skipStoredRefresh);
+    const savedLoadingStartedAt = showSavedLoading ? Date.now() : 0;
+    let savedLoadingLimitTimer = null;
+    let removeSavedLoading = showSavedLoading
+        ? showCachedRefreshIndicator(contentDiv, 'previousSessionsRefreshStatus', 'Loading sessions...')
+        : null;
     if (!storedSnapshot && !options.preserveContent) {
         contentDiv.innerHTML = listLoadingSkeletonHtml('Loading previous sessions...', 3);
     }
@@ -4105,18 +4111,41 @@ html += '<span>' + escapeAttr(session.title) + '</span>';
     }
     html += '</ul></div>';
     contentDiv.innerHTML = html;
-    if (!options.skipStoredRefresh && storedSnapshot &&
-        Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
-        const removeRefreshIndicator = showCachedRefreshIndicator(
+    const storedSnapshotNeedsRefresh = Boolean(
+        storedSnapshot && Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS
+    );
+    if (showSavedLoading) {
+        removeSavedLoading = showCachedRefreshIndicator(
             contentDiv,
             'previousSessionsRefreshStatus',
-            'Updating sessions...'
+            storedSnapshotNeedsRefresh ? 'Updating sessions...' : 'Loading sessions...'
         );
+        savedLoadingLimitTimer = setTimeout(function() {
+            if (removeSavedLoading) removeSavedLoading();
+            removeSavedLoading = null;
+        }, 8000);
+    }
+    const finishSavedLoading = function() {
+        if (savedLoadingLimitTimer) {
+            clearTimeout(savedLoadingLimitTimer);
+            savedLoadingLimitTimer = null;
+        }
+        if (!removeSavedLoading) return;
+        const minimumVisibleMs = 650;
+        const remaining = Math.max(0, minimumVisibleMs - (Date.now() - savedLoadingStartedAt));
+        setTimeout(function() {
+            if (removeSavedLoading) removeSavedLoading();
+            removeSavedLoading = null;
+        }, remaining);
+    };
+    if (!options.skipStoredRefresh && storedSnapshotNeedsRefresh) {
         refreshStoredReadInBackground('getPreviousSessionsData', {}, function(freshBundle) {
             if (!isCurrentNavigationIntent(intentId)) return;
             applySessionHistoryBundle(freshBundle, Date.now());
             loadPreviousSessions(intentId, { skipStoredRefresh: true, preserveContent: true });
-        }).finally(removeRefreshIndicator);
+        }).finally(finishSavedLoading);
+    } else {
+        finishSavedLoading();
     }
     return true;
 }
