@@ -1260,25 +1260,6 @@ table .player-link-avatar-wrap {
     flex: 0 0 auto;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.cached-refresh-indicator {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin: 0 0 12px;
-    padding: 9px 12px;
-    border-radius: 8px;
-    background: #eef1ff;
-    color: var(--primary-dark);
-    font-size: 0.9em;
-    font-weight: 700;
-}
-.cached-refresh-shimmer {
-    flex: 1;
-    width: auto;
-    height: 10px;
-    margin: 0;
-    border-radius: 999px;
-}
 /* === PLAYER CARD SKELETON === */
 .skeleton-player-card {
     background: var(--bg-light);

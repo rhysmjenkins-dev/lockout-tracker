@@ -997,25 +997,6 @@ async function requestWithSafeRetry(action, params, isRead, bypassHttpCache) {
     return data;
 }
 
-function showCachedRefreshIndicator(container, id, label) {
-    if (!container) return function() {};
-    const existing = document.getElementById(id);
-    if (existing) existing.remove();
-    const indicator = document.createElement('div');
-    indicator.id = id;
-    indicator.className = 'cached-refresh-indicator';
-    indicator.setAttribute('role', 'status');
-    indicator.setAttribute('aria-live', 'polite');
-    indicator.innerHTML =
-        '<span>' + escapeHtml(label) + '</span>' +
-        '<span class="shimmer-wrapper cached-refresh-shimmer" aria-hidden="true"></span>';
-    container.insertBefore(indicator, container.firstChild);
-    return function() {
-        const current = document.getElementById(id);
-        if (current) current.remove();
-    };
-}
-
 async function brieflyAwaitHomeData(maxWaitMs) {
     if (!homeDashboardPromise) return;
     await Promise.race([
@@ -3953,14 +3934,9 @@ async function loadPreviousSessions(requestedIntentId, options) {
         ? requestedIntentId
         : getNavigationIntent();
     const contentDiv = document.getElementById('previousSessionsContent');
+    const loadingStartedAt = Date.now();
     const storedSnapshot = hydrateStoredReadSnapshot('getPreviousSessionsData', {});
-    const showSavedLoading = Boolean(storedSnapshot && !options.preserveContent && !options.skipStoredRefresh);
-    const savedLoadingStartedAt = showSavedLoading ? Date.now() : 0;
-    let savedLoadingLimitTimer = null;
-    let removeSavedLoading = showSavedLoading
-        ? showCachedRefreshIndicator(contentDiv, 'previousSessionsRefreshStatus', 'Loading sessions...')
-        : null;
-    if (!storedSnapshot && !options.preserveContent) {
+    if (!options.preserveContent) {
         contentDiv.innerHTML = listLoadingSkeletonHtml('Loading previous sessions...', 3);
     }
 
@@ -4000,6 +3976,13 @@ async function loadPreviousSessions(requestedIntentId, options) {
     allSessions = completedSessions.map(item => item.session);
     window.sessionsHandsCache = {};
     for (let i = 0; i < completedSessions.length; i++) window.sessionsHandsCache[completedSessions[i].session.session_id] = completedSessions[i].hands;
+
+    if (!options.preserveContent) {
+        const minimumShimmerMs = 450;
+        const remainingShimmerMs = Math.max(0, minimumShimmerMs - (Date.now() - loadingStartedAt));
+        if (remainingShimmerMs > 0) await waitForRetry(remainingShimmerMs);
+        if (!isCurrentNavigationIntent(intentId)) return false;
+    }
 
     if (completedSessions.length === 0) { contentDiv.innerHTML = '<div class="placeholder-content"><h3>No Completed Sessions</h3><p>Complete a session to see it here!</p></div>'; return; }
 
@@ -4111,41 +4094,13 @@ html += '<span>' + escapeAttr(session.title) + '</span>';
     }
     html += '</ul></div>';
     contentDiv.innerHTML = html;
-    const storedSnapshotNeedsRefresh = Boolean(
-        storedSnapshot && Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS
-    );
-    if (showSavedLoading) {
-        removeSavedLoading = showCachedRefreshIndicator(
-            contentDiv,
-            'previousSessionsRefreshStatus',
-            storedSnapshotNeedsRefresh ? 'Updating sessions...' : 'Loading sessions...'
-        );
-        savedLoadingLimitTimer = setTimeout(function() {
-            if (removeSavedLoading) removeSavedLoading();
-            removeSavedLoading = null;
-        }, 8000);
-    }
-    const finishSavedLoading = function() {
-        if (savedLoadingLimitTimer) {
-            clearTimeout(savedLoadingLimitTimer);
-            savedLoadingLimitTimer = null;
-        }
-        if (!removeSavedLoading) return;
-        const minimumVisibleMs = 650;
-        const remaining = Math.max(0, minimumVisibleMs - (Date.now() - savedLoadingStartedAt));
-        setTimeout(function() {
-            if (removeSavedLoading) removeSavedLoading();
-            removeSavedLoading = null;
-        }, remaining);
-    };
-    if (!options.skipStoredRefresh && storedSnapshotNeedsRefresh) {
+    if (!options.skipStoredRefresh && storedSnapshot &&
+        Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
         refreshStoredReadInBackground('getPreviousSessionsData', {}, function(freshBundle) {
             if (!isCurrentNavigationIntent(intentId)) return;
             applySessionHistoryBundle(freshBundle, Date.now());
             loadPreviousSessions(intentId, { skipStoredRefresh: true, preserveContent: true });
-        }).finally(finishSavedLoading);
-    } else {
-        finishSavedLoading();
+        });
     }
     return true;
 }
