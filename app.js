@@ -1673,6 +1673,8 @@ async function showEloStats(requestedIntentId, options) {
     html += '</div>';
 
     contentDiv.innerHTML = html;
+    contentDiv.dataset.statsView = 'elo';
+    delete contentDiv.dataset.comparisonKey;
 
     // Canvas now exists in the DOM — draw immediately with pre-fetched data
     drawEloHistoryChart(sessionsData, allHistoryData);
@@ -3935,9 +3937,26 @@ async function loadPreviousSessions(requestedIntentId, options) {
         : getNavigationIntent();
     const contentDiv = document.getElementById('previousSessionsContent');
     const loadingStartedAt = Date.now();
+    const cacheKey = apiCacheKey('getPreviousSessionsData', {});
     const storedSnapshot = hydrateStoredReadSnapshot('getPreviousSessionsData', {});
-    if (!options.preserveContent) {
+    const cachedEntry = readResponseCache.get(cacheKey);
+    const cachedEntryIsFresh = Boolean(cachedEntry &&
+        Date.now() - Number(cachedEntry.storedAt) < READ_CACHE_TTL.getPreviousSessionsData);
+    const hasCachedSessionsBundle = Boolean(
+        storedSnapshot ||
+        (cachedEntry && cachedEntry.data && !cachedEntry.data.error)
+    );
+    const hasSavedSessions = Boolean(
+        contentDiv.dataset.sessionsLoaded === 'true' ||
+        (hasCachedSessionsBundle && allPlayers.length)
+    );
+    const initialRequestUsesServer = !cachedEntryIsFresh;
+    let removeRefreshIndicator = null;
+
+    if (!options.preserveContent && !hasSavedSessions) {
         contentDiv.innerHTML = listLoadingSkeletonHtml('Loading previous sessions...', 3);
+    } else if (!options.preserveContent && initialRequestUsesServer) {
+        removeRefreshIndicator = showSessionsRefreshIndicator(contentDiv);
     }
 
     const results = await Promise.all([
@@ -3945,6 +3964,10 @@ async function loadPreviousSessions(requestedIntentId, options) {
         apiCall('getPreviousSessionsData', {})
     ]);
     const historyBundle = results[1];
+    if (removeRefreshIndicator) {
+        removeRefreshIndicator();
+        removeRefreshIndicator = null;
+    }
     let sessionsWithHands;
     let eloHistoryAll;
     if (historyBundle && !historyBundle.error) {
@@ -3977,7 +4000,7 @@ async function loadPreviousSessions(requestedIntentId, options) {
     window.sessionsHandsCache = {};
     for (let i = 0; i < completedSessions.length; i++) window.sessionsHandsCache[completedSessions[i].session.session_id] = completedSessions[i].hands;
 
-    if (!options.preserveContent) {
+    if (!options.preserveContent && !hasSavedSessions) {
         const minimumShimmerMs = 450;
         const remainingShimmerMs = Math.max(0, minimumShimmerMs - (Date.now() - loadingStartedAt));
         if (remainingShimmerMs > 0) await waitForRetry(remainingShimmerMs);
@@ -4094,13 +4117,16 @@ html += '<span>' + escapeAttr(session.title) + '</span>';
     }
     html += '</ul></div>';
     contentDiv.innerHTML = html;
-    if (!options.skipStoredRefresh && storedSnapshot &&
-        Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
+    contentDiv.dataset.sessionsLoaded = 'true';
+    const storedSnapshotNeedsRefresh = Boolean(storedSnapshot &&
+        Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS);
+    if (!options.skipStoredRefresh && storedSnapshotNeedsRefresh && !initialRequestUsesServer) {
+        const finishRefreshIndicator = showSessionsRefreshIndicator(contentDiv);
         refreshStoredReadInBackground('getPreviousSessionsData', {}, function(freshBundle) {
             if (!isCurrentNavigationIntent(intentId)) return;
             applySessionHistoryBundle(freshBundle, Date.now());
             loadPreviousSessions(intentId, { skipStoredRefresh: true, preserveContent: true });
-        });
+        }).finally(finishRefreshIndicator);
     }
     return true;
 }
@@ -4430,6 +4456,33 @@ async function loadStats(requestedIntentId, options) {
 }
 
 // Shared screen-loading skeletons keep every route visually consistent.
+function showInlineRefreshIndicator(container, id, label) {
+    if (!container) return function() {};
+    const existing = document.getElementById(id);
+    if (existing) existing.remove();
+    const indicator = document.createElement('div');
+    indicator.id = id;
+    indicator.className = 'inline-refresh-indicator';
+    indicator.setAttribute('role', 'status');
+    indicator.setAttribute('aria-live', 'polite');
+    indicator.innerHTML =
+        '<span class="loading-spinner inline-refresh-spinner" aria-hidden="true"></span>' +
+        '<span>' + escapeHtml(label) + '</span>';
+    container.insertBefore(indicator, container.firstChild);
+    return function() {
+        const current = document.getElementById(id);
+        if (current) current.remove();
+    };
+}
+
+function showSessionsRefreshIndicator(container) {
+    return showInlineRefreshIndicator(
+        container,
+        'previousSessionsRefreshStatus',
+        'Updating sessions...'
+    );
+}
+
 function listLoadingSkeletonHtml(title, rowCount) {
     let rows = '';
     const count = Number(rowCount || 3);
@@ -4655,7 +4708,10 @@ function displayOverallStats(stats, totalSessions) {
         html += '<tr><td>' + makePlayerLink(playerId, ps.username) + formatEloBadge(playerId) + '</td><td>' + ps.sessionsPlayed + '</td><td>' + ps.sessionsWon.toFixed(1) + '</td><td>' + sessionWinRate + '%</td><td>' + ps.handsPlayed + '</td><td>' + avgScore + '</td><td>' + ps.handsWon + '</td><td>' + lockoutRate + '%</td><td>' + avgLockoutScore + '</td><td>' + ps.falseLockouts + '</td><td>' + falseLockoutRate + '%</td><td>' + avgFalseLockoutScore + '</td></tr>';
     }
     html += '</table></div>';
-    document.getElementById('statsContent').innerHTML = html;
+    const contentDiv = document.getElementById('statsContent');
+    contentDiv.innerHTML = html;
+    contentDiv.dataset.statsView = 'overall';
+    delete contentDiv.dataset.comparisonKey;
 }
 
 async function showOverallStats() {
@@ -4681,7 +4737,9 @@ async function showHeadToHeadList(requestedIntentId, options) {
         : beginNavigationIntent();
     const contentDiv = document.getElementById('statsContent');
     const storedSnapshot = hydrateStoredReadSnapshot('getHeadToHeadMatrix', {});
-    if (!storedSnapshot && !options.preserveContent) {
+    if (storedSnapshot && Array.isArray(storedSnapshot.data) && allPlayers.length) {
+        renderHeadToHeadList(contentDiv, storedSnapshot.data);
+    } else if (!options.preserveContent) {
         contentDiv.innerHTML = listLoadingSkeletonHtml('Loading head-to-head records...', 3);
     }
 
@@ -4693,7 +4751,29 @@ async function showHeadToHeadList(requestedIntentId, options) {
         contentDiv.innerHTML = loadErrorHtml(data, 'Head-to-head records could not be loaded.', 'showHeadToHeadList()');
         return;
     }
-    if (data.length === 0) { contentDiv.innerHTML = '<div class="placeholder-content"><h3>Not Enough Data</h3><p>Play more sessions to see head-to-head records!</p></div>'; return; }
+    renderHeadToHeadList(contentDiv, data);
+    const storedSnapshotNeedsRefresh = Boolean(storedSnapshot &&
+        Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS);
+    if (!options.skipStoredRefresh && storedSnapshotNeedsRefresh) {
+        const finishRefreshIndicator = showInlineRefreshIndicator(
+            contentDiv,
+            'headToHeadRefreshStatus',
+            'Updating head-to-head records...'
+        );
+        refreshStoredReadInBackground('getHeadToHeadMatrix', {}, function() {
+            if (isCurrentNavigationIntent(intentId)) {
+                showHeadToHeadList(intentId, { skipStoredRefresh: true, preserveContent: true });
+            }
+        }).finally(finishRefreshIndicator);
+    }
+}
+
+function renderHeadToHeadList(contentDiv, data) {
+    if (!Array.isArray(data) || data.length === 0) {
+        contentDiv.innerHTML = '<div class="placeholder-content"><h3>Not Enough Data</h3><p>Play more sessions to see head-to-head records!</p></div>';
+        contentDiv.dataset.statsView = 'head-to-head';
+        return;
+    }
 
     data.sort(function(a, b) { return b.sessions_together - a.sessions_together; });
 
@@ -4732,14 +4812,7 @@ async function showHeadToHeadList(requestedIntentId, options) {
 
     html += '</div>';
     contentDiv.innerHTML = html;
-    if (!options.skipStoredRefresh && storedSnapshot &&
-        Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
-        refreshStoredReadInBackground('getHeadToHeadMatrix', {}, function() {
-            if (isCurrentNavigationIntent(intentId)) {
-                showHeadToHeadList(intentId, { skipStoredRefresh: true, preserveContent: true });
-            }
-        });
-    }
+    contentDiv.dataset.statsView = 'head-to-head';
 }
 
 async function quickCompare(p1Id, p2Id) {
@@ -4777,6 +4850,8 @@ async function showPlayerComparisonUI(requestedIntentId) {
     html += '</div>';
     html += '<button class="btn btn-success" id="comparePlayersBtn" style="width: 100%;">Compare Players</button>';
     contentDiv.innerHTML = html;
+    contentDiv.dataset.statsView = 'compare';
+    delete contentDiv.dataset.comparisonKey;
     installSearchableSelect('comparisonPlayer1', 'Search player one…');
     installSearchableSelect('comparisonPlayer2', 'Search player two…');
     setTimeout(function() {
@@ -4793,8 +4868,6 @@ async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, reque
     const intentId = typeof requestedIntentId === 'number'
         ? requestedIntentId
         : beginNavigationIntent();
-    await ensurePlayersLoaded();
-    if (!isCurrentNavigationIntent(intentId)) return;
     const contentDiv = document.getElementById('statsContent');
     const directComparison = requestedPlayer1Id !== undefined && requestedPlayer2Id !== undefined;
     const p1Select = directComparison ? null : document.getElementById('comparisonPlayer1');
@@ -4809,8 +4882,11 @@ async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, reque
     if (p1Id === p2Id) { contentDiv.innerHTML = '<div class="error">Please select two different players</div>'; return; }
     const loadingComparisonLabel = getPlayerName(p1Id) + ' vs ' + getPlayerName(p2Id);
     const comparisonParams = { player1_id: p1Id, player2_id: p2Id };
+    const comparisonKey = String(p1Id) + ':' + String(p2Id);
     const storedSnapshot = hydrateStoredReadSnapshot('getPlayerComparisonDetailed', comparisonParams);
-    if (!storedSnapshot && !options.preserveContent) {
+    const showingSameComparison = contentDiv.dataset.statsView === 'comparison' &&
+        contentDiv.dataset.comparisonKey === comparisonKey;
+    if (!options.preserveContent && (!storedSnapshot || !showingSameComparison)) {
         contentDiv.innerHTML =
             '<div class="skeleton-card">' +
                 '<h3 class="section-heading-blue mb-20">Loading ' + escapeHtml(loadingComparisonLabel) + '…</h3>' +
@@ -4830,6 +4906,8 @@ async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, reque
         player1_id: p1Id,
         player2_id: p2Id
     });
+    await ensurePlayersLoaded();
+    if (!isCurrentNavigationIntent(intentId)) return;
     const data = await apiCall('getPlayerComparisonDetailed', comparisonParams);
     if (!isCurrentNavigationIntent(intentId)) return;
     if (data.error) {
@@ -4932,13 +5010,21 @@ async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, reque
     }
 
     contentDiv.innerHTML = html;
-    if (!options.skipStoredRefresh && storedSnapshot &&
-        Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
+    contentDiv.dataset.statsView = 'comparison';
+    contentDiv.dataset.comparisonKey = comparisonKey;
+    const storedSnapshotNeedsRefresh = Boolean(storedSnapshot &&
+        Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS);
+    if (!options.skipStoredRefresh && storedSnapshotNeedsRefresh) {
+        const finishRefreshIndicator = showInlineRefreshIndicator(
+            contentDiv,
+            'comparisonRefreshStatus',
+            'Updating comparison...'
+        );
         refreshStoredReadInBackground('getPlayerComparisonDetailed', comparisonParams, function() {
             if (isCurrentNavigationIntent(intentId)) {
                 showPlayerComparison(intentId, p1Id, p2Id, { skipStoredRefresh: true, preserveContent: true });
             }
-        });
+        }).finally(finishRefreshIndicator);
     }
 }
 
