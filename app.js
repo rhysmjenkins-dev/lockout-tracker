@@ -3939,6 +3939,13 @@ async function loadPreviousSessions(requestedIntentId, options) {
     const loadingStartedAt = Date.now();
     const cacheKey = apiCacheKey('getPreviousSessionsData', {});
     const storedSnapshot = hydrateStoredReadSnapshot('getPreviousSessionsData', {});
+    if (!allPlayers.length) {
+        const storedPublicSnapshot = loadStoredPublicSnapshot();
+        if (storedPublicSnapshot && storedPublicSnapshot.data &&
+            Array.isArray(storedPublicSnapshot.data.players)) {
+            applyPlayersData(storedPublicSnapshot.data.players, storedPublicSnapshot.stored_at);
+        }
+    }
     const cachedEntry = readResponseCache.get(cacheKey);
     const cachedEntryIsFresh = Boolean(cachedEntry &&
         Date.now() - Number(cachedEntry.storedAt) < READ_CACHE_TTL.getPreviousSessionsData);
@@ -3951,6 +3958,9 @@ async function loadPreviousSessions(requestedIntentId, options) {
         (hasCachedSessionsBundle && allPlayers.length)
     );
     const initialRequestUsesServer = !cachedEntryIsFresh;
+    const cachedPlayersAvailable = allPlayers.length > 0;
+    const playersNeedRefresh = !playersLoaded ||
+        Date.now() - Number(playersLoadedAt || 0) >= READ_CACHE_TTL.getPlayers;
     let removeRefreshIndicator = null;
 
     if (!options.preserveContent && !hasSavedSessions) {
@@ -3960,7 +3970,7 @@ async function loadPreviousSessions(requestedIntentId, options) {
     }
 
     const results = await Promise.all([
-        ensurePlayersLoaded(),
+        cachedPlayersAvailable ? Promise.resolve(allPlayers) : ensurePlayersLoaded(),
         apiCall('getPreviousSessionsData', {})
     ]);
     const historyBundle = results[1];
@@ -4118,6 +4128,9 @@ html += '<span>' + escapeAttr(session.title) + '</span>';
     html += '</ul></div>';
     contentDiv.innerHTML = html;
     contentDiv.dataset.sessionsLoaded = 'true';
+    if (cachedPlayersAvailable && playersNeedRefresh) {
+        ensurePlayersLoaded().catch(function() {});
+    }
     const storedSnapshotNeedsRefresh = Boolean(storedSnapshot &&
         Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS);
     if (!options.skipStoredRefresh && storedSnapshotNeedsRefresh && !initialRequestUsesServer) {
