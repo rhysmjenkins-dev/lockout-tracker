@@ -747,8 +747,8 @@ function refreshStoredReadInBackground(action, params, onData) {
     const key = apiCacheKey(action, params || {});
     if (readSnapshotRefreshInFlight.has(key)) return readSnapshotRefreshInFlight.get(key);
     const promise = apiCall(action, params || {}, { forceRefresh: true })
-        .then(function(data) {
-            if (data && !data.error && typeof onData === 'function') onData(data);
+        .then(async function(data) {
+            if (data && !data.error && typeof onData === 'function') await onData(data);
             return data;
         })
         .catch(function() { return null; })
@@ -1300,16 +1300,34 @@ async function refreshHomeDashboardFromServer() {
 function refreshHomeDashboardInBackground() {
     if (homeDashboardRefreshPromise) return homeDashboardRefreshPromise;
     const eloSection = document.getElementById('eloLeaderboardSection');
-    const finishEloRefreshIndicator = eloSection && document.getElementById('eloDropdownContent')
-        ? showInlineRefreshIndicator(eloSection, 'homeEloRefreshStatus', 'Updating ELO rankings...')
+    const storedBeforeRefresh = loadStoredPublicSnapshot();
+    const finishEloRefreshFeedback = eloSection && document.getElementById('eloDropdownContent')
+        ? beginDelayedRefreshFeedback(
+            eloSection,
+            'homeEloRefreshStatus',
+            'Updating ELO rankings...',
+            storedBeforeRefresh && storedBeforeRefresh.data
+                ? storedBeforeRefresh.data.elo_ratings
+                : null
+        )
         : function() {};
     homeDashboardRefreshPromise = refreshHomeDashboardFromServer()
+        .then(function(refreshed) {
+            const storedAfterRefresh = refreshed ? loadStoredPublicSnapshot() : null;
+            finishEloRefreshFeedback(
+                storedAfterRefresh && storedAfterRefresh.data
+                    ? storedAfterRefresh.data.elo_ratings
+                    : null
+            );
+            return refreshed;
+        })
         .catch(function(error) {
             console.warn('Background dashboard refresh failed:', error && error.message || error);
+            finishEloRefreshFeedback(null);
             return false;
         })
         .finally(function() {
-            finishEloRefreshIndicator();
+            finishEloRefreshFeedback(null);
             homeDashboardRefreshPromise = null;
         });
     return homeDashboardRefreshPromise;
@@ -1685,16 +1703,17 @@ async function showEloStats(requestedIntentId, options) {
     drawEloHistoryChart(sessionsData, allHistoryData);
     if (!options.skipStoredRefresh && storedSnapshot &&
         Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
-        const finishRefreshIndicator = showInlineRefreshIndicator(
+        const finishRefreshFeedback = beginDelayedRefreshFeedback(
             contentDiv,
             'eloStatsRefreshStatus',
-            'Updating ELO statistics...'
+            'Updating ELO statistics...',
+            storedSnapshot.data
         );
         refreshStoredReadInBackground('getEloStatsData', {}, function() {
             if (isCurrentNavigationIntent(intentId)) {
-                showEloStats(intentId, { skipStoredRefresh: true, preserveContent: true });
+                return showEloStats(intentId, { skipStoredRefresh: true, preserveContent: true });
             }
-        }).finally(finishRefreshIndicator);
+        }).then(finishRefreshFeedback);
     }
 }
 
@@ -3971,12 +3990,17 @@ async function loadPreviousSessions(requestedIntentId, options) {
     const cachedPlayersAvailable = allPlayers.length > 0;
     const playersNeedRefresh = !playersLoaded ||
         Date.now() - Number(playersLoadedAt || 0) >= READ_CACHE_TTL.getPlayers;
-    let removeRefreshIndicator = null;
+    let finishInitialRefreshFeedback = null;
 
     if (!options.preserveContent && !hasSavedSessions) {
         contentDiv.innerHTML = listLoadingSkeletonHtml('Loading previous sessions...', 3);
     } else if (!options.preserveContent && initialRequestUsesServer) {
-        removeRefreshIndicator = showSessionsRefreshIndicator(contentDiv);
+        finishInitialRefreshFeedback = beginDelayedRefreshFeedback(
+            contentDiv,
+            'previousSessionsRefreshStatus',
+            'Updating sessions...',
+            cachedEntry && cachedEntry.data
+        );
     }
 
     const results = await Promise.all([
@@ -3984,10 +4008,6 @@ async function loadPreviousSessions(requestedIntentId, options) {
         apiCall('getPreviousSessionsData', {})
     ]);
     const historyBundle = results[1];
-    if (removeRefreshIndicator) {
-        removeRefreshIndicator();
-        removeRefreshIndicator = null;
-    }
     let sessionsWithHands;
     let eloHistoryAll;
     if (historyBundle && !historyBundle.error) {
@@ -3995,6 +4015,7 @@ async function loadPreviousSessions(requestedIntentId, options) {
         sessionsWithHands = historyBundle.sessions_with_hands || [];
         eloHistoryAll = historyBundle.elo_history_all || [];
     } else {
+        if (finishInitialRefreshFeedback) finishInitialRefreshFeedback(null);
         if (!isCurrentNavigationIntent(intentId)) return false;
         contentDiv.innerHTML = loadErrorHtml(
             historyBundle,
@@ -4003,8 +4024,15 @@ async function loadPreviousSessions(requestedIntentId, options) {
         );
         return false;
     }
-    if (!isCurrentNavigationIntent(intentId)) return false;
-    if (sessionsWithHands.error) { contentDiv.innerHTML = '<div class="error">Error loading sessions: ' + sessionsWithHands.error + '</div>'; return; }
+    if (!isCurrentNavigationIntent(intentId)) {
+        if (finishInitialRefreshFeedback) finishInitialRefreshFeedback(null);
+        return false;
+    }
+    if (sessionsWithHands.error) {
+        if (finishInitialRefreshFeedback) finishInitialRefreshFeedback(null);
+        contentDiv.innerHTML = '<div class="error">Error loading sessions: ' + sessionsWithHands.error + '</div>';
+        return;
+    }
 
     const completedSessions = [];
     for (let i = 0; i < sessionsWithHands.length; i++) {
@@ -4024,10 +4052,17 @@ async function loadPreviousSessions(requestedIntentId, options) {
         const minimumShimmerMs = 450;
         const remainingShimmerMs = Math.max(0, minimumShimmerMs - (Date.now() - loadingStartedAt));
         if (remainingShimmerMs > 0) await waitForRetry(remainingShimmerMs);
-        if (!isCurrentNavigationIntent(intentId)) return false;
+        if (!isCurrentNavigationIntent(intentId)) {
+            if (finishInitialRefreshFeedback) finishInitialRefreshFeedback(null);
+            return false;
+        }
     }
 
-    if (completedSessions.length === 0) { contentDiv.innerHTML = '<div class="placeholder-content"><h3>No Completed Sessions</h3><p>Complete a session to see it here!</p></div>'; return; }
+    if (completedSessions.length === 0) {
+        contentDiv.innerHTML = '<div class="placeholder-content"><h3>No Completed Sessions</h3><p>Complete a session to see it here!</p></div>';
+        if (finishInitialRefreshFeedback) finishInitialRefreshFeedback(historyBundle);
+        return;
+    }
 
     const eloHistoryMap = {};
     if (!eloHistoryAll.error) {
@@ -4138,18 +4173,24 @@ html += '<span>' + escapeAttr(session.title) + '</span>';
     html += '</ul></div>';
     contentDiv.innerHTML = html;
     contentDiv.dataset.sessionsLoaded = 'true';
+    if (finishInitialRefreshFeedback) finishInitialRefreshFeedback(historyBundle);
     if (cachedPlayersAvailable && playersNeedRefresh) {
         ensurePlayersLoaded().catch(function() {});
     }
     const storedSnapshotNeedsRefresh = Boolean(storedSnapshot &&
         Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS);
     if (!options.skipStoredRefresh && storedSnapshotNeedsRefresh && !initialRequestUsesServer) {
-        const finishRefreshIndicator = showSessionsRefreshIndicator(contentDiv);
+        const finishRefreshFeedback = beginDelayedRefreshFeedback(
+            contentDiv,
+            'previousSessionsRefreshStatus',
+            'Updating sessions...',
+            storedSnapshot.data
+        );
         refreshStoredReadInBackground('getPreviousSessionsData', {}, function(freshBundle) {
             if (!isCurrentNavigationIntent(intentId)) return;
             applySessionHistoryBundle(freshBundle, Date.now());
-            loadPreviousSessions(intentId, { skipStoredRefresh: true, preserveContent: true });
-        }).finally(finishRefreshIndicator);
+            return loadPreviousSessions(intentId, { skipStoredRefresh: true, preserveContent: true });
+        }).then(finishRefreshFeedback);
     }
     return true;
 }
@@ -4468,17 +4509,18 @@ async function loadStats(requestedIntentId, options) {
     if (!isCurrentNavigationIntent(intentId)) return false;
     displayOverallStats(summary.stats || {}, Number(summary.total_sessions || 0));
     if (storedSnapshot && Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
-        const finishRefreshIndicator = showInlineRefreshIndicator(
+        const finishRefreshFeedback = beginDelayedRefreshFeedback(
             contentDiv,
             'overallStatsRefreshStatus',
-            'Updating statistics...'
+            'Updating statistics...',
+            storedSnapshot.data
         );
         refreshStoredReadInBackground('getStatsSummary', {}, function(freshSummary) {
             const statsScreen = document.getElementById('statsScreen');
             if (isCurrentNavigationIntent(intentId) && statsScreen && statsScreen.classList.contains('active')) {
                 displayOverallStats(freshSummary.stats || {}, Number(freshSummary.total_sessions || 0));
             }
-        }).finally(finishRefreshIndicator);
+        }).then(finishRefreshFeedback);
     }
     return true;
 }
@@ -4503,12 +4545,62 @@ function showInlineRefreshIndicator(container, id, label) {
     };
 }
 
-function showSessionsRefreshIndicator(container) {
-    return showInlineRefreshIndicator(
-        container,
-        'previousSessionsRefreshStatus',
-        'Updating sessions...'
-    );
+function refreshComparisonJson(value) {
+    try {
+        return JSON.stringify(value, function(key, item) {
+            return key === 'server_ms' || key === 'request_id' ? undefined : item;
+        });
+    } catch (error) {
+        return '';
+    }
+}
+
+function refreshDataChanged(previousData, freshData) {
+    if (previousData === undefined || previousData === null ||
+        freshData === undefined || freshData === null || freshData.error) return false;
+    return refreshComparisonJson(previousData) !== refreshComparisonJson(freshData);
+}
+
+function refreshFeedbackContainerIsVisible(container) {
+    if (!container || !container.isConnected) return false;
+    const screen = container.closest('.screen');
+    return !screen || screen.classList.contains('active');
+}
+
+function showRefreshUpdatedConfirmation(container, id) {
+    if (!refreshFeedbackContainerIsVisible(container)) return;
+    const existing = document.getElementById(id);
+    if (existing) existing.remove();
+    const confirmation = document.createElement('div');
+    confirmation.id = id;
+    confirmation.className = 'inline-refresh-indicator is-updated';
+    confirmation.setAttribute('role', 'status');
+    confirmation.setAttribute('aria-live', 'polite');
+    confirmation.innerHTML = '<span aria-hidden="true">✓</span><span>Updated</span>';
+    container.insertBefore(confirmation, container.firstChild);
+    setTimeout(function() {
+        const current = document.getElementById(id);
+        if (current) current.remove();
+    }, 1800);
+}
+
+function beginDelayedRefreshFeedback(container, id, loadingLabel, previousData) {
+    let finished = false;
+    let removeLoading = null;
+    const delayTimer = setTimeout(function() {
+        if (!finished && refreshFeedbackContainerIsVisible(container)) {
+            removeLoading = showInlineRefreshIndicator(container, id, loadingLabel);
+        }
+    }, 2000);
+    return function(freshData) {
+        if (finished) return;
+        finished = true;
+        clearTimeout(delayTimer);
+        if (removeLoading) removeLoading();
+        if (refreshDataChanged(previousData, freshData)) {
+            showRefreshUpdatedConfirmation(container, id + 'Complete');
+        }
+    };
 }
 
 function listLoadingSkeletonHtml(title, rowCount) {
@@ -4783,16 +4875,17 @@ async function showHeadToHeadList(requestedIntentId, options) {
     const storedSnapshotNeedsRefresh = Boolean(storedSnapshot &&
         Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS);
     if (!options.skipStoredRefresh && storedSnapshotNeedsRefresh) {
-        const finishRefreshIndicator = showInlineRefreshIndicator(
+        const finishRefreshFeedback = beginDelayedRefreshFeedback(
             contentDiv,
             'headToHeadRefreshStatus',
-            'Updating head-to-head records...'
+            'Updating head-to-head records...',
+            storedSnapshot.data
         );
         refreshStoredReadInBackground('getHeadToHeadMatrix', {}, function() {
             if (isCurrentNavigationIntent(intentId)) {
-                showHeadToHeadList(intentId, { skipStoredRefresh: true, preserveContent: true });
+                return showHeadToHeadList(intentId, { skipStoredRefresh: true, preserveContent: true });
             }
-        }).finally(finishRefreshIndicator);
+        }).then(finishRefreshFeedback);
     }
 }
 
@@ -5043,16 +5136,17 @@ async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, reque
     const storedSnapshotNeedsRefresh = Boolean(storedSnapshot &&
         Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS);
     if (!options.skipStoredRefresh && storedSnapshotNeedsRefresh) {
-        const finishRefreshIndicator = showInlineRefreshIndicator(
+        const finishRefreshFeedback = beginDelayedRefreshFeedback(
             contentDiv,
             'comparisonRefreshStatus',
-            'Updating comparison...'
+            'Updating comparison...',
+            storedSnapshot.data
         );
         refreshStoredReadInBackground('getPlayerComparisonDetailed', comparisonParams, function() {
             if (isCurrentNavigationIntent(intentId)) {
-                showPlayerComparison(intentId, p1Id, p2Id, { skipStoredRefresh: true, preserveContent: true });
+                return showPlayerComparison(intentId, p1Id, p2Id, { skipStoredRefresh: true, preserveContent: true });
             }
-        }).finally(finishRefreshIndicator);
+        }).then(finishRefreshFeedback);
     }
 }
 

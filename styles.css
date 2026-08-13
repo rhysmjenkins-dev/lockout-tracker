@@ -1274,6 +1274,9 @@ table .player-link-avatar-wrap {
     height: 14px;
     border-width: 2px;
 }
+.inline-refresh-indicator.is-updated {
+    color: var(--success-dark);
+}
 /* === PLAYER CARD SKELETON === */
 .skeleton-player-card {
     background: var(--bg-light);
