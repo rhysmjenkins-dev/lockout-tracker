@@ -1299,12 +1299,17 @@ async function refreshHomeDashboardFromServer() {
 
 function refreshHomeDashboardInBackground() {
     if (homeDashboardRefreshPromise) return homeDashboardRefreshPromise;
+    const eloSection = document.getElementById('eloLeaderboardSection');
+    const finishEloRefreshIndicator = eloSection && document.getElementById('eloDropdownContent')
+        ? showInlineRefreshIndicator(eloSection, 'homeEloRefreshStatus', 'Updating ELO rankings...')
+        : function() {};
     homeDashboardRefreshPromise = refreshHomeDashboardFromServer()
         .catch(function(error) {
             console.warn('Background dashboard refresh failed:', error && error.message || error);
             return false;
         })
         .finally(function() {
+            finishEloRefreshIndicator();
             homeDashboardRefreshPromise = null;
         });
     return homeDashboardRefreshPromise;
@@ -1680,11 +1685,16 @@ async function showEloStats(requestedIntentId, options) {
     drawEloHistoryChart(sessionsData, allHistoryData);
     if (!options.skipStoredRefresh && storedSnapshot &&
         Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
+        const finishRefreshIndicator = showInlineRefreshIndicator(
+            contentDiv,
+            'eloStatsRefreshStatus',
+            'Updating ELO statistics...'
+        );
         refreshStoredReadInBackground('getEloStatsData', {}, function() {
             if (isCurrentNavigationIntent(intentId)) {
                 showEloStats(intentId, { skipStoredRefresh: true, preserveContent: true });
             }
-        });
+        }).finally(finishRefreshIndicator);
     }
 }
 
@@ -4458,12 +4468,17 @@ async function loadStats(requestedIntentId, options) {
     if (!isCurrentNavigationIntent(intentId)) return false;
     displayOverallStats(summary.stats || {}, Number(summary.total_sessions || 0));
     if (storedSnapshot && Date.now() - Number(storedSnapshot.stored_at) >= READ_SNAPSHOT_REFRESH_MS) {
+        const finishRefreshIndicator = showInlineRefreshIndicator(
+            contentDiv,
+            'overallStatsRefreshStatus',
+            'Updating statistics...'
+        );
         refreshStoredReadInBackground('getStatsSummary', {}, function(freshSummary) {
             const statsScreen = document.getElementById('statsScreen');
             if (isCurrentNavigationIntent(intentId) && statsScreen && statsScreen.classList.contains('active')) {
                 displayOverallStats(freshSummary.stats || {}, Number(freshSummary.total_sessions || 0));
             }
-        });
+        }).finally(finishRefreshIndicator);
     }
     return true;
 }
