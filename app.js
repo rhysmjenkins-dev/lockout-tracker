@@ -1791,7 +1791,7 @@ function drawEloHistoryChart(sessionsData, allHistoryData) {
         historyByPlayer[pid].push(entry);
     }
 
-    const labels = ['Start', ...completedSessions.map(s => s.session.title)];
+    const labels = ['Start', ...completedSessions.map(s => decodeHtml(s.session.title))];
     const datasets = [];
 
     for (let i = 0; i < eloCache.length; i++) {
@@ -2028,6 +2028,10 @@ function escapeHtml(str) {
 function decodeHtml(str) {
     const doc = new DOMParser().parseFromString(String(str || ''), 'text/html');
     return doc.documentElement.textContent || '';
+}
+
+function safeDisplayHtml(value) {
+    return escapeHtml(decodeHtml(value));
 }
 
 function parsePlayerJoinInfo(joinInfoString) {
@@ -2929,10 +2933,10 @@ async function checkActiveSessions(preloadedSessions) {
 
             html += '<div class="active-session-item active-session-card">';
             html += '<div class="active-session-card-header">';
-            html += '<div class="active-session-card-title"><strong>🎮 ' + session.title + '</strong></div>';
+            html += '<div class="active-session-card-title"><strong>🎮 ' + safeDisplayHtml(session.title) + '</strong></div>';
             html += '<div class="active-session-card-actions">';
             if (session.photo_url && session.photo_url !== '') {
-                html += '<img src="' + session.photo_url + '" class="active-session-photo" alt="Photo for ' + escapeAttr(session.title) + '" onclick="event.stopPropagation(); openPhotoFullscreen(\'' + session.photo_url + '\')">';
+                html += '<img src="' + session.photo_url + '" class="active-session-photo" alt="Photo for ' + escapeAttr(decodeHtml(session.title)) + '" onclick="event.stopPropagation(); openPhotoFullscreen(\'' + session.photo_url + '\')">';
             }
             html += '<button class="btn btn-success btn-small active-session-resume-btn" onclick="resumeSession(' + session.session_id + ', this)">Resume</button>';
             html += '</div>';
@@ -2986,7 +2990,7 @@ async function createSession(event) {
     }
     const createBtn = event.target;
     setButtonLoading(createBtn, true);
-    const existingTitles = allSessions.map(s => s.title.toLowerCase().trim());
+    const existingTitles = allSessions.map(s => decodeHtml(s.title).toLowerCase().trim());
     if (existingTitles.includes(title.toLowerCase().trim())) {
         messageDiv.innerHTML = '<div class="error">⚠️ A session named "' + escapeHtml(title) + '" already exists.</div>';
         setButtonLoading(createBtn, false);
@@ -3091,7 +3095,7 @@ async function resumeSession(sessionId, buttonElement, requestedIntentId, skipHi
 
 function showActiveSession(requestedIntentId, prefetchedHands, skipHistory) {
     if (Array.isArray(prefetchedHands)) currentSessionHands = prefetchedHands.slice();
-    document.getElementById('activeSessionTitle').textContent = currentSession.title;
+    document.getElementById('activeSessionTitle').textContent = decodeHtml(currentSession.title);
     let playerNames = sessionPlayers.map(p => {
         const joinHand = getPlayerJoinHand(p.player_id);
         const eloBadge = formatEloBadge(p.player_id);
@@ -4131,7 +4135,7 @@ async function loadPreviousSessions(requestedIntentId, options) {
 
 html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
 html += '<div class="session-item-header" style="display:flex; justify-content:space-between; align-items:center;">';
-html += '<span>' + escapeAttr(session.title) + '</span>';
+html += '<span>' + safeDisplayHtml(session.title) + '</span>';
         if (session.photo_url && session.photo_url !== '') {
             html += '<img src="' + session.photo_url + '" alt="Session thumbnail" style="width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:pointer;" onclick="event.stopPropagation(); openPhotoFullscreen(\'' + session.photo_url + '\')">';
         }
@@ -4238,7 +4242,7 @@ async function viewSessionDetail(sessionIndex, buttonElement, requestedIntentId,
     if (handsData.error) { alert('Error loading session details'); if (buttonElement) setButtonLoading(buttonElement, false); return; }
     for (let i = 0; i < handsData.length; i++) { if (!handsData[i].comment) handsData[i].comment = ''; }
 
-    document.getElementById('sessionDetailTitle').textContent = session.title;
+    document.getElementById('sessionDetailTitle').textContent = decodeHtml(session.title);
     const detailDate = document.getElementById('sessionDetailDate');
     if (detailDate) detailDate.textContent = '📅 ' + formatUKDate(session.date_started);
     const joinInfo = parsePlayerJoinInfo(session.player_join_info);
@@ -5128,7 +5132,7 @@ async function showPlayerComparison(requestedIntentId, requestedPlayer1Id, reque
 
             html += '<div class="session-history-card" onclick="viewSessionDetailFromComparison(' + s.session_id + ', this)">';
             html += '<div class="session-history-card-header">';
-            html += '<div class="session-history-title">' + s.title + ' 🔗</div>';
+            html += '<div class="session-history-title">' + safeDisplayHtml(s.title) + ' 🔗</div>';
             html += '<div style="color: ' + winnerColor + '; font-weight: 600; font-size: 1em; padding: 4px 12px; background: ' + winnerColor + '20; border-radius: 12px;">' + winner + '</div>';
             html += '</div>';
             html += '<div class="text-muted text-sm mb-10">' + cleanDate + ' • ' + s.player_count + ' players</div>';
@@ -5835,9 +5839,9 @@ function renderPlayerProfile(data) {
                           ' <span style="color:' + eloChangeColor + ';font-weight:600;font-size:0.78em;">(' + eloChangeStr + ')</span>' +
                           formatEstablishedThisGameBadge(s.session_id, p.player_id, historicalEloStatusMap);
             }
-            html += '<div class="profile-session-row" data-title="' + escapeAttr(s.title) + '" onclick="viewSessionFromProfileWithLoading(this, \'' + s.session_id + '\')">';
+            html += '<div class="profile-session-row" data-title="' + escapeAttr(decodeHtml(s.title)) + '" onclick="viewSessionFromProfileWithLoading(this, \'' + s.session_id + '\')">';
             html += '<div style="flex:1;min-width:0;">';
-            html += '<div class="profile-session-title">' + s.title + '</div>';
+            html += '<div class="profile-session-title">' + safeDisplayHtml(s.title) + '</div>';
             html += '<div class="profile-session-meta">' + cleanDate + ' • ' +
                 formatCount(s.hand_count, 'hand') + ' • ' +
                 formatCount(s.player_count, 'player') + ' • ' +
