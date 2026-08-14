@@ -1286,6 +1286,16 @@ async function renderHomeData(data) {
     ]);
 }
 
+function homeDashboardRefreshComparisonData(data) {
+    if (!data) return null;
+    return {
+        active_sessions_with_hands: Array.isArray(data.active_sessions_with_hands)
+            ? data.active_sessions_with_hands
+            : (data.sessions_with_hands || []),
+        elo_ratings: data.elo_ratings || []
+    };
+}
+
 async function refreshHomeDashboardFromServer() {
     const requestedGeneration = readCacheGeneration;
     const data = await apiCall('getHomeData', {}, { forceRefresh: true });
@@ -1299,35 +1309,35 @@ async function refreshHomeDashboardFromServer() {
 
 function refreshHomeDashboardInBackground() {
     if (homeDashboardRefreshPromise) return homeDashboardRefreshPromise;
-    const eloSection = document.getElementById('eloLeaderboardSection');
+    const activeSessionsSection = document.getElementById('activeSessionsSection');
     const storedBeforeRefresh = loadStoredPublicSnapshot();
-    const finishEloRefreshFeedback = eloSection && document.getElementById('eloDropdownContent')
+    const finishHomeRefreshFeedback = activeSessionsSection && document.getElementById('eloDropdownContent')
         ? beginDelayedRefreshFeedback(
-            eloSection,
-            'homeEloRefreshStatus',
-            'Updating ELO rankings...',
+            activeSessionsSection,
+            'homeDashboardRefreshStatus',
+            'Updating homepage...',
             storedBeforeRefresh && storedBeforeRefresh.data
-                ? storedBeforeRefresh.data.elo_ratings
+                ? homeDashboardRefreshComparisonData(storedBeforeRefresh.data)
                 : null
         )
         : function() {};
     homeDashboardRefreshPromise = refreshHomeDashboardFromServer()
         .then(function(refreshed) {
             const storedAfterRefresh = refreshed ? loadStoredPublicSnapshot() : null;
-            finishEloRefreshFeedback(
+            finishHomeRefreshFeedback(
                 storedAfterRefresh && storedAfterRefresh.data
-                    ? storedAfterRefresh.data.elo_ratings
+                    ? homeDashboardRefreshComparisonData(storedAfterRefresh.data)
                     : null
             );
             return refreshed;
         })
         .catch(function(error) {
             console.warn('Background dashboard refresh failed:', error && error.message || error);
-            finishEloRefreshFeedback(null);
+            finishHomeRefreshFeedback(null);
             return false;
         })
         .finally(function() {
-            finishEloRefreshFeedback(null);
+            finishHomeRefreshFeedback(null);
             homeDashboardRefreshPromise = null;
         });
     return homeDashboardRefreshPromise;
