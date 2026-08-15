@@ -2106,6 +2106,23 @@ function zeroScoreAxisGrid() {
     };
 }
 
+function manhattanXAxisScale() {
+    const compactLabels = window.innerWidth <= 600;
+    return {
+        title: { display: true, text: 'Hand Number' },
+        ticks: {
+            autoSkip: false,
+            minRotation: compactLabels ? 0 : 45,
+            maxRotation: compactLabels ? 0 : 45,
+            padding: 5,
+            font: { size: compactLabels ? 10 : 12 },
+            callback: function(value, index) {
+                return compactLabels ? 'H' + (index + 1) : this.getLabelForValue(value);
+            }
+        }
+    };
+}
+
 const zeroScoreLinePlugin = {
     id: 'zeroScoreLine',
     afterDatasetsDraw: function(chart) {
@@ -4017,7 +4034,7 @@ function drawActiveManhattanChart(playerHands, playerIds) {
         datasets.push({ label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''), data: dataArray, backgroundColor: colors[i % colors.length], borderColor: colors[i % colors.length], borderWidth: 1 });
     }
     if (window._activeManhattanChart) window._activeManhattanChart.destroy();
-    window._activeManhattanChart = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels, datasets }, plugins: [zeroScoreLinePlugin], options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 20 } }, plugins: { title: { display: true, text: 'Manhattan' }, legend: { display: true, position: 'top' } }, scales: { x: { title: { display: true, text: 'Hand Number' } }, y: { title: { display: true, text: 'Score' }, beginAtZero: true, grid: zeroScoreAxisGrid() } } } });
+    window._activeManhattanChart = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels, datasets }, plugins: [zeroScoreLinePlugin], options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 20 } }, plugins: { title: { display: true, text: 'Manhattan' }, legend: { display: true, position: 'top' } }, scales: { x: manhattanXAxisScale(), y: { title: { display: true, text: 'Score' }, beginAtZero: true, grid: zeroScoreAxisGrid() } } } });
 }
 
 // ============================================
@@ -4270,12 +4287,6 @@ async function viewSessionDetail(sessionIndex, buttonElement, requestedIntentId,
         if (buttonElement) setButtonLoading(buttonElement, false);
         return;
     }
-    const chartLibraryRequest = window.Chart
-        ? Promise.resolve({ loaded: true })
-        : loadChartLibrary().then(
-            function() { return { loaded: true }; },
-            function(error) { return { loaded: false, error: error }; }
-        );
     document.getElementById('sessionDetailContent').innerHTML =
         '<div class="skeleton-card">' +
             '<h3 class="section-heading-blue mb-15">Loading session details...</h3>' +
@@ -4458,38 +4469,17 @@ handHistoryHtml += '</div></div>';
 document.getElementById('sessionDetailHandHistory').innerHTML = handHistoryHtml;
 
     let graphsHtml = '<h3 class="mt-20">Graphs</h3>';
-    graphsHtml += '<div class="chart-container chart-is-loading" aria-busy="true">' +
-        '<div class="chart-loading-state" role="status"><div class="shimmer-wrapper chart-loading-shimmer"></div><span>Loading Worm...</span></div>' +
-        '<canvas id="wormChart"></canvas></div>';
-    graphsHtml += '<div class="chart-container chart-is-loading" aria-busy="true">' +
-        '<div class="chart-loading-state" role="status"><div class="shimmer-wrapper chart-loading-shimmer"></div><span>Loading Manhattan...</span></div>' +
-        '<canvas id="manhattanChart"></canvas></div>';
+    graphsHtml += '<div class="chart-container"><canvas id="wormChart"></canvas></div>';
+    graphsHtml += '<div class="chart-container"><canvas id="manhattanChart"></canvas></div>';
     if (Object.keys(joinInfo).length > 0) graphsHtml += '<p class="chart-note">Worm includes ' + makeLateJoinDictionaryLink('late-join starts') + '; Manhattan shows hand scores only.</p>';
     document.getElementById('sessionDetailGraphs').innerHTML = graphsHtml;
     showScreen('sessionDetailScreen', Boolean(skipHistory), intentId);
     saveRefreshRoute('sessionDetailScreen', { session_id: session.session_id });
-    chartLibraryRequest.then(function(chartLibraryState) {
+    setTimeout(function() {
         if (!isCurrentNavigationIntent(intentId)) return;
-        if (!chartLibraryState.loaded || !window.Chart) {
-            const graphSection = document.getElementById('sessionDetailGraphs');
-            if (graphSection) {
-                graphSection.innerHTML = '<h3 class="mt-20">Graphs</h3>' +
-                    '<div class="error">The graphs could not be loaded. ' +
-                    '<button type="button" class="btn btn-secondary btn-small" onclick="viewSessionDetail(' + sessionIndex + ', this, getNavigationIntent(), true)">Retry graphs</button></div>';
-            }
-            return;
-        }
-        requestAnimationFrame(function() {
-            if (!isCurrentNavigationIntent(intentId)) return;
-            try {
-                drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
-                drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
-            } catch (error) {
-                const graphSection = document.getElementById('sessionDetailGraphs');
-                if (graphSection) graphSection.innerHTML = '<h3 class="mt-20">Graphs</h3><div class="error">The graphs could not be displayed. Please reopen this session.</div>';
-            }
-        });
-    });
+        drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
+        drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
+    }, 100);
 }
 
 // ============================================
@@ -4543,7 +4533,6 @@ function drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playe
     for (let i = 1; i <= maxHand; i++) labels.push('Hand ' + i);
     if (window._sessionWormChart) window._sessionWormChart.destroy();
     window._sessionWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, plugins: [zeroScoreLinePlugin, wormEndScorePlugin], options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 38 } }, plugins: { title: { display: true, text: 'Worm' }, legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: formatWormTooltip } } }, scales: { y: { title: { display: true, text: 'Cumulative Score' }, grid: zeroScoreAxisGrid() } } } });
-    revealRenderedChart(ctx);
 }
 
 function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session) {
@@ -4569,18 +4558,7 @@ function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, 
         datasets.push({ label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''), data: dataArray, backgroundColor: colors[i % colors.length], borderColor: colors[i % colors.length], borderWidth: 1 });
     }
     if (window._sessionManhattanChart) window._sessionManhattanChart.destroy();
-    window._sessionManhattanChart = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels, datasets }, plugins: [zeroScoreLinePlugin], options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 20 } }, plugins: { title: { display: true, text: 'Manhattan' }, legend: { display: true, position: 'top' } }, scales: { x: { title: { display: true, text: 'Hand Number' } }, y: { title: { display: true, text: 'Score' }, beginAtZero: true, grid: zeroScoreAxisGrid() } } } });
-    revealRenderedChart(ctx);
-}
-
-function revealRenderedChart(canvas) {
-    if (!canvas || !canvas.closest) return;
-    const container = canvas.closest('.chart-container');
-    if (!container) return;
-    const loadingState = container.querySelector('.chart-loading-state');
-    if (loadingState) loadingState.remove();
-    container.classList.remove('chart-is-loading');
-    container.removeAttribute('aria-busy');
+    window._sessionManhattanChart = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels, datasets }, plugins: [zeroScoreLinePlugin], options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 20 } }, plugins: { title: { display: true, text: 'Manhattan' }, legend: { display: true, position: 'top' } }, scales: { x: manhattanXAxisScale(), y: { title: { display: true, text: 'Score' }, beginAtZero: true, grid: zeroScoreAxisGrid() } } } });
 }
 
 // ============================================
