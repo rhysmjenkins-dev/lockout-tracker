@@ -15,7 +15,7 @@ const DEFAULT_ELO = 1000;
 const PROVISIONAL_HANDS = 50;
 const PROVISIONAL_K = 40;
 const STANDARD_K = 24;
-const DEFAULT_FALSE_LOCKOUT_PENALTY = 10;
+const DEFAULT_FALSE_LOCKOUT_PENALTY = 5;
 const MIN_SCORE = -2;
 const PUBLIC_SNAPSHOT_STORAGE_KEY = 'lockout_public_snapshot_2_1';
 const PUBLIC_SNAPSHOT_DIRTY_KEY = 'lockout_public_snapshot_2_1_dirty';
@@ -2125,6 +2125,70 @@ const zeroScoreLinePlugin = {
     }
 };
 
+const wormEndScorePlugin = {
+    id: 'wormEndScore',
+    afterDatasetsDraw: function(chart) {
+        const area = chart.chartArea;
+        if (!area) return;
+        const labels = [];
+        for (let datasetIndex = 0; datasetIndex < chart.data.datasets.length; datasetIndex++) {
+            const dataset = chart.data.datasets[datasetIndex];
+            const meta = chart.getDatasetMeta(datasetIndex);
+            if (!meta || meta.hidden) continue;
+            let dataIndex = dataset.data.length - 1;
+            while (dataIndex >= 0 && (dataset.data[dataIndex] === null || dataset.data[dataIndex] === undefined)) dataIndex--;
+            if (dataIndex < 0 || !meta.data[dataIndex]) continue;
+            const score = Number(dataset.data[dataIndex]);
+            if (!Number.isFinite(score)) continue;
+            labels.push({
+                pointX: meta.data[dataIndex].x,
+                pointY: meta.data[dataIndex].y,
+                labelY: meta.data[dataIndex].y,
+                text: String(score),
+                color: dataset.borderColor || '#334155'
+            });
+        }
+        if (!labels.length) return;
+
+        labels.sort(function(a, b) { return a.labelY - b.labelY; });
+        const minimumGap = 15;
+        const top = area.top + 8;
+        const bottom = area.bottom - 8;
+        labels[0].labelY = Math.max(top, labels[0].labelY);
+        for (let i = 1; i < labels.length; i++) {
+            labels[i].labelY = Math.max(labels[i].labelY, labels[i - 1].labelY + minimumGap);
+        }
+        if (labels[labels.length - 1].labelY > bottom) {
+            labels[labels.length - 1].labelY = bottom;
+            for (let i = labels.length - 2; i >= 0; i--) {
+                labels[i].labelY = Math.min(labels[i].labelY, labels[i + 1].labelY - minimumGap);
+            }
+        }
+
+        const context = chart.ctx;
+        context.save();
+        context.font = '600 11px Arial, sans-serif';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        for (let i = 0; i < labels.length; i++) {
+            const item = labels[i];
+            const width = context.measureText(item.text).width + 8;
+            const x = Math.min(item.pointX + 6, chart.width - width - 2);
+            context.beginPath();
+            context.moveTo(item.pointX + 2, item.pointY);
+            context.lineTo(x, item.labelY);
+            context.strokeStyle = item.color;
+            context.lineWidth = 1;
+            context.stroke();
+            context.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            context.fillRect(x, item.labelY - 7, width, 14);
+            context.fillStyle = item.color;
+            context.fillText(item.text, x + width / 2, item.labelY);
+        }
+        context.restore();
+    }
+};
+
 function getPlayerStartingScore(playerId) {
     return getSessionPlayerJoinDetails(currentSession, playerId).startingScore;
 }
@@ -3775,7 +3839,7 @@ if (handsData.length === 0) {
 }
 
     const playerScores = {};
-    let totalLockoutScore = 0, totalLockouts = 0, falseLockoutCount = 0;
+    let falseLockoutCount = 0;
 
     for (let i = 0; i < sessionPlayers.length; i++) {
         const player = sessionPlayers[i];
@@ -3795,8 +3859,6 @@ if (handsData.length === 0) {
             if (hand.lockout_player_id && String(hand.lockout_player_id) === String(hand.player_id)) {
                 playerScores[hand.player_id].totalLockouts++;
                 const lockoutScoreToUse = (hand.lockout_score !== null && hand.lockout_score !== undefined && hand.lockout_score !== '') ? Number(hand.lockout_score) : Number(hand.score);
-                totalLockoutScore += lockoutScoreToUse;
-                totalLockouts++;
                 if (hand.false_lockout == 1 || hand.false_lockout === true) {
                     falseLockoutCount++;
                     playerScores[hand.player_id].falseLockouts++;
@@ -3817,8 +3879,6 @@ if (handsData.length === 0) {
         if (scores[i].lockouts > mostLockoutsPlayer.lockouts) mostLockoutsPlayer = { username: scores[i].username, lockouts: scores[i].lockouts };
     }
     const avgScorePerHand = handsData.reduce((sum, h) => sum + Number(h.score), 0) / handsData.length;
-    const overallAvgLockout = totalLockouts > 0 ? (totalLockoutScore / totalLockouts).toFixed(2) : 'N/A';
-
     let html = '<h3>Scores</h3>';
     html += '<p class="text-muted text-sm mb-10">💡 Click column headers to sort</p>';
     html += '<div class="overflow-x-auto"><table class="scores-table" id="activeSessionTable"><tr>';
@@ -3863,28 +3923,7 @@ if (handsData.length === 0) {
     html += '<div><strong>🎯 Most Lockouts:</strong> ' + makePlayerLink(getPlayerIdByName(mostLockoutsPlayer.username), mostLockoutsPlayer.username) + ' (' + mostLockoutsPlayer.lockouts + ')</div>';
     html += '<div><strong>⚠️ False Lockouts:</strong> ' + falseLockoutCount + '</div>';
     html += '</div>';
-    html += '<div class="lockout-perf-box">';
-    html += '<strong class="term-heading-blue">Lockout Performance:</strong><br>';
-    html += '<div class="mt-10">• <strong>Overall Avg (all attempts):</strong> ' + overallAvgLockout + '</div>';
-    for (let i = 0; i < scores.length; i++) {
-        const p = scores[i];
-        const attemptScores = p.lockoutScores.concat(p.falseLockoutScores);
-        if (attemptScores.length > 0) {
-            const avgLockout = (attemptScores.reduce((sum, s) => sum + s, 0) / attemptScores.length).toFixed(2);
-            const eligibleAverages = scores
-                .map(s => s.lockoutScores.concat(s.falseLockoutScores))
-                .filter(values => values.length > 0)
-                .map(values => values.reduce((sum, score) => sum + score, 0) / values.length);
-            const isLowestAverage = totalLockouts > 0 && Number(avgLockout) === Math.min(...eligibleAverages);
-            html += '<div>• <strong>' + makePlayerLink(getPlayerIdByName(p.username), p.username) + ':</strong> ' +
-                avgLockout + ' avg • ' + p.lockouts + ' successful from ' + attemptScores.length +
-                ' attempt' + (attemptScores.length === 1 ? '' : 's') +
-                (isLowestAverage ? ' ⭐ Lowest avg' : '') + '</div>';
-        } else {
-            html += '<div>• <strong>' + makePlayerLink(getPlayerIdByName(p.username), p.username) + ':</strong> No lockout attempts yet</div>';
-        }
-    }
-    html += '</div></div>';
+    html += '</div>';
     document.getElementById('sessionScores').innerHTML = html;
 
     const chartSection = document.getElementById('activeSessionCharts');
@@ -3944,7 +3983,7 @@ function drawActiveWormChart(playerHands, playerIds) {
     const labels = [];
     for (let i = 1; i <= maxHands; i++) labels.push('Hand ' + i);
     if (window._activeWormChart) window._activeWormChart.destroy();
-    window._activeWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, plugins: [zeroScoreLinePlugin], options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Worm' }, legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: formatWormTooltip } } }, scales: { y: { title: { display: true, text: 'Cumulative Score' }, grid: zeroScoreAxisGrid() } } } });
+    window._activeWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, plugins: [zeroScoreLinePlugin, wormEndScorePlugin], options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 46 } }, plugins: { title: { display: true, text: 'Worm' }, legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: formatWormTooltip } } }, scales: { y: { title: { display: true, text: 'Cumulative Score' }, grid: zeroScoreAxisGrid() } } } });
 }
 
 function drawActiveManhattanChart(playerHands, playerIds) {
@@ -4135,7 +4174,8 @@ async function loadPreviousSessions(requestedIntentId, options) {
 
 html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
 html += '<div class="session-item-header" style="display:flex; justify-content:space-between; align-items:center;">';
-html += '<span>' + safeDisplayHtml(session.title) + '</span>';
+html += '<div><span>' + safeDisplayHtml(session.title) + '</span><span class="session-host-label">Hosted by ' +
+            makePlayerLink(session.host_player_id, getPlayerName(session.host_player_id), 'event.stopPropagation();') + '</span></div>';
         if (session.photo_url && session.photo_url !== '') {
             html += '<img src="' + session.photo_url + '" alt="Session thumbnail" style="width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:pointer;" onclick="event.stopPropagation(); openPhotoFullscreen(\'' + session.photo_url + '\')">';
         }
@@ -4244,7 +4284,11 @@ async function viewSessionDetail(sessionIndex, buttonElement, requestedIntentId,
 
     document.getElementById('sessionDetailTitle').textContent = decodeHtml(session.title);
     const detailDate = document.getElementById('sessionDetailDate');
-    if (detailDate) detailDate.textContent = '📅 ' + formatUKDate(session.date_started);
+    if (detailDate) {
+        detailDate.innerHTML = '<span>📅 ' + escapeHtml(formatUKDate(session.date_started)) + '</span>' +
+            '<span class="session-detail-host">Hosted by ' +
+            makePlayerLink(session.host_player_id, getPlayerName(session.host_player_id)) + '</span>';
+    }
     const joinInfo = parsePlayerJoinInfo(session.player_join_info);
 
     let metadataHtml = '';
@@ -4453,7 +4497,7 @@ function drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playe
     const labels = [];
     for (let i = 1; i <= maxHand; i++) labels.push('Hand ' + i);
     if (window._sessionWormChart) window._sessionWormChart.destroy();
-    window._sessionWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, plugins: [zeroScoreLinePlugin], options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Worm' }, legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: formatWormTooltip } } }, scales: { y: { title: { display: true, text: 'Cumulative Score' }, grid: zeroScoreAxisGrid() } } } });
+    window._sessionWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, plugins: [zeroScoreLinePlugin, wormEndScorePlugin], options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 46 } }, plugins: { title: { display: true, text: 'Worm' }, legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: formatWormTooltip } } }, scales: { y: { title: { display: true, text: 'Cumulative Score' }, grid: zeroScoreAxisGrid() } } } });
 }
 
 function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session) {
@@ -5327,16 +5371,6 @@ function handleHeaderClick(event) {
         }, 800);
     }
 }
-
-let easterEggCode = '';
-let easterEggTimeout;
-
-document.addEventListener('keypress', function(e) {
-    clearTimeout(easterEggTimeout);
-    easterEggCode += e.key.toLowerCase();
-    if (easterEggCode.includes('lockout')) { easterEggCode = ''; triggerEasterEgg(); }
-    easterEggTimeout = setTimeout(function() { easterEggCode = ''; }, 2000);
-});
 
 function triggerEasterEgg() {
     if (!window.confetti) {

@@ -200,6 +200,9 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
 }
 .session-item:hover, .session-item:active { background: #e8e9ff; }
 .session-item-header { font-weight: 600; color: var(--primary); margin-bottom: 5px; }
+.session-host-label { display: flex; align-items: center; gap: 4px; margin-top: 3px; color: var(--text-muted); font-size: 0.78em; font-weight: 500; }
+.session-host-label .player-link-avatar-wrap { width: 1.1rem; height: 1.1rem; flex-basis: 1.1rem; }
+.session-host-label .player-link { color: inherit; }
 .session-item-info { font-size: 0.9em; color: var(--text-muted); }
 .chart-container { position: relative; height: 300px; margin: 20px 0; background: var(--white); padding: 15px; border-radius: 8px; }
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
@@ -425,7 +428,12 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
     margin: -4px 0 14px;
     color: var(--text-muted);
     font-size: 0.95em;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 12px;
 }
+.session-detail-host { display: inline-flex; align-items: center; gap: 4px; }
 .scores-table th[onclick] { transition: background 0.2s; }
 .scores-table th[onclick]:hover { background: var(--primary-dark) !important; }
 .scores-table th[onclick]:active { background: #4557c2 !important; }
@@ -645,7 +653,6 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
 .stats-summary-box { background: linear-gradient(135deg, var(--success-light) 0%, #c8e6c9 100%); padding: 20px; border-radius: 10px; margin-top: 20px; border-left: 4px solid var(--success); }
 .heading-dark-green { color: var(--success-dark); margin-bottom: 15px; }
 .stats-summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-.lockout-perf-box { background: var(--white); padding: 15px; border-radius: 8px; margin-top: 10px; }
 .p-10 { padding: 10px; }
 .comment-text { color: var(--primary); font-size: 0.9em; }
 

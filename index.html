@@ -7,7 +7,7 @@
         // changes to app.js or styles.css
         // ============================================
         const APP_VERSION = '2.1.4';
-        const ASSET_VERSION = APP_VERSION + '-session-title-apostrophe-1';
+        const ASSET_VERSION = APP_VERSION + '-session-polish-1';
         document.write('<link rel="stylesheet" href="styles.css?v=' + ASSET_VERSION + '">');
         document.write('<link rel="preload" href="config.js?v=' + APP_VERSION + '" as="script">');
         document.write('<link rel="preload" href="app.js?v=' + ASSET_VERSION + '" as="script">');
@@ -368,7 +368,6 @@
                             <ul class="list-indented">
                                 <li><strong>Current Scores Table</strong> (total, avg hand, <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryLockoutRate'); return false;">lockout rate</a>, etc.)</li>
                                 <li><strong>Session Statistics</strong> (total hands, avg score/hand, leader, biggest gap)</li>
-                                <li><strong>Lockout Performance</strong> (who has the best <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryAvgLockoutScore'); return false;">avg lockout score</a>)</li>
                                 <li><strong>Graphs</strong> (<a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryWormChart'); return false;">Worm chart</a> shows cumulative scores, <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryManhattanChart'); return false;">Manhattan</a> shows hand-by-hand)</li>
                             </ul>
                         </div>
@@ -771,7 +770,7 @@
                                 <li>Your hand total is <strong>greater than 5</strong>, OR</li>
                                 <li>Your total is <strong>tied with or higher</strong> than another player</li>
                             </ul>
-                            <p class="p-italic-top"><strong>Penalty amount is decided at the start of the session (typically 10 points).</strong></p>
+                            <p class="p-italic-top"><strong>Penalty amount is decided at the start of the session (typically 5 points).</strong></p>
                         </div>
                         <div class="lockout-box-translucent">
                             <h4 class="mb-10">Other Players</h4>
@@ -916,7 +915,7 @@
                 </fieldset>
                 <small class="display-block color-666">Select any that apply. Testing sessions remain in history but do not affect official statistics or ELO.</small>
                 <label for="falseLockoutPenalty">False Lockout Penalty</label>
-                <input type="number" id="falseLockoutPenalty" placeholder="e.g. 10" value="10" min="0">
+                <input type="number" id="falseLockoutPenalty" placeholder="e.g. 5" value="5" min="0">
                 <small class="display-block color-666">Points added to score when a lockout attempt fails</small>
                 <label>Select Players</label>
                 <div id="playerSelectionList" class="loading">Loading players...</div>
