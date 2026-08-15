@@ -7,7 +7,7 @@
         // changes to app.js or styles.css
         // ============================================
         const APP_VERSION = '2.1.4';
-        const ASSET_VERSION = APP_VERSION + '-session-polish-1';
+        const ASSET_VERSION = APP_VERSION + '-active-summary-first-1';
         document.write('<link rel="stylesheet" href="styles.css?v=' + ASSET_VERSION + '">');
         document.write('<link rel="preload" href="config.js?v=' + APP_VERSION + '" as="script">');
         document.write('<link rel="preload" href="app.js?v=' + ASSET_VERSION + '" as="script">');
@@ -366,8 +366,8 @@
                             <h4 class="heading-blue">Viewing Live Stats</h4>
                             <p class="mb-10">During an active session, scroll down to see:</p>
                             <ul class="list-indented">
-                                <li><strong>Current Scores Table</strong> (total, avg hand, <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryLockoutRate'); return false;">lockout rate</a>, etc.)</li>
                                 <li><strong>Session Statistics</strong> (total hands, avg score/hand, leader, biggest gap)</li>
+                                <li><strong>Current Scores Table</strong> (total, avg hand, <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryLockoutRate'); return false;">lockout rate</a>, etc.)</li>
                                 <li><strong>Graphs</strong> (<a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryWormChart'); return false;">Worm chart</a> shows cumulative scores, <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryManhattanChart'); return false;">Manhattan</a> shows hand-by-hand)</li>
                             </ul>
                         </div>

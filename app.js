@@ -3879,7 +3879,19 @@ if (handsData.length === 0) {
         if (scores[i].lockouts > mostLockoutsPlayer.lockouts) mostLockoutsPlayer = { username: scores[i].username, lockouts: scores[i].lockouts };
     }
     const avgScorePerHand = handsData.reduce((sum, h) => sum + Number(h.score), 0) / handsData.length;
-    let html = '<h3>Scores</h3>';
+    let html = '<div class="stats-summary-box">';
+    html += '<h3 class="heading-dark-green">📊 Session Statistics</h3>';
+    html += '<div class="stats-summary-grid">';
+    html += '<div><strong>🎴 Total Hands:</strong> ' + (new Set(handsData.map(h => h.hand_number)).size) + '</div>';
+    html += '<div><strong>📈 Avg Score/Hand:</strong> ' + avgScorePerHand.toFixed(2) + '</div>';
+    html += '<div><strong>🏆 Current Leader:</strong> ' + makePlayerLink(getPlayerIdByName(leader.username), leader.username) + ' (' + formatPoints(leader.total) + ')</div>';
+    html += '<div><strong>📏 Biggest Gap:</strong> ' + biggestGap + ' points</div>';
+    html += '<div><strong>🎯 Most Lockouts:</strong> ' + makePlayerLink(getPlayerIdByName(mostLockoutsPlayer.username), mostLockoutsPlayer.username) + ' (' + mostLockoutsPlayer.lockouts + ')</div>';
+    html += '<div><strong>⚠️ False Lockouts:</strong> ' + falseLockoutCount + '</div>';
+    html += '</div>';
+    html += '</div>';
+
+    html += '<h3 class="mt-20">Scores</h3>';
     html += '<p class="text-muted text-sm mb-10">💡 Click column headers to sort</p>';
     html += '<div class="overflow-x-auto"><table class="scores-table" id="activeSessionTable"><tr>';
     html += '<th onclick="sortActiveSessionTable(0)" style="cursor: pointer; user-select: none;">Player ⇅</th>';
@@ -3913,17 +3925,6 @@ if (handsData.length === 0) {
     }
     html += '</table></div>';
 
-    html += '<div class="stats-summary-box">';
-    html += '<h3 class="heading-dark-green">📊 Session Statistics</h3>';
-    html += '<div class="stats-summary-grid">';
-    html += '<div><strong>🎴 Total Hands:</strong> ' + (new Set(handsData.map(h => h.hand_number)).size) + '</div>';
-    html += '<div><strong>📈 Avg Score/Hand:</strong> ' + avgScorePerHand.toFixed(2) + '</div>';
-    html += '<div><strong>🏆 Current Leader:</strong> ' + makePlayerLink(getPlayerIdByName(leader.username), leader.username) + ' (' + formatPoints(leader.total) + ')</div>';
-    html += '<div><strong>📏 Biggest Gap:</strong> ' + biggestGap + ' points</div>';
-    html += '<div><strong>🎯 Most Lockouts:</strong> ' + makePlayerLink(getPlayerIdByName(mostLockoutsPlayer.username), mostLockoutsPlayer.username) + ' (' + mostLockoutsPlayer.lockouts + ')</div>';
-    html += '<div><strong>⚠️ False Lockouts:</strong> ' + falseLockoutCount + '</div>';
-    html += '</div>';
-    html += '</div>';
     document.getElementById('sessionScores').innerHTML = html;
 
     const chartSection = document.getElementById('activeSessionCharts');
