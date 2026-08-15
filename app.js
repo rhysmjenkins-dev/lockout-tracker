@@ -3160,6 +3160,7 @@ async function resumeSession(sessionId, buttonElement, requestedIntentId, skipHi
 function showActiveSession(requestedIntentId, prefetchedHands, skipHistory) {
     if (Array.isArray(prefetchedHands)) currentSessionHands = prefetchedHands.slice();
     document.getElementById('activeSessionTitle').textContent = decodeHtml(currentSession.title);
+    const hostName = getPlayerName(currentSession.host_player_id);
     let playerNames = sessionPlayers.map(p => {
         const joinHand = getPlayerJoinHand(p.player_id);
         const eloBadge = formatEloBadge(p.player_id);
@@ -3172,6 +3173,8 @@ function showActiveSession(requestedIntentId, prefetchedHands, skipHistory) {
         return playerLink + ' ' + eloBadge;
     }).join(', ');
     document.getElementById('activeSessionInfo').innerHTML =
+        '<div class="active-session-host"><span>Hosted by</span>' +
+        makePlayerLink(currentSession.host_player_id, hostName) + '</div>' +
         '<p><strong>Session ID:</strong> ' + currentSession.session_id + '</p>' +
         '<p><strong>Players:</strong> ' + playerNames + '</p>';
     displaySessionMetadata('activeSessionMetadata');
@@ -3991,7 +3994,7 @@ function drawActiveWormChart(playerHands, playerIds) {
     const labels = [];
     for (let i = 1; i <= maxHands; i++) labels.push('Hand ' + i);
     if (window._activeWormChart) window._activeWormChart.destroy();
-    window._activeWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, plugins: [zeroScoreLinePlugin, wormEndScorePlugin], options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 46 } }, plugins: { title: { display: true, text: 'Worm' }, legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: formatWormTooltip } } }, scales: { y: { title: { display: true, text: 'Cumulative Score' }, grid: zeroScoreAxisGrid() } } } });
+    window._activeWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, plugins: [zeroScoreLinePlugin, wormEndScorePlugin], options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 38 } }, plugins: { title: { display: true, text: 'Worm' }, legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: formatWormTooltip } } }, scales: { y: { title: { display: true, text: 'Cumulative Score' }, grid: zeroScoreAxisGrid() } } } });
 }
 
 function drawActiveManhattanChart(playerHands, playerIds) {
@@ -4014,7 +4017,7 @@ function drawActiveManhattanChart(playerHands, playerIds) {
         datasets.push({ label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''), data: dataArray, backgroundColor: colors[i % colors.length], borderColor: colors[i % colors.length], borderWidth: 1 });
     }
     if (window._activeManhattanChart) window._activeManhattanChart.destroy();
-    window._activeManhattanChart = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels, datasets }, plugins: [zeroScoreLinePlugin], options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 30 } }, plugins: { title: { display: true, text: 'Manhattan' }, legend: { display: true, position: 'top' } }, scales: { x: { title: { display: true, text: 'Hand Number' } }, y: { title: { display: true, text: 'Score' }, beginAtZero: true, grid: zeroScoreAxisGrid() } } } });
+    window._activeManhattanChart = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels, datasets }, plugins: [zeroScoreLinePlugin], options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 20 } }, plugins: { title: { display: true, text: 'Manhattan' }, legend: { display: true, position: 'top' } }, scales: { x: { title: { display: true, text: 'Hand Number' } }, y: { title: { display: true, text: 'Score' }, beginAtZero: true, grid: zeroScoreAxisGrid() } } } });
 }
 
 // ============================================
@@ -4512,7 +4515,7 @@ function drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playe
     const labels = [];
     for (let i = 1; i <= maxHand; i++) labels.push('Hand ' + i);
     if (window._sessionWormChart) window._sessionWormChart.destroy();
-    window._sessionWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, plugins: [zeroScoreLinePlugin, wormEndScorePlugin], options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 46 } }, plugins: { title: { display: true, text: 'Worm' }, legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: formatWormTooltip } } }, scales: { y: { title: { display: true, text: 'Cumulative Score' }, grid: zeroScoreAxisGrid() } } } });
+    window._sessionWormChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets }, plugins: [zeroScoreLinePlugin, wormEndScorePlugin], options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 38 } }, plugins: { title: { display: true, text: 'Worm' }, legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: formatWormTooltip } } }, scales: { y: { title: { display: true, text: 'Cumulative Score' }, grid: zeroScoreAxisGrid() } } } });
 }
 
 function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session) {
@@ -4538,7 +4541,7 @@ function drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, 
         datasets.push({ label: getPlayerName(playerId) + (joinHand > 1 ? ' (H' + joinHand + ')' : ''), data: dataArray, backgroundColor: colors[i % colors.length], borderColor: colors[i % colors.length], borderWidth: 1 });
     }
     if (window._sessionManhattanChart) window._sessionManhattanChart.destroy();
-    window._sessionManhattanChart = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels, datasets }, plugins: [zeroScoreLinePlugin], options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 30 } }, plugins: { title: { display: true, text: 'Manhattan' }, legend: { display: true, position: 'top' } }, scales: { x: { title: { display: true, text: 'Hand Number' } }, y: { title: { display: true, text: 'Score' }, beginAtZero: true, grid: zeroScoreAxisGrid() } } } });
+    window._sessionManhattanChart = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels, datasets }, plugins: [zeroScoreLinePlugin], options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 20 } }, plugins: { title: { display: true, text: 'Manhattan' }, legend: { display: true, position: 'top' } }, scales: { x: { title: { display: true, text: 'Hand Number' } }, y: { title: { display: true, text: 'Score' }, beginAtZero: true, grid: zeroScoreAxisGrid() } } } });
 }
 
 // ============================================
