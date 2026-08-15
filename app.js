@@ -160,6 +160,13 @@ function loadChartLibrary() {
     return loadExternalScript(CHART_LIBRARY_URL, 'Chart');
 }
 
+// Start Chart.js once with the main app. Graph screens await this same settled
+// promise, so their canvases are never drawn before the library is ready.
+const chartLibraryReady = loadChartLibrary().then(
+    function() { return { ready: true }; },
+    function(error) { return { ready: false, error: error }; }
+);
+
 function loadConfettiLibrary() {
     return loadExternalScript(CONFETTI_LIBRARY_URL, 'confetti');
 }
@@ -3945,6 +3952,7 @@ if (handsData.length === 0) {
     }
     html += '</table></div>';
 
+    const chartLibraryState = await chartLibraryReady;
     document.getElementById('sessionScores').innerHTML = html;
 
     const chartSection = document.getElementById('activeSessionCharts');
@@ -3953,15 +3961,23 @@ if (handsData.length === 0) {
         chartsHtml += '<div class="chart-container"><canvas id="activeWormChart"></canvas></div>';
         chartsHtml += '<div class="chart-container"><canvas id="activeManhattanChart"></canvas></div>';
         if (scores.some(p => p.joinHand > 1)) chartsHtml += '<p class="chart-note">Worm includes ' + makeLateJoinDictionaryLink('late-join starts') + '; Manhattan shows hand scores only.</p>';
-        chartSection.innerHTML = chartsHtml;
-        const playerHandsData = {}, playerIdsArray = [];
-        for (let i = 0; i < scores.length; i++) {
-            const p = scores[i];
-            const playerId = sessionPlayers.find(sp => sp.username === p.username).player_id;
-            playerIdsArray.push(playerId);
-            playerHandsData[playerId] = p.hands.map(h => h.score);
+        if (!chartLibraryState.ready || !window.Chart) {
+            chartSection.innerHTML = '<h3 class="mt-20">Session Graphs</h3><div class="error" role="alert">Graphs could not be loaded. Refresh the page to try again.</div>';
+        } else {
+            chartSection.innerHTML = chartsHtml;
+            const playerHandsData = {}, playerIdsArray = [];
+            for (let i = 0; i < scores.length; i++) {
+                const p = scores[i];
+                const playerId = sessionPlayers.find(sp => sp.username === p.username).player_id;
+                playerIdsArray.push(playerId);
+                playerHandsData[playerId] = p.hands.map(h => h.score);
+            }
+            requestAnimationFrame(function() {
+                if (!document.getElementById('activeWormChart')) return;
+                drawActiveWormChart(playerHandsData, playerIdsArray);
+                drawActiveManhattanChart(playerHandsData, playerIdsArray);
+            });
         }
-        setTimeout(function() { drawActiveWormChart(playerHandsData, playerIdsArray); drawActiveManhattanChart(playerHandsData, playerIdsArray); }, 100);
     }
 
     await displayHandHistory(handsData);
@@ -4435,6 +4451,12 @@ const sortedPlayers = Object.keys(playerTotals).sort(function(a, b) { return pla
 html += '</table></div>';
 document.getElementById('sessionDetailContent').innerHTML = html;
 
+    const chartLibraryState = await chartLibraryReady;
+    if (!isCurrentNavigationIntent(intentId)) {
+        if (buttonElement) setButtonLoading(buttonElement, false);
+        return;
+    }
+
 const handsByNumber = {};
 for (let i = 0; i < handsData.length; i++) {
     const hand = handsData[i];
@@ -4472,14 +4494,19 @@ document.getElementById('sessionDetailHandHistory').innerHTML = handHistoryHtml;
     graphsHtml += '<div class="chart-container"><canvas id="wormChart"></canvas></div>';
     graphsHtml += '<div class="chart-container"><canvas id="manhattanChart"></canvas></div>';
     if (Object.keys(joinInfo).length > 0) graphsHtml += '<p class="chart-note">Worm includes ' + makeLateJoinDictionaryLink('late-join starts') + '; Manhattan shows hand scores only.</p>';
-    document.getElementById('sessionDetailGraphs').innerHTML = graphsHtml;
+    if (chartLibraryState.ready && window.Chart) {
+        document.getElementById('sessionDetailGraphs').innerHTML = graphsHtml;
+    } else {
+        document.getElementById('sessionDetailGraphs').innerHTML = '<h3 class="mt-20">Graphs</h3><div class="error" role="alert">Graphs could not be loaded. Refresh the page to try again.</div>';
+    }
     showScreen('sessionDetailScreen', Boolean(skipHistory), intentId);
     saveRefreshRoute('sessionDetailScreen', { session_id: session.session_id });
-    setTimeout(function() {
+    requestAnimationFrame(function() {
         if (!isCurrentNavigationIntent(intentId)) return;
+        if (!chartLibraryState.ready || !window.Chart) return;
         drawSessionWormChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
         drawSessionManhattanChartWithJoinInfo(playerHandScores, sortedPlayers, playerJoinHands, session);
-    }, 100);
+    });
 }
 
 // ============================================
