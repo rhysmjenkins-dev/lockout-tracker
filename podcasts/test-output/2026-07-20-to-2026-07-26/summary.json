@@ -1,0 +1,12 @@
+{
+  "period": {
+    "start": "2026-07-20",
+    "end": "2026-07-26"
+  },
+  "title": "Toads, Tides and Tight Margins",
+  "description": "Dave stretches his lead at the summit while debutants shake up the tables across a frantic five-session week.",
+  "audio_file": "podcasts/test-output/2026-07-20-to-2026-07-26/episode.m4a",
+  "transcript_file": "podcasts/test-output/2026-07-20-to-2026-07-26/transcript.txt",
+  "sessions": 5,
+  "notes": 4
+}

@@ -1,0 +1,12 @@
+{
+  "period": {
+    "start": "2026-07-27",
+    "end": "2026-08-02"
+  },
+  "title": "Dave Stretches His Lead at the Top",
+  "description": "Dave dominates the week's sessions to extend his ratings lead as Jake and Russ struggle at the bottom.",
+  "audio_file": "podcasts/test-output/2026-07-27-to-2026-08-02/episode.m4a",
+  "transcript_file": "podcasts/test-output/2026-07-27-to-2026-08-02/transcript.txt",
+  "sessions": 5,
+  "notes": 1
+}

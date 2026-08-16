@@ -1,0 +1,12 @@
+{
+  "period": {
+    "start": "2026-08-10",
+    "end": "2026-08-16"
+  },
+  "title": "Rhys Rules the Roost",
+  "description": "Rhys climbs to the top of the overall leaderboard following a frantic week of card action.",
+  "audio_file": "podcasts/test-output/2026-08-10-to-2026-08-16/episode.m4a",
+  "transcript_file": "podcasts/test-output/2026-08-10-to-2026-08-16/transcript.txt",
+  "sessions": 11,
+  "notes": 25
+}

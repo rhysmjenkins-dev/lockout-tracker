@@ -1,0 +1,12 @@
+{
+  "period": {
+    "start": "2026-07-13",
+    "end": "2026-07-19"
+  },
+  "title": "A Grand Opening",
+  "description": "Dave establishes an early leaderboard lead as five players make their official recorded debuts across a busy week of Lockout.",
+  "audio_file": "podcasts/test-output/2026-07-13-to-2026-07-19/episode.m4a",
+  "transcript_file": "podcasts/test-output/2026-07-13-to-2026-07-19/transcript.txt",
+  "sessions": 5,
+  "notes": 4
+}
