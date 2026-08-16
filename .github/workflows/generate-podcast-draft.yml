@@ -59,6 +59,7 @@ jobs:
         run: node scripts/podcast/generate-draft.mjs
 
       - name: Commit the proposed episode to its draft branch
+        if: steps.podcast.outputs.skip != 'true'
         env:
           BRANCH: ${{ steps.podcast.outputs.branch }}
         run: |
@@ -70,6 +71,7 @@ jobs:
           git push --force origin "HEAD:refs/heads/$BRANCH"
 
       - name: Open or update the approval pull request
+        if: steps.podcast.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ steps.podcast.outputs.branch }}
@@ -84,6 +86,7 @@ jobs:
           gh pr edit "$BRANCH" --add-assignee "$GITHUB_REPOSITORY_OWNER" || true
 
       - name: Keep a downloadable workflow copy
+        if: steps.podcast.outputs.skip != 'true'
         uses: actions/upload-artifact@v6
         with:
           name: lockout-podcast-draft-${{ steps.podcast.outputs.period }}

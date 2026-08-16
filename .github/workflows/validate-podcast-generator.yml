@@ -36,5 +36,9 @@ jobs:
       - name: Check JavaScript syntax
         run: node --check scripts/podcast/generate-draft.mjs
 
-      - name: Verify the next source pack against public live data
+      - name: Select the latest completed published week
+        run: |
+          node --input-type=module -e "import fs from 'node:fs'; const episodes = JSON.parse(fs.readFileSync('podcasts/episodes.json', 'utf8')); const end = episodes.map(item => String(item.date || '')).filter(value => /^\\d{4}-\\d{2}-\\d{2}$/.test(value)).sort().at(-1); if (!end) throw new Error('No dated podcast episode exists.'); const start = new Date(end + 'T12:00:00Z'); start.setUTCDate(start.getUTCDate() - 6); fs.appendFileSync(process.env.GITHUB_ENV, 'PODCAST_START_DATE=' + start.toISOString().slice(0, 10) + '\\nPODCAST_END_DATE=' + end + '\\n');"
+
+      - name: Verify a completed source pack against public live data
         run: node scripts/podcast/generate-draft.mjs --prepare-only

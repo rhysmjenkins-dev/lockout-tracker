@@ -434,7 +434,12 @@ async function main() {
   const episodes = JSON.parse(fs.readFileSync(EPISODES_FILE, 'utf8'));
   const period = resolvePeriod(episodes);
   const today = ukDate(new Date());
-  if (period.end > today) throw new Error(`The period does not finish until ${displayDate(period.end)}.`);
+  if (period.end > today) {
+    if (START_INPUT || END_INPUT) throw new Error(`The period does not finish until ${displayDate(period.end)}.`);
+    console.log(`No podcast is due: the next period does not finish until ${displayDate(period.end)}.`);
+    writeGitHubOutput({ skip: 'true', period: `${period.start} to ${period.end}` });
+    return;
+  }
   if (episodes.some(item => String(item.date) === period.end)) throw new Error(`An episode dated ${period.end} already exists.`);
 
   const [previous, players] = await Promise.all([
