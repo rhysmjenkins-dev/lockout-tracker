@@ -7,6 +7,7 @@ const EPISODES_FILE = path.join(ROOT, 'podcasts', 'episodes.json');
 const API_URL = process.env.LOCKOUT_API_URL || readApiUrl();
 const API_KEY = process.env.GEMINI_API_KEY || '';
 const PREPARE_ONLY = process.argv.includes('--prepare-only');
+const TEST_MODE = String(process.env.PODCAST_TEST_MODE || '').toLowerCase() === 'true';
 const START_INPUT = String(process.env.PODCAST_START_DATE || '').trim();
 const END_INPUT = String(process.env.PODCAST_END_DATE || '').trim();
 const EDITORIAL_NOTE = String(process.env.PODCAST_EDITORIAL_NOTE || '').trim();
@@ -440,7 +441,7 @@ async function main() {
     writeGitHubOutput({ skip: 'true', period: `${period.start} to ${period.end}` });
     return;
   }
-  if (!PREPARE_ONLY && episodes.some(item => String(item.date) === period.end)) {
+  if (!PREPARE_ONLY && !TEST_MODE && episodes.some(item => String(item.date) === period.end)) {
     throw new Error(`An episode dated ${period.end} already exists.`);
   }
 
@@ -482,16 +483,42 @@ async function main() {
   const draft = await generateDraft(facts);
   const number = episodeNumber(episodes);
   const stem = `episode-${String(number).padStart(2, '0')}-${slugPeriod(period)}`;
-  const audioDir = path.join(ROOT, 'podcasts', 'audio');
-  const transcriptDir = path.join(ROOT, 'podcasts', 'transcripts');
+  const testDirectory = path.posix.join('podcasts', 'test-output', slugPeriod(period));
+  const audioRelative = TEST_MODE
+    ? path.posix.join(testDirectory, 'episode.m4a')
+    : path.posix.join('podcasts', 'audio', `${stem}.m4a`);
+  const transcriptRelative = TEST_MODE
+    ? path.posix.join(testDirectory, 'transcript.txt')
+    : path.posix.join('podcasts', 'transcripts', `${stem}.txt`);
+  const audioDir = path.dirname(path.join(ROOT, audioRelative));
+  const transcriptDir = path.dirname(path.join(ROOT, transcriptRelative));
   fs.mkdirSync(audioDir, { recursive: true });
   fs.mkdirSync(transcriptDir, { recursive: true });
   const wavPath = path.join(process.env.TEMP || '/tmp', `${stem}.wav`);
-  const audioRelative = path.posix.join('podcasts', 'audio', `${stem}.m4a`);
-  const transcriptRelative = path.posix.join('podcasts', 'transcripts', `${stem}.txt`);
   await generateAudio(draft.transcript, wavPath);
   convertAudio(wavPath, path.join(ROOT, audioRelative));
   fs.writeFileSync(path.join(ROOT, transcriptRelative), `${draft.transcript}\n`);
+
+  if (TEST_MODE) {
+    const summaryRelative = path.posix.join(testDirectory, 'summary.json');
+    fs.writeFileSync(path.join(ROOT, summaryRelative), `${JSON.stringify({
+      period,
+      title: draft.title,
+      description: draft.description,
+      audio_file: audioRelative,
+      transcript_file: transcriptRelative,
+      sessions: sessionFacts.length,
+      notes: countNotes(sessionFacts)
+    }, null, 2)}\n`);
+    writeGitHubOutput({
+      period: `${period.start} to ${period.end}`,
+      audio_file: audioRelative,
+      transcript_file: transcriptRelative,
+      summary_file: summaryRelative
+    });
+    console.log(`Test draft generated for ${period.start} to ${period.end}: ${sessionFacts.length} sessions, ${countNotes(sessionFacts)} notes.`);
+    return;
+  }
 
   episodes.unshift({
     title: `Episode ${number}: ${draft.title.replace(/^Episode\s+\d+\s*:\s*/i, '')}`,

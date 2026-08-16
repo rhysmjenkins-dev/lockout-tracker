@@ -1,0 +1,89 @@
+name: Test podcast back catalogue
+
+on:
+  push:
+    branches:
+      - agent/podcast-back-catalog-test
+    paths:
+      - .github/workflows/test-podcast-back-catalog.yml
+      - scripts/podcast/generate-draft.mjs
+      - scripts/podcast/build-back-catalog-review.mjs
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: lockout-podcast-back-catalog-test
+  cancel-in-progress: false
+
+jobs:
+  generate-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      LOCKOUT_API_URL: https://script.google.com/macros/s/AKfycbxwKK71BSc8n4qxxyZVMGrHa7ycBYCG7qddBPeGgbysb_io5PANaP_HVZ2hppewjbiM-A/exec
+      PODCAST_TEST_MODE: 'true'
+      PODCAST_TEST_BRANCH: automation/podcast-back-catalog-review
+
+    steps:
+      - name: Check out the isolated test branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install audio converter
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg
+
+      - name: Generate five historical comparison episodes
+        run: |
+          while read -r START END; do
+            PODCAST_START_DATE="$START" PODCAST_END_DATE="$END" node scripts/podcast/generate-draft.mjs
+          done <<'PERIODS'
+          2026-07-13 2026-07-19
+          2026-07-20 2026-07-26
+          2026-07-27 2026-08-02
+          2026-08-03 2026-08-09
+          2026-08-10 2026-08-16
+          PERIODS
+
+      - name: Build one review page
+        run: node scripts/podcast/build-back-catalog-review.mjs
+
+      - name: Commit test outputs to a non-live branch
+        env:
+          OUTPUT_BRANCH: ${{ env.PODCAST_TEST_BRANCH }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$OUTPUT_BRANCH"
+          git add podcasts/test-output
+          git commit -m "Generate podcast back-catalogue tests"
+          git push --force origin "HEAD:refs/heads/$OUTPUT_BRANCH"
+
+      - name: Open or update the isolated review pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTPUT_BRANCH: ${{ env.PODCAST_TEST_BRANCH }}
+        run: |
+          if gh pr view "$OUTPUT_BRANCH" --json number --jq .number >/dev/null 2>&1; then
+            gh pr edit "$OUTPUT_BRANCH" --base "$GITHUB_REF_NAME" --title "Podcast back-catalogue comparison" --body-file podcasts/test-output/README.md
+          else
+            gh pr create --draft --base "$GITHUB_REF_NAME" --head "$OUTPUT_BRANCH" --title "Podcast back-catalogue comparison" --body-file podcasts/test-output/README.md
+          fi
+
+      - name: Keep a downloadable copy
+        uses: actions/upload-artifact@v6
+        with:
+          name: lockout-podcast-back-catalogue-tests
+          path: podcasts/test-output
+          retention-days: 14
