@@ -1,6 +1,12 @@
 name: Generate podcast draft
 
 on:
+  push:
+    branches:
+      - agent/podcast-automation-test
+    paths:
+      - .github/workflows/generate-podcast-draft.yml
+      - scripts/podcast/**
   workflow_dispatch:
     inputs:
       start_date:
