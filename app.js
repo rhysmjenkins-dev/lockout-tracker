@@ -5866,7 +5866,8 @@ function renderPlayerProfile(data) {
     // H2H summary
     if (data.h2h_summary && data.h2h_summary.length > 0) {
         html += '<div class="section-box section-box-red mt-20">';
-        html += '<h3 class="section-heading-red">⚔️ Head-to-Head</h3>';
+        html += '<h3 class="section-heading-red">⚔️ Head-to-Head (' + data.h2h_summary.length + ')</h3>';
+        html += '<div class="profile-h2h-list" aria-label="Head-to-head records">';
         for (let i = 0; i < data.h2h_summary.length; i++) {
             const h = data.h2h_summary[i];
             const total = h.total;
@@ -5887,6 +5888,7 @@ function renderPlayerProfile(data) {
             html += '</div>';
             html += '</button>';
         }
+        html += '</div>';
         html += '</div>';
     }
 

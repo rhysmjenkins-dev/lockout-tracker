@@ -1045,6 +1045,13 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
 }
 
 /* H2H summary */
+.profile-h2h-list {
+    max-height: min(400px, 52vh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding-right: 4px;
+}
 .h2h-summary-row {
     display: flex;
     width: 100%;
@@ -1075,6 +1082,7 @@ label { display: block; margin-top: 15px; font-weight: 600; color: var(--text-me
     flex-shrink: 0;
 }
 @media (max-width: 600px) {
+    .profile-h2h-list { max-height: min(340px, 48vh); }
     .h2h-summary-row {
         align-items: stretch;
         flex-direction: column;
