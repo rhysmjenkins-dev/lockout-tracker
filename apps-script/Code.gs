@@ -2495,7 +2495,7 @@ elo_elite: currentElo >= 1200,
 elo_master: currentElo >= 1300
 },
 recent_sessions: recentSessions,
-h2h_summary: h2hSummary.slice(0, 5)
+h2h_summary: h2hSummary
 };
 }
 
