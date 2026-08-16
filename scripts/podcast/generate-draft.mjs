@@ -10,8 +10,8 @@ const PREPARE_ONLY = process.argv.includes('--prepare-only');
 const START_INPUT = String(process.env.PODCAST_START_DATE || '').trim();
 const END_INPUT = String(process.env.PODCAST_END_DATE || '').trim();
 const EDITORIAL_NOTE = String(process.env.PODCAST_EDITORIAL_NOTE || '').trim();
-const TEXT_MODEL = process.env.PODCAST_TEXT_MODEL || 'gemini-2.5-flash';
-const TTS_MODEL = process.env.PODCAST_TTS_MODEL || 'gemini-2.5-flash-preview-tts';
+const TEXT_MODEL = process.env.PODCAST_TEXT_MODEL || 'gemini-3.5-flash-lite';
+const TTS_MODEL = process.env.PODCAST_TTS_MODEL || 'gemini-3.1-flash-tts-preview';
 
 function readApiUrl() {
   const config = fs.readFileSync(path.join(ROOT, 'config.js'), 'utf8');
@@ -247,11 +247,14 @@ ${EDITORIAL_NOTE ? `EXTRA EDITORIAL NOTE FROM RHYS\n${EDITORIAL_NOTE}\n\n` : ''}
 ${JSON.stringify(facts, null, 2)}`;
 }
 
-async function callGemini(model, payload) {
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(API_KEY)}`, {
+async function callGeminiInteraction(model, payload) {
+  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': API_KEY
+    },
+    body: JSON.stringify({ model, ...payload }),
     signal: AbortSignal.timeout(240000)
   });
   const body = await response.json().catch(() => ({}));
@@ -262,8 +265,15 @@ async function callGemini(model, payload) {
   return body;
 }
 
-function responseText(body) {
-  return (body.candidates?.[0]?.content?.parts || []).map(part => part.text || '').join('').trim();
+function interactionOutput(body, type) {
+  return (body.steps || [])
+    .filter(step => step?.type === 'model_output')
+    .flatMap(step => Array.isArray(step.content) ? step.content : [])
+    .filter(item => item?.type === type);
+}
+
+function interactionText(body) {
+  return interactionOutput(body, 'text').map(item => item.text || '').join('').trim();
 }
 
 function parseDraft(text) {
@@ -280,11 +290,23 @@ function parseDraft(text) {
 }
 
 async function generateDraft(facts) {
-  const body = await callGemini(TEXT_MODEL, {
-    contents: [{ role: 'user', parts: [{ text: buildEditorialPrompt(facts) }] }],
-    generationConfig: { temperature: 0.35, responseMimeType: 'application/json' }
+  const body = await callGeminiInteraction(TEXT_MODEL, {
+    input: buildEditorialPrompt(facts),
+    response_format: [{
+      type: 'text',
+      mime_type: 'application/json',
+      schema: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          description: { type: 'string' },
+          transcript: { type: 'string' }
+        },
+        required: ['title', 'description', 'transcript']
+      }
+    }]
   });
-  return parseDraft(responseText(body));
+  return parseDraft(interactionText(body));
 }
 
 function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
@@ -309,25 +331,20 @@ function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
 
 async function generateAudio(transcript, wavPath) {
   const directorNotes = `Read the following transcript exactly as written. Alex and Sam are two restrained British radio sports presenters. Use natural British English pronunciation, conversational pacing, warmth and understated dry humour. Do not use exaggerated accents or American sports-show excitement.\n\n${transcript}`;
-  const body = await callGemini(TTS_MODEL, {
-    contents: [{ role: 'user', parts: [{ text: directorNotes }] }],
-    generationConfig: {
-      responseModalities: ['AUDIO'],
-      speechConfig: {
-        languageCode: 'en-GB',
-        multiSpeakerVoiceConfig: {
-          speakerVoiceConfigs: [
-            { speaker: 'Alex', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Charon' } } },
-            { speaker: 'Sam', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
-          ]
-        }
-      }
+  const body = await callGeminiInteraction(TTS_MODEL, {
+    input: directorNotes,
+    response_format: { type: 'audio' },
+    generation_config: {
+      speech_config: [
+        { speaker: 'Alex', voice: 'Charon' },
+        { speaker: 'Sam', voice: 'Kore' }
+      ]
     }
   });
-  const part = (body.candidates?.[0]?.content?.parts || []).find(item => item.inlineData?.data);
-  if (!part) throw new Error('Gemini returned no audio data.');
-  const raw = Buffer.from(part.inlineData.data, 'base64');
-  const mime = String(part.inlineData.mimeType || 'audio/L16;rate=24000');
+  const part = body.output_audio || body.outputAudio || interactionOutput(body, 'audio')[0];
+  if (!part?.data) throw new Error('Gemini returned no audio data.');
+  const raw = Buffer.from(part.data, 'base64');
+  const mime = String(part.mime_type || part.mimeType || 'audio/L16;rate=24000');
   const rate = Number((mime.match(/rate=(\d+)/i) || [])[1] || 24000);
   const audio = /wav/i.test(mime) ? raw : wavFromPcm(raw, rate);
   fs.writeFileSync(wavPath, audio);
