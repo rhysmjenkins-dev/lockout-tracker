@@ -1,6 +1,12 @@
 name: Validate podcast generator
 
 on:
+  push:
+    paths:
+      - .github/workflows/generate-podcast-draft.yml
+      - .github/workflows/validate-podcast-generator.yml
+      - scripts/podcast/**
+      - podcasts/README.md
   pull_request:
     paths:
       - .github/workflows/generate-podcast-draft.yml
