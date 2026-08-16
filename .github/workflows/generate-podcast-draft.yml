@@ -1,12 +1,8 @@
 name: Generate podcast draft
 
 on:
-  push:
-    branches:
-      - agent/podcast-automation-test
-    paths:
-      - .github/workflows/generate-podcast-draft.yml
-      - scripts/podcast/**
+  schedule:
+    - cron: '15 7 * * 1'
   workflow_dispatch:
     inputs:
       start_date:
@@ -25,6 +21,10 @@ on:
 permissions:
   contents: write
   pull-requests: write
+
+concurrency:
+  group: lockout-podcast-draft
+  cancel-in-progress: false
 
 jobs:
   generate-draft:
@@ -77,7 +77,7 @@ jobs:
           PR_BODY: ${{ steps.podcast.outputs.pr_body }}
         run: |
           if gh pr view "$BRANCH" --json number --jq .number >/dev/null 2>&1; then
-            gh pr edit "$BRANCH" --title "$PR_TITLE" --body-file "$PR_BODY"
+            gh pr edit "$BRANCH" --base "$GITHUB_REF_NAME" --title "$PR_TITLE" --body-file "$PR_BODY"
           else
             gh pr create --draft --base "$GITHUB_REF_NAME" --head "$BRANCH" --title "$PR_TITLE" --body-file "$PR_BODY"
           fi
