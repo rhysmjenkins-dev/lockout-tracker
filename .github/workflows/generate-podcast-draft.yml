@@ -32,14 +32,15 @@ jobs:
 
     steps:
       - name: Check out the live app
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
+          package-manager-cache: false
 
       - name: Check audio converter
         run: ffmpeg -version
@@ -74,7 +75,7 @@ jobs:
           gh pr edit "$BRANCH" --add-assignee "$GITHUB_REPOSITORY_OWNER" || true
 
       - name: Keep a downloadable workflow copy
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: lockout-podcast-draft-${{ steps.podcast.outputs.period }}
           path: |
