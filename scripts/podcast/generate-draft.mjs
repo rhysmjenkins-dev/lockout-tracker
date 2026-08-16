@@ -226,22 +226,26 @@ TRANSCRIPT FORMAT
 - Alex and Sam are presenters, never players.
 - Begin with the strongest story, not a generic welcome.
 - End with one brief look ahead.
+- The verified period is exactly one Monday-to-Sunday week. Never call it a fortnight or imply a different duration.
 
 VOICE AND TONE
 - British English; warm, dry, affectionate and knowingly over-serious.
 - Resemble a familiar British radio sports roundup.
 - Understated wit and gentle incredulity, not forced jokes.
-- Avoid American sports-show hype, forced slang, exaggerated accents, laddishness and corporate language.
+- Avoid American sports-show hype or terminology (including "slate"), forced slang, exaggerated accents, laddishness and corporate language.
 - Assume regular listeners already understand Lockout. Do not explain its basic scoring.
 
 EDITORIAL RULES
 - Use the supplied facts only. Never invent quotations, motives, reactions, personalities, nicknames, rivalries or events.
 - Every non-empty session note and hand note is supplied deliberately. Consider all of them and reflect each distinct note where it can be stated naturally; never silently replace a recorded note with an invented version.
 - Use numbers to support stories rather than reading lists.
+- A lower final score wins. State comparisons naturally and unambiguously without explaining this rule to listeners.
 - Prioritise results, turning points, streaks, collapses, comebacks, lockouts and statistical oddities.
 - Previous context should be brief and used only when relevant.
 - Testing, void and unfinished sessions have already been excluded.
-- Keep the title concise. Keep the description to one sentence.
+- Do not recite session numbers unless a number is itself relevant to the story.
+- Give the episode a concise, story-led title in the style of the existing episodes. Do not use the programme name, a date or a generic weekly-recap title.
+- Keep the description to one lively, specific sentence. Avoid generic phrases such as "comprehensive review", "busy week" or "across the calendar".
 
 ${EDITORIAL_NOTE ? `EXTRA EDITORIAL NOTE FROM RHYS\n${EDITORIAL_NOTE}\n\n` : ''}VERIFIED SOURCE DATA
 ${JSON.stringify(facts, null, 2)}`;
