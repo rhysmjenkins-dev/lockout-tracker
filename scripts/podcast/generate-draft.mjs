@@ -226,17 +226,18 @@ TRANSCRIPT FORMAT
 - Alex and Sam are presenters, never players.
 - Begin with the strongest story, not a generic welcome.
 - End with one brief look ahead.
-- The verified period is exactly one Monday-to-Sunday week. Never call it a fortnight or imply a different duration.
+- The verified period is exactly one Monday-to-Sunday week. Never call it a fortnight, even as a joke or self-correction, or imply a different duration.
 
 VOICE AND TONE
 - British English; warm, dry, affectionate and knowingly over-serious.
 - Resemble a familiar British radio sports roundup.
 - Understated wit and gentle incredulity, not forced jokes.
-- Avoid American sports-show hype or terminology (including "slate"), forced slang, exaggerated accents, laddishness and corporate language.
+- Avoid American sports-show hype or terminology (including "slate" and "runs the table"), forced slang, exaggerated accents, laddishness and corporate language.
 - Assume regular listeners already understand Lockout. Do not explain its basic scoring.
 
 EDITORIAL RULES
 - Use the supplied facts only. Never invent quotations, motives, reactions, personalities, nicknames, rivalries or events.
+- Never invent or infer a venue, location or setting. Mention one only if it appears explicitly in the verified source data.
 - Every non-empty session note and hand note is supplied deliberately. Consider all of them and reflect each distinct note where it can be stated naturally; never silently replace a recorded note with an invented version.
 - Use numbers to support stories rather than reading lists.
 - A lower final score wins. State comparisons naturally and unambiguously without explaining this rule to listeners.
@@ -293,24 +294,43 @@ function parseDraft(text) {
   return { title: draft.title.trim(), description: draft.description.trim(), transcript: draft.transcript.trim() };
 }
 
+function draftIssues(draft) {
+  const issues = [];
+  const wordCount = draft.transcript.split(/\s+/).filter(Boolean).length;
+  if (wordCount < 280 || wordCount > 360) issues.push(`transcript is ${wordCount} words; it must be 280 to 360`);
+  if (/\b(fortnight|slate)\b/i.test(draft.transcript)) issues.push('transcript uses a forbidden time period or American sports term');
+  if (/\bruns? the table\b/i.test(`${draft.title} ${draft.transcript}`)) issues.push('draft uses the American phrase "runs the table"');
+  if (/the lockout weekly|\b20\d{2}\b|\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(draft.title)) {
+    issues.push('title is generic or date-led rather than story-led');
+  }
+  return issues;
+}
+
 async function generateDraft(facts) {
-  const body = await callGeminiInteraction(TEXT_MODEL, {
-    input: buildEditorialPrompt(facts),
-    response_format: [{
-      type: 'text',
-      mime_type: 'application/json',
-      schema: {
-        type: 'object',
-        properties: {
-          title: { type: 'string' },
-          description: { type: 'string' },
-          transcript: { type: 'string' }
-        },
-        required: ['title', 'description', 'transcript']
-      }
-    }]
-  });
-  return parseDraft(interactionText(body));
+  let retryNote = '';
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const body = await callGeminiInteraction(TEXT_MODEL, {
+      input: `${buildEditorialPrompt(facts)}${retryNote}`,
+      response_format: [{
+        type: 'text',
+        mime_type: 'application/json',
+        schema: {
+          type: 'object',
+          properties: {
+            title: { type: 'string' },
+            description: { type: 'string' },
+            transcript: { type: 'string' }
+          },
+          required: ['title', 'description', 'transcript']
+        }
+      }]
+    });
+    const draft = parseDraft(interactionText(body));
+    const issues = draftIssues(draft);
+    if (!issues.length) return draft;
+    retryNote = `\n\nTHE PREVIOUS ATTEMPT WAS REJECTED\nCorrect all of these problems in a completely fresh draft:\n- ${issues.join('\n- ')}`;
+  }
+  throw new Error('Gemini could not produce a podcast draft that passed the editorial checks after three attempts.');
 }
 
 function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
