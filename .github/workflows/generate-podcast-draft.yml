@@ -48,8 +48,11 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Check audio converter
-        run: ffmpeg -version
+      - name: Install audio converter
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg
+          ffmpeg -version
 
       - name: Generate audio-only draft
         id: podcast
