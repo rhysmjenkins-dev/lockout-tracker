@@ -4210,14 +4210,14 @@ async function loadPreviousSessions(requestedIntentId, options) {
             : 'Unknown';
 
 html += '<li class="session-item" onclick="viewSessionDetail(' + i + ', this)">';
-html += '<div class="session-item-header" style="display:flex; justify-content:space-between; align-items:center;">';
-html += '<div><span>' + safeDisplayHtml(session.title) + '</span><span class="session-host-label">Hosted by ' +
+html += '<div class="session-item-header">';
+html += '<div class="session-item-heading-copy"><span class="session-item-title">' + safeDisplayHtml(session.title) + '</span><span class="session-host-label">Hosted by ' +
             makePlayerLink(session.host_player_id, getPlayerName(session.host_player_id), 'event.stopPropagation();') + '</span></div>';
         if (session.photo_url && session.photo_url !== '') {
-            html += '<img src="' + session.photo_url + '" alt="Session thumbnail" style="width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:pointer;" onclick="event.stopPropagation(); openPhotoFullscreen(\'' + session.photo_url + '\')">';
+            html += '<img src="' + session.photo_url + '" alt="Session thumbnail" class="session-photo-thumbnail" onclick="event.stopPropagation(); openPhotoFullscreen(\'' + session.photo_url + '\')">';
         }
         html += '</div>';
-        html += '<div class="session-item-info" style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">';
+        html += '<div class="session-item-info">';
         html += '<div>📅 ' + cleanDate + ' • ' + formatCount(handCount, 'hand') + ' • ' + formatCount(playerIds.length, 'player') + '</div>';
         let winnerLine = isTiedSession ? '🤝 Tie — ' + winnerName : '🏆 ' + winnerName;
         if (winnerId) {
