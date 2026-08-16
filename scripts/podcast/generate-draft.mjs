@@ -440,7 +440,9 @@ async function main() {
     writeGitHubOutput({ skip: 'true', period: `${period.start} to ${period.end}` });
     return;
   }
-  if (episodes.some(item => String(item.date) === period.end)) throw new Error(`An episode dated ${period.end} already exists.`);
+  if (!PREPARE_ONLY && episodes.some(item => String(item.date) === period.end)) {
+    throw new Error(`An episode dated ${period.end} already exists.`);
+  }
 
   const [previous, players] = await Promise.all([
     fetchJson('getPreviousSessionsData'),
