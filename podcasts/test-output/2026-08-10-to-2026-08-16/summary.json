@@ -1,0 +1,12 @@
+{
+  "period": {
+    "start": "2026-08-10",
+    "end": "2026-08-16"
+  },
+  "title": "Rhys Rules the Roost",
+  "description": "Rhys puts on a masterclass across a frantic week of card table action.",
+  "audio_file": "podcasts/test-output/2026-08-10-to-2026-08-16/episode.m4a",
+  "transcript_file": "podcasts/test-output/2026-08-10-to-2026-08-16/transcript.txt",
+  "sessions": 11,
+  "notes": 25
+}
