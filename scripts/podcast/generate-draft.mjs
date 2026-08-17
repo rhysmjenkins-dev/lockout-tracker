@@ -11,6 +11,7 @@ const TEST_MODE = String(process.env.PODCAST_TEST_MODE || '').toLowerCase() === 
 const START_INPUT = String(process.env.PODCAST_START_DATE || '').trim();
 const END_INPUT = String(process.env.PODCAST_END_DATE || '').trim();
 const EDITORIAL_NOTE = String(process.env.PODCAST_EDITORIAL_NOTE || '').trim();
+const VOICE_STYLE = String(process.env.PODCAST_VOICE_STYLE || '').trim().toLowerCase();
 const TEXT_MODEL = process.env.PODCAST_TEXT_MODEL || 'gemini-3.5-flash-lite';
 const TTS_MODEL = process.env.PODCAST_TTS_MODEL || 'gemini-3.1-flash-tts-preview';
 
@@ -355,7 +356,10 @@ function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
 }
 
 async function generateAudio(transcript, wavPath) {
-  const directorNotes = `Read the following transcript exactly as written. Alex and Sam are two restrained British radio sports presenters. Use natural British English pronunciation, conversational pacing, warmth and understated dry humour. Do not use exaggerated accents or American sports-show excitement.\n\n${transcript}`;
+  const voiceDirection = VOICE_STYLE === 'dry-pundit'
+    ? 'Alex leads with a dry, blunt and sceptical football-pundit delivery, using short, clipped observations and a light natural Irish cadence. Alex must sound conversational rather than theatrical and must not imitate any identifiable real person. Sam has a relaxed, everyday British voice and provides a warmer counterpoint. Neither presenter should sound posh, polished, performative or like a formal radio announcer.'
+    : 'Alex and Sam are two restrained British radio sports presenters. Use natural British English pronunciation, conversational pacing, warmth and understated dry humour.';
+  const directorNotes = `Read the following transcript exactly as written. ${voiceDirection} Do not use exaggerated accents or American sports-show excitement.\n\n${transcript}`;
   const body = await callGeminiInteraction(TTS_MODEL, {
     input: directorNotes,
     response_format: { type: 'audio' },

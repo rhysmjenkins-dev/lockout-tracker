@@ -1,4 +1,4 @@
-name: Test podcast back catalogue
+name: Test podcast voice style
 
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: lockout-podcast-back-catalog-test
+  group: lockout-podcast-voice-style-test
   cancel-in-progress: false
 
 jobs:
@@ -25,7 +25,8 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       LOCKOUT_API_URL: https://script.google.com/macros/s/AKfycbxwKK71BSc8n4qxxyZVMGrHa7ycBYCG7qddBPeGgbysb_io5PANaP_HVZ2hppewjbiM-A/exec
       PODCAST_TEST_MODE: 'true'
-      PODCAST_TEST_BRANCH: automation/podcast-back-catalog-review
+      PODCAST_TEST_BRANCH: automation/podcast-voice-style-review
+      PODCAST_VOICE_STYLE: dry-pundit
 
     steps:
       - name: Check out the isolated test branch
@@ -44,17 +45,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes ffmpeg
 
-      - name: Generate five historical comparison episodes
-        run: |
-          while read -r START END; do
-            PODCAST_START_DATE="$START" PODCAST_END_DATE="$END" node scripts/podcast/generate-draft.mjs
-          done <<'PERIODS'
-          2026-07-13 2026-07-19
-          2026-07-20 2026-07-26
-          2026-07-27 2026-08-02
-          2026-08-03 2026-08-09
-          2026-08-10 2026-08-16
-          PERIODS
+      - name: Generate latest historical episode with the experimental voices
+        run: PODCAST_START_DATE="2026-08-10" PODCAST_END_DATE="2026-08-16" node scripts/podcast/generate-draft.mjs
 
       - name: Build one review page
         run: node scripts/podcast/build-back-catalog-review.mjs
@@ -67,7 +59,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -B "$OUTPUT_BRANCH"
           git add podcasts/test-output
-          git commit -m "Generate podcast back-catalogue tests"
+          git commit -m "Generate podcast voice-style test"
           git push --force origin "HEAD:refs/heads/$OUTPUT_BRANCH"
 
       - name: Open or update the isolated review pull request
@@ -76,14 +68,14 @@ jobs:
           OUTPUT_BRANCH: ${{ env.PODCAST_TEST_BRANCH }}
         run: |
           if gh pr view "$OUTPUT_BRANCH" --json number --jq .number >/dev/null 2>&1; then
-            gh pr edit "$OUTPUT_BRANCH" --base "$GITHUB_REF_NAME" --title "Podcast back-catalogue comparison" --body-file podcasts/test-output/README.md
+            gh pr edit "$OUTPUT_BRANCH" --base "$GITHUB_REF_NAME" --title "Podcast voice-style comparison" --body-file podcasts/test-output/README.md
           else
-            gh pr create --draft --base "$GITHUB_REF_NAME" --head "$OUTPUT_BRANCH" --title "Podcast back-catalogue comparison" --body-file podcasts/test-output/README.md
+            gh pr create --draft --base "$GITHUB_REF_NAME" --head "$OUTPUT_BRANCH" --title "Podcast voice-style comparison" --body-file podcasts/test-output/README.md
           fi
 
       - name: Keep a downloadable copy
         uses: actions/upload-artifact@v6
         with:
-          name: lockout-podcast-back-catalogue-tests
+          name: lockout-podcast-voice-style-test
           path: podcasts/test-output
           retention-days: 14

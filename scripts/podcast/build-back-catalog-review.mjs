@@ -26,9 +26,9 @@ if (!summaries.length) throw new Error('No back-catalog podcast tests were gener
 
 const rawBase = `https://raw.githubusercontent.com/${repository}/refs/heads/${branch}`;
 const lines = [
-  '# Podcast back-catalog comparison',
+  '# Podcast voice-style comparison',
   '',
-  'These five episodes were regenerated with the proposed automated prompt and voices. They are test files only and cannot appear in the live app from this branch.',
+  'This episode was regenerated with the experimental presenter direction. It is a test file only and cannot appear in the live app from this branch.',
   ''
 ];
 
