@@ -99,11 +99,30 @@ function resolvePeriod(episodes) {
 async function fetchJson(action) {
   const url = new URL(API_URL);
   url.searchParams.set('action', action);
-  const response = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(120000) });
-  if (!response.ok) throw new Error(`The live API returned HTTP ${response.status} for ${action}.`);
-  const data = await response.json();
-  if (data && data.error) throw new Error(`The live API rejected ${action}: ${data.error}`);
-  return data;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    let response;
+    try {
+      response = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(120000) });
+    } catch (error) {
+      if (attempt === 3) throw new Error(`The live API request failed for ${action}: ${error.message}`);
+      console.warn(`The live API request for ${action} failed (attempt ${attempt}/3); retrying.`);
+    }
+
+    if (response?.ok) {
+      const data = await response.json();
+      if (data && data.error) throw new Error(`The live API rejected ${action}: ${data.error}`);
+      return data;
+    }
+
+    if (response) {
+      const retryable = response.status === 404 || response.status === 408 || response.status === 429 || response.status >= 500;
+      if (!retryable || attempt === 3) throw new Error(`The live API returned HTTP ${response.status} for ${action}.`);
+      console.warn(`The live API returned HTTP ${response.status} for ${action} (attempt ${attempt}/3); retrying.`);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, attempt * 15000));
+  }
+  throw new Error(`The live API request failed for ${action}.`);
 }
 
 function parseJoinInfo(session) {
@@ -302,7 +321,7 @@ function parseDraft(text) {
 function draftIssues(draft) {
   const issues = [];
   const wordCount = draft.transcript.split(/\s+/).filter(Boolean).length;
-  if (wordCount < 280 || wordCount > 360) issues.push(`transcript is ${wordCount} words; it must be 280 to 360`);
+  if (wordCount < 310 || wordCount > 380) issues.push(`transcript is ${wordCount} words; it must be 310 to 380`);
   if (/\b(fortnight|slate)\b/i.test(draft.transcript)) issues.push('transcript uses a forbidden time period or American sports term');
   if (/\bruns? the table\b/i.test(`${draft.title} ${draft.transcript}`)) issues.push('draft uses the American phrase "runs the table"');
   if (/the lockout weekly|\b20\d{2}\b|\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(draft.title)) {
