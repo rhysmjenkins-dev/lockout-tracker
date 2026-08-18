@@ -38,6 +38,7 @@ concurrency:
 jobs:
   generate-draft:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       LOCKOUT_API_URL: https://script.google.com/macros/s/AKfycbxwKK71BSc8n4qxxyZVMGrHa7ycBYCG7qddBPeGgbysb_io5PANaP_HVZ2hppewjbiM-A/exec
@@ -62,9 +63,24 @@ jobs:
           package-manager-cache: false
 
       - name: Install audio converter
+        timeout-minutes: 6
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes ffmpeg
+          set -euo pipefail
+          for source_file in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do
+            if [ -f "$source_file" ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source_file"
+            fi
+          done
+          sudo apt-get \
+            -o Acquire::Retries=2 \
+            -o Acquire::http::Timeout=15 \
+            -o Acquire::https::Timeout=15 \
+            update
+          sudo apt-get \
+            -o Acquire::Retries=2 \
+            -o Acquire::http::Timeout=15 \
+            -o Acquire::https::Timeout=15 \
+            install --yes ffmpeg
           ffmpeg -version
 
       - name: Generate episode
