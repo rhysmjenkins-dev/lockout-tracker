@@ -22,6 +22,11 @@ on:
         required: false
         default: false
         type: boolean
+      presenter_handover:
+        description: Add the one-off new-presenters introduction
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -40,6 +45,7 @@ jobs:
       PODCAST_END_DATE: ${{ inputs.end_date }}
       PODCAST_EDITORIAL_NOTE: ${{ inputs.editorial_note }}
       PODCAST_REPLACE_EXISTING: ${{ inputs.replace_existing }}
+      PODCAST_PRESENTER_HANDOVER: ${{ inputs.presenter_handover }}
       PODCAST_VOICE_STYLE: dry-pundit
 
     steps:

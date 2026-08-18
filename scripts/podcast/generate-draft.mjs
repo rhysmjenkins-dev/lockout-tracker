@@ -11,6 +11,7 @@ const START_INPUT = String(process.env.PODCAST_START_DATE || '').trim();
 const END_INPUT = String(process.env.PODCAST_END_DATE || '').trim();
 const EDITORIAL_NOTE = String(process.env.PODCAST_EDITORIAL_NOTE || '').trim();
 const REPLACE_EXISTING = String(process.env.PODCAST_REPLACE_EXISTING || '').toLowerCase() === 'true';
+const PRESENTER_HANDOVER = String(process.env.PODCAST_PRESENTER_HANDOVER || '').toLowerCase() === 'true';
 const VOICE_STYLE = String(process.env.PODCAST_VOICE_STYLE || '').trim().toLowerCase();
 const TEXT_MODEL = process.env.PODCAST_TEXT_MODEL || 'gemini-3.5-flash-lite';
 const TTS_MODEL = process.env.PODCAST_TTS_MODEL || 'gemini-3.1-flash-tts-preview';
@@ -252,7 +253,7 @@ EDITORIAL RULES
 - Give the episode a concise, story-led title in the style of the existing episodes. Do not use the programme name, a date or a generic weekly-recap title.
 - Keep the description to one lively, specific sentence. Avoid generic phrases such as "comprehensive review", "busy week" or "across the calendar".
 
-${EDITORIAL_NOTE ? `EXTRA EDITORIAL NOTE FROM RHYS\n${EDITORIAL_NOTE}\n\n` : ''}VERIFIED SOURCE DATA
+${PRESENTER_HANDOVER ? 'ONE-OFF PRESENTER HANDOVER\nBegin with one brief, natural continuity line explaining that new presenters are taking over. Use this once only, then move straight into the strongest story. Do not imply that the game, app or podcast itself is restarting.\n\n' : ''}${EDITORIAL_NOTE ? `EXTRA EDITORIAL NOTE FROM RHYS\n${EDITORIAL_NOTE}\n\n` : ''}VERIFIED SOURCE DATA
 ${JSON.stringify(facts, null, 2)}`;
 }
 
