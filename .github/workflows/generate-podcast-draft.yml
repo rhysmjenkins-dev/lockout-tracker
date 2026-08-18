@@ -1,4 +1,4 @@
-name: Generate podcast draft
+name: Generate weekly podcast
 
 on:
   schedule:
@@ -17,10 +17,14 @@ on:
         description: Optional one-off direction for this draft
         required: false
         type: string
+      replace_existing:
+        description: Replace an episode with the same end date
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
-  pull-requests: write
 
 concurrency:
   group: lockout-podcast-draft
@@ -35,11 +39,14 @@ jobs:
       PODCAST_START_DATE: ${{ inputs.start_date }}
       PODCAST_END_DATE: ${{ inputs.end_date }}
       PODCAST_EDITORIAL_NOTE: ${{ inputs.editorial_note }}
+      PODCAST_REPLACE_EXISTING: ${{ inputs.replace_existing }}
+      PODCAST_VOICE_STYLE: dry-pundit
 
     steps:
       - name: Check out the live app
         uses: actions/checkout@v5
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -54,42 +61,25 @@ jobs:
           sudo apt-get install --yes ffmpeg
           ffmpeg -version
 
-      - name: Generate audio-only draft
+      - name: Generate episode
         id: podcast
         run: node scripts/podcast/generate-draft.mjs
 
-      - name: Commit the proposed episode to its draft branch
+      - name: Publish the completed episode
         if: steps.podcast.outputs.skip != 'true'
-        env:
-          BRANCH: ${{ steps.podcast.outputs.branch }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -B "$BRANCH"
-          git add podcasts/episodes.json podcasts/audio podcasts/transcripts
-          git commit -m "Generate podcast draft"
-          git push --force origin "HEAD:refs/heads/$BRANCH"
-
-      - name: Open or update the approval pull request
-        if: steps.podcast.outputs.skip != 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ steps.podcast.outputs.branch }}
-          PR_TITLE: ${{ steps.podcast.outputs.title }}
-          PR_BODY: ${{ steps.podcast.outputs.pr_body }}
-        run: |
-          if gh pr view "$BRANCH" --json number --jq .number >/dev/null 2>&1; then
-            gh pr edit "$BRANCH" --base "$GITHUB_REF_NAME" --title "$PR_TITLE" --body-file "$PR_BODY"
-          else
-            gh pr create --draft --base "$GITHUB_REF_NAME" --head "$BRANCH" --title "$PR_TITLE" --body-file "$PR_BODY"
-          fi
-          gh pr edit "$BRANCH" --add-assignee "$GITHUB_REPOSITORY_OWNER" || true
+          git add -A podcasts/episodes.json podcasts/audio podcasts/transcripts
+          git commit -m "Publish weekly podcast"
+          git pull --rebase origin main
+          git push origin HEAD:main
 
       - name: Keep a downloadable workflow copy
         if: steps.podcast.outputs.skip != 'true'
         uses: actions/upload-artifact@v6
         with:
-          name: lockout-podcast-draft-${{ steps.podcast.outputs.period }}
+          name: lockout-podcast-${{ steps.podcast.outputs.period }}
           path: |
             ${{ steps.podcast.outputs.audio_file }}
             ${{ steps.podcast.outputs.transcript_file }}

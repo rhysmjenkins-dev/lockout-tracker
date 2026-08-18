@@ -10,6 +10,8 @@ const PREPARE_ONLY = process.argv.includes('--prepare-only');
 const START_INPUT = String(process.env.PODCAST_START_DATE || '').trim();
 const END_INPUT = String(process.env.PODCAST_END_DATE || '').trim();
 const EDITORIAL_NOTE = String(process.env.PODCAST_EDITORIAL_NOTE || '').trim();
+const REPLACE_EXISTING = String(process.env.PODCAST_REPLACE_EXISTING || '').toLowerCase() === 'true';
+const VOICE_STYLE = String(process.env.PODCAST_VOICE_STYLE || '').trim().toLowerCase();
 const TEXT_MODEL = process.env.PODCAST_TEXT_MODEL || 'gemini-3.5-flash-lite';
 const TTS_MODEL = process.env.PODCAST_TTS_MODEL || 'gemini-3.1-flash-tts-preview';
 
@@ -221,17 +223,18 @@ function buildEditorialPrompt(facts) {
 Return strict JSON with exactly these string fields: "title", "description", and "transcript".
 
 TRANSCRIPT FORMAT
-- 280 to 360 words, targeting about two minutes.
+- 310 to 380 words, targeting about two minutes at a slightly brisk but unhurried conversational pace.
 - A two-presenter conversation. Every spoken paragraph must begin with either "Alex:" or "Sam:".
 - Alex and Sam are presenters, never players.
 - Begin with the strongest story, not a generic welcome.
 - End with one brief look ahead.
-- The verified period is exactly one Monday-to-Sunday week. Never call it a fortnight, even as a joke or self-correction, or imply a different duration.
+- Cover exactly the supplied dates. A seven-day Monday-to-Sunday period is a week; a shorter special period is not. Never call either a fortnight, even as a joke or self-correction.
+- If the supplied period is shorter than seven days, frame it explicitly as a Weekend Special; otherwise frame it as the weekly episode.
 
 VOICE AND TONE
 - British English; warm, dry, affectionate and knowingly over-serious.
 - Resemble a familiar British radio sports roundup.
-- Understated wit and gentle incredulity, not forced jokes.
+- Keep the humour tongue-in-cheek throughout, using understated wit and gentle incredulity rather than forced jokes.
 - Avoid American sports-show hype or terminology (including "slate" and "runs the table"), forced slang, exaggerated accents, laddishness and corporate language.
 - Assume regular listeners already understand Lockout. Do not explain its basic scoring.
 
@@ -242,6 +245,7 @@ EDITORIAL RULES
 - Use numbers to support stories rather than reading lists.
 - A lower final score wins. State comparisons naturally and unambiguously without explaining this rule to listeners.
 - Prioritise results, turning points, streaks, collapses, comebacks, lockouts and statistical oddities.
+- Compare the supplied start- and end-of-period Elo leaderboards. Always mention material movement: a change of leader, a notable climb or fall, or an unusually large rating gain or loss. Do not recite positions that did not meaningfully change.
 - Previous context should be brief and used only when relevant.
 - Testing, void and unfinished sessions have already been excluded.
 - Do not recite session numbers unless a number is itself relevant to the story.
@@ -354,7 +358,10 @@ function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
 }
 
 async function generateAudio(transcript, wavPath) {
-  const directorNotes = `Read the following transcript exactly as written. Alex and Sam are two restrained British radio sports presenters. Use natural British English pronunciation, conversational pacing, warmth and understated dry humour. Do not use exaggerated accents or American sports-show excitement.\n\n${transcript}`;
+  const voiceDirection = VOICE_STYLE === 'dry-pundit'
+    ? 'Alex leads with a dry, blunt and sceptical football-pundit delivery, using short, clipped observations and a light natural Irish cadence. Alex must sound conversational rather than theatrical and must not imitate any identifiable real person. Sam has a relaxed, everyday British voice and provides a warmer counterpoint. Use a slightly brisker conversational pace than a formal radio roundup, without rushing words or losing natural reactions and pauses. Keep the complete episode close to two minutes. Neither presenter should sound posh, polished, performative or like a formal radio announcer.'
+    : 'Alex and Sam are two restrained British radio sports presenters. Use natural British English pronunciation, conversational pacing, warmth and understated dry humour.';
+  const directorNotes = `Read the following transcript exactly as written. ${voiceDirection} Do not use exaggerated accents or American sports-show excitement.\n\n${transcript}`;
   const body = await callGeminiInteraction(TTS_MODEL, {
     input: directorNotes,
     response_format: { type: 'audio' },
@@ -395,41 +402,6 @@ function writeGitHubOutput(values) {
   fs.appendFileSync(process.env.GITHUB_OUTPUT, `${lines.join('\n')}\n`);
 }
 
-function prBody({ period, sessionFacts, draft, audioPath, transcriptPath, branch }) {
-  const repository = process.env.GITHUB_REPOSITORY || 'rhysmjenkins-dev/lockout-tracker';
-  const rawBase = `https://raw.githubusercontent.com/${repository}/refs/heads/${branch}`;
-  const lines = [
-    '## The Lockout Weekly draft',
-    '',
-    `**Period:** ${displayDate(period.start)} to ${displayDate(period.end)}`,
-    '',
-    `**Proposed title:** ${draft.title}`,
-    '',
-    `**Proposed description:** ${draft.description}`,
-    '',
-    `[Listen to or download the draft audio](${rawBase}/${audioPath.replace(/\\/g, '/')})`,
-    '',
-    '### Included sessions',
-    '',
-    ...sessionFacts.map(session => `- ${session.title} — ${displayDate(session.date)} (session ${session.session_id})`),
-    '',
-    `All ${countNotes(sessionFacts)} recorded session/hand note${countNotes(sessionFacts) === 1 ? '' : 's'} in this period were supplied to the writer.`,
-    '',
-    '### Transcript',
-    '',
-    draft.transcript,
-    '',
-    '### Approval',
-    '',
-    '- Merge this pull request to publish the episode in the app.',
-    '- Close it to reject the episode.',
-    '- To regenerate it, rerun **Generate podcast draft** with an optional editorial note.',
-    '',
-    `Transcript file: \`${transcriptPath.replace(/\\/g, '/')}\``
-  ];
-  return lines.join('\n');
-}
-
 async function main() {
   const episodes = JSON.parse(fs.readFileSync(EPISODES_FILE, 'utf8'));
   const period = resolvePeriod(episodes);
@@ -440,9 +412,13 @@ async function main() {
     writeGitHubOutput({ skip: 'true', period: `${period.start} to ${period.end}` });
     return;
   }
-  if (!PREPARE_ONLY && episodes.some(item => String(item.date) === period.end)) {
+  const existingIndex = episodes.findIndex(item => String(item.date) === period.end);
+  if (!PREPARE_ONLY && existingIndex >= 0 && !REPLACE_EXISTING) {
     throw new Error(`An episode dated ${period.end} already exists.`);
   }
+  const replacedEpisode = !PREPARE_ONLY && existingIndex >= 0 && REPLACE_EXISTING
+    ? episodes.splice(existingIndex, 1)[0]
+    : null;
 
   const [previous, players] = await Promise.all([
     fetchJson('getPreviousSessionsData'),
@@ -468,6 +444,7 @@ async function main() {
     period,
     sessions: sessionFacts,
     relevant_previous_context: historicalContext(sessionFacts, earlierFacts),
+    overall_elo_leaderboard_at_period_start: leaderboardAtEnd(players, allSessions, eloRows, isoDate(addDays(parseIsoDate(period.start, 'Period start'), -1))),
     overall_elo_leaderboard_at_period_end: leaderboardAtEnd(players, allSessions, eloRows, period.end)
   };
 
@@ -493,6 +470,12 @@ async function main() {
   convertAudio(wavPath, path.join(ROOT, audioRelative));
   fs.writeFileSync(path.join(ROOT, transcriptRelative), `${draft.transcript}\n`);
 
+  if (replacedEpisode?.audio_file && replacedEpisode.audio_file !== audioRelative) {
+    const oldAudio = path.resolve(ROOT, replacedEpisode.audio_file);
+    const audioRoot = `${path.resolve(ROOT, 'podcasts', 'audio')}${path.sep}`;
+    if (oldAudio.startsWith(audioRoot)) fs.rmSync(oldAudio, { force: true });
+  }
+
   episodes.unshift({
     title: `Episode ${number}: ${draft.title.replace(/^Episode\s+\d+\s*:\s*/i, '')}`,
     date: period.end,
@@ -501,21 +484,15 @@ async function main() {
   });
   fs.writeFileSync(EPISODES_FILE, `${JSON.stringify(episodes, null, 2)}\n`);
 
-  const branch = `automation/podcast-${slugPeriod(period)}`;
-  const bodyPath = path.join(process.env.TEMP || '/tmp', 'lockout-podcast-pr.md');
-  fs.writeFileSync(bodyPath, prBody({ period, sessionFacts, draft, audioPath: audioRelative, transcriptPath: transcriptRelative, branch }));
   writeGitHubOutput({
-    branch,
     period: `${period.start} to ${period.end}`,
-    title: `Podcast draft: ${displayDate(period.start)} to ${displayDate(period.end)}`,
-    pr_body: bodyPath,
     audio_file: audioRelative,
     transcript_file: transcriptRelative
   });
-  console.log(`Draft generated for ${period.start} to ${period.end}: ${sessionFacts.length} sessions, ${countNotes(sessionFacts)} notes.`);
+  console.log(`Podcast generated for ${period.start} to ${period.end}: ${sessionFacts.length} sessions, ${countNotes(sessionFacts)} notes.`);
 }
 
 main().catch(error => {
-  console.error(`Podcast draft failed: ${error.message}`);
+  console.error(`Podcast generation failed: ${error.message}`);
   process.exitCode = 1;
 });
