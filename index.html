@@ -167,14 +167,15 @@
                     <div class="scroll-container">
                         <div class="section-box section-box-green">
                             <h3 class="section-heading-green">🎴 Game Terms</h3>
-                            <div class="content-card-sm" id="glossaryLockout"><h4 class="heading-blue-sm">Lockout</h4><p class="p-muted">Declaring that you have 5 points or less at the start of your turn. If successful (strictly lowest score), you score 0 for the hand.</p></div>
+                            <div class="content-card-sm" id="glossaryLockout"><h4 class="heading-blue-sm">Lockout</h4><p class="p-muted">Declaring that you have 5 points or less at the start of your turn. If successful (strictly lowest score), you score 0 for the hand, or keep your negative total.</p></div>
                             <div class="content-card-sm" id="glossaryFalseLockout"><h4 class="heading-blue-sm">False Lockout</h4><p class="p-muted">A failed lockout attempt where either your score is greater than 5, or you're tied/higher than another player. Results in your lockout score + penalty.</p></div>
                             <div class="content-card-sm" id="glossaryLockoutScore"><h4 class="heading-blue-sm">Lockout Score</h4><p class="p-muted">The actual hand total you had when you declared lockout (e.g., 3 points). Recorded separately for statistics even if you score 0.</p></div>
                             <div class="content-card-sm" id="glossaryHand"><h4 class="heading-blue-sm">Hand</h4><p class="p-muted">A single round of play, from deal to lockout reveal. Multiple hands make up a session.</p></div>
                             <div class="content-card-sm" id="glossarySession"><h4 class="heading-blue-sm">Session</h4><p class="p-muted">A complete game consisting of multiple hands. Ends when players decide (fixed hands, score target, or event end).</p></div>
-                            <div class="content-card-sm" id="glossaryFormation"><h4 class="heading-blue-sm">Formation</h4><p class="p-muted">The arrangement of your face-down cards (typically 2×2 or 1×4). Cards must stay in their original positions for memory tracking.</p></div>
-                            <div class="content-card-sm" id="glossaryMagicCards"><h4 class="heading-blue-sm">Magic Cards</h4><p class="p-muted">Cards with special abilities when drawn from the deck: 7 (look at own card), 8 (look at opponent's card), 9 (blind swap), 10 (open swap), Red Jack (swap between two opponents).</p></div>
-                            <div class="content-card-sm" id="glossarySlam"><h4 class="heading-blue-sm">Slam</h4><p class="p-muted">An out-of-turn action where you match a discarded card with one in your hand or an opponent's hand. Reduces hand size or penalizes opponents.</p></div>
+                            <div class="content-card-sm" id="glossaryFormation"><h4 class="heading-blue-sm">Formation</h4><p class="p-muted">The fixed table positions of your face-down cards (typically 2×2 or 1×4). Swaps replace the card in a position; a successful own-card slam removes that position, while penalty cards add new positions.</p></div>
+                            <div class="content-card-sm" id="glossaryMagicCards"><h4 class="heading-blue-sm">Magic Cards</h4><p class="p-muted">Cards with special abilities when drawn from the deck: 7 (look at own card), 8 (look at opponent's card), 9 (blind swap), 10 (open swap), and the optional Red Jack for games with more than two players (swap between two opponents).</p></div>
+                            <div class="content-card-sm" id="glossarySlam"><h4 class="heading-blue-sm">Slam</h4><p class="p-muted">An out-of-turn action where you match the current top discard with one in your hand or an opponent's hand. Reduces hand size or penalises opponents. <a href="#rulesScreen" class="inline-link" onclick="showScreen('rulesScreen'); document.getElementById('rulesSlamsSection').scrollIntoView({ behavior: 'smooth', block: 'start' }); return false;">See the full slam rules</a>.</p></div>
+                            <div class="content-card-sm" id="glossaryHailMarySlam"><h4 class="heading-blue-sm">Hail Mary Slam</h4><p class="p-muted">The risky exception that lets you slam your final card. If correct, immediately draw a face-down replacement without looking. <a href="#rulesScreen" class="inline-link" onclick="showScreen('rulesScreen'); document.getElementById('rulesHailMarySlam').scrollIntoView({ behavior: 'smooth', block: 'center' }); return false;">See Hail Mary Slam</a>.</p></div>
                             <div class="content-card-sm" id="glossaryPenaltyCard"><h4 class="heading-blue-sm">Penalty Card</h4><p class="p-muted">A face-down card added to your hand (without looking) as punishment for incorrect slams or being correctly slammed by an opponent.</p></div>
                             <div class="content-card-sm" id="glossaryDefense"><h4 class="heading-blue-sm">Defense</h4><p class="p-muted">Protecting your card from being slammed by placing your finger on it first when you see an opponent approaching.</p></div>
                             <div class="content-card-sm" id="glossaryLateJoiner"><h4 class="heading-blue-sm">Late Joiner</h4><p class="p-muted">A player who joins mid-session. Their starting score is the current players' average cumulative score, rounded to the nearest whole number.</p></div>
@@ -198,7 +199,7 @@
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Hand Streak</h4><p class="p-muted">Consecutive hands won (successful lockouts). Resets on false lockout or non-lockout hand.</p></div>
                             <div class="content-card-sm"><h4 class="heading-blue-sm">Win Rate</h4><p class="p-muted">Percentage of sessions won (sessions won ÷ sessions played). A tied session shares one win equally between its tied winners; win-based achievements still require an outright win.</p></div>
                             <div class="content-card-sm" id="glossarySessionTags"><h4 class="heading-blue-sm">Session Tags</h4><p class="p-muted">Categories applied to sessions (e.g., Casual, Holiday, Pub, Tournament) for filtering and organization. Sessions tagged Testing remain visible in history but are excluded from official statistics, profiles, comparisons, achievements and ELO.</p></div>
-                            <div class="content-card-sm" id="glossaryPlayerSignIn"><h4 class="heading-blue-sm">Player Sign-In</h4><p class="p-muted">Select your name and enter your four-digit PIN. This identifies who is making changes and stays remembered on that device until you sign out.</p></div>
+                            <div class="content-card-sm" id="glossaryPlayerSignIn"><h4 class="heading-blue-sm">Player Sign-In</h4><p class="p-muted">Select your name and enter your four-digit PIN. This identifies who is making changes and stays remembered on that device for up to 90 days, unless you sign out or access is reset.</p></div>
                             <div class="content-card-sm" id="glossaryProfilePin"><h4 class="heading-blue-sm">Player PIN</h4><p class="p-muted">A personal four-digit PIN used to sign in. Signed-in friends can score games, while each player can edit only their own profile.</p></div>
                             <div class="content-card-sm" id="glossaryEditHistory"><h4 class="heading-blue-sm">Edit History</h4><p class="p-muted">A log of all changes made to sessions and hands, tracking who edited what and when.</p></div>
                             <div class="content-card-sm" id="glossaryEloRating"><h4 class="heading-blue-sm">ELO Rating</h4><p class="p-muted">A number representing a player's skill level. All players start at 1000. Goes up when you finish higher than expected, down when you finish lower. Visible on the home screen and stats page.</p></div>
@@ -219,7 +220,7 @@
                 <h2>📱 How to Use the Lockout Tracker</h2>
                 <div class="banner-purple banner-center">
                     <h3 class="heading-banner">📊 OVERVIEW</h3>
-                    <p class="banner-body-lg">This app tracks your Lockout game sessions, records hand-by-hand scores, and generates detailed statistics. Players only input <strong>lockout scores</strong> and the app handles all calculations automatically.</p>
+                    <p class="banner-body-lg">This app tracks your Lockout game sessions, records hand-by-hand scores, and generates detailed statistics. Enter each player's <strong>raw hand score</strong>, select who declared lockout, and the app handles the final calculations automatically. For gameplay, see the <a href="#rulesScreen" class="inline-link" onclick="showScreen('rulesScreen'); return false;">Official Rules</a> and <a href="#dictionaryScreen" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary'); return false;">Glossary</a>.</p>
                 </div>
                 <div class="scroll-container-lg">
 
@@ -241,7 +242,7 @@
                             <h4 class="heading-green">Player Sign-In</h4>
                             <ul class="list-indented">
                                 <li>Select your player name and enter your <strong>four-digit PIN</strong> to make changes</li>
-                                <li>Your sign-in is remembered on that device until you sign out or switch player</li>
+                                <li>Your sign-in is remembered on that device for up to 90 days, unless you sign out, switch player or access is reset</li>
                                 <li>Any signed-in friend can score an active game; only the player themselves can edit their profile</li>
                                 <li>This is a lightweight trust-based system for friends. The administrator can reset a forgotten PIN or sign everyone out from <strong>Lockout Admin</strong></li>
                             </ul>
@@ -253,10 +254,10 @@
                                 <li>Fill in:
                                     <ul class="list-nested">
                                         <li><strong>Session Title</strong> (e.g., "Magaluf 2024", "Friday Night")</li>
-                                        <li><strong>Host</strong> (who's organizing/tracking)</li>
+                                        <li><strong>Host</strong> (who's organising/tracking)</li>
                                         <li><strong>Session Notes</strong> (optional - e.g., "Playing at John's house")</li>
                                         <li><strong>Session Type</strong> (optional <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossarySessionTags'); return false;">tags</a> - Casual, Holiday, Pub, etc.)</li>
-                                        <li><strong>False Lockout Penalty</strong> (default: 10 points)</li>
+                                        <li><strong>False Lockout Penalty</strong> (default: 5 points)</li>
                                         <li><strong>Select Players</strong> (check all players participating)</li>
                                     </ul>
                                 </li>
@@ -275,10 +276,11 @@
                             <h4 class="heading-blue">Recording Hands</h4>
                             <p class="mb-10"><strong>For each hand:</strong></p>
                             <ol class="list-indented">
-                                <li><strong>Enter Lockout Scores</strong>
+                                <li><strong>Enter Raw Hand Scores</strong>
                                     <ul class="list-nested">
-                                        <li>Input the <strong><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryLockoutScore'); return false;">lockout score</a></strong> for each player (the score they called lockout with)</li>
-                                        <li>Example: If a player locked out with 3 points, enter <strong>3</strong></li>
+                                        <li>Input each player's final raw hand total as revealed</li>
+                                        <li>For the declarer, this raw total is also stored as their <strong><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryLockoutScore'); return false;">lockout score</a></strong></li>
+                                        <li>Example: If the declarer reveals 3 points, enter <strong>3</strong></li>
                                     </ul>
                                 </li>
                                 <li><strong>Select Who Locked Out</strong>
@@ -309,7 +311,7 @@
                                             <ul class="list-nested-tight">
                                                 <li><strong>Successful lockout:</strong> Player scores 0 (or keeps negative score)</li>
                                                 <li><strong>False lockout:</strong> Player scores lockout score + penalty</li>
-                                                <li><strong>Other players:</strong> Keep their lockout scores</li>
+                                                <li><strong>Other players:</strong> Keep their raw hand scores</li>
                                             </ul>
                                         </li>
                                     </ul>
@@ -334,7 +336,7 @@
                             <ol class="list-indented">
                                 <li>Tap <strong>"➕ Add Player"</strong> button (in active session)</li>
                                 <li>Select the player from the list</li>
-                                <li>Confirm — they'll join from the <strong>current hand</strong> onwards</li>
+                                <li>Confirm — they'll join from the <strong>next hand to be recorded</strong> onwards</li>
                                 <li>The app calculates their <strong>starting score</strong> automatically (current players' average cumulative score, rounded to the nearest whole number)</li>
                                 <li>Late joiners are marked with a <strong>"Joined H#"</strong> badge</li>
                             </ol>
@@ -469,8 +471,8 @@
                         <div class="content-card">
                             <h4 class="heading-cyan"><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryFalseLockout'); return false;">False Lockout</a> Penalties</h4>
                             <ul class="list-indented">
-                                <li>Customizable per session (set during session creation)</li>
-                                <li>Default: 10 points</li>
+                                <li>Customisable per session (set during session creation)</li>
+                                <li>Default: 5 points</li>
                                 <li>Applied automatically when detected</li>
                             </ul>
                         </div>
@@ -513,7 +515,7 @@
                         <div class="content-card-sm"><p class="p-question">Q: Can I remove a player from a session?</p><p>A: No, once a player is added (either at start or mid-session), they cannot be removed. Plan carefully!</p></div>
                         <div class="content-card-sm"><p class="p-question">Q: What if two players tie for lowest after a lockout?</p><p>A: The locked-out player gets a <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryFalseLockout'); return false;">false lockout</a> penalty. The other tied player keeps their original score (not reset to 0).</p></div>
                         <div class="content-card-sm"><p class="p-question">Q: How are <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryLateJoiner'); return false;">late joiner</a> starting scores calculated?</p><p>A: The current players' average cumulative score, rounded to the nearest whole number.</p></div>
-                        <div class="content-card-sm"><p class="p-question">Q: Why does the app ask for lockout scores, not final scores?</p><p>A: The app calculates final scores automatically based on lockout validity. You only input the score the player called lockout with.</p></div>
+                        <div class="content-card-sm"><p class="p-question">Q: Why does the app ask for raw hand scores, not calculated scores?</p><p>A: Enter every player's revealed hand total. The app uses the declarer's raw total as their <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryLockoutScore'); return false;">lockout score</a>, checks whether the lockout is valid and calculates the recorded scores automatically.</p></div>
                     </div>
 
                     <!-- ELO RATINGS -->
@@ -600,7 +602,7 @@
                             <li>Player to the dealer's left goes first</li>
                         </ol>
                         <div class="warning-box">
-                            <strong>⚠️ Important:</strong> Cards must stay in their original positions throughout the hand. Players rely on memory to track card locations.
+                            <strong>⚠️ Important:</strong> The positions in each player's <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryFormation'); return false;">formation</a> cannot be rearranged. A swap replaces the card in that position; a successful own-card slam removes it, while a penalty card adds a new position.
                         </div>
                     </div>
 
@@ -685,7 +687,7 @@
                             </tr>
                             <tr style="background: #fff3e0;">
                                 <td style="padding: 10px; font-weight: bold;">Red Jack<br><span style="font-size: 0.85em;">(Optional)</span></td>
-                                <td style="padding: 10px;">Swap one card between any two other players (not yourself). Cards remain face down and stay in their original positions</td>
+                                <td style="padding: 10px;">In a game with more than two players, optionally swap one card between any two other players (not yourself). Cards remain face down and stay in their original positions</td>
                             </tr>
                         </table>
                         <div class="warning-box">
@@ -694,7 +696,7 @@
                     </div>
 
                     <!-- SLAMS -->
-                    <div class="section-box section-box-orange">
+                    <div class="section-box section-box-orange" id="rulesSlamsSection">
                         <h3 class="section-heading-orange">👊 <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossarySlam'); return false;">SLAMS</a></h3>
                         <div class="alert-box-red">
                             <strong>⚡ Slams can happen at any time, out of turn!</strong>
@@ -705,7 +707,7 @@
                             <ol class="list-indented">
                                 <li>Quickly turn over the matching card from your hand</li>
                                 <li><strong>If correct:</strong> Place it on the discard pile (you now have one fewer card = lower score!)</li>
-                                <li><strong>If incorrect:</strong> Take a 1-card <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryPenaltyCard'); return false;">penalty card</a> from the draw pile (place face down in your hand without looking)</li>
+                                <li><strong>If incorrect:</strong> Show the attempted card to everyone, return it face down to its position, then take a 1-card <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryPenaltyCard'); return false;">penalty card</a> from the draw pile (place face down in your hand without looking)</li>
                             </ol>
                         </div>
                         <div class="content-card">
@@ -713,8 +715,8 @@
                             <ol class="list-indented">
                                 <li>Quickly place your finger on their card</li>
                                 <li>Turn it over to reveal</li>
-                                <li><strong>If correct:</strong> They take a 1-card <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryPenaltyCard'); return false;">penalty card</a> from the draw pile (placed face down without looking)</li>
-                                <li><strong>If incorrect:</strong> You take a 1-card <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryPenaltyCard'); return false;">penalty card</a></li>
+                                <li><strong>If correct:</strong> Return their revealed card face down to the same position; they then take a 1-card <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryPenaltyCard'); return false;">penalty card</a> from the draw pile (placed face down without looking)</li>
+                                <li><strong>If incorrect:</strong> Return their revealed card face down to the same position; you take a 1-card <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryPenaltyCard'); return false;">penalty card</a></li>
                             </ol>
                         </div>
                         <div class="content-card">
@@ -726,6 +728,23 @@
                                 <li><strong>Once the next player discards</strong>, the card below is no longer slammable</li>
                                 <li><strong>Multiple players can slam simultaneously</strong> (4 of each card type exist in the deck)</li>
                                 <li><strong><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryDefense'); return false;">Defense</a>:</strong> You may protect your card by placing your finger on it first when you see someone approaching to slam</li>
+                            </ul>
+                        </div>
+                        <div class="content-card" id="rulesHailMarySlam">
+                            <h4 class="heading-orange"><a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryHailMarySlam'); return false;">Hail Mary Slam</a></h4>
+                            <ul class="list-indented">
+                                <li>You normally cannot slam the final card in your hand</li>
+                                <li>As a risky exception, you may choose to slam that final card as normal</li>
+                                <li><strong>If correct:</strong> Remove it, then immediately draw a replacement card from the draw pile and place it face down without looking</li>
+                                <li><strong>If incorrect:</strong> Normal slam rules apply — show and return the attempted card, then take the usual penalty card. Do not draw an additional replacement</li>
+                            </ul>
+                        </div>
+                        <div class="content-card">
+                            <h4 class="heading-orange">When the Discard Is Picked Up</h4>
+                            <ul class="list-indented">
+                                <li>Once the top discard is physically lifted, it is no longer available to be slammed</li>
+                                <li>If you attempt the slam too late and the newly exposed discard is a different value, you have missed it: return any revealed card face down, with no penalty</li>
+                                <li>If the newly exposed discard has the same value, the slam is valid because it still matches the current top discard</li>
                             </ul>
                         </div>
                         <div class="info-box">
@@ -749,8 +768,8 @@
                             <h4 class="mb-10">What Happens After Lockout</h4>
                             <ol class="list-indented">
                                 <li>You announce "Lockout!" (<strong>do not reveal your hand yet</strong>)</li>
-                                <li>Your hand is <strong>frozen</strong> (no swaps, slams, or other interference)</li>
-                                <li>Play continues clockwise — every other player gets <strong>one final turn</strong></li>
+                                <li>Your hand is <strong>frozen</strong> and cannot be touched, swapped or slammed</li>
+                                <li>Normal play continues clockwise — every other player gets <strong>one final turn</strong> and may continue to slam other players</li>
                                 <li>When play returns to you, <strong>all players reveal their cards simultaneously</strong></li>
                             </ol>
                         </div>
@@ -783,6 +802,7 @@
                         <h3 class="section-heading-yellow">🏆 WINNING THE GAME</h3>
                         <ul class="list-indented">
                             <li><strong>Lowest <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryCumulativeScore'); return false;">cumulative score</a></strong> across all hands wins the session</li>
+                            <li>If players tie for the lowest total, the session remains tied; there is no compulsory tie-break hand</li>
                             <li>Sessions end when players decide (fixed number of hands, score target, end of event, etc.)</li>
                         </ul>
                     </div>
@@ -800,7 +820,7 @@
                         <div class="content-card">
                             <h4 class="heading-cyan">Memory is Key</h4>
                             <ul class="list-indented">
-                                <li>Cards never move positions (except when removed via <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossarySlam'); return false;">slam</a>)</li>
+                                <li>Your <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryFormation'); return false;">formation</a> positions stay fixed: swaps replace the cards in those positions, successful own-card <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossarySlam'); return false;">slams</a> remove positions and penalty cards add them</li>
                                 <li>Track what you've seen through <a href="#" class="inline-link" onclick="showScreen('dictionaryScreen'); showDictionarySection('glossary', 'glossaryMagicCards'); return false;">magic cards</a> and discards</li>
                                 <li>Remember what other players know about your hand</li>
                             </ul>
