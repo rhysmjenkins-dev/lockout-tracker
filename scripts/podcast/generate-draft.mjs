@@ -244,8 +244,8 @@ Return strict JSON with exactly these string fields: "title", "description", and
 
 TRANSCRIPT FORMAT
 - 310 to 380 words, targeting about two minutes at a slightly brisk but unhurried conversational pace.
-- A two-presenter conversation. Every spoken paragraph must begin with either "Alex:" or "Sam:".
-- Alex and Sam are presenters, never players.
+- A two-presenter conversation. Every spoken paragraph must begin with either "Roy:" or "Sam:".
+- Roy and Sam are presenters, never players.
 - Begin with the strongest story, not a generic welcome.
 - End with one brief look ahead.
 - Cover exactly the supplied dates. A seven-day Monday-to-Sunday period is a week; a shorter special period is not. Never call either a fortnight, even as a joke or self-correction.
@@ -272,7 +272,7 @@ EDITORIAL RULES
 - Give the episode a concise, story-led title in the style of the existing episodes. Do not use the programme name, a date or a generic weekly-recap title.
 - Keep the description to one lively, specific sentence. Avoid generic phrases such as "comprehensive review", "busy week" or "across the calendar".
 
-${PRESENTER_HANDOVER ? 'ONE-OFF PRESENTER HANDOVER\nBegin with one brief, natural continuity line explaining that new presenters are taking over. Use this once only, then move straight into the strongest story. Do not imply that the game, app or podcast itself is restarting.\n\n' : ''}${EDITORIAL_NOTE ? `EXTRA EDITORIAL NOTE FROM RHYS\n${EDITORIAL_NOTE}\n\n` : ''}VERIFIED SOURCE DATA
+${PRESENTER_HANDOVER ? 'ONE-OFF PRESENTER HANDOVER\nOpen by making two points clear and concise: Roy and Sam are taking over as the regular presenters of the weekly Lockout update podcast from this episode onwards, while this particular Friday-to-Sunday edition is a one-off Weekend Special. Use this introduction once only, then move straight into the strongest story. Do not imply that the game, app or podcast itself is restarting, and do not suggest that Roy and Sam are only temporary presenters.\n\n' : ''}${EDITORIAL_NOTE ? `EXTRA EDITORIAL NOTE FROM RHYS\n${EDITORIAL_NOTE}\n\n` : ''}VERIFIED SOURCE DATA
 ${JSON.stringify(facts, null, 2)}`;
 }
 
@@ -312,8 +312,8 @@ function parseDraft(text) {
     if (!draft[field] || typeof draft[field] !== 'string') throw new Error(`Generated draft is missing ${field}.`);
   }
   const spoken = draft.transcript.split(/\r?\n/).filter(line => line.trim());
-  if (!spoken.every(line => /^(Alex|Sam):\s+/.test(line))) {
-    throw new Error('Generated transcript contains text outside the Alex/Sam dialogue format.');
+  if (!spoken.every(line => /^(Roy|Sam):\s+/.test(line))) {
+    throw new Error('Generated transcript contains text outside the Roy/Sam dialogue format.');
   }
   return { title: draft.title.trim(), description: draft.description.trim(), transcript: draft.transcript.trim() };
 }
@@ -379,15 +379,15 @@ function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
 
 async function generateAudio(transcript, wavPath) {
   const voiceDirection = VOICE_STYLE === 'dry-pundit'
-    ? 'Alex leads with a dry, blunt and sceptical football-pundit delivery, using short, clipped observations and a light natural Irish cadence. Alex must sound conversational rather than theatrical and must not imitate any identifiable real person. Sam has a relaxed, everyday British voice and provides a warmer counterpoint. Use a slightly brisker conversational pace than a formal radio roundup, without rushing words or losing natural reactions and pauses. Keep the complete episode close to two minutes. Neither presenter should sound posh, polished, performative or like a formal radio announcer.'
-    : 'Alex and Sam are two restrained British radio sports presenters. Use natural British English pronunciation, conversational pacing, warmth and understated dry humour.';
+    ? 'Roy leads with a dry, blunt and sceptical football-pundit delivery, using short, clipped observations and a distinct natural Cork-influenced Irish cadence. He should sound terse, matter-of-fact, frequently unimpressed and occasionally incredulous, while remaining conversational rather than theatrical. Roy is a fictional presenter and must not imitate the voice, speech patterns or persona of any identifiable real person. Sam has a relaxed, everyday British voice and provides a warmer counterpoint. Use a slightly brisker conversational pace than a formal radio roundup, without rushing words or losing natural reactions and pauses. Keep the complete episode close to two minutes. Neither presenter should sound posh, polished, performative or like a formal radio announcer.'
+    : 'Roy and Sam are two restrained British radio sports presenters. Use natural British English pronunciation, conversational pacing, warmth and understated dry humour.';
   const directorNotes = `Read the following transcript exactly as written. ${voiceDirection} Do not use exaggerated accents or American sports-show excitement.\n\n${transcript}`;
   const body = await callGeminiInteraction(TTS_MODEL, {
     input: directorNotes,
     response_format: { type: 'audio' },
     generation_config: {
       speech_config: [
-        { speaker: 'Alex', voice: 'Charon' },
+        { speaker: 'Roy', voice: 'Charon' },
         { speaker: 'Sam', voice: 'Kore' }
       ]
     }
