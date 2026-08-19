@@ -60,7 +60,7 @@ let eloDropdownOpen = false;
 let activePhotoOverlay = null;
 let photoViewerHistoryActive = false;
 let publicConfig = {
-    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.1.4',
+    version: window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.2',
     photos_enabled: false
 };
 let homeDashboardPromise = null;
@@ -5296,7 +5296,7 @@ async function viewSessionDetailFromComparison(sessionId, buttonElement) {
 // INITIALIZATION
 // ============================================
 window.addEventListener('DOMContentLoaded', function() {
-    console.log('Lockout Tracker ' + (window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || 'v2.1.4'));
+    console.log('Lockout Tracker ' + (window.LOCKOUT_CONFIG && window.LOCKOUT_CONFIG.version || '2.2'));
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     window.scrollTo(0, 0);
     updateEditingStatus();
