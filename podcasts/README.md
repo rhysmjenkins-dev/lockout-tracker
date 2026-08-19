@@ -2,7 +2,7 @@
 
 ## Automated episode
 
-The **Generate weekly podcast** GitHub workflow creates the next audio episode from the next unpublished Monday-to-Sunday period. It runs automatically each Monday morning and can also be started manually by a repository administrator. It reads official completed sessions from the live app, supplies all recorded session and hand notes to the writer, generates a two-presenter British sports-roundup transcript and converts it to an M4A file.
+The **Generate weekly podcast** GitHub workflow creates the next audio episode from the next unpublished Monday-to-Sunday period. It runs automatically each Monday morning and can also be started manually by a repository administrator. It reads official completed sessions from the live app, supplies all recorded session and hand notes to the writer, generates a Roy-and-Sarah British sports-roundup transcript, creates each presenter turn independently to prevent voice drift, and joins the clips into an M4A file.
 
 After successful generation, the workflow commits the audio, transcript, title and description directly to `main`, where the episode appears in the app. A failed run changes nothing. A repository administrator can manually rerun a period with an optional editorial note, deliberately replace an existing episode, or enable a one-off presenter-handover introduction. Players do not receive podcast controls inside the app.
 

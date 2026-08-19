@@ -244,8 +244,9 @@ Return strict JSON with exactly these string fields: "title", "description", and
 
 TRANSCRIPT FORMAT
 - 310 to 380 words, targeting about two minutes at a slightly brisk but unhurried conversational pace.
-- A two-presenter conversation. Every spoken paragraph must begin with either "Roy:" or "Sam:".
-- Roy and Sam are presenters, never players.
+- A two-presenter conversation. Every spoken paragraph must begin with either "Roy:" or "Sarah:".
+- Roy and Sarah are presenters, never players.
+- Use 5 to 8 alternating spoken paragraphs so the exchange remains natural without creating excessive audio fragments.
 - Begin with the strongest story, not a generic welcome.
 - End with one brief look ahead.
 - Cover exactly the supplied dates. A seven-day Monday-to-Sunday period is a week; a shorter special period is not. Never call either a fortnight, even as a joke or self-correction.
@@ -255,7 +256,7 @@ VOICE AND TONE
 - British English; warm, dry, affectionate and knowingly over-serious.
 - Resemble a familiar British radio sports roundup.
 - Keep the humour tongue-in-cheek throughout, using understated wit and gentle incredulity rather than forced jokes.
-- Build a consistent comedy contrast between the presenters. Roy is grumpy, blunt, terse and difficult to impress, delivering reluctant praise and deadpan disbelief without becoming nasty. Sam is cheerful, warm and optimistic, enthusiastically setting up stories and lightly teasing Roy out of his gloom.
+- Build a consistent comedy contrast between the presenters. Roy is grumpy, blunt, terse and difficult to impress, delivering reluctant praise and deadpan disbelief without becoming nasty. Sarah is cheerful, warm and optimistic, enthusiastically setting up stories and lightly teasing Roy out of his gloom.
 - Let their contrasting reactions create short natural exchanges, but keep the game facts central and do not turn the episode into a comedy sketch.
 - Avoid American sports-show hype or terminology (including "slate" and "runs the table"), forced slang, exaggerated accents, laddishness and corporate language.
 - Assume regular listeners already understand Lockout. Do not explain its basic scoring.
@@ -274,7 +275,7 @@ EDITORIAL RULES
 - Give the episode a concise, story-led title in the style of the existing episodes. Do not use the programme name, a date or a generic weekly-recap title.
 - Keep the description to one lively, specific sentence. Avoid generic phrases such as "comprehensive review", "busy week" or "across the calendar".
 
-${PRESENTER_HANDOVER ? 'ONE-OFF PRESENTER HANDOVER\nOpen by making two points clear and concise: Roy and Sam are taking over as the regular presenters of the weekly Lockout update podcast from this episode onwards, while this particular Friday-to-Sunday edition is a one-off Weekend Special. Use this introduction once only, then move straight into the strongest story. Do not imply that the game, app or podcast itself is restarting, and do not suggest that Roy and Sam are only temporary presenters.\n\n' : ''}${EDITORIAL_NOTE ? `EXTRA EDITORIAL NOTE FROM RHYS\n${EDITORIAL_NOTE}\n\n` : ''}VERIFIED SOURCE DATA
+${PRESENTER_HANDOVER ? 'ONE-OFF PRESENTER HANDOVER\nOpen by making two points clear and concise: Roy and Sarah are taking over as the regular presenters of the weekly Lockout update podcast from this episode onwards, while this particular Friday-to-Sunday edition is a one-off Weekend Special. Use this introduction once only, then move straight into the strongest story. Do not imply that the game, app or podcast itself is restarting, and do not suggest that Roy and Sarah are only temporary presenters.\n\n' : ''}${EDITORIAL_NOTE ? `EXTRA EDITORIAL NOTE FROM RHYS\n${EDITORIAL_NOTE}\n\n` : ''}VERIFIED SOURCE DATA
 ${JSON.stringify(facts, null, 2)}`;
 }
 
@@ -307,23 +308,31 @@ function interactionText(body) {
   return interactionOutput(body, 'text').map(item => item.text || '').join('').trim();
 }
 
+function dialogueTurns(transcript) {
+  return transcript.split(/\r?\n/).filter(line => line.trim()).map((line, index) => {
+    const match = line.match(/^(Roy|Sarah):\s+(.+)$/);
+    if (!match) throw new Error(`Transcript line ${index + 1} is not a valid Roy/Sarah turn.`);
+    return { speaker: match[1], text: match[2].trim() };
+  });
+}
+
 function parseDraft(text) {
   const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
   const draft = JSON.parse(cleaned);
   for (const field of ['title', 'description', 'transcript']) {
     if (!draft[field] || typeof draft[field] !== 'string') throw new Error(`Generated draft is missing ${field}.`);
   }
-  const spoken = draft.transcript.split(/\r?\n/).filter(line => line.trim());
-  if (!spoken.every(line => /^(Roy|Sam):\s+/.test(line))) {
-    throw new Error('Generated transcript contains text outside the Roy/Sam dialogue format.');
-  }
+  dialogueTurns(draft.transcript);
   return { title: draft.title.trim(), description: draft.description.trim(), transcript: draft.transcript.trim() };
 }
 
 function draftIssues(draft) {
   const issues = [];
   const wordCount = draft.transcript.split(/\s+/).filter(Boolean).length;
+  const turns = dialogueTurns(draft.transcript);
   if (wordCount < 310 || wordCount > 380) issues.push(`transcript is ${wordCount} words; it must be 310 to 380`);
+  if (turns.length < 5 || turns.length > 8) issues.push(`transcript has ${turns.length} turns; it must have 5 to 8`);
+  if (turns.some((turn, index) => index > 0 && turn.speaker === turns[index - 1].speaker)) issues.push('presenters do not alternate consistently');
   if (/\b(fortnight|slate)\b/i.test(draft.transcript)) issues.push('transcript uses a forbidden time period or American sports term');
   if (/\bruns? the table\b/i.test(`${draft.title} ${draft.transcript}`)) issues.push('draft uses the American phrase "runs the table"');
   if (/the lockout weekly|\b20\d{2}\b|\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(draft.title)) {
@@ -379,34 +388,61 @@ function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
   return Buffer.concat([header, pcm]);
 }
 
-async function generateAudio(transcript, wavPath) {
-  const voiceDirection = VOICE_STYLE === 'dry-pundit'
-    ? 'Roy leads with a dry, blunt and sceptical football-pundit delivery, using short, clipped observations and a distinct natural Cork-influenced Irish cadence. He is noticeably grumpy, terse, matter-of-fact and difficult to impress, using deadpan disbelief, sceptical pauses and reluctant praise without becoming hostile. Roy is a fictional presenter and must not imitate the voice, speech patterns or persona of any identifiable real person. Sam is a woman and uses the original Kore voice assigned below: her voice must remain clearly female, warm, upbeat and naturally British, with no Irish or American accent. She provides an amused counterpoint and gently draws Roy into the discussion. Keep the two speakers consistently distinct; Roy\'s male voice and Cork cadence must never carry into any of Sam\'s lines. Use exactly these two voices throughout: never introduce a third voice, narrator or American pronunciation. Their contrast should feel natural and funny rather than theatrical. Use a slightly brisker conversational pace than a formal radio roundup, without rushing words or losing natural reactions and pauses. Keep the complete episode close to two minutes. Neither presenter should sound posh, polished, performative or like a formal radio announcer.'
-    : 'Roy and Sam are two restrained British radio sports presenters. Use natural British English pronunciation, conversational pacing, warmth and understated dry humour.';
-  const directorNotes = `Read the following transcript exactly as written. ${voiceDirection} Do not use exaggerated accents or American sports-show excitement.\n\n${transcript}`;
-  const body = await callGeminiInteraction(TTS_MODEL, {
-    input: directorNotes,
-    response_format: { type: 'audio' },
-    generation_config: {
-      speech_config: [
-        { speaker: 'Roy', voice: 'Charon' },
-        { speaker: 'Sam', voice: 'Kore' }
-      ]
-    }
-  });
+function speakerAudioProfile(speaker) {
+  if (speaker === 'Roy') {
+    return {
+      voice: 'Charon',
+      direction: VOICE_STYLE === 'dry-pundit'
+        ? 'Roy is a fictional male football pundit with a distinct natural Cork-influenced Irish cadence. He is grumpy, blunt, terse, sceptical and difficult to impress, using short clipped observations, deadpan disbelief and reluctant praise without becoming hostile. Keep the delivery conversational, understated and dry. Do not imitate any identifiable real person.'
+        : 'Roy is a restrained male Irish sports presenter with a natural conversational delivery.'
+    };
+  }
+  return {
+    voice: 'Kore',
+    direction: 'Sarah is a female British sports presenter with the original warm Kore voice. Her voice must be clearly female, cheerful, relaxed, upbeat and naturally British, with no Irish or American accent. She sounds friendly and amused, never posh, formal or theatrical.'
+  };
+}
+
+function responseAudio(body) {
   const part = body.output_audio || body.outputAudio || interactionOutput(body, 'audio')[0];
   if (!part?.data) throw new Error('Gemini returned no audio data.');
   const raw = Buffer.from(part.data, 'base64');
   const mime = String(part.mime_type || part.mimeType || 'audio/L16;rate=24000');
   const rate = Number((mime.match(/rate=(\d+)/i) || [])[1] || 24000);
-  const audio = /wav/i.test(mime) ? raw : wavFromPcm(raw, rate);
-  fs.writeFileSync(wavPath, audio);
+  return /wav/i.test(mime) ? raw : wavFromPcm(raw, rate);
 }
 
-function convertAudio(wavPath, outputPath) {
-  const result = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', wavPath, '-c:a', 'aac', '-b:a', '96k', outputPath], { encoding: 'utf8' });
+async function generateTurnAudio(turn, wavPath) {
+  const profile = speakerAudioProfile(turn.speaker);
+  const directorNotes = `${profile.direction}\n\nRead only the following line exactly as written. Do not say the presenter name, add narration or use another voice.\n\n${turn.text}`;
+  const body = await callGeminiInteraction(TTS_MODEL, {
+    input: directorNotes,
+    response_format: { type: 'audio' },
+    generation_config: { speech_config: [{ voice: profile.voice }] }
+  });
+  fs.writeFileSync(wavPath, responseAudio(body));
+}
+
+function convertAudio(wavPaths, listPath, outputPath) {
+  const list = wavPaths.map(wavPath => `file '${path.resolve(wavPath).replace(/'/g, "'\\''")}'`).join('\n');
+  fs.writeFileSync(listPath, `${list}\n`);
+  const result = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c:a', 'aac', '-b:a', '96k', outputPath], { encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`ffmpeg could not create the M4A file: ${result.stderr || result.stdout}`);
   if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 1000) throw new Error('The generated audio file is unexpectedly empty.');
+}
+
+async function generateAudio(transcript, tempDir, stem, outputPath) {
+  const turns = dialogueTurns(transcript);
+  const wavPaths = [];
+  for (let index = 0; index < turns.length; index += 1) {
+    const turn = turns[index];
+    const wavPath = path.join(tempDir, `${stem}-turn-${String(index + 1).padStart(2, '0')}.wav`);
+    console.log(`Generating ${turn.speaker} turn ${index + 1} of ${turns.length}.`);
+    await generateTurnAudio(turn, wavPath);
+    wavPaths.push(wavPath);
+    if (index < turns.length - 1) await new Promise(resolve => setTimeout(resolve, 10000));
+  }
+  convertAudio(wavPaths, path.join(tempDir, `${stem}-concat.txt`), outputPath);
 }
 
 function episodeNumber(episodes) {
@@ -485,11 +521,9 @@ async function main() {
   const transcriptDir = path.join(ROOT, 'podcasts', 'transcripts');
   fs.mkdirSync(audioDir, { recursive: true });
   fs.mkdirSync(transcriptDir, { recursive: true });
-  const wavPath = path.join(process.env.TEMP || '/tmp', `${stem}.wav`);
   const audioRelative = path.posix.join('podcasts', 'audio', `${stem}.m4a`);
   const transcriptRelative = path.posix.join('podcasts', 'transcripts', `${stem}.txt`);
-  await generateAudio(draft.transcript, wavPath);
-  convertAudio(wavPath, path.join(ROOT, audioRelative));
+  await generateAudio(draft.transcript, process.env.TEMP || '/tmp', stem, path.join(ROOT, audioRelative));
   fs.writeFileSync(path.join(ROOT, transcriptRelative), `${draft.transcript}\n`);
 
   if (replacedEpisode?.audio_file && replacedEpisode.audio_file !== audioRelative) {
