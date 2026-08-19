@@ -255,6 +255,8 @@ VOICE AND TONE
 - British English; warm, dry, affectionate and knowingly over-serious.
 - Resemble a familiar British radio sports roundup.
 - Keep the humour tongue-in-cheek throughout, using understated wit and gentle incredulity rather than forced jokes.
+- Build a consistent comedy contrast between the presenters. Roy is grumpy, blunt, terse and difficult to impress, delivering reluctant praise and deadpan disbelief without becoming nasty. Sam is cheerful, warm and optimistic, enthusiastically setting up stories and lightly teasing Roy out of his gloom.
+- Let their contrasting reactions create short natural exchanges, but keep the game facts central and do not turn the episode into a comedy sketch.
 - Avoid American sports-show hype or terminology (including "slate" and "runs the table"), forced slang, exaggerated accents, laddishness and corporate language.
 - Assume regular listeners already understand Lockout. Do not explain its basic scoring.
 
@@ -379,7 +381,7 @@ function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
 
 async function generateAudio(transcript, wavPath) {
   const voiceDirection = VOICE_STYLE === 'dry-pundit'
-    ? 'Roy leads with a dry, blunt and sceptical football-pundit delivery, using short, clipped observations and a distinct natural Cork-influenced Irish cadence. He should sound terse, matter-of-fact, frequently unimpressed and occasionally incredulous, while remaining conversational rather than theatrical. Roy is a fictional presenter and must not imitate the voice, speech patterns or persona of any identifiable real person. Sam has a relaxed, everyday British voice and provides a warmer counterpoint. Use a slightly brisker conversational pace than a formal radio roundup, without rushing words or losing natural reactions and pauses. Keep the complete episode close to two minutes. Neither presenter should sound posh, polished, performative or like a formal radio announcer.'
+    ? 'Roy leads with a dry, blunt and sceptical football-pundit delivery, using short, clipped observations and a distinct natural Cork-influenced Irish cadence. He is noticeably grumpy, terse, matter-of-fact and difficult to impress, using deadpan disbelief, sceptical pauses and reluctant praise without becoming hostile. Roy is a fictional presenter and must not imitate the voice, speech patterns or persona of any identifiable real person. Sam is noticeably happier: relaxed, warm, upbeat and conversational, providing an amused counterpoint and gently drawing Roy into the discussion. Their contrast should feel natural and funny rather than theatrical. Use a slightly brisker conversational pace than a formal radio roundup, without rushing words or losing natural reactions and pauses. Keep the complete episode close to two minutes. Neither presenter should sound posh, polished, performative or like a formal radio announcer.'
     : 'Roy and Sam are two restrained British radio sports presenters. Use natural British English pronunciation, conversational pacing, warmth and understated dry humour.';
   const directorNotes = `Read the following transcript exactly as written. ${voiceDirection} Do not use exaggerated accents or American sports-show excitement.\n\n${transcript}`;
   const body = await callGeminiInteraction(TTS_MODEL, {
