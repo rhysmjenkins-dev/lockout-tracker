@@ -330,7 +330,7 @@ function draftIssues(draft) {
   const issues = [];
   const wordCount = draft.transcript.split(/\s+/).filter(Boolean).length;
   const turns = dialogueTurns(draft.transcript);
-  if (wordCount < 310 || wordCount > 380) issues.push(`transcript is ${wordCount} words; it must be 310 to 380`);
+  if (wordCount < 280 || wordCount > 400) issues.push(`transcript is ${wordCount} words; it must be 280 to 400`);
   if (turns.length < 5 || turns.length > 8) issues.push(`transcript has ${turns.length} turns; it must have 5 to 8`);
   if (turns.some((turn, index) => index > 0 && turn.speaker === turns[index - 1].speaker)) issues.push('presenters do not alternate consistently');
   if (/\b(fortnight|slate)\b/i.test(draft.transcript)) issues.push('transcript uses a forbidden time period or American sports term');
@@ -343,7 +343,7 @@ function draftIssues(draft) {
 
 async function generateDraft(facts) {
   let retryNote = '';
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
     const body = await callGeminiInteraction(TEXT_MODEL, {
       input: `${buildEditorialPrompt(facts)}${retryNote}`,
       response_format: [{
@@ -365,7 +365,7 @@ async function generateDraft(facts) {
     if (!issues.length) return draft;
     retryNote = `\n\nTHE PREVIOUS ATTEMPT WAS REJECTED\nCorrect all of these problems in a completely fresh draft:\n- ${issues.join('\n- ')}`;
   }
-  throw new Error('Gemini could not produce a podcast draft that passed the editorial checks after three attempts.');
+  throw new Error('Gemini could not produce a podcast draft that passed the editorial checks after five attempts.');
 }
 
 function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
