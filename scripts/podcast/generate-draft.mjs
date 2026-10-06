@@ -104,81 +104,22 @@ async function fetchJson(action) {
     try {
       response = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(120000) });
     } catch (error) {
-      if (attempt === 3) throw new Error(`The live API request failed for ${action}: ${error.message}`);
-      console.warn(`The live API request for ${action} failed (attempt ${attempt}/3); retrying.`);
+      if (attempt === 3) throw new Error(`The live API request failed for ${action}:${error.message}`);
+      console.warn(`The live API request for ${action} failed (attempt${attempt}/3); retrying.`);
     }
 
     if (response?.ok) {
       const data = await response.json();
-      if (data && data.error) throw new Error(`The live API rejected ${action}: ${data.error}`);
+      if (data && data.error) throw new Error(`The live API rejected ${action}:${data.error}`);
       return data;
     }
 
     if (response) {
       const retryable = response.status === 404 || response.status === 408 || response.status === 429 || response.status >= 500;
-      if (!retryable || attempt === 3) throw new Error(`The live API returned HTTP ${response.status} for ${action}.`);
-      console.warn(`The live API returned HTTP ${response.status} for ${action} (attempt ${attempt}/3); retrying.`);
+      if (!retryable || attempt === 3) throw new Error(`The live API returned HTTP ${response.status} for${action}.`);
+      console.warn(`The live API returned HTTP ${response.status} for ${action} (attempt${attempt}/3); retrying.`);
     }
 
     await new Promise(resolve => setTimeout(resolve, attempt * 15000));
   }
-  throw new Error(`The live API request failed for ${action}.`);
-}
-
-function parseJoinInfo(session) {
-  try {
-    const value = JSON.parse(decodeHtml(session.player_join_info || '{}'));
-    if (!value || typeof value !== 'object') return {};
-    return Object.fromEntries(Object.entries(value)
-      .filter(([, info]) => info && typeof info === 'object' && info.starting_score !== undefined)
-      .map(([id, info]) => [String(id), Number(info.starting_score || 0)]));
-  } catch {
-    return {};
-  }
-}
-
-function unique(values) {
-  return [...new Set(values.filter(Boolean))];
-}
-
-function playerName(map, id) {
-  return map[String(id)] || `Player ${id}`;
-}
-
-function summariseSession(item, playerNames, eloRows) {
-  const session = item.session;
-  const rows = Array.isArray(item.hands) ? item.hands : [];
-  const joinInfo = parseJoinInfo(session);
-  const playerIds = unique(rows.map(row => String(row.player_id)));
-  const totals = Object.fromEntries(playerIds.map(id => [id, Number(joinInfo[id] || 0)]));
-  rows.forEach(row => {
-    const id = String(row.player_id);
-    totals[id] = Number(totals[id] || 0) + Number(row.score || 0);
-  });
-  const ranking = playerIds.slice().sort((a, b) => Number(totals[a]) - Number(totals[b]) || playerName(playerNames, a).localeCompare(playerName(playerNames, b)));
-  const winningScore = ranking.length ? totals[ranking[0]] : null;
-  const winners = ranking.filter(id => totals[id] === winningScore).map(id => playerName(playerNames, id));
-  const handNumbers = unique(rows.map(row => Number(row.hand_number))).sort((a, b) => a - b);
-  const handReports = handNumbers.map(number => {
-    const handRows = rows.filter(row => Number(row.hand_number) === number);
-    const declaration = handRows.find(row => String(row.lockout_player_id || '').trim());
-    const comments = unique(handRows.map(row => decodeHtml(row.comment).trim()));
-    return {
-      hand: number,
-      scores: handRows.map(row => ({ player: playerName(playerNames, row.player_id), score: Number(row.score || 0) })),
-      lockout: declaration ? {
-        player: playerName(playerNames, declaration.lockout_player_id),
-        result: truthy(declaration.false_lockout) ? 'false' : 'successful',
-        declared_score: declaration.lockout_score === '' || declaration.lockout_score === null || declaration.lockout_score === undefined
-          ? Number(declaration.score || 0)
-          : Number(declaration.lockout_score)
-      } : null,
-      notes: comments
-    };
-  });
-  const sessionElo = eloRows
-    .filter(row => String(row.session_id) === String(session.session_id))
-    .map(row => ({ player: playerName(playerNames, row.player_id), change: Number(row.change || 0), new_rating: Math.round(Number(row.new_rating || 1000)) }));
-
-  return {
-    session_id: Number(
+  throw new Error(`The live API request failed for
