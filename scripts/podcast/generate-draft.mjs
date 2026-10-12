@@ -13,8 +13,8 @@ const EDITORIAL_NOTE = String(process.env.PODCAST_EDITORIAL_NOTE || '').trim();
 const REPLACE_EXISTING = String(process.env.PODCAST_REPLACE_EXISTING || '').toLowerCase() === 'true';
 const PRESENTER_HANDOVER = String(process.env.PODCAST_PRESENTER_HANDOVER || '').toLowerCase() === 'true';
 const VOICE_STYLE = String(process.env.PODCAST_VOICE_STYLE || '').trim().toLowerCase();
-const TEXT_MODEL = process.env.PODCAST_TEXT_MODEL || 'gemini-2.5-flash';
-const TTS_MODEL = process.env.PODCAST_TTS_MODEL || 'gemini-2.5-flash';
+const TEXT_MODEL = process.env.PODCAST_TEXT_MODEL || 'gemini-3.8-flash';
+const TTS_MODEL = process.env.PODCAST_TTS_MODEL || 'gemini-3.8-flash';
 
 function readApiUrl() {
   const config = fs.readFileSync(path.join(ROOT, 'config.js'), 'utf8');
