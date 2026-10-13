@@ -425,10 +425,13 @@ function speakerAudioProfile(speaker) {
 }
 
 function responseAudio(body) {
-  const part = body.output_audio || body.outputAudio || interactionOutput(body, 'audio')[0];
-  if (!part?.data) throw new Error('Gemini returned no audio data.');
-  const raw = Buffer.from(part.data, 'base64');
-  const mime = String(part.mime_type || part.mimeType || 'audio/L16;rate=24000');
+  const candidate = body?.candidates?.[0];
+  const part = candidate?.content?.parts?.[0] || body.output_audio || body.outputAudio || interactionOutput(body, 'audio')[0];
+  const base64Data = part?.inlineData?.data || part?.data;
+  if (!base64Data) throw new Error('Gemini returned no audio data.');
+  
+  const raw = Buffer.from(base64Data, 'base64');
+  const mime = String(part?.inlineData?.mimeType || part?.mime_type || part?.mimeType || 'audio/L16;rate=24000');
   const rate = Number((mime.match(/rate=(\d+)/i) || [])[1] || 24000);
   return /wav/i.test(mime) ? raw : wavFromPcm(raw, rate);
 }
