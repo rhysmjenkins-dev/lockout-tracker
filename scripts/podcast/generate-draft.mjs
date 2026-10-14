@@ -347,8 +347,10 @@ async function generateDraft(facts) {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     if (attempt > 1) {
-      console.warn(`Retry attempt ${attempt}/${maxAttempts}: Waiting 30 seconds for API limits to clear...`);
-      await new Promise(resolve => setTimeout(resolve, 30000));
+      // Exponential backoff: Attempt 2 waits 2 mins (120s), Attempt 3 waits 5 mins (300s)
+      const delayMs = attempt === 2 ? 120000 : 300000;
+      console.warn(`Retry attempt ${attempt}/${maxAttempts}: Waiting ${delayMs / 1000} seconds for high-demand API traffic to clear...`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
     }
 
     try {
@@ -382,197 +384,16 @@ async function generateDraft(facts) {
 
     } catch (error) {
       console.warn(`Attempt ${attempt} failed with API error: ${error.message}`);
+      
+      // Quota Protection: Abort immediately on capacity/high demand errors to save daily allowance
+      const isHighDemand = /high demand|503|unavailable|RESOURCE_EXHAUSTED/i.test(error.message);
+      if (isHighDemand) {
+        console.error('Server capacity / high demand error detected. Aborting workflow immediately to preserve daily quota.');
+        throw error;
+      }
+
       if (attempt === maxAttempts) throw error;
     }
   }
 
-  throw new Error(`Gemini could not produce a podcast draft that passed the editorial checks after ${maxAttempts} attempts.`);
-}
-
-function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
-  const header = Buffer.alloc(44);
-  const byteRate = sampleRate * channels * bitsPerSample / 8;
-  const blockAlign = channels * bitsPerSample / 8;
-  header.write('RIFF', 0);
-  header.writeUInt32LE(36 + pcm.length, 4);
-  header.write('WAVE', 8);
-  header.write('fmt ', 12);
-  header.writeUInt32LE(16, 16);
-  header.writeUInt16LE(1, 20);
-  header.writeUInt16LE(channels, 22);
-  header.writeUInt32LE(sampleRate, 24);
-  header.writeUInt32LE(byteRate, 28);
-  header.writeUInt16LE(blockAlign, 32);
-  header.writeUInt16LE(bitsPerSample, 34);
-  header.write('data', 36);
-  header.writeUInt32LE(pcm.length, 40);
-  return Buffer.concat([header, pcm]);
-}
-
-function speakerAudioProfile(speaker) {
-  if (speaker === 'Roy') {
-    return {
-      voice: 'Charon',
-      direction: VOICE_STYLE === 'dry-pundit'
-        ? 'Roy is a fictional male football pundit with a distinct natural Cork-influenced Irish cadence. He is grumpy, blunt, terse, sceptical and difficult to impress, using short clipped observations, deadpan disbelief and reluctant praise without becoming hostile. Keep the delivery conversational, understated and dry. Do not imitate any identifiable real person.'
-        : 'Roy is a restrained male Irish sports presenter with a natural conversational delivery.'
-    };
-  }
-  return {
-    voice: 'Kore',
-    direction: 'Sarah is a female British sports presenter with the original warm Kore voice. Her voice must be clearly female, cheerful, relaxed, upbeat and naturally British, with no Irish or American accent. She sounds friendly and amused, never posh, formal or theatrical.'
-  };
-}
-
-function responseAudio(body) {
-  const candidate = body?.candidates?.[0];
-  const part = candidate?.content?.parts?.[0] || body.output_audio || body.outputAudio || interactionOutput(body, 'audio')[0];
-  const base64Data = part?.inlineData?.data || part?.data;
-  if (!base64Data) throw new Error('Gemini returned no audio data.');
-  
-  const raw = Buffer.from(base64Data, 'base64');
-  const mime = String(part?.inlineData?.mimeType || part?.mime_type || part?.mimeType || 'audio/L16;rate=24000');
-  const rate = Number((mime.match(/rate=(\d+)/i) || [])[1] || 24000);
-  return /wav/i.test(mime) ? raw : wavFromPcm(raw, rate);
-}
-
-async function generateTurnAudio(turn, wavPath) {
-  const profile = speakerAudioProfile(turn.speaker);
-  const directorNotes = `${profile.direction}\n\nRead only the following line exactly as written. Do not say the presenter name, add narration or use another voice.\n\n${turn.text}`;
-  const body = await callGeminiInteraction(TTS_MODEL, {
-    input: directorNotes,
-    response_format: { type: 'audio' },
-    generation_config: { speech_config: [{ voice: profile.voice }] }
-  });
-  fs.writeFileSync(wavPath, responseAudio(body));
-}
-
-function convertAudio(wavPaths, listPath, outputPath) {
-  const list = wavPaths.map(wavPath => `file '${path.resolve(wavPath).replace(/'/g, "'\\''")}'`).join('\n');
-  fs.writeFileSync(listPath, `${list}\n`);
-  const result = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c:a', 'aac', '-b:a', '96k', outputPath], { encoding: 'utf8' });
-  if (result.status !== 0) throw new Error(`ffmpeg could not create the M4A file: ${result.stderr || result.stdout}`);
-  if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 1000) throw new Error('The generated audio file is unexpectedly empty.');
-}
-
-async function generateAudio(transcript, tempDir, stem, outputPath) {
-  const turns = dialogueTurns(transcript);
-  const wavPaths = [];
-  for (let index = 0; index < turns.length; index += 1) {
-    const turn = turns[index];
-    const wavPath = path.join(tempDir, `${stem}-turn-${String(index + 1).padStart(2, '0')}.wav`);
-    console.log(`Generating ${turn.speaker} turn ${index + 1} of ${turns.length}.`);
-    await generateTurnAudio(turn, wavPath);
-    wavPaths.push(wavPath);
-    if (index < turns.length - 1) await new Promise(resolve => setTimeout(resolve, 10000));
-  }
-  convertAudio(wavPaths, path.join(tempDir, `${stem}-concat.txt`), outputPath);
-}
-
-function episodeNumber(episodes) {
-  const numbers = episodes.map(item => Number((String(item.title || '').match(/^Episode\s+(\d+)/i) || [])[1] || 0));
-  return Math.max(0, ...numbers) + 1;
-}
-
-function slugPeriod(period) {
-  return `${period.start}-to-${period.end}`;
-}
-
-function writeGitHubOutput(values) {
-  if (!process.env.GITHUB_OUTPUT) return;
-  const lines = Object.entries(values).map(([key, value]) => `${key}=${String(value).replace(/\r?\n/g, ' ')}`);
-  fs.appendFileSync(process.env.GITHUB_OUTPUT, `${lines.join('\n')}\n`);
-}
-
-async function main() {
-  const episodes = JSON.parse(fs.readFileSync(EPISODES_FILE, 'utf8'));
-  const period = resolvePeriod(episodes);
-  const today = ukDate(new Date());
-  if (period.end > today) {
-    if (START_INPUT || END_INPUT) throw new Error(`The period does not finish until ${displayDate(period.end)}.`);
-    console.log(`No podcast is due: the next period does not finish until ${displayDate(period.end)}.`);
-    writeGitHubOutput({ skip: 'true', period: `${period.start} to ${period.end}` });
-    return;
-  }
-  const existingIndex = episodes.findIndex(item => String(item.date) === period.end);
-  if (!PREPARE_ONLY && existingIndex >= 0 && !REPLACE_EXISTING) {
-    throw new Error(`An episode dated ${period.end} already exists.`);
-  }
-  const replacedEpisode = !PREPARE_ONLY && existingIndex >= 0 && REPLACE_EXISTING
-    ? episodes.splice(existingIndex, 1)[0]
-    : null;
-
-  const [previous, players] = await Promise.all([
-    fetchJson('getPreviousSessionsData'),
-    fetchJson('getPlayers')
-  ]);
-  const allSessions = Array.isArray(previous.sessions_with_hands) ? previous.sessions_with_hands : [];
-  const eloRows = Array.isArray(previous.elo_history_all) ? previous.elo_history_all : [];
-  const playerNames = Object.fromEntries(players.map(player => [String(player.player_id), decodeHtml(player.username)]));
-  const included = allSessions.filter(item => {
-    if (!item?.session || !isOfficialCompleted(item.session)) return false;
-    const date = ukDate(item.session.date_ended || item.session.date_started);
-    return date >= period.start && date <= period.end;
-  }).sort((a, b) => new Date(a.session.date_ended || a.session.date_started) - new Date(b.session.date_ended || b.session.date_started));
-  if (!included.length) throw new Error(`No official completed sessions were found from ${period.start} to ${period.end}.`);
-
-  const sessionFacts = included.map(item => summariseSession(item, playerNames, eloRows));
-  const earlierFacts = allSessions.filter(item => {
-    if (!item?.session || !isOfficialCompleted(item.session)) return false;
-    return ukDate(item.session.date_ended || item.session.date_started) < period.start;
-  }).sort((a, b) => new Date(a.session.date_ended || a.session.date_started) - new Date(b.session.date_ended || b.session.date_started))
-    .map(item => summariseSession(item, playerNames, eloRows));
-  const facts = {
-    period,
-    sessions: sessionFacts,
-    relevant_previous_context: historicalContext(sessionFacts, earlierFacts),
-    overall_elo_leaderboard_at_period_start: leaderboardAtEnd(players, allSessions, eloRows, isoDate(addDays(parseIsoDate(period.start, 'Period start'), -1))),
-    overall_elo_leaderboard_at_period_end: leaderboardAtEnd(players, allSessions, eloRows, period.end)
-  };
-
-  if (PREPARE_ONLY) {
-    const output = path.join(process.env.TEMP || '/tmp', `lockout-podcast-facts-${slugPeriod(period)}.json`);
-    fs.writeFileSync(output, `${JSON.stringify(facts, null, 2)}\n`);
-    console.log(JSON.stringify({ period, sessions: sessionFacts.length, notes: countNotes(sessionFacts), facts_file: output }, null, 2));
-    return;
-  }
-  if (!API_KEY) throw new Error('GEMINI_API_KEY is not configured.');
-
-  const draft = await generateDraft(facts);
-  const number = episodeNumber(episodes);
-  const stem = `episode-${String(number).padStart(2, '0')}-${slugPeriod(period)}`;
-  const audioDir = path.join(ROOT, 'podcasts', 'audio');
-  const transcriptDir = path.join(ROOT, 'podcasts', 'transcripts');
-  fs.mkdirSync(audioDir, { recursive: true });
-  fs.mkdirSync(transcriptDir, { recursive: true });
-  const audioRelative = path.posix.join('podcasts', 'audio', `${stem}.m4a`);
-  const transcriptRelative = path.posix.join('podcasts', 'transcripts', `${stem}.txt`);
-  await generateAudio(draft.transcript, process.env.TEMP || '/tmp', stem, path.join(ROOT, audioRelative));
-  fs.writeFileSync(path.join(ROOT, transcriptRelative), `${draft.transcript}\n`);
-
-  if (replacedEpisode?.audio_file && replacedEpisode.audio_file !== audioRelative) {
-    const oldAudio = path.resolve(ROOT, replacedEpisode.audio_file);
-    const audioRoot = `${path.resolve(ROOT, 'podcasts', 'audio')}${path.sep}`;
-    if (oldAudio.startsWith(audioRoot)) fs.rmSync(oldAudio, { force: true });
-  }
-
-  episodes.unshift({
-    title: `Episode ${number}: ${draft.title.replace(/^Episode\s+\d+\s*:\s*/i, '')}`,
-    date: period.end,
-    description: draft.description,
-    audio_file: audioRelative
-  });
-  fs.writeFileSync(EPISODES_FILE, `${JSON.stringify(episodes, null, 2)}\n`);
-
-  writeGitHubOutput({
-    period: `${period.start} to ${period.end}`,
-    audio_file: audioRelative,
-    transcript_file: transcriptRelative
-  });
-  console.log(`Podcast generated for ${period.start} to ${period.end}: ${sessionFacts.length} sessions, ${countNotes(sessionFacts)} notes.`);
-}
-
-main().catch(error => {
-  console.error(`Podcast generation failed: ${error.message}`);
-  process.exitCode = 1;
-});
+  throw new Error(`Gemini could not produce a podcast dr
