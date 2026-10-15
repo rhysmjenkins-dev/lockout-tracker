@@ -14,7 +14,7 @@ const REPLACE_EXISTING = String(process.env.PODCAST_REPLACE_EXISTING || '').toLo
 const PRESENTER_HANDOVER = String(process.env.PODCAST_PRESENTER_HANDOVER || '').toLowerCase() === 'true';
 const VOICE_STYLE = String(process.env.PODCAST_VOICE_STYLE || '').trim().toLowerCase();
 const TEXT_MODEL = process.env.PODCAST_TEXT_MODEL || 'gemini-3.8-flash';
-const TTS_MODEL = process.env.PODCAST_TTS_MODEL || 'gemini-3.8-flash';
+const TTS_MODEL = process.env.PODCAST_TTS_MODEL || 'gemini-3.1-flash-tts-preview';
 
 function readApiUrl() {
   const config = fs.readFileSync(path.join(ROOT, 'config.js'), 'utf8');
@@ -317,7 +317,8 @@ function interactionText(body) {
 }
 
 function dialogueTurns(transcript) {
-  return transcript.split(/\r?\n/).filter(line => line.trim()).map((line, index) => {
+  return transcript.split(/?
+/).filter(line => line.trim()).map((line, index) => {
     const match = line.match(/^(Roy|Sarah):\s+(.+)$/);
     if (!match) throw new Error(`Transcript line ${index + 1} is not a valid Roy/Sarah turn.`);
     return { speaker: match[1], text: match[2].trim() };
@@ -341,9 +342,9 @@ function draftIssues(draft) {
   if (wordCount < 300 || wordCount > 400) issues.push(`transcript is ${wordCount} words; it must be 300 to 400`);
   if (turns.length < 5 || turns.length > 8) issues.push(`transcript has ${turns.length} turns; it must have 5 to 8`);
   if (turns.some((turn, index) => index > 0 && turn.speaker === turns[index - 1].speaker)) issues.push('presenters do not alternate consistently');
-  if (/\b(fortnight|slate)\b/i.test(draft.transcript)) issues.push('transcript uses a forbidden time period or American sports term');
-  if (/\bruns? the table\b/i.test(`${draft.title} ${draft.transcript}`)) issues.push('draft uses the American phrase "runs the table"');
-  if (/the lockout weekly|\b20\d{2}\b|\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(draft.title)) {
+  if (/(fortnight|slate)/i.test(draft.transcript)) issues.push('transcript uses a forbidden time period or American sports term');
+  if (/runs? the table/i.test(`${draft.title} ${draft.transcript}`)) issues.push('draft uses the American phrase "runs the table"');
+  if (/the lockout weekly|20\d{2}|(?:january|february|march|april|may|june|july|august|september|october|november|december)/i.test(draft.title)) {
     issues.push('title is generic or date-led rather than story-led');
   }
   return issues;
@@ -386,8 +387,15 @@ async function generateDraft(facts) {
         return draft;
       }
 
-      console.warn(`Attempt ${attempt} rejected due to issues:\n- ${issues.join('\n- ')}`);
-      retryNote = `\n\nTHE PREVIOUS ATTEMPT WAS REJECTED\nCorrect all of these problems in a completely fresh draft:\n- ${issues.join('\n- ')}`;
+      console.warn(`Attempt ${attempt} rejected due to issues:
+- ${issues.join('
+- ')}`);
+      retryNote = `
+
+THE PREVIOUS ATTEMPT WAS REJECTED
+Correct all of these problems in a completely fresh draft:
+- ${issues.join('
+- ')}`;
 
     } catch (error) {
       console.warn(`Attempt ${attempt} failed with API error: ${error.message}`);
@@ -413,6 +421,7 @@ function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
   header.writeUInt32LE(36 + pcm.length, 4);
   header.write('WAVE', 8);
   header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16);
   header.writeUInt16LE(1, 20);
   header.writeUInt16LE(channels, 22);
   header.writeUInt32LE(sampleRate, 24);
@@ -477,7 +486,11 @@ function responseAudio(body) {
 
 async function generateTurnAudio(turn, wavPath) {
   const profile = speakerAudioProfile(turn.speaker);
-  const directorNotes = `${profile.direction}\n\nRead only the following line exactly as written. Do not say the presenter name, add narration or use another voice.\n\n${turn.text}`;
+  const directorNotes = `${profile.direction}
+
+Read only the following line exactly as written. Do not say the presenter name, add narration or use another voice.
+
+${turn.text}`;
   
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
@@ -497,8 +510,10 @@ async function generateTurnAudio(turn, wavPath) {
 }
 
 function convertAudio(wavPaths, listPath, outputPath) {
-  const list = wavPaths.map(wavPath => `file '${path.resolve(wavPath).replace(/'/g, "'\''")}'`).join('\n');
-  fs.writeFileSync(listPath, `${list}\n`);
+  const list = wavPaths.map(wavPath => `file '${path.resolve(wavPath).replace(/'/g, "'''")}'`).join('
+');
+  fs.writeFileSync(listPath, `${list}
+`);
   const result = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c:a', 'aac', '-b:a', '96k', outputPath], { encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`ffmpeg could not create the M4A file: ${result.stderr || result.stdout}`);
   if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 1000) throw new Error('The generated audio file is unexpectedly empty.');
@@ -529,8 +544,11 @@ function slugPeriod(period) {
 
 function writeGitHubOutput(values) {
   if (!process.env.GITHUB_OUTPUT) return;
-  const lines = Object.entries(values).map(([key, value]) => `${key}=${String(value).replace(/\r?\n/g, ' ')}`);
-  fs.appendFileSync(process.env.GITHUB_OUTPUT, `${lines.join('\n')}\n`);
+  const lines = Object.entries(values).map(([key, value]) => `${key}=${String(value).replace(/?
+/g, ' ')}`);
+  fs.appendFileSync(process.env.GITHUB_OUTPUT, `${lines.join('
+')}
+`);
 }
 
 async function main() {
@@ -581,7 +599,8 @@ async function main() {
 
   if (PREPARE_ONLY) {
     const output = path.join(process.env.TEMP || '/tmp', `lockout-podcast-facts-${slugPeriod(period)}.json`);
-    fs.writeFileSync(output, `${JSON.stringify(facts, null, 2)}\n`);
+    fs.writeFileSync(output, `${JSON.stringify(facts, null, 2)}
+`);
     console.log(JSON.stringify({ period, sessions: sessionFacts.length, notes: countNotes(sessionFacts), facts_file: output }, null, 2));
     return;
   }
@@ -597,7 +616,8 @@ async function main() {
   const audioRelative = path.posix.join('podcasts', 'audio', `${stem}.m4a`);
   const transcriptRelative = path.posix.join('podcasts', 'transcripts', `${stem}.txt`);
   await generateAudio(draft.transcript, process.env.TEMP || '/tmp', stem, path.join(ROOT, audioRelative));
-  fs.writeFileSync(path.join(ROOT, transcriptRelative), `${draft.transcript}\n`);
+  fs.writeFileSync(path.join(ROOT, transcriptRelative), `${draft.transcript}
+`);
 
   if (replacedEpisode?.audio_file && replacedEpisode.audio_file !== audioRelative) {
     const oldAudio = path.resolve(ROOT, replacedEpisode.audio_file);
@@ -611,7 +631,8 @@ async function main() {
     description: draft.description,
     audio_file: audioRelative
   });
-  fs.writeFileSync(EPISODES_FILE, `${JSON.stringify(episodes, null, 2)}\n`);
+  fs.writeFileSync(EPISODES_FILE, `${JSON.stringify(episodes, null, 2)}
+`);
 
   writeGitHubOutput({
     period: `${period.start} to ${period.end}`,
