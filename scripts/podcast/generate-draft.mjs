@@ -400,3 +400,8 @@ async function generateDraft(facts) {
 function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
   const header = Buffer.alloc(44);
   con
+main().catch(error => {
+  console.error(`Podcast generation failed: ${error.message}`);
+  process.exitCode = 1;
+});
+  
