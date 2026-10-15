@@ -486,11 +486,7 @@ function responseAudio(body) {
 
 async function generateTurnAudio(turn, wavPath) {
   const profile = speakerAudioProfile(turn.speaker);
-  const directorNotes = `${profile.direction}
-
-Read only the following line exactly as written. Do not say the presenter name, add narration or use another voice.
-
-${turn.text}`;
+  const directorNotes = `${profile.direction}\n\nRead only the following line exactly as written. Do not say the presenter name, add narration or use another voice.\n\n${turn.text}`;
   
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
@@ -510,10 +506,8 @@ ${turn.text}`;
 }
 
 function convertAudio(wavPaths, listPath, outputPath) {
-  const list = wavPaths.map(wavPath => `file '${path.resolve(wavPath).replace(/'/g, "'''")}'`).join('
-');
-  fs.writeFileSync(listPath, `${list}
-`);
+  const list = wavPaths.map(wavPath => `file '${path.resolve(wavPath).replace(/'/g, "'\''")}'`).join('\n');
+  fs.writeFileSync(listPath, `${list}\n`);
   const result = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c:a', 'aac', '-b:a', '96k', outputPath], { encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`ffmpeg could not create the M4A file: ${result.stderr || result.stdout}`);
   if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 1000) throw new Error('The generated audio file is unexpectedly empty.');
@@ -544,11 +538,8 @@ function slugPeriod(period) {
 
 function writeGitHubOutput(values) {
   if (!process.env.GITHUB_OUTPUT) return;
-  const lines = Object.entries(values).map(([key, value]) => `${key}=${String(value).replace(/?
-/g, ' ')}`);
-  fs.appendFileSync(process.env.GITHUB_OUTPUT, `${lines.join('
-')}
-`);
+  const lines = Object.entries(values).map(([key, value]) => `${key}=${String(value).replace(/\r?\n/g, ' ')}`);
+  fs.appendFileSync(process.env.GITHUB_OUTPUT, `${lines.join('\n')}\n`);
 }
 
 async function main() {
@@ -599,8 +590,7 @@ async function main() {
 
   if (PREPARE_ONLY) {
     const output = path.join(process.env.TEMP || '/tmp', `lockout-podcast-facts-${slugPeriod(period)}.json`);
-    fs.writeFileSync(output, `${JSON.stringify(facts, null, 2)}
-`);
+    fs.writeFileSync(output, `${JSON.stringify(facts, null, 2)}\n`);
     console.log(JSON.stringify({ period, sessions: sessionFacts.length, notes: countNotes(sessionFacts), facts_file: output }, null, 2));
     return;
   }
@@ -616,8 +606,7 @@ async function main() {
   const audioRelative = path.posix.join('podcasts', 'audio', `${stem}.m4a`);
   const transcriptRelative = path.posix.join('podcasts', 'transcripts', `${stem}.txt`);
   await generateAudio(draft.transcript, process.env.TEMP || '/tmp', stem, path.join(ROOT, audioRelative));
-  fs.writeFileSync(path.join(ROOT, transcriptRelative), `${draft.transcript}
-`);
+  fs.writeFileSync(path.join(ROOT, transcriptRelative), `${draft.transcript}\n`);
 
   if (replacedEpisode?.audio_file && replacedEpisode.audio_file !== audioRelative) {
     const oldAudio = path.resolve(ROOT, replacedEpisode.audio_file);
