@@ -334,7 +334,7 @@ function draftIssues(draft) {
   if (turns.length < 5 || turns.length > 8) issues.push(`transcript has ${turns.length} turns; it must have 5 to 8`);
   if (turns.some((turn, index) => index > 0 && turn.speaker === turns[index - 1].speaker)) issues.push('presenters do not alternate consistently');
   if (/\b(fortnight|slate)\b/i.test(draft.transcript)) issues.push('transcript uses a forbidden time period or American sports term');
-  if (/\bruns? the table\b/i.test(`${draft.title} ${draft.transcript}`)) issues.push('draft uses the American phrase "runs the table"');
+  if (/\bruns? the table\b/i.test(`${draft.title}${draft.transcript}`)) issues.push('draft uses the American phrase "runs the table"');
   if (/the lockout weekly|\b20\d{2}\b|\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(draft.title)) {
     issues.push('title is generic or date-led rather than story-led');
   }
@@ -347,9 +347,8 @@ async function generateDraft(facts) {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     if (attempt > 1) {
-      // Exponential backoff: Attempt 2 waits 2 mins (120s), Attempt 3 waits 5 mins (300s)
       const delayMs = attempt === 2 ? 120000 : 300000;
-      console.warn(`Retry attempt ${attempt}/${maxAttempts}: Waiting ${delayMs / 1000} seconds for high-demand API traffic to clear...`);
+      console.warn(`Retry attempt ${attempt}/${maxAttempts}: Waiting${delayMs / 1000} seconds for high-demand API traffic to clear...`);
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }
 
@@ -379,13 +378,12 @@ async function generateDraft(facts) {
         return draft;
       }
 
-      console.warn(`Attempt ${attempt} rejected due to issues:\n- ${issues.join('\n- ')}`);
+      console.warn(`Attempt ${attempt} rejected due to issues:\n-${issues.join('\n- ')}`);
       retryNote = `\n\nTHE PREVIOUS ATTEMPT WAS REJECTED\nCorrect all of these problems in a completely fresh draft:\n- ${issues.join('\n- ')}`;
 
     } catch (error) {
-      console.warn(`Attempt ${attempt} failed with API error: ${error.message}`);
+      console.warn(`Attempt ${attempt} failed with API error:${error.message}`);
       
-      // Quota Protection: Abort immediately on capacity/high demand errors to save daily allowance
       const isHighDemand = /high demand|503|unavailable|RESOURCE_EXHAUSTED/i.test(error.message);
       if (isHighDemand) {
         console.error('Server capacity / high demand error detected. Aborting workflow immediately to preserve daily quota.');
@@ -396,4 +394,9 @@ async function generateDraft(facts) {
     }
   }
 
-  throw new Error(`Gemini could not produce a podcast dr
+  throw new Error(`Gemini could not produce a podcast draft that passed the editorial checks after ${maxAttempts} attempts.`);
+}
+
+function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
+  const header = Buffer.alloc(44);
+  con
