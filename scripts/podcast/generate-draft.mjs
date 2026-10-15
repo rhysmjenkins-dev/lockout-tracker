@@ -413,7 +413,6 @@ function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
   header.writeUInt32LE(36 + pcm.length, 4);
   header.write('WAVE', 8);
   header.write('fmt ', 12);
-  header.writeUInt32LE(16, 16);
   header.writeUInt16LE(1, 20);
   header.writeUInt16LE(channels, 22);
   header.writeUInt32LE(sampleRate, 24);
@@ -440,14 +439,38 @@ function speakerAudioProfile(speaker) {
   };
 }
 
+function extractAudioBase64(body) {
+  // Check candidate parts
+  const candidates = body?.candidates || [];
+  for (const cand of candidates) {
+    const parts = cand?.content?.parts || [];
+    for (const p of parts) {
+      if (p?.inlineData?.data) return { data: p.inlineData.data, mime: p.inlineData.mimeType };
+      if (p?.inline_data?.data) return { data: p.inline_data.data, mime: p.inline_data.mimeType };
+      if (p?.data) return { data: p.data, mime: p.mimeType || p.mime_type };
+    }
+  }
+
+  // Check interactionOutput steps
+  const audioItems = interactionOutput(body, 'audio');
+  for (const item of audioItems) {
+    if (item?.data) return { data: item.data, mime: item.mimeType || item.mime_type };
+    if (item?.inlineData?.data) return { data: item.inlineData.data, mime: item.inlineData.mimeType };
+  }
+
+  // Check top level properties
+  if (body?.output_audio?.data) return { data: body.output_audio.data, mime: body.output_audio.mimeType };
+  if (body?.outputAudio?.data) return { data: body.outputAudio.data, mime: body.outputAudio.mimeType };
+
+  return null;
+}
+
 function responseAudio(body) {
-  const candidate = body?.candidates?.[0];
-  const part = candidate?.content?.parts?.[0] || body.output_audio || body.outputAudio || interactionOutput(body, 'audio')[0];
-  const base64Data = part?.inlineData?.data || part?.data;
-  if (!base64Data) throw new Error('Gemini returned no audio data.');
-  
-  const raw = Buffer.from(base64Data, 'base64');
-  const mime = String(part?.inlineData?.mimeType || part?.mime_type || part?.mimeType || 'audio/L16;rate=24000');
+  const extracted = extractAudioBase64(body);
+  if (!extracted || !extracted.data) throw new Error('Gemini returned no audio data.');
+
+  const raw = Buffer.from(extracted.data, 'base64');
+  const mime = String(extracted.mime || 'audio/L16;rate=24000');
   const rate = Number((mime.match(/rate=(\d+)/i) || [])[1] || 24000);
   return /wav/i.test(mime) ? raw : wavFromPcm(raw, rate);
 }
@@ -455,12 +478,22 @@ function responseAudio(body) {
 async function generateTurnAudio(turn, wavPath) {
   const profile = speakerAudioProfile(turn.speaker);
   const directorNotes = `${profile.direction}\n\nRead only the following line exactly as written. Do not say the presenter name, add narration or use another voice.\n\n${turn.text}`;
-  const body = await callGeminiInteraction(TTS_MODEL, {
-    input: directorNotes,
-    response_format: { type: 'audio' },
-    generation_config: { speech_config: [{ voice: profile.voice }] }
-  });
-  fs.writeFileSync(wavPath, responseAudio(body));
+  
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const body = await callGeminiInteraction(TTS_MODEL, {
+        input: directorNotes,
+        response_format: [{ type: 'audio', mime_type: 'audio/pcm' }],
+        generation_config: { speech_config: [{ voice: profile.voice }] }
+      });
+      fs.writeFileSync(wavPath, responseAudio(body));
+      return;
+    } catch (err) {
+      console.warn(`TTS attempt ${attempt}/3 for ${turn.speaker} failed: ${err.message}`);
+      if (attempt === 3) throw err;
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+  }
 }
 
 function convertAudio(wavPaths, listPath, outputPath) {
@@ -585,7 +618,7 @@ async function main() {
     audio_file: audioRelative,
     transcript_file: transcriptRelative
   });
-  console.log(`Podcast generated for ${period.start} to ${period.end}: ${sessionFacts.name ? sessionFacts.length : sessionFacts.length} sessions, ${countNotes(sessionFacts)} notes.`);
+  console.log(`Podcast generated for ${period.start} to ${period.end}: ${sessionFacts.length} sessions, ${countNotes(sessionFacts)} notes.`);
 }
 
 main().catch(error => {
