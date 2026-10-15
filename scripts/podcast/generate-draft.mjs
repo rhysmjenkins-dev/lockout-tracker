@@ -405,3 +405,23 @@ main().catch(error => {
   process.exitCode = 1;
 });
   
+  episodes.unshift({
+    title: `Episode ${number}: ${draft.title.replace(/^Episode\s+\d+\s*:\s*/i, '')}`,
+    date: period.end,
+    description: draft.description,
+    audio_file: audioRelative
+  });
+  fs.writeFileSync(EPISODES_FILE, `${JSON.stringify(episodes, null, 2)}\n`);
+
+  writeGitHubOutput({
+    period: `${period.start} to ${period.end}`,
+    audio_file: audioRelative,
+    transcript_file: transcriptRelative
+  });
+  console.log(`Podcast generated for ${period.start} to ${period.end}: ${sessionFacts.length} sessions, ${countNotes(sessionFacts)} notes.`);
+}
+
+main().catch(error => {
+  console.error(`Podcast generation failed: ${error.message}`);
+  process.exitCode = 1;
+});
