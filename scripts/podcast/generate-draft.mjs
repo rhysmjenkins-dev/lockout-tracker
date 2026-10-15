@@ -425,3 +425,95 @@ main().catch(error => {
   console.error(`Podcast generation failed: ${error.message}`);
   process.exitCode = 1;
 });
+async function main() {
+  const episodes = JSON.parse(fs.readFileSync(EPISODES_FILE, 'utf8'));
+  const period = resolvePeriod(episodes);
+  const today = ukDate(new Date());
+  if (period.end > today) {
+    if (START_INPUT || END_INPUT) throw new Error(`The period does not finish until ${displayDate(period.end)}.`);
+    console.log(`No podcast is due: the next period does not finish until ${displayDate(period.end)}.`);
+    writeGitHubOutput({ skip: 'true', period: `${period.start} to ${period.end}` });
+    return;
+  }
+  const existingIndex = episodes.findIndex(item => String(item.date) === period.end);
+  if (!PREPARE_ONLY && existingIndex >= 0 && !REPLACE_EXISTING) {
+    throw new Error(`An episode dated ${period.end} already exists.`);
+  }
+  const replacedEpisode = !PREPARE_ONLY && existingIndex >= 0 && REPLACE_EXISTING
+    ? episodes.splice(existingIndex, 1)[0]
+    : null;
+
+  const [previous, players] = await Promise.all([
+    fetchJson('getPreviousSessionsData'),
+    fetchJson('getPlayers')
+  ]);
+  const allSessions = Array.isArray(previous.sessions_with_hands) ? previous.sessions_with_hands : [];
+  const eloRows = Array.isArray(previous.elo_history_all) ? previous.elo_history_all : [];
+  const playerNames = Object.fromEntries(players.map(player => [String(player.player_id), decodeHtml(player.username)]));
+  const included = allSessions.filter(item => {
+    if (!item?.session || !isOfficialCompleted(item.session)) return false;
+    const date = ukDate(item.session.date_ended || item.session.date_started);
+    return date >= period.start && date <= period.end;
+  }).sort((a, b) => new Date(a.session.date_ended || a.session.date_started) - new Date(b.session.date_ended || b.session.date_started));
+  if (!included.length) throw new Error(`No official completed sessions were found from ${period.start} to ${period.end}.`);
+
+  const sessionFacts = included.map(item => summariseSession(item, playerNames, eloRows));
+  const earlierFacts = allSessions.filter(item => {
+    if (!item?.session || !isOfficialCompleted(item.session)) return false;
+    return ukDate(item.session.date_ended || item.session.date_started) < period.start;
+  }).sort((a, b) => new Date(a.session.date_ended || a.session.date_started) - new Date(b.session.date_ended || b.session.date_started))
+    .map(item => summariseSession(item, playerNames, eloRows));
+  const facts = {
+    period,
+    sessions: sessionFacts,
+    relevant_previous_context: historicalContext(sessionFacts, earlierFacts),
+    overall_elo_leaderboard_at_period_start: leaderboardAtEnd(players, allSessions, eloRows, isoDate(addDays(parseIsoDate(period.start, 'Period start'), -1))),
+    overall_elo_leaderboard_at_period_end: leaderboardAtEnd(players, allSessions, eloRows, period.end)
+  };
+
+  if (PREPARE_ONLY) {
+    const output = path.join(process.env.TEMP || '/tmp', `lockout-podcast-facts-${slugPeriod(period)}.json`);
+    fs.writeFileSync(output, `${JSON.stringify(facts, null, 2)}\n`);
+    console.log(JSON.stringify({ period, sessions: sessionFacts.length, notes: countNotes(sessionFacts), facts_file: output }, null, 2));
+    return;
+  }
+  if (!API_KEY) throw new Error('GEMINI_API_KEY is not configured.');
+
+  const draft = await generateDraft(facts);
+  const number = episodeNumber(episodes);
+  const stem = `episode-${String(number).padStart(2, '0')}-${slugPeriod(period)}`;
+  const audioDir = path.join(ROOT, 'podcasts', 'audio');
+  const transcriptDir = path.join(ROOT, 'podcasts', 'transcripts');
+  fs.mkdirSync(audioDir, { recursive: true });
+  fs.mkdirSync(transcriptDir, { recursive: true });
+  const audioRelative = path.posix.join('podcasts', 'audio', `${stem}.m4a`);
+  const transcriptRelative = path.posix.join('podcasts', 'transcripts', `${stem}.txt`);
+  await generateAudio(draft.transcript, process.env.TEMP || '/tmp', stem, path.join(ROOT, audioRelative));
+  fs.writeFileSync(path.join(ROOT, transcriptRelative), `${draft.transcript}\n`);
+
+  if (replacedEpisode?.audio_file && replacedEpisode.audio_file !== audioRelative) {
+    const oldAudio = path.resolve(ROOT, replacedEpisode.audio_file);
+    const audioRoot = `${path.resolve(ROOT, 'podcasts', 'audio')}${path.sep}`;
+    if (oldAudio.startsWith(audioRoot)) fs.rmSync(oldAudio, { force: true });
+  }
+
+  episodes.unshift({
+    title: `Episode ${number}: ${draft.title.replace(/^Episode\s+\d+\s*:\s*/i, '')}`,
+    date: period.end,
+    description: draft.description,
+    audio_file: audioRelative
+  });
+  fs.writeFileSync(EPISODES_FILE, `${JSON.stringify(episodes, null, 2)}\n`);
+
+  writeGitHubOutput({
+    period: `${period.start} to ${period.end}`,
+    audio_file: audioRelative,
+    transcript_file: transcriptRelative
+  });
+  console.log(`Podcast generated for ${period.start} to ${period.end}: ${sessionFacts.length} sessions, ${countNotes(sessionFacts)} notes.`);
+}
+
+main().catch(error => {
+  console.error(`Podcast generation failed: ${error.message}`);
+  process.exitCode = 1;
+});
