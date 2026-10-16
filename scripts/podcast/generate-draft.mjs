@@ -317,8 +317,7 @@ function interactionText(body) {
 }
 
 function dialogueTurns(transcript) {
-  return transcript.split(/?
-/).filter(line => line.trim()).map((line, index) => {
+  return transcript.split(/\r?\n/).filter(line => line.trim()).map((line, index) => {
     const match = line.match(/^(Roy|Sarah):\s+(.+)$/);
     if (!match) throw new Error(`Transcript line ${index + 1} is not a valid Roy/Sarah turn.`);
     return { speaker: match[1], text: match[2].trim() };
@@ -342,9 +341,9 @@ function draftIssues(draft) {
   if (wordCount < 300 || wordCount > 400) issues.push(`transcript is ${wordCount} words; it must be 300 to 400`);
   if (turns.length < 5 || turns.length > 8) issues.push(`transcript has ${turns.length} turns; it must have 5 to 8`);
   if (turns.some((turn, index) => index > 0 && turn.speaker === turns[index - 1].speaker)) issues.push('presenters do not alternate consistently');
-  if (/(fortnight|slate)/i.test(draft.transcript)) issues.push('transcript uses a forbidden time period or American sports term');
-  if (/runs? the table/i.test(`${draft.title} ${draft.transcript}`)) issues.push('draft uses the American phrase "runs the table"');
-  if (/the lockout weekly|20\d{2}|(?:january|february|march|april|may|june|july|august|september|october|november|december)/i.test(draft.title)) {
+  if (/\b(fortnight|slate)\b/i.test(draft.transcript)) issues.push('transcript uses a forbidden time period or American sports term');
+  if (/\bruns? the table\b/i.test(`${draft.title} ${draft.transcript}`)) issues.push('draft uses the American phrase "runs the table"');
+  if (/the lockout weekly|\b20\d{2}\b|\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(draft.title)) {
     issues.push('title is generic or date-led rather than story-led');
   }
   return issues;
@@ -387,15 +386,12 @@ async function generateDraft(facts) {
         return draft;
       }
 
-      console.warn(`Attempt ${attempt} rejected due to issues:
-- ${issues.join('
-- ')}`);
+      console.warn(`Attempt ${attempt} rejected due to issues:\n- ${issues.join('\n- ')}`);
       retryNote = `
 
 THE PREVIOUS ATTEMPT WAS REJECTED
 Correct all of these problems in a completely fresh draft:
-- ${issues.join('
-- ')}`;
+- ${issues.join('\n- ')}`;
 
     } catch (error) {
       console.warn(`Attempt ${attempt} failed with API error: ${error.message}`);
