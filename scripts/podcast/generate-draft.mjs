@@ -14,7 +14,7 @@ const REPLACE_EXISTING = String(process.env.PODCAST_REPLACE_EXISTING || '').toLo
 const PRESENTER_HANDOVER = String(process.env.PODCAST_PRESENTER_HANDOVER || '').toLowerCase() === 'true';
 const VOICE_STYLE = String(process.env.PODCAST_VOICE_STYLE || '').trim().toLowerCase();
 const TEXT_MODEL = process.env.PODCAST_TEXT_MODEL || 'gemini-3.8-flash';
-const TTS_MODEL = process.env.PODCAST_TTS_MODEL || 'gemini-3.1-flash-tts-preview';
+const TTS_MODEL = process.env.PODCAST_TTS_MODEL || 'gemini-3.8-flash-tts';
 
 function readApiUrl() {
   const config = fs.readFileSync(path.join(ROOT, 'config.js'), 'utf8');
@@ -488,7 +488,7 @@ async function generateTurnAudio(turn, wavPath) {
     try {
       const body = await callGeminiInteraction(TTS_MODEL, {
         input: directorNotes,
-        response_format: [{ type: 'audio', mime_type: 'audio/l16' }],
+        response_format: [{ type: 'audio', mime_type: 'audio/wav' }],
         generation_config: { speech_config: [{ voice: profile.voice }] }
       });
       fs.writeFileSync(wavPath, responseAudio(body));
