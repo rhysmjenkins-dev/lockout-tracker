@@ -488,7 +488,7 @@ async function generateTurnAudio(turn, wavPath) {
     try {
       const body = await callGeminiInteraction(TTS_MODEL, {
         input: directorNotes,
-        response_format: [{ type: 'audio', mime_type: 'audio/pcm' }],
+        response_format: [{ type: 'audio', mime_type: 'audio/l16' }],
         generation_config: { speech_config: [{ voice: profile.voice }] }
       });
       fs.writeFileSync(wavPath, responseAudio(body));
