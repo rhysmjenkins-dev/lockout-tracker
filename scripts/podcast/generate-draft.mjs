@@ -14,7 +14,7 @@ const REPLACE_EXISTING = String(process.env.PODCAST_REPLACE_EXISTING || '').toLo
 const PRESENTER_HANDOVER = String(process.env.PODCAST_PRESENTER_HANDOVER || '').toLowerCase() === 'true';
 const VOICE_STYLE = String(process.env.PODCAST_VOICE_STYLE || '').trim().toLowerCase();
 const TEXT_MODEL = process.env.PODCAST_TEXT_MODEL || 'gemini-3.8-flash';
-const TTS_MODEL = process.env.PODCAST_TTS_MODEL || 'gemini-3.8-flash-tts';
+const TTS_MODEL = process.env.PODCAST_TTS_MODEL || 'gemini-3.1-flash-tts-preview';
 
 function readApiUrl() {
   const config = fs.readFileSync(path.join(ROOT, 'config.js'), 'utf8');
@@ -225,7 +225,7 @@ function historicalContext(currentSessions, earlierSessions) {
       winningStreak += 1;
     }
     const previous = appearances.at(-1);
-    const score = previous.final_scores.find(row => row.player === player)?.score ?? 'an unknown score';
+    const score = previous.final_scores.find(row => row.player === player)?.score;
     const pieces = [`${player}'s previous appearance was ${previous.title} on ${previous.date}, finishing on ${score}.`];
     if (winningStreak >= 2) pieces.push(`${player} entered this period having won ${winningStreak} consecutive appearances.`);
     return pieces.join(' ');
@@ -238,20 +238,12 @@ function countNotes(sessionFacts) {
 }
 
 function buildEditorialPrompt(facts) {
-  const handoverText = PRESENTER_HANDOVER 
-    ? 'ONE-OFF PRESENTER HANDOVER\nOpen by making two points clear and concise: Roy and Sarah are taking over as the regular presenters of the weekly Lockout update podcast from this episode onwards, while this particular Friday-to-Sunday edition is a one-off Weekend Special. Use this introduction once only, then move straight into the strongest story. Do not imply that the game, app or podcast itself is restarting, and do not suggest that Roy and Sarah are only temporary presenters.\n\n' 
-    : '';
-  
-  const noteText = EDITORIAL_NOTE 
-    ? `EXTRA EDITORIAL NOTE FROM RHYS\n${EDITORIAL_NOTE}\n\n` 
-    : '';
-
   return `You are writing a short episode of The Lockout Weekly, a homemade sports-style recap of card games between friends.
 
 Return strict JSON with exactly these string fields: "title", "description", and "transcript".
 
 TRANSCRIPT FORMAT
-- Target 330 to 360 words total. The transcript MUST be between 300 and 400 words.
+- 310 to 380 words, targeting about two minutes at a slightly brisk but unhurried conversational pace.
 - A two-presenter conversation. Every spoken paragraph must begin with either "Roy:" or "Sarah:".
 - Roy and Sarah are presenters, never players.
 - Use 5 to 8 alternating spoken paragraphs so the exchange remains natural without creating excessive audio fragments.
@@ -283,7 +275,7 @@ EDITORIAL RULES
 - Give the episode a concise, story-led title in the style of the existing episodes. Do not use the programme name, a date or a generic weekly-recap title.
 - Keep the description to one lively, specific sentence. Avoid generic phrases such as "comprehensive review", "busy week" or "across the calendar".
 
-${handoverText}${noteText}VERIFIED SOURCE DATA
+${PRESENTER_HANDOVER ? 'ONE-OFF PRESENTER HANDOVER\nOpen by making two points clear and concise: Roy and Sarah are taking over as the regular presenters of the weekly Lockout update podcast from this episode onwards, while this particular Friday-to-Sunday edition is a one-off Weekend Special. Use this introduction once only, then move straight into the strongest story. Do not imply that the game, app or podcast itself is restarting, and do not suggest that Roy and Sarah are only temporary presenters.\n\n' : ''}${EDITORIAL_NOTE ? `EXTRA EDITORIAL NOTE FROM RHYS\n${EDITORIAL_NOTE}\n\n` : ''}VERIFIED SOURCE DATA
 ${JSON.stringify(facts, null, 2)}`;
 }
 
@@ -338,7 +330,7 @@ function draftIssues(draft) {
   const issues = [];
   const wordCount = draft.transcript.split(/\s+/).filter(Boolean).length;
   const turns = dialogueTurns(draft.transcript);
-  if (wordCount < 300 || wordCount > 400) issues.push(`transcript is ${wordCount} words; it must be 300 to 400`);
+  if (wordCount < 280 || wordCount > 400) issues.push(`transcript is ${wordCount} words; it must be 280 to 400`);
   if (turns.length < 5 || turns.length > 8) issues.push(`transcript has ${turns.length} turns; it must have 5 to 8`);
   if (turns.some((turn, index) => index > 0 && turn.speaker === turns[index - 1].speaker)) issues.push('presenters do not alternate consistently');
   if (/\b(fortnight|slate)\b/i.test(draft.transcript)) issues.push('transcript uses a forbidden time period or American sports term');
@@ -351,62 +343,29 @@ function draftIssues(draft) {
 
 async function generateDraft(facts) {
   let retryNote = '';
-  const maxAttempts = 3;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    if (attempt > 1) {
-      const delayMs = attempt === 2 ? 120000 : 300000;
-      console.warn(`Retry attempt ${attempt}/${maxAttempts}: Waiting ${delayMs / 1000} seconds for high-demand API traffic to clear...`);
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-    }
-
-    try {
-      const body = await callGeminiInteraction(TEXT_MODEL, {
-        input: `${buildEditorialPrompt(facts)}${retryNote}`,
-        response_format: [{
-          type: 'text',
-          mime_type: 'application/json',
-          schema: {
-            type: 'object',
-            properties: {
-              title: { type: 'string' },
-              description: { type: 'string' },
-              transcript: { type: 'string' }
-            },
-            required: ['title', 'description', 'transcript']
-          }
-        }]
-      });
-
-      const draft = parseDraft(interactionText(body));
-      const issues = draftIssues(draft);
-
-      if (!issues.length) {
-        console.log(`Draft passed all editorial checks on attempt ${attempt}.`);
-        return draft;
-      }
-
-      console.warn(`Attempt ${attempt} rejected due to issues:\n- ${issues.join('\n- ')}`);
-      retryNote = `
-
-THE PREVIOUS ATTEMPT WAS REJECTED
-Correct all of these problems in a completely fresh draft:
-- ${issues.join('\n- ')}`;
-
-    } catch (error) {
-      console.warn(`Attempt ${attempt} failed with API error: ${error.message}`);
-      
-      const isHighDemand = /high demand|503|unavailable|RESOURCE_EXHAUSTED/i.test(error.message);
-      if (isHighDemand) {
-        console.error('Server capacity / high demand error detected. Aborting workflow immediately to preserve daily quota.');
-        throw error;
-      }
-
-      if (attempt === maxAttempts) throw error;
-    }
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    const body = await callGeminiInteraction(TEXT_MODEL, {
+      input: `${buildEditorialPrompt(facts)}${retryNote}`,
+      response_format: [{
+        type: 'text',
+        mime_type: 'application/json',
+        schema: {
+          type: 'object',
+          properties: {
+            title: { type: 'string' },
+            description: { type: 'string' },
+            transcript: { type: 'string' }
+          },
+          required: ['title', 'description', 'transcript']
+        }
+      }]
+    });
+    const draft = parseDraft(interactionText(body));
+    const issues = draftIssues(draft);
+    if (!issues.length) return draft;
+    retryNote = `\n\nTHE PREVIOUS ATTEMPT WAS REJECTED\nCorrect all of these problems in a completely fresh draft:\n- ${issues.join('\n- ')}`;
   }
-
-  throw new Error(`Gemini could not produce a podcast draft that passed the editorial checks after ${maxAttempts} attempts.`);
+  throw new Error('Gemini could not produce a podcast draft that passed the editorial checks after five attempts.');
 }
 
 function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
@@ -444,64 +403,28 @@ function speakerAudioProfile(speaker) {
   };
 }
 
-function extractAudioBase64(body) {
-  // Check candidate parts
-  const candidates = body?.candidates || [];
-  for (const cand of candidates) {
-    const parts = cand?.content?.parts || [];
-    for (const p of parts) {
-      if (p?.inlineData?.data) return { data: p.inlineData.data, mime: p.inlineData.mimeType };
-      if (p?.inline_data?.data) return { data: p.inline_data.data, mime: p.inline_data.mimeType };
-      if (p?.data) return { data: p.data, mime: p.mimeType || p.mime_type };
-    }
-  }
-
-  // Check interactionOutput steps
-  const audioItems = interactionOutput(body, 'audio');
-  for (const item of audioItems) {
-    if (item?.data) return { data: item.data, mime: item.mimeType || item.mime_type };
-    if (item?.inlineData?.data) return { data: item.inlineData.data, mime: item.inlineData.mimeType };
-  }
-
-  // Check top level properties
-  if (body?.output_audio?.data) return { data: body.output_audio.data, mime: body.output_audio.mimeType };
-  if (body?.outputAudio?.data) return { data: body.outputAudio.data, mime: body.outputAudio.mimeType };
-
-  return null;
-}
-
 function responseAudio(body) {
-  const extracted = extractAudioBase64(body);
-  if (!extracted || !extracted.data) throw new Error('Gemini returned no audio data.');
-
-  const raw = Buffer.from(extracted.data, 'base64');
-  const mime = String(extracted.mime || 'audio/L16;rate=24000');
+  const part = body.output_audio || body.outputAudio || interactionOutput(body, 'audio')[0];
+  if (!part?.data) throw new Error('Gemini returned no audio data.');
+  const raw = Buffer.from(part.data, 'base64');
+  const mime = String(part.mime_type || part.mimeType || 'audio/L16;rate=24000');
   const rate = Number((mime.match(/rate=(\d+)/i) || [])[1] || 24000);
   return /wav/i.test(mime) ? raw : wavFromPcm(raw, rate);
 }
 
 async function generateTurnAudio(turn, wavPath) {
   const profile = speakerAudioProfile(turn.speaker);
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    try {
-      const body = await callGeminiInteraction(TTS_MODEL, {
-        // Send only the dialogue line: putting voice directions in `input` makes TTS read them aloud.
-        input: turn.text,
-        response_format: [{ type: 'audio', mime_type: 'audio/wav' }],
-        generation_config: { speech_config: [{ voice: profile.voice }] }
-      });
-      fs.writeFileSync(wavPath, responseAudio(body));
-      return;
-    } catch (err) {
-      console.warn(`TTS attempt ${attempt}/3 for ${turn.speaker} failed: ${err.message}`);
-      if (attempt === 3) throw err;
-      await new Promise(resolve => setTimeout(resolve, 5000));
-    }
-  }
+  const body = await callGeminiInteraction(TTS_MODEL, {
+    // Send only dialogue so TTS cannot read the voice directions aloud.
+    input: turn.text,
+    response_format: { type: 'audio' },
+    generation_config: { speech_config: [{ voice: profile.voice }] }
+  });
+  fs.writeFileSync(wavPath, responseAudio(body));
 }
 
 function convertAudio(wavPaths, listPath, outputPath) {
-  const list = wavPaths.map(wavPath => `file '${path.resolve(wavPath).replace(/'/g, "'\''")}'`).join('\n');
+  const list = wavPaths.map(wavPath => `file '${path.resolve(wavPath).replace(/'/g, "'\\''")}'`).join('\n');
   fs.writeFileSync(listPath, `${list}\n`);
   const result = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c:a', 'aac', '-b:a', '96k', outputPath], { encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`ffmpeg could not create the M4A file: ${result.stderr || result.stdout}`);
@@ -615,8 +538,7 @@ async function main() {
     description: draft.description,
     audio_file: audioRelative
   });
-  fs.writeFileSync(EPISODES_FILE, `${JSON.stringify(episodes, null, 2)}
-`);
+  fs.writeFileSync(EPISODES_FILE, `${JSON.stringify(episodes, null, 2)}\n`);
 
   writeGitHubOutput({
     period: `${period.start} to ${period.end}`,
